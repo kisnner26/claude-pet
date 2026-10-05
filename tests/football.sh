@@ -43,7 +43,7 @@ t_normal() {
   start_app; codex_idle
   echo " 0 s   Codex aparece: mini en la esquina de la mascota y saludo con el brazo izquierdo"
   sleep 6
-  echo " ~3 s  empieza el partido: el avatar de Codex (cuerpo crema) ENTRA CAMINANDO por la izquierda y aparece la pelota"
+  echo " ~3 s  empieza el partido: el avatar de Codex (robot-nube azul con visor) ENTRA CAMINANDO por la izquierda y aparece la pelota"
   echo " ~4.6 s Codex levanta la pierna, sale polvo y la pelota vuela en arco grande con estela y sombra hasta la cabeza de Claude"
   echo " ~6 s  destello naranja al tocar la cabeza, Claude cabecea (salta) y la devuelve; Codex salta al recibirla"
   echo " ~10 s segunda vuelta igual"

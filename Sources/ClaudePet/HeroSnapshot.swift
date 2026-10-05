@@ -59,7 +59,7 @@ enum HeroSnapshot {
     }
 
     static var football: some View {
-        let frames: [Double] = [1.0, 2.5, 3.3, 5.0, 7.3, 10.8]
+        let frames: [Double] = [1.0, 1.55, 2.6, 3.3, 5.0, 10.8]
         func cell(_ t: Double) -> some View {
             Canvas { gc, _ in
                 let g = FootballChoreography.frame(elapsed: t, reduceMotion: false)

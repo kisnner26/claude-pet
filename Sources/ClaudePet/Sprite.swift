@@ -38,9 +38,11 @@ enum Sprite {
     static func peerOverlay(_ cue: PeerCue?, tick t: Int) -> [Px] {
         guard let c = cue, c.game == nil else { return [] }   // durante el partido el avatar de Codex esta en el escenario
         var o: [Px] = []
-        let m = Pal.cream.opacity(0.85)
-        for x in 0...3 { o.append(Px(x: x, y: 1, c: m)); o.append(Px(x: x, y: 2, c: m)) }
-        o.append(Px(x: 0, y: 3, c: m)); o.append(Px(x: 3, y: 3, c: m))
+        // mini de Codex: nube azul con visor oscuro y un destello cian
+        let blue = Color(hex: 0x5270E8), shade = Color(hex: 0x3E5ACE), screen = Color(hex: 0x161B40), cyan = Color(hex: 0x96EBFF)
+        for x in 1...3 { o.append(Px(x: x, y: 1, c: blue)) }
+        for (x, col) in [(0, blue), (1, screen), (2, cyan), (3, screen), (4, blue)] { o.append(Px(x: x, y: 2, c: col)) }
+        for x in 1...3 { o.append(Px(x: x, y: 3, c: shade)) }
         switch c.state {
         case .thinking, .starting: o.append(Px(x: (t / 3) % 4, y: 0, c: Pal.cream))
         case .tool: o.append(Px(x: t % 2 == 0 ? 0 : 3, y: 0, c: Pal.cream))

@@ -10,7 +10,8 @@ enum StageMetrics {
     static let petX = 216.0, petY = 32.0   // origen del lienzo de Claude dentro del escenario
     static let cell = 7.0
     static let ground = 144.0              // linea de los pies
-    static let avatarX = 60.0
+    static let avatarX = 24.0
+    static let avatarCell = 5.0            // px por celda del avatar de Codex
     static let ballSize = 24.0
     static let ballStart = CGPoint(x: 124, y: 120)     // junto a los pies de Codex
     static let ballEnd = CGPoint(x: 274, y: 36)        // sobre la cabeza de Claude
@@ -33,7 +34,7 @@ struct StageView: View {
 }
 
 enum StageRenderer {
-    private static let cream = Color(hex: 0xD9D0C6), light = Color(hex: 0xEDE3DA), shade = Color(hex: 0xA89F96)
+    private static let light = Color(hex: 0xEDE3DA)
     private static let ballW = Color(hex: 0xF2EBE3), ballS = Color(hex: 0x6E665F)
 
     private static func rect(_ g: inout GraphicsContext, _ x: Double, _ y: Double, _ w: Double, _ h: Double, _ c: Color) {
@@ -47,7 +48,6 @@ enum StageRenderer {
             g.scaleBy(x: -1, y: 1)
         }
         let M = StageMetrics.self
-        let u = M.cell
 
         // posicion de la pelota
         func ballPoint(_ bt: Double, _ arc: Double) -> CGPoint {
@@ -63,32 +63,18 @@ enum StageRenderer {
         g.fill(Path(ellipseIn: CGRect(x: bp.x + (M.ballSize - sw) / 2, y: M.ground + 1, width: sw, height: 5)),
                with: .color(Color.black.opacity(0.28 * f.ballOpacity)))
 
-        // avatar de Codex (mira hacia Claude)
+        // avatar de Codex (robot-nube azul, mira hacia Claude)
+        let au = M.avatarCell
+        let aw = CGFloat(CodexAvatar.width) * au
         let ease = 1 - pow(1 - f.avatarIn, 3)
-        let ax = f.reduced ? M.avatarX : -64 + (M.avatarX + 64) * ease
+        let ax = f.reduced ? M.avatarX : -(aw + 8) + (M.avatarX + aw + 8) * ease
         let walking = !f.reduced && f.avatarIn < 1
         let hop = f.avatarHop ? 10.0 : 0
-        let ay = M.ground - 8 * u - hop
-        let blink = Int(t * 10) % 34 == 0
-        rect(&g, ax, ay, 8 * u, 6 * u, cream)
-        rect(&g, ax, ay, 8 * u, u, light)
-        rect(&g, ax + 7 * u, ay + u, u, 5 * u, shade)
-        rect(&g, ax, ay + 5 * u, 8 * u, u, shade)
-        let ink = Color(hex: 0x1C1B1A)
-        if f.celebrateMoving {            // ojos felices
-            for ex in [2.0, 5.0] { rect(&g, ax + ex * u, ay + 2 * u, u, u, ink); rect(&g, ax + (ex + 1) * u, ay + u + u / 2, u / 2, u, ink); rect(&g, ax + (ex - 1) * u + u / 2, ay + u + u / 2, u / 2, u, ink) }
-        } else {
-            let eh = blink ? u : 2 * u
-            for ex in [2.0, 5.0] { rect(&g, ax + ex * u, ay + 2 * u, u, eh, ink) }
-        }
-        // patas
+        let ay = M.ground - CGFloat(CodexAvatar.height) * au - hop
         let step = walking && Int(t * 8) % 2 == 0
-        rect(&g, ax + u, ay + 6 * u, 2 * u, step ? u : 2 * u, cream)
-        if f.kickFoot {
-            rect(&g, ax + 5 * u, ay + 6 * u, 4 * u, u, cream)
-        } else {
-            rect(&g, ax + 5 * u, ay + 6 * u, 2 * u, step ? 2 * u : u, cream)
-        }
+        let legs: CodexAvatar.Legs = f.kickFoot ? .kick : (step ? .step : .stand)
+        let face: CodexAvatar.Face = f.celebrateMoving ? .happy : .prompt(cursor: f.reduced || Int(t * 2) % 2 == 0)
+        for c in CodexAvatar.cells(legs: legs, face: face) { rect(&g, ax + Double(c.x) * au, ay + Double(c.y) * au, au, au, c.c) }
 
         // estela (solo con movimiento)
         if !f.reduced && f.ballOpacity > 0 && f.arc > 0.02 {
@@ -113,7 +99,7 @@ enum StageRenderer {
         if f.kickPulse > 0 {
             let e = (1 - f.kickPulse) * 16 + 4
             for (dx, dy) in [(0.0, -1.0), (1.0, -0.5), (-1.0, -0.5), (0.7, -1.4), (-0.7, -1.4)] {
-                rect(&g, ax + 8 * u + 2 + dx * e, M.ground - 8 + dy * e * 0.6, 4, 4, light.opacity(f.kickPulse))
+                rect(&g, ax + 16 * au + 2 + dx * e, M.ground - 8 + dy * e * 0.6, 4, 4, light.opacity(f.kickPulse))
             }
         }
         // destello al tocar la cabeza de Claude
