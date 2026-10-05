@@ -4,8 +4,8 @@ struct BubbleView: View {
     @ObservedObject var store: PetStore
 
     var body: some View {
-        if let a = store.activity, store.showBubble {
-            BubbleCard(activity: a, state: store.safetyAlert != nil ? .error : store.state, flat: false)
+        if let a = store.bubbleActivity, store.showBubble {
+            BubbleCard(activity: a, state: store.bubbleState, flat: false)
                 .frame(width: 360, height: 76)
         } else {
             Color.clear.frame(width: 360, height: 76)

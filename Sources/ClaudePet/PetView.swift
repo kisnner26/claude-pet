@@ -27,7 +27,8 @@ struct PetView: View {
             TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
                 let tick = store.animationsEnabled && !store.reduceMotion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
                 Canvas { gc, size in
-                    if let peer = store.peer, !store.gameActive {
+                    guard !store.hugActive else { return }
+                    if let peer = store.peer, !store.gameActive && !store.collaborationActive {
                         let color = mission.collision ? Pal.dark : (peer.state == .waiting ? Pal.body : (peer.state == .error ? Pal.dark : Pal.cream.opacity(0.6)))
                         var cable = Path(); cable.move(to: CGPoint(x: 4, y: 17)); cable.addLine(to: CGPoint(x: 35, y: 17 + (tick % 2) * 2)); cable.addLine(to: CGPoint(x: 70, y: 17)); cable.addLine(to: CGPoint(x: 108, y: 34))
                         gc.stroke(cable, with: .color(color), style: StrokeStyle(lineWidth: peer.state == .tool ? 3 : 2, lineCap: .square))

@@ -12,6 +12,10 @@ final class PetStore: ObservableObject {
     @Published private(set) var busOK = false
     @Published private(set) var peer: Peer?
     @Published private(set) var gameActive = false
+    @Published private(set) var collaborationActive = false
+    @Published private(set) var hugActive = false
+    @Published private(set) var codexDragging = false
+    @Published private(set) var codexGesture: CodexGesture?
     @Published private(set) var safetyAlert: Activity?
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
@@ -41,6 +45,12 @@ final class PetStore: ObservableObject {
     @Published var skin: Skin = Skin(rawValue: UserDefaults.standard.string(forKey: "skin") ?? "") ?? .block {
         didSet { Sprite.skin = skin; UserDefaults.standard.set(skin.rawValue, forKey: "skin") }
     }
+    @Published var codexSkin: CodexSkin = CodexSkin(rawValue: UserDefaults.standard.string(forKey: "codexSkin") ?? "") ?? .cloud {
+        didSet { UserDefaults.standard.set(codexSkin.rawValue, forKey: "codexSkin") }
+    }
+    @Published var codexGesturesEnabled: Bool = UserDefaults.standard.object(forKey: "codexGesturesEnabled") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(codexGesturesEnabled, forKey: "codexGesturesEnabled") }
+    }
     @Published private(set) var activity: Activity?
     @Published var showBubble: Bool = UserDefaults.standard.object(forKey: "showBubble") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showBubble, forKey: "showBubble") }
@@ -64,16 +74,31 @@ final class PetStore: ObservableObject {
     private struct Info { var state: PetState; var tool: String; var project: String; var detail: String; var origin: String; var workspace: String; var prompt: String; var todo: String; var at: Date }
     private var sessions: [String: Info] = [:]
     private var manual: (PetState, Date)?
+    private var codexManual: (PetState, Date)?
     private var project = ""
     private var timer: Timer?
     private var beat: Timer?
     private var greetUntil = Date.distantPast
     private var cheerUntil = Date.distantPast
     private var concernUntil = Date.distantPast
+    private var codexGestureUntil = Date.distantPast
+    private var collaborationSince: Date?
     var visibility: PresenceLogic.Visibility {
         PresenceLogic.visibility(Presence(claude: claudePresent, codex: codexPresent), auto: autoVisibility, userHidden: userHidden)
     }
     var pairNear: Bool { gameGeometry != nil }
+    var collaborationStartedAt: Date? { collaborationSince }
+    /// Estado que se muestra para Codex: la prueba local tiene prioridad, luego el bus.
+    var codexState: PetState { codexManual?.0 ?? peer?.state ?? .idle }
+    /// La burbuja puede pertenecer a cualquiera de las dos mascotas. El bus nunca aporta detalle privado de Codex.
+    var bubbleActivity: Activity? {
+        if let safetyAlert { return safetyAlert }
+        if let activity { return activity }
+        guard codexState != .idle else { return nil }
+        return Activity(title: "Codex: \(codexState.label.capitalized)", subtitle: "", origin: "")
+    }
+    var bubbleState: PetState { safetyAlert != nil ? .error : (activity != nil ? state : codexState) }
+    var bubbleFollowsCodex: Bool { activity == nil && safetyAlert == nil && codexState != .idle }
     /// Codex mira hacia Claude: +1 derecha, -1 izquierda.
     var codexFacing: Int { codexSide < 0 ? 1 : -1 }
 
@@ -81,6 +106,8 @@ final class PetStore: ObservableObject {
         if side != codexSide { codexSide = side }
         if geometry != gameGeometry { gameGeometry = geometry }
         if geometry == nil && game.isActive { syncGame() }
+        syncCollaboration()
+        syncHug()
     }
 
     func gameFrame(at date: Date) -> GameFrame? {
@@ -177,6 +204,11 @@ final class PetStore: ObservableObject {
 
     func preview(_ s: PetState) { manual = (s, Date()); refresh() }
 
+    func previewCodex(_ s: PetState) {
+        codexManual = (s, Date())
+        objectWillChange.send()
+    }
+
     // MARK: pet bus
 
     func receive(line: String) {
@@ -203,11 +235,13 @@ final class PetStore: ObservableObject {
         mission.recordPeer(state: st, project: proj ?? "")
         if old == nil || m.event == "appeared" { greetUntil = now.addingTimeInterval(3) }
         switch m.event {
-        case "finished": cheerUntil = now.addingTimeInterval(2.5)
-        case "error": concernUntil = now.addingTimeInterval(3)
+        case "appeared": triggerAutomaticCodex(.wave)
+        case "finished": cheerUntil = now.addingTimeInterval(2.5); triggerAutomaticCodex(.celebrate)
+        case "error": concernUntil = now.addingTimeInterval(3); triggerAutomaticCodex(.curious)
         default: break
         }
         syncGame()
+        syncCollaboration()
         updateReviewReady()
     }
 
@@ -242,21 +276,40 @@ final class PetStore: ObservableObject {
         objectWillChange.send()
     }
 
+    func triggerCodex(_ gesture: CodexGesture) {
+        codexGesture = gesture
+        codexGestureUntil = Date().addingTimeInterval(gesture.duration)
+    }
+
+    private func triggerAutomaticCodex(_ gesture: CodexGesture) {
+        guard codexGesturesEnabled else { return }
+        triggerCodex(gesture)
+    }
+
+    func setCodexDragging(_ dragging: Bool) {
+        guard codexDragging != dragging else { return }
+        codexDragging = dragging
+    }
+
     private func syncGame() {
         updatePresence()
+        syncCollaboration()
         // sin Claude en uso (p. ej. solo Codex abierto) no hay partido automatico
         guard (claudePresent || game.forced), gameGeometry != nil else {
             game.cancel()
             if gameActive { gameActive = false }
+            syncHug()
             return
         }
         guard animationsEnabled, footballEnabled || game.forced else {
             game.cancel()
             if gameActive { gameActive = false }
+            syncHug()
             return
         }
         game.update(now: Date(), claude: state, peer: peerStateKnown ? peer?.state : nil)
         if game.isActive != gameActive { gameActive = game.isActive }
+        syncHug()
     }
 
     func cue(at date: Date) -> PeerCue? {
@@ -271,8 +324,10 @@ final class PetStore: ObservableObject {
 
     /// Lo que el escenario necesita para dibujar a Codex junto a Claude. Solo estados y marcas de tiempo: nada del chat.
     func companionInfo(at date: Date) -> CompanionInfo {
-        CompanionInfo(codex: peer?.state ?? .idle, claude: claudePresent ? state : .idle, codexCheer: date < cheerUntil,
-                      codexConcern: date < concernUntil, claudeDone: claudePresent && date < claudeDoneUntil)
+        CompanionInfo(codex: codexState, claude: claudePresent ? state : .idle, codexCheer: date < cheerUntil,
+                      codexConcern: date < concernUntil, claudeDone: claudePresent && date < claudeDoneUntil,
+                      gesture: date < codexGestureUntil ? codexGesture : nil, dragging: codexDragging,
+                      collaborating: collaborationActive)
     }
 
     private var lastPublished: (PetState, String)?
@@ -350,6 +405,8 @@ final class PetStore: ObservableObject {
             if (v.state == .done && age > 5) || (v.state == .error && age > 8) || age > 900 { drop(k) }
         }
         if let m = manual, now.timeIntervalSince(m.1) > 5 { manual = nil }
+        if let m = codexManual, now.timeIntervalSince(m.1) > 5 { codexManual = nil }
+        if codexGesture != nil, now >= codexGestureUntil { codexGesture = nil }
         if let p = peer, now.timeIntervalSince(p.seen) > peerTTL {
             peer = nil
             peerStateKnown = false
@@ -360,6 +417,30 @@ final class PetStore: ObservableObject {
         updateSafetyAlert(now)
         mission.tick()
         refresh()
+    }
+
+    private func syncCollaboration() {
+        let codexWorking = peerStateKnown && (peer?.state == .starting || peer?.state == .thinking || peer?.state == .tool)
+        let claudeWorking = state == .starting || state == .thinking || state == .tool
+        let shouldCollaborate = animationsEnabled && gameGeometry != nil && claudePresent && codexPresent && claudeWorking && codexWorking
+        if shouldCollaborate {
+            if !collaborationActive {
+                collaborationActive = true
+                collaborationSince = Date()
+            }
+        } else if collaborationActive {
+            collaborationActive = false
+            collaborationSince = nil
+        }
+    }
+
+    /// El abrazo solo depende de la posicion real de ambas ventanas. El partido y el cable tienen prioridad visual.
+    private func syncHug() {
+        // solo con ambos tranquilos: el abrazo sustituye a sus sprites y no debe esconder un error, un permiso pendiente ni trabajo en curso
+        let calm: (PetState) -> Bool = { $0 == .idle || $0 == .done }
+        let shouldHug = animationsEnabled && gameGeometry?.hugEligible == true && !gameActive && !collaborationActive
+            && calm(state) && calm(codexState)
+        if hugActive != shouldHug { hugActive = shouldHug }
     }
 
     /// Pide los escaneos (asincronos, fuera del hilo principal) cada 3 s a las sesiones que estan pensando.

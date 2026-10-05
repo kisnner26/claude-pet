@@ -19,6 +19,7 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
     private var dragged = false
     /// Accion del clic sin arrastre. Por omision abre la app de Claude.
     var onClick: (() -> Void)?
+    var onDragChanged: ((Bool) -> Void)?
     override func mouseDown(with event: NSEvent) {
         downAt = NSEvent.mouseLocation
         dragged = false
@@ -27,9 +28,13 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
     override func mouseDragged(with event: NSEvent) {
         let p = NSEvent.mouseLocation
         if abs(p.x - downAt.x) > 3 || abs(p.y - downAt.y) > 3 { dragged = true }
-        if dragged { window?.setFrameOrigin(p - grab) }
+        if dragged {
+            onDragChanged?(true)
+            window?.setFrameOrigin(p - grab)
+        }
     }
     override func mouseUp(with event: NSEvent) {
+        onDragChanged?(false)
         guard !dragged else { return }
         if let onClick { onClick(); return }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
@@ -162,6 +167,9 @@ final class AppController: NSObject, NSApplicationDelegate {
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             }
         }
+        host.onDragChanged = { dragging in
+            Task { @MainActor in PetStore.shared.setCodexDragging(dragging) }
+        }
         let p = PetPanel(contentRect: NSRect(origin: .zero, size: StageMetrics.codexSize),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.contentView = host
@@ -216,16 +224,17 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func placeStage() {
         let store = PetStore.shared
-        guard !store.userHidden, store.gameActive, let geo = store.gameGeometry else { stage.orderOut(nil); return }
+        guard !store.userHidden, (store.gameActive || store.collaborationActive || store.hugActive), let geo = store.gameGeometry else { stage.orderOut(nil); return }
         if stage.frame != geo.stageFrame { stage.setFrame(geo.stageFrame, display: false) }
         if !stage.isVisible { stage.orderFrontRegardless() }
     }
 
     private func placeBubble() {
         let store = PetStore.shared
-        guard store.showBubble, store.activity != nil, panel.isVisible else { bubble.orderOut(nil); return }
-        let pf = panel.frame
-        let vis = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pf
+        let anchor = store.bubbleFollowsCodex ? codexPanel : panel
+        guard store.showBubble, store.bubbleActivity != nil, anchor?.isVisible == true, let anchor else { bubble.orderOut(nil); return }
+        let pf = anchor.frame
+        let vis = (anchor.screen ?? NSScreen.main)?.visibleFrame ?? pf
         var x = pf.midX - 180
         x = min(max(x, vis.minX + 4), vis.maxX - 364)
         // encima de la mascota; si no cabe, debajo
@@ -256,18 +265,64 @@ final class AppController: NSObject, NSApplicationDelegate {
 }
 
 enum MenuIcon {
-    /// Silueta del bloque en 18x18 como imagen plantilla (se adapta a barra clara/oscura).
-    static let image: NSImage = {
-        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+    enum Mode: Equatable { case idle, claude, codex, both }
+
+    static func mode(claude: Bool, codex: Bool) -> Mode {
+        switch (claude, codex) {
+        case (true, true): .both
+        case (true, false): .claude
+        case (false, true): .codex
+        case (false, false): .idle
+        }
+    }
+
+    /// Icono plantilla para la barra: una mascota por herramienta; las dos juntas si colaboran.
+    static func image(claude: Bool, codex: Bool) -> NSImage {
+        let current = mode(claude: claude, codex: codex)
+        let isPair = current == .both
+        let size = NSSize(width: isPair ? 36 : 18, height: 18)
+        let img = NSImage(size: size, flipped: true) { _ in
             NSColor.black.setFill()
-            for p in Sprite.pixels(.idle, tick: 0) where p.c != Pal.charcoal {
-                NSRect(x: CGFloat(p.x) * 1.125, y: CGFloat(p.y) * 1.125, width: 1.125, height: 1.125).fill()
+            func claude(at origin: CGFloat) {
+                for p in Sprite.pixels(.idle, tick: 0) where p.c != Pal.charcoal {
+                    NSRect(x: origin + CGFloat(p.x) * 1.0, y: 1 + CGFloat(p.y) * 1.0, width: 1, height: 1).fill()
+                }
+            }
+            func codex(at origin: CGFloat) {
+                // Robot-nube de 12 x 15 con el visor recortado y su `>_`; celdas de 1 pt enteras para que quede nitido en pantallas retina.
+                let rows = ["...111111...",
+                            ".1111111111.",
+                            "111111111111",
+                            "11........11",
+                            "11.1......11",
+                            "11..1.....11",
+                            "11.1..111.11",
+                            "11........11",
+                            ".1111111111.",
+                            "..11111111..",
+                            "...111111...",
+                            "..11111111..",
+                            "...111111...",
+                            "...11..11...",
+                            "...11..11..."]
+                for (y, row) in rows.enumerated() {
+                    for (x, cell) in row.enumerated() where cell == "1" {
+                        NSRect(x: origin + CGFloat(x), y: 2 + CGFloat(y), width: 1, height: 1).fill()
+                    }
+                }
+            }
+            switch current {
+            case .claude, .idle: claude(at: 1)
+            case .codex: codex(at: 3)
+            case .both:
+                claude(at: 1)
+                codex(at: 20)
             }
             return true
         }
         img.isTemplate = true
         return img
-    }()
+    }
 }
 
 @main
@@ -296,39 +351,59 @@ struct ClaudePetApp: App {
             Text(store.codexPresent ? "Codex: en uso" : "Codex: sin usar")
             Toggle("Mostrar cada mascota solo cuando uso su herramienta", isOn: $store.autoVisibility)
             Text(store.peer.map { "Pet bus: \($0.id) presente" } ?? (store.busOK ? "Pet bus: sin otras mascotas" : "Pet bus caido"))
+            Menu("panel de codex") { CodexControlMenu(store: store) }
             if let warning = store.safetyAlert { Text(warning.title) }
             if store.reviewReady { Button("codex listo para revision: abrir diff") { store.openReview() } }
             Menu("mission control") { MissionControlMenu(control: store.mission) }
-            Toggle("Mostrar burbuja de actividad", isOn: $store.showBubble)
-            Toggle("Detalle en la burbuja (archivos, comandos)", isOn: $store.showDetail)
+            Toggle("Mostrar burbuja de actividad (ambas)", isOn: $store.showBubble)
+            Toggle("Detalle en la burbuja de Claude (archivos, comandos)", isOn: $store.showDetail)
             Toggle("Avisar si claude o codex parecen bloqueados", isOn: $store.stallWatch)
-            Toggle("Bloquear herramientas si el proyecto cambia", isOn: $store.blockOnChange)
-            Toggle("Compartir nombre del proyecto con otras mascotas", isOn: $store.shareProject)
+            Toggle("Bloquear herramientas de Claude si el proyecto cambia", isOn: $store.blockOnChange)
+            Toggle("Compartir nombre del proyecto de Claude", isOn: $store.shareProject)
             Divider()
-            Button("Mostrar u ocultar mascota") { AppController.shared.toggleWindow() }
+            Button("Mostrar u ocultar mascotas") { AppController.shared.toggleWindow() }
             Menu("Animaciones") {
-                Toggle("Activar animaciones", isOn: $store.animationsEnabled)
+                Toggle("Activar animaciones (ambas)", isOn: $store.animationsEnabled)
                 Toggle("Partido automatico con Codex", isOn: $store.footballEnabled)
                     .disabled(!store.animationsEnabled)
                 Divider()
                 Button("Partido de futbol ahora") { store.trigger("football") }
                     .disabled(!store.pairNear)
-                Button("Saludo") { store.trigger("greet") }
-                Button("Celebracion del par") { store.trigger("cheer") }
-                Button("Preocupacion") { store.trigger("concern") }
+                Menu("Acciones de Claude") {
+                    Button("Saludo") { store.trigger("greet") }
+                    Button("Celebracion") { store.trigger("cheer") }
+                    Button("Preocupacion") { store.trigger("concern") }
+                }
+                Menu("Acciones de Codex") {
+                    ForEach(CodexGesture.allCases, id: \.self) { gesture in
+                        Button(gesture.title) { store.triggerCodex(gesture) }
+                    }
+                }
             }
-            Picker("Aspecto", selection: $store.skin) {
-                ForEach(Skin.allCases, id: \.self) { Text($0.title).tag($0) }
+            Menu("Aspecto") {
+                Picker("Claude", selection: $store.skin) {
+                    ForEach(Skin.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker("Codex", selection: $store.codexSkin) {
+                    ForEach(CodexSkin.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
             }
             Menu("Probar estado") {
-                ForEach(PetState.allCases, id: \.self) { s in
-                    Button(s.label.capitalized) { store.preview(s) }
+                Menu("Claude") {
+                    ForEach(PetState.allCases, id: \.self) { s in
+                        Button(s.label.capitalized) { store.preview(s) }
+                    }
+                }
+                Menu("Codex") {
+                    ForEach(PetState.allCases, id: \.self) { s in
+                        Button(s.label.capitalized) { store.previewCodex(s) }
+                    }
                 }
             }
             Divider()
             Button("Salir") { NSApp.terminate(nil) }
         } label: {
-            Image(nsImage: MenuIcon.image)
+            Image(nsImage: MenuIcon.image(claude: store.claudePresent, codex: store.codexPresent))
         }
     }
 }

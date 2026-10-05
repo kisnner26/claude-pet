@@ -30,8 +30,9 @@ struct CodexPetView: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
             Canvas { gc, _ in
+                guard !store.hugActive else { return }
                 CodexRenderer.draw(&gc, now: ctx.date, info: store.companionInfo(at: ctx.date), game: store.gameFrame(at: ctx.date),
-                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing)
+                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin)
             }
         }
         .frame(width: StageMetrics.codexSize.width, height: StageMetrics.codexSize.height)
@@ -49,7 +50,7 @@ enum CodexRenderer {
 
     /// Dibuja a Codex dentro de su propia ventana. `facing` +1: mira a la derecha (Claude esta a su derecha); -1: se refleja.
     /// Con `game`, juega desde su sitio: estira la pierna, salta y celebra, sin moverse de la ventana.
-    static func draw(_ g: inout GraphicsContext, now: Date, info: CompanionInfo, game: GameFrame?, reduceMotion: Bool, animate: Bool, facing: Int) {
+    static func draw(_ g: inout GraphicsContext, now: Date, info: CompanionInfo, game: GameFrame?, reduceMotion: Bool, animate: Bool, facing: Int, skin: CodexSkin = .cloud) {
         let M = StageMetrics.self
         if facing < 0 {
             g.translateBy(x: M.codexSize.width, y: 0)
@@ -73,7 +74,8 @@ enum CodexRenderer {
         // avatar
         let x = M.avatarLeft + pose.shake
         let top = M.codexGround - CGFloat(CodexAvatar.height) * au - lift
-        for c in CodexAvatar.cells(legs: pose.legs, face: pose.face) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
+        for c in CodexAvatar.cells(legs: pose.legs, face: pose.face, skin: skin) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
+        for c in CodexAvatar.armCells(pose.arms, skin: skin) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
         if let e = pose.emote { for c in CodexAvatar.emote(e) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) } }
         // polvo al patear
         if let f = game, f.kickPulse > 0 {
@@ -93,8 +95,15 @@ struct StageView: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
             Canvas { gc, _ in
-                guard let start = store.gameStart, let geo = store.gameGeometry else { return }
-                GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                guard let geo = store.gameGeometry else { return }
+                if let start = store.gameStart {
+                    GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                } else if store.collaborationActive, let start = store.collaborationStartedAt {
+                    CollaborationRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                } else if store.hugActive {
+                    HugRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSinceReferenceDate, reduceMotion: store.reduceMotion,
+                                     geo: geo, claudeSkin: store.skin, codexSkin: store.codexSkin)
+                }
             }
         }
     }

@@ -12,6 +12,8 @@ enum HeroSnapshot {
         write(football, to: dir + "/futbol.png")
         write(companion, to: dir + "/companero.png")
         writeLandingAssets(into: dir)
+        write(hugSheet, to: dir + "/abrazo.png")
+        write(menuIcons, to: dir + "/icono-barra.png")
     }
 
     private static func write<V: View>(_ view: V, to path: String) {
@@ -158,5 +160,38 @@ enum HeroSnapshot {
         }
         write(scene(elapsed: nil, info: info(claude: .thinking), look: 0), to: dir + "/escena-claude-piensa.png")
         write(scene(elapsed: nil, info: info(claude: .done, done: true), look: 0), to: dir + "/escena-claude-termina.png")
+    }
+
+    /// Abrazo con las ventanas a la distancia por omision (12 px): dos instantes del vaiven y la version sin movimiento.
+    static var hugSheet: some View {
+        let claudeFrame = CGRect(x: 290, y: 30, width: 128, height: 128)
+        let codexFrame = CGRect(x: 150, y: 30, width: 128, height: 152)
+        func cell(_ t: Double, reduce: Bool) -> some View {
+            Canvas { gc, sz in
+                guard let geo = GameLayout.make(claude: claudeFrame, codex: codexFrame) else { return }
+                var g = gc
+                let o = CGPoint(x: geo.stageFrame.minX, y: sz.height - geo.stageFrame.maxY)
+                g.translateBy(x: o.x, y: o.y)
+                HugRenderer.draw(&g, elapsed: t, reduceMotion: reduce, geo: geo, claudeSkin: .block, codexSkin: .cloud)
+            }
+            .frame(width: sceneSize.width, height: sceneSize.height)
+            .background(Color(hex: 0x1C1B1A))
+        }
+        return HStack(spacing: 3) { cell(100.2, reduce: false); cell(100.9, reduce: false); cell(0, reduce: true) }.background(Color.black)
+    }
+
+    /// Los cuatro iconos de la barra de menu (nada, Claude, Codex, ambos), ampliados y sobre barra clara y oscura.
+    static var menuIcons: some View {
+        let modes: [(Bool, Bool)] = [(false, false), (true, false), (false, true), (true, true)]
+        func row(_ fg: Color, _ bg: Color) -> some View {
+            HStack(spacing: 28) {
+                ForEach(0..<modes.count, id: \.self) { i in
+                    Image(nsImage: MenuIcon.image(claude: modes[i].0, codex: modes[i].1))
+                        .renderingMode(.template).interpolation(.none)
+                        .resizable().scaledToFit().frame(height: 18 * 6).foregroundColor(fg)
+                }
+            }.padding(24).frame(maxWidth: .infinity).background(bg)
+        }
+        return VStack(spacing: 0) { row(.black, Color(hex: 0xECECEC)); row(.white, Color(hex: 0x2A2A2A)) }.frame(width: 900)
     }
 }

@@ -70,6 +70,18 @@ enum CompanionSelfTest {
         check("sin movimiento la cara de pensar es estable (3 puntos)", CompanionPose.make(info: info(.thinking), t: 0.2, motion: false).face
               == CompanionPose.make(info: info(.thinking), t: 0.9, motion: false).face)
 
+        // 4b. acciones propias de Codex y locomocion al arrastrar
+        func actionInfo(_ gesture: CodexGesture? = nil, dragging: Bool = false) -> CompanionInfo {
+            CompanionInfo(codex: .idle, claude: .idle, codexCheer: false, codexConcern: false, claudeDone: false,
+                          gesture: gesture, dragging: dragging)
+        }
+        check("saludo de Codex levanta un brazo", CompanionPose.make(info: actionInfo(.wave), t: 0.2, motion: true).arms != .rest)
+        check("saludo formal llega al visor", CompanionPose.make(info: actionInfo(.salute), t: 0.2, motion: true).arms == .salute)
+        check("celebracion usa ambos brazos y salto", { let p = CompanionPose.make(info: actionInfo(.celebrate), t: 0, motion: true); return p.arms == .celebrate && p.hop > 0 }())
+        check("patrulla alterna las patas", CompanionPose.make(info: actionInfo(.patrol), t: 0, motion: true).legs == .step)
+        check("arrastrar mueve los pies y reducir movimiento los fija", CompanionPose.make(info: actionInfo(nil, dragging: true), t: 0, motion: true).legs == .step
+              && CompanionPose.make(info: actionInfo(nil, dragging: true), t: 0, motion: false).legs == .stand)
+
         // 5. geometria del partido entre dos ventanas independientes
         let claudeF = CGRect(x: 800, y: 400, width: 128, height: 128)
         let codexLeft = CGRect(x: 560, y: 400, width: 128, height: 152)
@@ -92,6 +104,12 @@ enum CompanionSelfTest {
             return g.ballStart.y != g.ballEnd.y && g.ballStart.y - StageMetrics.arcHeight >= 0 }())
         check("las posiciones de las ventanas no cambian al calcular el partido (la capa se adapta a ellas)",
               { let a = claudeF, b = codexLeft; _ = GameLayout.make(claude: a, codex: b); return a == claudeF && b == codexLeft }())
+        check("las mascotas se abrazan solo cuando quedan muy cerca y alineadas", {
+            let close = GameLayout.make(claude: claudeF, codex: CGRect(x: 650, y: 400, width: 128, height: 152))?.hugEligible == true
+            let far = GameLayout.make(claude: claudeF, codex: codexLeft)?.hugEligible == false
+            let uneven = GameLayout.make(claude: claudeF, codex: CGRect(x: 650, y: 520, width: 128, height: 152))?.hugEligible == false
+            return close && far && uneven
+        }())
 
         // 5b. presencia: cada mascota segun la herramienta en uso
         func vis(claudeApp: Bool = false, hooks: Bool = false, codexApp: Bool = false, peer: Bool = false, auto: Bool = true, hidden: Bool = false) -> PresenceLogic.Visibility {
@@ -106,6 +124,48 @@ enum CompanionSelfTest {
         check("sin modo automatico: Claude siempre, Codex si esta", vis(codexApp: true, auto: false) == .init(claudeWindow: true, codexWindow: true)
               && vis(auto: false) == .init(claudeWindow: true, codexWindow: false))
         check("ocultar desde el menu oculta todo", vis(claudeApp: true, codexApp: true, hidden: true) == .init(claudeWindow: false, codexWindow: false))
+
+        // 5c. modo duo: ambos trabajando cerca activan la capa de paquetes, sin afectar el futbol.
+        let store = PetStore()
+        store.setApps(claude: true, codex: false)
+        store.setPair(geometry: GameLayout.make(claude: claudeF, codex: codexLeft), codexSide: -1)
+        store.apply(PetEvent(kind: .state(.thinking), session: "duo", tool: "", project: "", detail: "", origin: "terminal", workspace: "", task: ""))
+        store.receive(line: "{\"v\":1,\"id\":\"codex\",\"state\":\"tool\",\"ts\":1,\"event\":\"working\"}")
+        check("ambos trabajando cerca activan modo duo", store.collaborationActive && !store.gameActive)
+        store.receive(line: "{\"v\":1,\"id\":\"codex\",\"state\":\"idle\",\"ts\":2}")
+        check("modo duo termina cuando uno queda inactivo", !store.collaborationActive)
+
+        // 5d. los controles generales tambien pueden probar y mostrar actividad de Codex.
+        store.preview(.idle)
+        store.previewCodex(.thinking)
+        check("probar estado de Codex cambia solo a Codex", store.codexState == .thinking && store.bubbleFollowsCodex && store.bubbleState == .thinking)
+
+        // 5d2. abrazo: solo con ambas mascotas tranquilas, para no esconder un estado que pide atencion.
+        let hugGeo = GameLayout.make(claude: claudeF, codex: CGRect(x: 650, y: 400, width: 128, height: 152))
+        let hug = PetStore()
+        hug.setApps(claude: true, codex: true)
+        hug.setPair(geometry: hugGeo, codexSide: -1)
+        check("abrazo con ambas tranquilas, pegadas y a la misma altura", hug.hugActive)
+        hug.previewCodex(.thinking)
+        hug.setPair(geometry: hugGeo, codexSide: -1)
+        check("el abrazo se corta si Codex trabaja (no esconde su estado)", !hug.hugActive)
+        hug.previewCodex(.waiting)
+        hug.setPair(geometry: hugGeo, codexSide: -1)
+        check("y si Codex pide permiso", !hug.hugActive)
+        hug.previewCodex(.done)
+        hug.setPair(geometry: hugGeo, codexSide: -1)
+        check("con Codex recien terminado vuelve a abrazar", hug.hugActive)
+        hug.apply(PetEvent(kind: .state(.error), session: "hug", tool: "", project: "", detail: "", origin: "terminal", workspace: "", task: ""))
+        hug.setPair(geometry: hugGeo, codexSide: -1)
+        check("el abrazo se corta si Claude falla", !hug.hugActive)
+        hug.setPair(geometry: GameLayout.make(claude: claudeF, codex: codexLeft), codexSide: -1)
+        check("lejos no hay abrazo", !hug.hugActive)
+
+        // 5e. el icono de la barra comunica que herramienta esta en uso.
+        check("icono de barra distingue Claude, Codex y ambos", MenuIcon.mode(claude: false, codex: false) == .idle
+              && MenuIcon.mode(claude: true, codex: false) == .claude
+              && MenuIcon.mode(claude: false, codex: true) == .codex
+              && MenuIcon.mode(claude: true, codex: true) == .both)
 
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0

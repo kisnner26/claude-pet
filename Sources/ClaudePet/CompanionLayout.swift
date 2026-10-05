@@ -7,6 +7,9 @@ struct CompanionInfo: Equatable {
     var codexCheer: Bool      // Codex acaba de terminar
     var codexConcern: Bool    // Codex acaba de fallar
     var claudeDone: Bool      // Claude acaba de terminar
+    var gesture: CodexGesture? = nil
+    var dragging = false
+    var collaborating = false
 }
 
 /// Pose de Codex en un instante. Funcion pura: mismo (info, t, motion) -> misma pose.
@@ -17,6 +20,7 @@ struct CompanionPose: Equatable {
     var hop = 0.0          // px hacia arriba
     var bob = 0.0          // px; negativo = sube
     var shake = 0.0        // px horizontales
+    var arms: CodexAvatar.Arms = .rest
 
     /// - Parameter motion: false con "reducir movimiento" o animaciones apagadas: misma cara, sin saltos ni vaiven.
     static func make(info: CompanionInfo, t: Double, motion: Bool) -> CompanionPose {
@@ -52,6 +56,33 @@ struct CompanionPose: Equatable {
         case .error:
             p.face = .cross
             if motion { p.shake = phase(14) % 2 == 0 ? 2 : -2 }
+        }
+        if info.dragging {
+            p.legs = motion && phase(6) % 2 == 0 ? .step : .stand
+            p.bob = motion && phase(6) % 2 == 0 ? -2 : 0
+        }
+        if let gesture = info.gesture {
+            switch gesture {
+            case .wave:
+                p.face = .happy
+                p.arms = .wave(phase(5) % 2 == 0)
+            case .salute:
+                p.face = .happy
+                p.arms = .salute
+            case .celebrate:
+                p.face = .happy
+                p.arms = .celebrate
+                if motion && phase(4) % 2 == 0 { p.hop = 9 }
+            case .curious:
+                p.face = .prompt(cursor: true)
+                p.emote = .question
+            case .patrol:
+                p.legs = motion && phase(7) % 2 == 0 ? .step : .stand
+                p.bob = motion && phase(7) % 2 == 0 ? -2 : 0
+            }
+        }
+        if info.collaborating && info.gesture == nil {
+            p.emote = .dots(motion ? 1 + phase(3) % 3 : 3)
         }
         return p
     }
@@ -91,11 +122,14 @@ enum CompanionLogic {
 /// Datos para dibujar el partido entre las dos ventanas (coordenadas de la capa del partido, origen arriba a la izquierda).
 struct GameGeometry: Equatable {
     var stageFrame: CGRect        // en pantalla (origen abajo a la izquierda): la capa cubre a las dos mascotas y el arco
+    var claudeOrigin: CGPoint     // esquina superior izquierda de su ventana, dentro de la capa
+    var codexOrigin: CGPoint      // esquina superior izquierda de su ventana, dentro de la capa
     var ballStart: CGPoint        // esquina superior izquierda de la pelota en reposo, junto al pie de Codex
     var ballEnd: CGPoint          // idem, sobre la cabeza de Claude
     var groundStart: CGFloat      // linea del suelo bajo Codex / bajo Claude
     var groundEnd: CGFloat
     var facing: Int               // +1: Claude esta a la derecha de Codex; -1: a la izquierda
+    var hugEligible: Bool         // ventanas a la misma altura y con distancia de abrazo
     var size: CGSize { stageFrame.size }
 }
 
@@ -106,6 +140,8 @@ enum GameLayout {
         let M = StageMetrics.self
         guard abs(claude.midX - codex.midX) <= M.maxPairDX, abs(claude.midY - codex.midY) <= M.maxPairDY else { return nil }
         let facing = claude.midX >= codex.midX ? 1 : -1
+        let horizontalGap = max(0, max(claude.minX, codex.minX) - min(claude.maxX, codex.maxX))
+        let hugEligible = horizontalGap <= 56 && abs(claude.midY - codex.midY) <= 72
         let u = claude.union(codex)
         let stage = CGRect(x: u.minX - M.stageMarginSide, y: u.minY - M.stageMarginBottom,
                            width: u.width + 2 * M.stageMarginSide, height: u.height + M.stageMarginBottom + M.stageMarginTop)
@@ -119,8 +155,10 @@ enum GameLayout {
         let headTopY = claude.maxY - M.claudeHeadTop
         return GameGeometry(
             stageFrame: stage,
+            claudeOrigin: CGPoint(x: sx(claude.minX), y: sy(claude.maxY)),
+            codexOrigin: CGPoint(x: sx(codex.minX), y: sy(codex.maxY)),
             ballStart: CGPoint(x: sx(startLeft), y: sy(codexGroundY + M.ballSize)),
             ballEnd: CGPoint(x: sx(claude.midX - M.ballSize / 2), y: sy(headTopY + M.ballSize)),
-            groundStart: sy(codexGroundY), groundEnd: sy(claudeGroundY), facing: facing)
+            groundStart: sy(codexGroundY), groundEnd: sy(claudeGroundY), facing: facing, hugEligible: hugEligible)
     }
 }

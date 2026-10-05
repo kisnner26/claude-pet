@@ -9,6 +9,7 @@ enum CodexAvatar {
     private static let bodyOffset = 11      // fila de la cabeza donde empieza el cuerpo
 
     enum Legs: Equatable { case stand, step, kick }
+    enum Arms: Equatable { case rest, wave(Bool), salute, celebrate }
     /// Lo que muestra el visor. `dots(n)`: n puntos (pensando); `typing(k)`: `>_` con el cursor en movimiento;
     /// `alert`: `!` naranja (espera tu aprobacion); `cross`: `x x` (error).
     enum Face: Equatable { case prompt(cursor: Bool), happy, dots(Int), typing(Int), alert(on: Bool), cross }
@@ -69,13 +70,18 @@ enum CodexAvatar {
         "..................",
     ]
 
-    static func color(_ c: Character) -> Color? {
+    static func color(_ c: Character, skin: CodexSkin = .cloud) -> Color? {
+        let palette: (outline: UInt32, body: UInt32, shade: UInt32, light: UInt32, patch: UInt32) = switch skin {
+        case .cloud: (0x223496, 0x5270E8, 0x3E5ACE, 0x7E98FF, 0x6E8CF5)
+        case .mint: (0x17645F, 0x35B7A1, 0x238F82, 0x7FE5CF, 0x55CDB8)
+        case .violet: (0x482476, 0x8A57D8, 0x673BB2, 0xC49BFF, 0xA979F2)
+        }
         switch c {
-        case "O": return Color(hex: 0x223496)
-        case "B": return Color(hex: 0x5270E8)
-        case "D": return Color(hex: 0x3E5ACE)
-        case "L": return Color(hex: 0x7E98FF)
-        case "W": return Color(hex: 0x6E8CF5)
+        case "O": return Color(hex: palette.outline)
+        case "B": return Color(hex: palette.body)
+        case "D": return Color(hex: palette.shade)
+        case "L": return Color(hex: palette.light)
+        case "W": return Color(hex: palette.patch)
         case "s": return Color(hex: 0x2C346E)
         case "S": return Color(hex: 0x161B40)
         case "C": return Color(hex: 0x96EBFF)
@@ -84,13 +90,13 @@ enum CodexAvatar {
     }
 
     /// Celdas a pintar, de atras hacia delante: cuerpo, cabeza y glifo del visor.
-    static func cells(legs: Legs, face: Face) -> [(x: Int, y: Int, c: Color)] {
+    static func cells(legs: Legs, face: Face, skin: CodexSkin = .cloud) -> [(x: Int, y: Int, c: Color)] {
         var out: [(x: Int, y: Int, c: Color)] = []
         let body: [String]
         switch legs { case .stand: body = bodyStand; case .step: body = bodyStep; case .kick: body = bodyKick }
-        for (y, row) in body.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch) { out.append((x, y + bodyOffset, c)) } } }
-        for (y, row) in head.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch) { out.append((x, y, c)) } } }
-        let cyan = color("C")!, orange = Color(hex: 0xE0824F), coral = Color(hex: 0xFF8A7A)
+        for (y, row) in body.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch, skin: skin) { out.append((x, y + bodyOffset, c)) } } }
+        for (y, row) in head.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch, skin: skin) { out.append((x, y, c)) } } }
+        let cyan = color("C", skin: skin)!, orange = Color(hex: 0xE0824F), coral = Color(hex: 0xFF8A7A)
         var glyph: [(Int, Int)] = []
         var tint = cyan
         switch face {
@@ -103,6 +109,22 @@ enum CodexAvatar {
         }
         for (x, y) in glyph { out.append((x, y, tint)) }
         return out
+    }
+
+    static func armCells(_ arms: Arms, skin: CodexSkin) -> [(x: Int, y: Int, c: Color)] {
+        let body = color("B", skin: skin)!
+        let light = color("L", skin: skin)!
+        func pixels(_ points: [(Int, Int)]) -> [(Int, Int, Color)] { points.map { ($0.0, $0.1, body) } }
+        switch arms {
+        case .rest:
+            return []
+        case .wave(let high):
+            return pixels(high ? [(15, 14), (16, 13), (16, 12), (16, 11), (17, 10)] : [(15, 14), (16, 14), (16, 13), (17, 12)])
+        case .salute:
+            return pixels([(4, 14), (5, 13), (6, 12), (7, 11), (8, 10), (9, 10)]) + [(10, 10, light)]
+        case .celebrate:
+            return pixels([(3, 14), (2, 13), (2, 12), (2, 11), (2, 10), (15, 14), (16, 13), (16, 12), (16, 11), (16, 10)])
+        }
     }
 
     /// Celdas del globo (y negativa = por encima de la cabeza).
