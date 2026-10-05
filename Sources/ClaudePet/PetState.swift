@@ -46,12 +46,14 @@ struct PetEvent {
     let project: String
     let detail: String
     let origin: String
+    /// Ruta local solo para el detector; nunca se muestra ni cruza el pet bus.
+    let workspace: String
     /// "p:<mensaje>" o "t:<tarea en curso>" (vacio si este evento no la cambia)
     let task: String
 
     /// Formato de linea: "<estado>\t<sesion>\t<herramienta>[\t<proyecto>]"
     static func parse(_ line: String) -> PetEvent? {
-        let parts = line.split(separator: "\t", maxSplits: 6, omittingEmptySubsequences: false).map(String.init)
+        let parts = line.split(separator: "\t", maxSplits: 7, omittingEmptySubsequences: false).map(String.init)
         guard parts.count >= 2 else { return nil }
         let kind: Kind
         if parts[0] == "end" { kind = .end }
@@ -70,6 +72,7 @@ struct PetEvent {
                         project: parts.count > 3 ? clean(parts[3], 40) : "",
                         detail: parts.count > 4 ? text(parts[4], 80) : "",
                         origin: parts.count > 5 ? clean(parts[5], 12) : "",
+                        workspace: parts.count > 7 && parts[7].hasPrefix("/") ? String(parts[7].prefix(1024)) : "",
                         task: parts.count > 6 ? text(parts[6], 140) : "")
     }
 }

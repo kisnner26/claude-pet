@@ -21,7 +21,20 @@ struct PetView: View {
             TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
                 let tick = store.animationsEnabled ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
                 Canvas { gc, size in
+                    if let peer = store.peer, !store.gameActive {
+                        let color = peer.state == .waiting ? Pal.body : (peer.state == .error ? Pal.dark : Pal.cream.opacity(0.6))
+                        var cable = Path(); cable.move(to: CGPoint(x: 4, y: 17)); cable.addLine(to: CGPoint(x: 35, y: 17 + (tick % 2) * 2)); cable.addLine(to: CGPoint(x: 70, y: 17)); cable.addLine(to: CGPoint(x: 108, y: 34))
+                        gc.stroke(cable, with: .color(color), style: StrokeStyle(lineWidth: peer.state == .tool ? 3 : 2, lineCap: .square))
+                        if peer.state == .tool { gc.fill(Path(ellipseIn: CGRect(x: 53, y: 12, width: 6, height: 6)), with: .color(Pal.light)) }
+                    }
                     let u = size.width / 16
+                    if store.bugBattleLevel > 0 {
+                        let level = store.bugBattleLevel
+                        for i in 0..<(level * 3) {
+                            let x = CGFloat(72 + (i * 7 + tick * 3) % 34), y = CGFloat(72 + (i * 11) % 26)
+                            gc.fill(Path(CGRect(x: x, y: y, width: 5, height: 5)), with: .color(i % 2 == 0 ? Pal.dark : Pal.cream))
+                        }
+                    }
                     for p in Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date)) {
                         gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u, height: u)), with: .color(p.c))
                     }

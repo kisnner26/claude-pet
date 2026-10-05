@@ -2,12 +2,20 @@
 # Traduce un evento de hook de Claude Code a un estado de la mascota.
 # Uso: pet-hook.sh <Evento>     (el JSON del hook llega por stdin)
 #
-# Privacidad: del JSON solo se extraen session_id, tool_name y el nombre (no la ruta) de la carpeta del proyecto, saneados.
-# No se reenvia prompt, comando, ruta, salida ni nada de la conversacion.
-# No imprime nada en stdout y siempre sale con 0: nunca altera ni bloquea a Claude Code.
+# Privacidad: todo es local (socket unix 0600). Del JSON se extraen session_id, tool_name, el nombre
+# de la carpeta del proyecto, un detalle minimo para la burbuja (descripcion del comando, nombre de
+# archivo, patron, programa de un comando sin argumentos, host de una URL), tu ultimo mensaje y la
+# ruta del proyecto (solo para que la app detecte cambios y abra el diff; no se muestra, no se
+# escribe a disco y no cruza el pet bus).
+#
+# Por defecto no imprime nada en stdout y siempre sale con 0: no altera ni bloquea a Claude Code.
+# Unica excepcion, OPT-IN: si activas "Bloquear herramientas si el proyecto cambia" en el menu
+# (crea ~/.claude-pet/block-on-change), una marca reciente (< 10 min) de la app deniega la siguiente
+# herramienta de esa sesion con la salida documentada de PreToolUse. La marca se borra con tu
+# siguiente mensaje o al terminar la sesion.
 
 SOCK="${CLAUDE_PET_SOCK:-$HOME/.claude-pet/pet.sock}"
-[ -S "$SOCK" ] || exit 0
+PET_DIR="$HOME/.claude-pet"
 
 input=$(head -c 8192 2>/dev/null)
 
@@ -16,9 +24,22 @@ field() {
 }
 
 sid=$(field session_id | cut -c1-8)
-# solo el nombre de la carpeta del proyecto (no la ruta), saneado
+MARK="$PET_DIR/context-changed/${sid:-x}"
+
+[ "$1" = "UserPromptSubmit" ] && rm -f "$MARK"
+[ "$1" = "SessionEnd" ] && rm -f "$MARK"
+
+# Bloqueo opt-in: solo con la bandera activada Y una marca de menos de 10 minutos.
+if [ "$1" = "PreToolUse" ] && [ -f "$PET_DIR/block-on-change" ] && [ -n "$(find "$MARK" -mmin -10 2>/dev/null)" ]; then
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"El proyecto cambio mientras Claude pensaba. Revisa el diff y envia un nuevo mensaje para continuar con contexto actualizado."}}'
+  exit 0
+fi
+
+[ -S "$SOCK" ] || exit 0
+
 cwd=$(printf '%s' "$input" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
 proj=$(printf '%s' "${cwd##*/}" | tr -cd 'A-Za-z0-9_.-' | cut -c1-40)
+ws=$(printf '%s' "$cwd" | tr -d '\000-\037\\' | cut -c1-1000)
 tool=""
 
 case "$1" in
@@ -35,10 +56,19 @@ case "$1" in
   *) exit 0 ;;
 esac
 
+raw() { printf '%s' "$input" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1; }
+
+# Pruebas: se clasifican mirando SOLO el campo "command" de una herramienta Bash
+# (nunca el resto del payload, que puede llevar el texto de un archivo). No se conserva el comando.
+if [ "$1" = "PreToolUse" ] && [ "$tool" = "Bash" ]; then
+  case " $(raw command) " in
+    *' swift test'*|*' npm test'*|*' npm run test'*|*' pnpm test'*|*' yarn test'*|*' pytest'*|*' php artisan test'*|*'/pytest '*) tool=test ;;
+  esac
+fi
+
 # Detalle para la burbuja (solo local, nunca va al pet bus). Minimo necesario:
 #  - descripcion que Claude escribe para Bash/Task, o nombre del archivo, o patron de busqueda;
 #  - de un comando solo el programa (nunca argumentos, que pueden llevar secretos); de una URL solo el host.
-raw() { printf '%s' "$input" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -n 1; }
 detail=""
 case "$state" in
   tool|waiting)
@@ -50,6 +80,7 @@ case "$state" in
     detail=$(printf '%s' "$d" | tr -d '\000-\037\\' | head -c 120)
     ;;
 esac
+
 # Tarea actual (solo local): tu ultimo mensaje (p:) o la tarea en curso de la lista de Claude (t:).
 task=""
 clean_text() { sed 's/\\n/ /g; s/\\t/ /g' | tr -d '\000-\037\\' | sed 's/^ *//' | head -c 200; }
@@ -64,11 +95,12 @@ case "$1" in
         [ -n "$t" ] && task="t:$t" ;;
     esac ;;
 esac
+
 case "${CLAUDE_CODE_ENTRYPOINT:-}" in
   claude-desktop) origin=desktop ;;
   cli|"") origin=terminal ;;
   *) origin=otro ;;
 esac
 
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$state" "${sid:-x}" "$tool" "$proj" "$detail" "$origin" "$task" | nc -U -w 1 "$SOCK" >/dev/null 2>&1
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$state" "${sid:-x}" "$tool" "$proj" "$detail" "$origin" "$task" "$ws" | nc -U -w 1 "$SOCK" >/dev/null 2>&1
 exit 0

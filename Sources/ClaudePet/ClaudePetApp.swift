@@ -53,6 +53,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.run(into: CommandLine.arguments[i + 1]); exit(0)
         }
+        if CommandLine.arguments.contains("--selftest-safety") { exit(SafetySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
             snapshotFootball(to: CommandLine.arguments[i + 1]); exit(0)
@@ -83,7 +84,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         setUpStage()
 
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.trigger"), object: nil, queue: .main) { n in
-            if let name = n.userInfo?["name"] as? String, PetStore.triggerNames.contains(name) { PetStore.shared.trigger(name) }
+            guard let name = n.userInfo?["name"] as? String else { return }
+            Task { @MainActor in if PetStore.triggerNames.contains(name) { PetStore.shared.trigger(name) } }
         }
 
         server.onLine = { line in
@@ -182,7 +184,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         st.level = .statusBar
         st.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         stage = st
-        NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: panel, queue: .main) { [weak self] _ in self?.placeStage() }
+        NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: panel, queue: .main) { [weak self] _ in Task { @MainActor in self?.placeStage() } }
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.placeStage() } }.store(in: &cancellables)
     }
 
@@ -259,8 +261,12 @@ struct ClaudePetApp: App {
             Text("Estado: \(store.state.label.capitalized)")
             Text(store.bridgeOK ? "Puente local activo" : "Puente local caido")
             Text(store.peer.map { "Pet bus: \($0.id) presente" } ?? (store.busOK ? "Pet bus: sin otras mascotas" : "Pet bus caido"))
+            if let warning = store.safetyAlert { Text(warning.title) }
+            if store.reviewReady { Button("codex listo para revision: abrir diff") { store.openReview() } }
             Toggle("Mostrar burbuja de actividad", isOn: $store.showBubble)
             Toggle("Detalle en la burbuja (archivos, comandos)", isOn: $store.showDetail)
+            Toggle("Avisar si claude o codex parecen bloqueados", isOn: $store.stallWatch)
+            Toggle("Bloquear herramientas si el proyecto cambia", isOn: $store.blockOnChange)
             Toggle("Compartir nombre del proyecto con otras mascotas", isOn: $store.shareProject)
             Divider()
             Button("Mostrar u ocultar mascota") { AppController.shared.toggleWindow() }

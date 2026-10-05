@@ -11,6 +11,9 @@ final class PetStore: ObservableObject {
     @Published private(set) var busOK = false
     @Published private(set) var peer: Peer?
     @Published private(set) var gameActive = false
+    @Published private(set) var safetyAlert: Activity?
+    @Published private(set) var reviewReady = false
+    @Published private(set) var bugBattleLevel = 0
     @Published var stageMirrored = false
     /// Interruptor general: apagado, la mascota queda quieta y no hay partidos.
     @Published var animationsEnabled: Bool = UserDefaults.standard.object(forKey: "animationsEnabled") as? Bool ?? true {
@@ -30,12 +33,19 @@ final class PetStore: ObservableObject {
     @Published var showDetail: Bool = UserDefaults.standard.object(forKey: "showDetail") as? Bool ?? true {
         didSet { UserDefaults.standard.set(showDetail, forKey: "showDetail"); refresh() }
     }
+    /// Opt-in: el hook deniega la siguiente herramienta de una sesion cuando el proyecto cambia mientras piensa.
+    @Published var blockOnChange: Bool = UserDefaults.standard.bool(forKey: "blockOnChange") {
+        didSet { UserDefaults.standard.set(blockOnChange, forKey: "blockOnChange"); WorkspaceSafety.setBlocking(blockOnChange) }
+    }
+    @Published var stallWatch: Bool = UserDefaults.standard.object(forKey: "stallWatch") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(stallWatch, forKey: "stallWatch"); updateSafetyAlert(Date()); refresh() }
+    }
     /// Por defecto el nombre del proyecto NO sale de la app.
     @Published var shareProject: Bool = UserDefaults.standard.bool(forKey: "shareProject") {
         didSet { UserDefaults.standard.set(shareProject, forKey: "shareProject"); publish(event: nil) }
     }
 
-    private struct Info { var state: PetState; var tool: String; var project: String; var detail: String; var origin: String; var prompt: String; var todo: String; var at: Date }
+    private struct Info { var state: PetState; var tool: String; var project: String; var detail: String; var origin: String; var workspace: String; var prompt: String; var todo: String; var at: Date }
     private var sessions: [String: Info] = [:]
     private var manual: (PetState, Date)?
     private var project = ""
@@ -48,9 +58,17 @@ final class PetStore: ObservableObject {
     /// Partido de futbol entre Claude y el mini del par (solo visual, deducido de presencia y estado).
     private let game = FootballGame(config: .fromEnvironment())
     private var peerStateKnown = false
+    private var peerStateSince = Date()
+    private var lastPeerState: PetState?
+    private let monitor = WorkspaceMonitor()
+    private var testSessions = Set<String>()
+    private var nextWorkspaceScan = Date.distantPast
+    private var lastBugChange = Date.distantPast
 
     init() {
         Sprite.skin = skin
+        WorkspaceSafety.setBlocking(blockOnChange)          // la bandera del hook refleja siempre la opcion guardada
+        monitor.onChange = { [weak self] session in Task { @MainActor in self?.contextChanged(session) } }
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.prune() }
         }
@@ -67,15 +85,36 @@ final class PetStore: ObservableObject {
 
     func apply(_ e: PetEvent) {
         switch e.kind {
-        case .end: sessions[e.session] = nil
+        case .end: drop(e.session)
         case .state(let s):
             // la tarea persiste durante la sesion: tu ultimo mensaje y la tarea en curso de la lista
             var prompt = sessions[e.session]?.prompt ?? "", todo = sessions[e.session]?.todo ?? ""
             if e.task.hasPrefix("p:") { prompt = String(e.task.dropFirst(2)); todo = "" }
             if e.task.hasPrefix("t:") { todo = String(e.task.dropFirst(2)) }
+            let prior = sessions[e.session]
             sessions[e.session] = Info(state: s, tool: (s == .tool || s == .waiting) ? e.tool : "", project: e.project,
-                                       detail: e.detail, origin: e.origin, prompt: prompt, todo: todo, at: Date())
+                                       detail: e.detail, origin: e.origin, workspace: e.workspace, prompt: prompt, todo: todo, at: Date())
+            // linea base al empezar a pensar o al volver de una herramienta (los cambios de la propia sesion no cuentan)
+            if s == .thinking, prior?.state != .thinking, !e.workspace.isEmpty { monitor.arm(session: e.session, workspace: e.workspace) }
+            if s == .tool && e.tool == "test" { testSessions.insert(e.session) }
+            if s == .error { bugBattleLevel = min(3, bugBattleLevel + 1); lastBugChange = Date() }
+            if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
+        refresh()
+    }
+
+    /// Olvida una sesion por completo: estado, vigilancia del proyecto y marca del bloqueo.
+    private func drop(_ session: String) {
+        sessions[session] = nil
+        monitor.forget(session: session)
+        testSessions.remove(session)
+        WorkspaceSafety.clearMarker(session: session)
+    }
+
+    private func contextChanged(_ session: String) {
+        guard sessions[session] != nil else { monitor.forget(session: session); return }
+        if blockOnChange { WorkspaceSafety.markChanged(session: session) }
+        updateSafetyAlert(Date())
         refresh()
     }
 
@@ -92,6 +131,7 @@ final class PetStore: ObservableObject {
         let known = PetState(rawValue: m.state)
         peerStateKnown = known != nil                              // desconocido: hay presencia, pero no cuenta como idle para el partido
         let st = known ?? .idle
+        if lastPeerState != st { lastPeerState = st; peerStateSince = now }
         let proj = m.project.map { String($0.prefix(40)) }
         peer = Peer(id: m.id, state: st, project: proj, lastTs: m.ts, seen: now)
         if old == nil || m.event == "appeared" { greetUntil = now.addingTimeInterval(3) }
@@ -101,6 +141,7 @@ final class PetStore: ObservableObject {
         default: break
         }
         syncGame()
+        updateReviewReady()
     }
 
     /// Reduce movimiento del sistema (o forzado con CLAUDE_PET_REDUCE_MOTION=1 para pruebas).
@@ -169,6 +210,9 @@ final class PetStore: ObservableObject {
             case "Bash":
                 if d.hasPrefix("$ ") { return "Ejecutando " + d.dropFirst(2) }
                 return d.isEmpty ? "Ejecutando un comando" : d
+            case "test":
+                if d.hasPrefix("$ ") { return "Ejecutando pruebas (" + d.dropFirst(2) + ")" }
+                return d.isEmpty ? "Ejecutando pruebas" : d
             case "Read": return d.isEmpty ? "Leyendo un archivo" : "Leyendo " + d
             case "Edit", "MultiEdit": return d.isEmpty ? "Editando un archivo" : "Editando " + d
             case "Write": return d.isEmpty ? "Escribiendo un archivo" : "Escribiendo " + d
@@ -216,11 +260,51 @@ final class PetStore: ObservableObject {
         let now = Date()
         for (k, v) in sessions {
             let age = now.timeIntervalSince(v.at)
-            if (v.state == .done && age > 5) || (v.state == .error && age > 8) || age > 900 { sessions[k] = nil }
+            if (v.state == .done && age > 5) || (v.state == .error && age > 8) || age > 900 { drop(k) }
         }
         if let m = manual, now.timeIntervalSince(m.1) > 5 { manual = nil }
         if let p = peer, now.timeIntervalSince(p.seen) > peerTTL { peer = nil }   // el par desaparecio sin avisar
+        if bugBattleLevel > 0, now.timeIntervalSince(lastBugChange) >= 60 { bugBattleLevel -= 1; lastBugChange = now }   // la infestacion cede sola
+        checkWorkspaceChanges(now)
+        updateSafetyAlert(now)
         refresh()
+    }
+
+    /// Pide los escaneos (asincronos, fuera del hilo principal) cada 3 s a las sesiones que estan pensando.
+    private func checkWorkspaceChanges(_ now: Date) {
+        guard now >= nextWorkspaceScan else { return }
+        nextWorkspaceScan = now.addingTimeInterval(3)
+        for (session, info) in sessions where info.state == .thinking && !info.workspace.isEmpty {
+            monitor.check(session: session, workspace: info.workspace)
+        }
+    }
+
+    private func updateSafetyAlert(_ now: Date) {
+        let changed = monitor.changed.filter { sessions[$0] != nil }
+        if !changed.isEmpty {
+            safetyAlert = Activity(title: "El proyecto cambio mientras claude pensaba",
+                                   subtitle: blockOnChange ? "herramientas detenidas hasta nuevo mensaje" : "revisa el diff antes de seguir", origin: "")
+            return
+        }
+        if stallWatch {
+            if let s = sessions.values.first(where: { stalled($0.state, since: $0.at, now) }) {
+                safetyAlert = Activity(title: "claude parece bloqueado", subtitle: "sin actividad desde hace \(Int(now.timeIntervalSince(s.at) / 60)) min", origin: s.origin)
+                return
+            }
+            if let p = peer, stalled(p.state, since: peerStateSince, now) {
+                safetyAlert = Activity(title: "\(p.id) parece bloqueado", subtitle: "sin cambios desde hace \(Int(now.timeIntervalSince(peerStateSince) / 60)) min", origin: "")
+                return
+            }
+        }
+        safetyAlert = nil
+    }
+
+    private func stalled(_ st: PetState, since: Date, _ now: Date) -> Bool {
+        switch st {
+        case .thinking: return now.timeIntervalSince(since) >= WorkspaceSafety.thinkingStall
+        case .tool: return now.timeIntervalSince(since) >= WorkspaceSafety.toolStall
+        default: return false
+        }
     }
 
     private func refresh() {
@@ -243,11 +327,23 @@ final class PetStore: ObservableObject {
             let d = Self.describe(new, tool: t.tool, detail: showDetail ? t.detail : "", task: task)
             return Activity(title: d.0, subtitle: d.1, origin: t.origin)
         }()
-        if act != activity { activity = act }
+        let shown = safetyAlert ?? act            // una alerta de seguridad siempre se ve en la burbuja
+        if shown != activity { activity = shown }
         let changed = new != state || newProject != project
         project = newProject
         if new != state { state = new }
         if changed { publish(event: eventFor(new)) }
         syncGame()
+        updateReviewReady()
+    }
+
+    private func updateReviewReady() {
+        guard let peer, peer.state == .done, let name = peer.project, !name.isEmpty else { reviewReady = false; return }
+        reviewReady = sessions.values.contains { ($0.state == .starting || $0.state == .thinking || $0.state == .tool || $0.state == .waiting) && $0.project == name && !$0.workspace.isEmpty }
+    }
+
+    func openReview() {
+        guard let name = peer?.project, let info = sessions.values.first(where: { $0.project == name && !$0.workspace.isEmpty }) else { return }
+        DiffOpener.open(workspace: info.workspace)
     }
 }

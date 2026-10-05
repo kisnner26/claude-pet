@@ -5,7 +5,7 @@ struct BubbleView: View {
 
     var body: some View {
         if let a = store.activity, store.showBubble {
-            BubbleCard(activity: a, state: store.state, flat: false)
+            BubbleCard(activity: a, state: store.safetyAlert != nil ? .error : store.state, flat: false)
                 .frame(width: 360, height: 76)
         } else {
             Color.clear.frame(width: 360, height: 76)

@@ -15,7 +15,7 @@ func makeSockAddr(_ path: String) -> sockaddr_un? {
 }
 
 /// Servidor minimo sobre socket Unix (solo local, modo 0600, solo el mismo usuario).
-/// Entrega cada linea recibida (max 1024 bytes por conexion; el bus impone sus 512 al decodificar) a `onLine`.
+/// Entrega cada linea recibida (max 2048 bytes por conexion; el bus impone sus 512 al decodificar) a `onLine`.
 final class EventServer {
     static var defaultPath: String {
         if let p = ProcessInfo.processInfo.environment["CLAUDE_PET_SOCK"], !p.isEmpty { return p }
@@ -85,13 +85,13 @@ final class EventServer {
 
         var data = Data()
         var buf = [UInt8](repeating: 0, count: 256)
-        while data.count < 1024 {
+        while data.count < 2048 {
             let n = read(c, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0..<n])
             if data.contains(0x0A) { break }
         }
-        let text = String(decoding: data.prefix(1024), as: UTF8.self)   // bytes invalidos -> U+FFFD, no se pierde la linea
+        let text = String(decoding: data.prefix(2048), as: UTF8.self)   // bytes invalidos -> U+FFFD, no se pierde la linea
         for line in text.split(separator: "\n") { onLine?(String(line)) }
     }
 
