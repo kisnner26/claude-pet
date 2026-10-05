@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Pet</title>
+<meta name="description" content="Una mascota pixel-art para la barra de menú de macOS que muestra, de un vistazo, lo que hace Claude Code. Todo local, sin permisos.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Claude Pet">
+<meta property="og:description" content="Sabe qué hace Claude Code. De un vistazo.">
+<meta property="og:type" content="website">
+<link rel="icon" href="img/block-idle.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Arquetipo D de la skill web-design-inmersivo: teselas, texto centrado, un solo azul. */
+:root{
+  --f: -apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --ink:#1d1d1f; --ink-on-dark:#f5f5f7; --bg:#f5f5f7; --gray:#86868b; --gray-d:#6e6e73;
+  --blue:#0071e3; --blue-h:#0077ed; --link:#0066cc; --link-d:#2997ff;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:var(--f);background:#fff;color:var(--ink);letter-spacing:-.022em;-webkit-font-smoothing:antialiased;line-height:1.4}
+a{color:inherit}
+img{display:block;max-width:100%}
+:focus-visible{outline:2px solid var(--link-d);outline-offset:3px;border-radius:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---- nav global ---- */
+.nav{position:sticky;top:0;z-index:50;height:44px;display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,44px);padding:0 16px;
+  background:rgba(29,29,31,.8);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);font-size:12px;color:#e8e8ed}
+.nav a{text-decoration:none;opacity:.8;white-space:nowrap;transition:opacity .25s}
+.nav a:hover{opacity:1}
+.nav .brand{display:flex;align-items:center;gap:8px;font-weight:600;opacity:.95}
+.nav .brand img{width:20px;height:20px;image-rendering:pixelated}
+
+/* ---- teselas ---- */
+.tile{position:relative;isolation:isolate;overflow:clip;text-align:center;display:flex;flex-direction:column;align-items:center}
+.dark{background:#000;color:var(--ink-on-dark)}
+.light{background:var(--bg);color:var(--ink)}
+.full{margin-bottom:12px;padding:clamp(48px,6.5vw,88px) 20px 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px 12px}
+.half{min-height:min(580px,64vw);padding:clamp(36px,4.4vw,56px) 20px 0}
+
+.eyebrow{font-size:clamp(17px,1.7vw,24px);font-weight:600;line-height:1.17;letter-spacing:.009em}
+.title{font-size:clamp(36px,4.4vw,64px);font-weight:600;line-height:1.07;letter-spacing:-.005em;text-wrap:balance}
+.half .title,.title.m{font-size:clamp(28px,3.1vw,44px)}
+.sub{font-size:clamp(19px,1.9vw,28px);font-weight:400;line-height:1.14;letter-spacing:.007em;margin-top:8px;text-wrap:balance;max-width:26em}
+.note{font-size:clamp(14px,1.3vw,19px);line-height:1.25;color:var(--gray);margin-top:8px;max-width:34em}
+.ctas{display:flex;gap:18px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:clamp(16px,1.8vw,24px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:980px;text-decoration:none;white-space:nowrap;
+  font-size:17px;line-height:1.17648;padding:11px 21px;background:var(--blue);color:#fff;border:1px solid transparent;transition:background .3s}
+.btn:hover{background:var(--blue-h)}
+.btn.sm{font-size:14px;padding:8px 15px}
+.btn.ghost{background:transparent;color:var(--link);border-color:var(--link)}
+.dark .btn.ghost{color:var(--link-d);border-color:var(--link-d)}
+.lnk{color:var(--link);text-decoration:none;font-size:17px}
+.lnk::after{content:" >"}
+.lnk:hover{text-decoration:underline}
+.dark .lnk{color:var(--link-d)}
+
+/* ---- hero: la mascota recortada por la base de la tesela ---- */
+.hero{min-height:min(760px,92vw)}
+.ghost-word{position:absolute;left:0;right:0;bottom:-2%;z-index:-1;text-align:center;font-weight:700;font-size:clamp(150px,30vw,440px);line-height:.8;letter-spacing:-.04em;
+  color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.12);pointer-events:none;user-select:none}
+.hero .pet{width:min(62vw,520px);margin-top:auto;margin-bottom:-6%;image-rendering:pixelated;filter:drop-shadow(0 30px 60px rgba(224,130,79,.18))}
+.pixel{image-rendering:pixelated}
+
+/* burbuja de actividad: la misma que dibuja la app */
+.bubble{display:flex;align-items:center;gap:14px;text-align:left;min-width:min(340px,86vw);padding:12px 18px;border-radius:20px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(22px) saturate(1.3);-webkit-backdrop-filter:blur(22px) saturate(1.3)}
+.bubble b{display:block;font-size:14px;font-weight:600;color:#f4f2ee;letter-spacing:-.01em}
+.bubble span{display:block;font:400 11.5px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;color:rgba(244,242,238,.55);letter-spacing:0}
+.bubble .grow{flex:1}
+.ring{width:18px;height:18px;border-radius:50%;border:2.5px solid transparent;border-top-color:#e0824f;border-right-color:#e0824f;flex:none}
+.pulse{width:10px;height:10px;border-radius:50%;background:#e0824f;flex:none}
+.tick{width:18px;height:18px;flex:none;color:#f4f2ee}
+.hero .bubble{margin-top:clamp(18px,2.4vw,30px)}
+
+/* ---- siete estados ---- */
+.states{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:clamp(4px,1.2vw,16px);width:min(1100px,100%);margin:clamp(28px,4vw,56px) auto 0;padding:0 clamp(8px,2vw,24px)}
+.state{padding-bottom:clamp(20px,3vw,40px)}
+.state img{width:100%;height:auto}
+.state figcaption{font-size:clamp(11px,1.1vw,14px);color:var(--gray-d);margin-top:4px}
+
+/* ---- tareas / privacidad ---- */
+.stack{display:grid;gap:12px;margin:auto 0;padding:clamp(24px,3vw,40px) 0}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;margin:auto 0;padding:clamp(24px,3vw,40px) 0;text-align:center}
+.big b{display:block;font-size:clamp(52px,6.4vw,92px);font-weight:600;line-height:1;letter-spacing:-.03em}
+.big span{display:block;font-size:clamp(12px,1.2vw,16px);color:var(--gray-d);margin-top:6px;line-height:1.25}
+
+/* ---- futbol ---- */
+.pitch{width:min(900px,92vw);margin:clamp(24px,3.4vw,48px) auto 0;image-rendering:pixelated}
+
+/* ---- cifras ---- */
+.numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(12px,3vw,48px);width:min(1000px,100%);margin:clamp(28px,4vw,56px) auto;padding:0 clamp(8px,2vw,24px)}
+.numbers b{display:block;font-size:clamp(40px,5.2vw,76px);font-weight:600;line-height:1;letter-spacing:-.03em}
+.numbers span{display:block;font-size:clamp(12px,1.25vw,17px);color:var(--gray-d);margin-top:8px;line-height:1.25}
+
+/* ---- instalacion ---- */
+.code{margin:clamp(24px,3vw,40px) auto clamp(40px,5vw,72px);width:min(680px,100%);text-align:left;border-radius:18px;background:#1d1d1f;border:1px solid rgba(255,255,255,.1);
+  padding:20px 22px;font:400 14px/1.8 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e8e8ed;overflow-x:auto}
+.code i{font-style:normal;color:#86868b}
+.code .c{color:#86868b}
+
+/* ---- pie ---- */
+.foot{background:var(--bg);color:var(--gray-d);font-size:12px;line-height:1.33;padding:20px clamp(16px,8vw,120px) 28px;letter-spacing:-.01em}
+.foot p{margin:0 0 .8em;max-width:60em}
+.foot hr{border:0;border-top:1px solid #d2d2d7;margin:14px 0}
+.foot nav{display:flex;gap:18px;flex-wrap:wrap}
+.foot a{color:var(--gray-d)}
+
+/* ---- movimiento: sobrio, una sola entrada ---- */
+@media (prefers-reduced-motion:no-preference){
+  html.js .rv{opacity:0;transform:translateY(22px);transition:opacity .9s var(--ease),transform .9s var(--ease);transition-delay:calc(var(--d,0) * 90ms)}
+  html.js .rv.in{opacity:1;transform:none}
+  html.js .hero .pet{transform:translateY(40px) scale(.96);transition:transform 1.3s var(--ease)}
+  html.js .hero .pet.in{transform:none}
+  .ring{animation:spin .9s linear infinite}
+  .pulse{animation:beat 1.2s ease-in-out infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes beat{50%{opacity:.35}}
+}
+
+/* ---- responsive: se reordena ---- */
+@media (max-width:860px){
+  .nav a.x{display:none}
+  .grid{grid-template-columns:1fr}
+  .half{min-height:520px}
+  .states{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:6px}
+  .numbers{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
+  .hero{min-height:620px}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="Principal">
+  <a class="brand" href="#top"><img src="img/classic-idle.png" alt="" width="20" height="20">Claude Pet</a>
+  <a class="x" href="#estados">Estados</a><a class="x" href="#tarea">Tarea</a><a class="x" href="#futbol">Fútbol</a><a href="#privacidad">Privacidad</a><a href="#instalar">Instalar</a>
+  <a href="https://github.com/kisnner26/claude-pet">GitHub</a>
+</nav>
+
+<main id="top">
+
+<!-- 1. HERO -->
+<section class="tile dark full hero" aria-labelledby="h1">
+  <div class="ghost-word" aria-hidden="true">PET</div>
+  <p class="eyebrow rv">Para macOS</p>
+  <h1 id="h1" class="title rv" style="--d:1">Claude Pet</h1>
+  <p class="sub rv" style="--d:2">Sabe qué hace Claude. De un vistazo.</p>
+  <p class="note rv" style="--d:3">Una mascota pixel-art en tu barra de menú, conectada a Claude Code.</p>
+  <div class="ctas rv" style="--d:4"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="#privacidad">Cómo funciona</a></div>
+  <div class="bubble rv" style="--d:5" role="img" aria-label="Ejemplo de burbuja: Editando PetStore.swift">
+    <div class="grow"><b>Editando PetStore.swift</b><span>mostrar la tarea exacta  desktop</span></div><i class="ring"></i>
+  </div>
+  <img class="pet rv" style="--d:6" src="img/block-tool.png" alt="La mascota de Claude Pet tecleando, con chispas sobre la cabeza" width="640" height="640">
+</section>
+
+<!-- 2. SIETE ESTADOS -->
+<section id="estados" class="tile light full" aria-labelledby="h2">
+  <h2 id="h2" class="title rv">Siete estados.<br>Un vistazo.</h2>
+  <p class="sub rv" style="--d:1">Sin abrir la terminal. Sin preguntar.</p>
+  <div class="states">
+    <figure class="state rv" style="--d:1"><img class="pixel" src="img/block-idle.png" alt="Inactivo" width="640" height="640"><figcaption>Inactivo</figcaption></figure>
+    <figure class="state rv" style="--d:2"><img class="pixel" src="img/block-starting.png" alt="Iniciando sesión" width="640" height="640"><figcaption>Iniciando</figcaption></figure>
+    <figure class="state rv" style="--d:3"><img class="pixel" src="img/block-thinking.png" alt="Pensando" width="640" height="640"><figcaption>Pensando</figcaption></figure>
+    <figure class="state rv" style="--d:4"><img class="pixel" src="img/block-tool.png" alt="Ejecutando una herramienta" width="640" height="640"><figcaption>Herramienta</figcaption></figure>
+    <figure class="state rv" style="--d:5"><img class="pixel" src="img/block-waiting.png" alt="Esperando tu aprobación" width="640" height="640"><figcaption>Aprobación</figcaption></figure>
+    <figure class="state rv" style="--d:6"><img class="pixel" src="img/block-done.png" alt="Listo" width="640" height="640"><figcaption>Listo</figcaption></figure>
+    <figure class="state rv" style="--d:7"><img class="pixel" src="img/block-error.png" alt="Error" width="640" height="640"><figcaption>Error</figcaption></figure>
+  </div>
+</section>
+
+<!-- 3. TAREA + PRIVACIDAD -->
+<div class="grid">
+  <section id="tarea" class="tile dark half" aria-labelledby="h3">
+    <h2 id="h3" class="title rv">La tarea exacta.</h2>
+    <p class="sub rv" style="--d:1">No “pensando”. “Editando PetStore.swift”.</p>
+    <div class="stack rv" style="--d:2">
+      <div class="bubble"><div class="grow"><b>Leyendo GitPulse.swift</b><span>arreglar el escaneo de git</span></div><i class="ring"></i></div>
+      <div class="bubble"><div class="grow"><b>Ejecutando pruebas (swift)</b><span>arreglar el escaneo de git</span></div><i class="ring"></i></div>
+      <div class="bubble"><div class="grow"><b>Ejecutando curl</b><span>Esperando tu aprobación</span></div><i class="pulse"></i></div>
+    </div>
+  </section>
+
+  <section id="privacidad" class="tile light half" aria-labelledby="h4">
+    <h2 id="h4" class="title rv">Todo se queda<br>en tu Mac.</h2>
+    <p class="sub rv" style="--d:1">Sockets Unix locales. Sin red, sin credenciales, sin telemetría.</p>
+    <div class="big rv" style="--d:2">
+      <div><b>0</b><span>permisos del sistema</span></div>
+      <div><b>0</b><span>conexiones externas</span></div>
+    </div>
+  </section>
+</div>
+
+<!-- 4. FUTBOL -->
+<section id="futbol" class="tile dark full" aria-labelledby="h5">
+  <h2 id="h5" class="title rv">Cuando llega Codex,<br>juegan.</h2>
+  <p class="sub rv" style="--d:1">Si ambos llevan 8 segundos inactivos, un partido de fútbol. Se cancela al instante si alguno se pone a trabajar.</p>
+  <div class="ctas rv" style="--d:2"><a class="lnk" href="https://github.com/kisnner26/claude-pet/blob/main/docs/PET-BUS.md">Leer el protocolo</a></div>
+  <img class="pitch rv" style="--d:3" src="img/futbol-escena.png" alt="Escena del partido: el avatar de Codex patea la pelota hacia Claude, que la espera con la cabeza" width="672" height="320">
+</section>
+
+<!-- 5. CIFRAS -->
+<section class="tile light full" aria-labelledby="h6">
+  <h2 id="h6" class="title m rv">Hecho para pasar desapercibido.</h2>
+  <div class="numbers">
+    <div class="rv" style="--d:1"><b>10</b><span>eventos de hook traducidos</span></div>
+    <div class="rv" style="--d:2"><b>7</b><span>estados con su propia animación</span></div>
+    <div class="rv" style="--d:3"><b>12 s</b><span>dura el partido con Codex</span></div>
+    <div class="rv" style="--d:4"><b>5 min</b><span>como mínimo entre partidos</span></div>
+  </div>
+</section>
+
+<!-- 6. INSTALAR -->
+<section id="instalar" class="tile dark full" aria-labelledby="h7">
+  <h2 id="h7" class="title rv">Instálalo en un minuto.</h2>
+  <p class="sub rv" style="--d:1">Muestra el cambio exacto antes de tocar tu configuración.</p>
+  <pre class="code rv" style="--d:2" aria-label="Comandos de instalación"><span class="c"># compila la app</span>
+./build.sh
+open build/ClaudePet.app
+
+<span class="c"># revisa el diff y aplícalo con tu confirmación</span>
+./install-hooks.sh --dry-run
+./install-hooks.sh</pre>
+  <div class="ctas rv" style="--d:3;margin-bottom:clamp(40px,5vw,72px)"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="https://github.com/kisnner26/claude-pet#readme">Leer el README</a></div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <p>1. Las imágenes son renders del propio código de dibujo de la app, no capturas de pantalla.</p>
+  <p>2. Requiere macOS 13 o posterior y las Command Line Tools para compilar.</p>
+  <p>3. Proyecto independiente: no está afiliado a Anthropic ni a OpenAI. Inspirado en ClaudeHub de NormanSMA.</p>
+  <hr>
+  <nav aria-label="Pie"><a href="https://github.com/kisnner26/claude-pet">Código en GitHub</a><a href="https://github.com/kisnner26/claude-pet/blob/main/docs/PET-BUS.md">Protocolo del pet bus</a><span>© 2026 kisnner26</span></nav>
+</footer>
+
+<script>
+/* entrada al hacer scroll: si algo falla, el contenido ya es visible (la clase "js" solo se anade si hay observador) */
+(() => {
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.documentElement.classList.add('js');
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll('.rv').forEach(el => io.observe(el));
+})();
+</script>
+</body>
+</html>
