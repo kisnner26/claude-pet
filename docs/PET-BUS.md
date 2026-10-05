@@ -66,9 +66,9 @@ nuevos: si el otro lado no lo conoce, no pasa nada.
 | Inicio | Claude y el par presentes, ambos en `idle`, durante 8 s seguidos |
 | Frecuencia | como maximo un inicio cada 5 minutos (un partido cancelado tambien cuenta) |
 | Cancelacion | al instante si cualquiera sale de `idle` (starting, thinking, tool, waiting, error; tambien done), si el par desaparece o si su estado es desconocido |
-| Duracion | 12 s: el avatar de Codex entra caminando, patea a Claude, Claude cabecea y devuelve, otra vuelta, celebracion con confeti |
+| Duracion | 12 s: Codex patea a Claude desde su ventana, Claude cabecea y devuelve, otra vuelta, celebracion con confeti |
 | Reducir movimiento | si el sistema lo pide, el avatar y la pelota aparecen con un fundido y quedan fijos, y el confeti es fijo; nada se desplaza |
-| Escenario | una ventana transparente que no capta el raton, pegada a la mascota (a la izquierda; si no hay sitio, se refleja a la derecha). No cambia el tamano de la mascota ni su arrastre |
+| Capa del partido | una ventana transparente que no capta el raton y cubre a las dos mascotas **donde esten**: la pelota viaja de la ventana de Codex a la de Claude. Ninguna ventana se mueve por el partido. Solo hay partido si se ven las dos y estan a menos de 640 px en horizontal y 420 en vertical |
 
 Menu de la barra > **Animaciones**: "Activar animaciones" (apagado, la mascota queda quieta y no hay partidos),
 "Partido automatico con Codex", y disparadores inmediatos: "Partido de futbol ahora", "Saludo", "Celebracion del
@@ -88,6 +88,30 @@ Un estado desconocido del par cuenta como presencia, pero no como inactivo.
 Codigo: `FootballGame.swift` (reglas, sin UI ni reloj propio), `FootballChoreography.swift`
 (tiempo -> fotograma, funcion pura), `StageView.swift` (escenario: avatar grande, pelota con estela y sombra, polvo, destello, confeti) y las reacciones de Claude en `Sprite.swift`. Pruebas: `tests/football.sh`
 (reglas con reloj falso en `ClaudePet --selftest-football`, y escenarios visuales).
+
+## Codex como mascota propia (visual, local)
+
+Claude y Codex son dos mascotas **independientes**: cada una tiene su ventana, su posicion (se recuerda) y su arrastre, y
+aparece solo si su herramienta esta en uso (la app abierta, o sesion de Claude Code / adaptador de Codex en el bus). Se
+mueven por separado, este abierta o no la otra. Solo usan estados que ya cruzan el bus v1 (`state`, `event`) y marcas de
+tiempo locales; nada nuevo viaja por el bus.
+
+| Estado de Codex | Cara y movimiento |
+|---|---|
+| `idle` | `>_` con el cursor parpadeando |
+| `starting`, `thinking` | puntos en el visor, vaiven suave |
+| `tool` | teclea (`>_` con el cursor en movimiento), rebote y patas alternas |
+| `waiting` | `!` naranja y saltito periodico |
+| `done` | `^ ^` y salto al acabar |
+| `error` | `x x` en coral y temblor |
+
+Reacciones mutuas, esten donde esten: Codex en reposo mira a Claude (tres puntos si piensa, `!` si espera tu aprobacion, `?`
+si falla; cara feliz, check y salto si termina). Claude mira hacia el lado donde esta Codex cuando este trabaja y el, en
+reposo, y levanta el brazo cuando Codex termina. Codex se refleja para mirar siempre hacia Claude. Un clic sobre Codex abre
+su app (`com.openai.codex`). Con "reducir movimiento" o animaciones apagadas se mantienen las caras y se anulan saltos,
+vaiven y temblor. Pruebas: `ClaudePet --selftest-companion`, `tests/companion.sh` y `tests/presence.sh`.
+
+![companero](img/companero.png)
 
 ## Adaptador de Codex (para otro proceso)
 

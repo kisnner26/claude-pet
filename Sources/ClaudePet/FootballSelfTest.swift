@@ -96,18 +96,15 @@ enum FootballSelfTest {
         // 5. coreografia
         do {
             var minT = 9.0, maxT = -1.0, ok = true, hop = false, kick = false, celebrate = false, header = false, kickP = false
-            var prevIn = -1.0, monotonic = true
             for i in 0..<Int(FootballChoreography.duration * 20) {
                 guard let f = FootballChoreography.frame(elapsed: Double(i) / 20, reduceMotion: false) else { ok = false; continue }
                 minT = min(minT, f.ballT); maxT = max(maxT, f.ballT)
                 if f.ballT < 0 || f.ballT > 1 || f.arc < 0 || f.arc > 1 || f.ballOpacity < 0 || f.ballOpacity > 1 { ok = false }
-                if f.avatarIn < prevIn { monotonic = false }; prevIn = f.avatarIn
                 hop = hop || f.claudeHop; kick = kick || f.kickFoot; celebrate = celebrate || f.celebrateMoving
                 header = header || f.headerPulse > 0.5; kickP = kickP || f.kickPulse > 0.5
             }
             check("la pelota recorre todo el trayecto entre Codex (0) y Claude (1) dentro de limites", ok && minT == 0 && maxT == 1)
             check("hay patada, polvo, cabeceo, destello y celebracion", kick && kickP && hop && header && celebrate)
-            check("el avatar de Codex entra sin retroceder y termina en su sitio", monotonic && prevIn == 1)
             check("fuera de la duracion no hay fotograma", FootballChoreography.frame(elapsed: -0.1, reduceMotion: false) == nil
                   && FootballChoreography.frame(elapsed: FootballChoreography.duration, reduceMotion: false) == nil)
         }
@@ -115,7 +112,7 @@ enum FootballSelfTest {
             var still = true, faded = false
             for i in 0..<Int(FootballChoreography.duration * 20) {
                 guard let f = FootballChoreography.frame(elapsed: Double(i) / 20, reduceMotion: true) else { still = false; continue }
-                if f.ballT != FootballChoreography.reducedBallT || f.arc != 0 || f.avatarIn != 1 || f.kickFoot || f.kickPulse != 0
+                if f.ballT != FootballChoreography.reducedBallT || f.arc != 0 || f.kickFoot || f.kickPulse != 0
                     || f.headerPulse != 0 || f.claudeHop || f.avatarHop || f.celebrateMoving || !f.reduced { still = false }
                 if f.ballOpacity > 0 && f.ballOpacity < 1 { faded = true }
             }

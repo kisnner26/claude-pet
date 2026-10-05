@@ -15,17 +15,27 @@ struct GlassBackground: NSViewRepresentable {
 
 struct PetView: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var mission: MissionControl
+
+    init(store: PetStore) {
+        self.store = store
+        _mission = ObservedObject(wrappedValue: store.mission)
+    }
 
     var body: some View {
         VStack(spacing: 10) {
             TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
-                let tick = store.animationsEnabled ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
+                let tick = store.animationsEnabled && !store.reduceMotion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
                 Canvas { gc, size in
                     if let peer = store.peer, !store.gameActive {
-                        let color = peer.state == .waiting ? Pal.body : (peer.state == .error ? Pal.dark : Pal.cream.opacity(0.6))
+                        let color = mission.collision ? Pal.dark : (peer.state == .waiting ? Pal.body : (peer.state == .error ? Pal.dark : Pal.cream.opacity(0.6)))
                         var cable = Path(); cable.move(to: CGPoint(x: 4, y: 17)); cable.addLine(to: CGPoint(x: 35, y: 17 + (tick % 2) * 2)); cable.addLine(to: CGPoint(x: 70, y: 17)); cable.addLine(to: CGPoint(x: 108, y: 34))
                         gc.stroke(cable, with: .color(color), style: StrokeStyle(lineWidth: peer.state == .tool ? 3 : 2, lineCap: .square))
                         if peer.state == .tool { gc.fill(Path(ellipseIn: CGRect(x: 53, y: 12, width: 6, height: 6)), with: .color(Pal.light)) }
+                        if mission.collision {
+                            var cross = Path(); cross.move(to: CGPoint(x: 51, y: 9)); cross.addLine(to: CGPoint(x: 65, y: 23)); cross.move(to: CGPoint(x: 65, y: 9)); cross.addLine(to: CGPoint(x: 51, y: 23))
+                            gc.stroke(cross, with: .color(Pal.dark), lineWidth: 3)
+                        }
                     }
                     let u = size.width / 16
                     if store.bugBattleLevel > 0 {
@@ -47,5 +57,7 @@ struct PetView: View {
         // casi invisible: mantiene el arrastre de la ventana sin dibujar ningun panel
         .background(Color.black.opacity(0.001))
         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
+        .accessibilityLabel("Claude Pet, estado \(store.state.label.lowercased())" + (mission.collision ? "; posible colisión con Codex" : ""))
+        .accessibilityValue(mission.collision ? "ambos trabajan en el mismo proyecto compartido" : "sin colisión")
     }
 }

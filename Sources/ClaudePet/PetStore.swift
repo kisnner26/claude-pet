@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class PetStore: ObservableObject {
     static let shared = PetStore()
+    let mission: MissionControl
 
     @Published private(set) var state: PetState = .idle
     @Published private(set) var tool: String = ""
@@ -14,7 +15,22 @@ final class PetStore: ObservableObject {
     @Published private(set) var safetyAlert: Activity?
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
-    @Published var stageMirrored = false
+    /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
+    @Published private(set) var codexSide = -1
+    /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
+    @Published private(set) var gameGeometry: GameGeometry?
+    // Presencia: cada mascota aparece solo si su herramienta esta en uso.
+    @Published private(set) var claudePresent = false
+    @Published private(set) var codexPresent = false
+    /// Apagado: la mascota de Claude se ve siempre (comportamiento anterior).
+    @Published var autoVisibility: Bool = UserDefaults.standard.object(forKey: "autoVisibility") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(autoVisibility, forKey: "autoVisibility") }
+    }
+    /// Ocultar todo desde el menu (no se guarda: al reabrir la app vuelve a la presencia).
+    @Published var userHidden = false
+    private var claudeAppOpen = false
+    private var codexAppOpen = false
+    private var hookPresentUntil = Date.distantPast        // hay hooks de Claude Code recientes y la sesion no se cerro
     /// Interruptor general: apagado, la mascota queda quieta y no hay partidos.
     @Published var animationsEnabled: Bool = UserDefaults.standard.object(forKey: "animationsEnabled") as? Bool ?? true {
         didSet { UserDefaults.standard.set(animationsEnabled, forKey: "animationsEnabled"); syncGame() }
@@ -54,6 +70,36 @@ final class PetStore: ObservableObject {
     private var greetUntil = Date.distantPast
     private var cheerUntil = Date.distantPast
     private var concernUntil = Date.distantPast
+    var visibility: PresenceLogic.Visibility {
+        PresenceLogic.visibility(Presence(claude: claudePresent, codex: codexPresent), auto: autoVisibility, userHidden: userHidden)
+    }
+    var pairNear: Bool { gameGeometry != nil }
+    /// Codex mira hacia Claude: +1 derecha, -1 izquierda.
+    var codexFacing: Int { codexSide < 0 ? 1 : -1 }
+
+    func setPair(geometry: GameGeometry?, codexSide side: Int) {
+        if side != codexSide { codexSide = side }
+        if geometry != gameGeometry { gameGeometry = geometry }
+        if geometry == nil && game.isActive { syncGame() }
+    }
+
+    func gameFrame(at date: Date) -> GameFrame? {
+        game.elapsed(at: date).flatMap { FootballChoreography.frame(elapsed: $0, reduceMotion: reduceMotion) }
+    }
+
+    func setApps(claude: Bool, codex: Bool) {
+        claudeAppOpen = claude; codexAppOpen = codex
+        updatePresence()
+    }
+
+    private func updatePresence() {
+        let p = PresenceLogic.presence(claudeAppOpen: claudeAppOpen, hookSessionActive: Date() < hookPresentUntil,
+                                       codexAppOpen: codexAppOpen, peerPresent: peer != nil)
+        if p.claude != claudePresent { claudePresent = p.claude }
+        if p.codex != codexPresent { codexPresent = p.codex }
+    }
+
+    private var claudeDoneUntil = Date.distantPast       // Claude acaba de terminar: Codex aplaude
     private let peerTTL: TimeInterval = 25
     /// Partido de futbol entre Claude y el mini del par (solo visual, deducido de presencia y estado).
     private let game = FootballGame(config: .fromEnvironment())
@@ -64,8 +110,13 @@ final class PetStore: ObservableObject {
     private var testSessions = Set<String>()
     private var nextWorkspaceScan = Date.distantPast
     private var lastBugChange = Date.distantPast
+    private var lastMissionState: PetState?
+    private var lastMissionProject = ""
+    private var lastMissionWorkspace = ""
+    private var lastMissionSession = ""
 
-    init() {
+    init(mission: MissionControl? = nil) {
+        self.mission = mission ?? MissionControl()
         Sprite.skin = skin
         WorkspaceSafety.setBlocking(blockOnChange)          // la bandera del hook refleja siempre la opcion guardada
         monitor.onChange = { [weak self] session in Task { @MainActor in self?.contextChanged(session) } }
@@ -84,9 +135,14 @@ final class PetStore: ObservableObject {
     // MARK: hooks de Claude Code
 
     func apply(_ e: PetEvent) {
+        var toolEvent: String?
         switch e.kind {
-        case .end: drop(e.session)
+        case .end:
+            drop(e.session)
+            if sessions.isEmpty { hookPresentUntil = .distantPast }
         case .state(let s):
+            hookPresentUntil = Date().addingTimeInterval(2 * 3600)      // sesion abierta: Claude Code esta en uso
+            if s == .tool { toolEvent = e.tool }
             // la tarea persiste durante la sesion: tu ultimo mensaje y la tarea en curso de la lista
             var prompt = sessions[e.session]?.prompt ?? "", todo = sessions[e.session]?.todo ?? ""
             if e.task.hasPrefix("p:") { prompt = String(e.task.dropFirst(2)); todo = "" }
@@ -101,6 +157,7 @@ final class PetStore: ObservableObject {
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
         refresh()
+        if let toolEvent { mission.recordToolEvent(toolEvent) }
     }
 
     /// Olvida una sesion por completo: estado, vigilancia del proyecto y marca del bloqueo.
@@ -127,13 +184,23 @@ final class PetStore: ObservableObject {
         let now = Date()
         let old = peer
         if let o = old, o.id == m.id, m.ts < o.lastTs { return }   // mensaje viejo fuera de orden
-        if m.event == "left" { if peer?.id == m.id { peer = nil }; return }
+        if m.event == "left" {
+            if peer?.id == m.id {
+                peer = nil
+                peerStateKnown = false
+                mission.peerLeft()
+                syncGame()
+                updateReviewReady()
+            }
+            return
+        }
         let known = PetState(rawValue: m.state)
         peerStateKnown = known != nil                              // desconocido: hay presencia, pero no cuenta como idle para el partido
         let st = known ?? .idle
         if lastPeerState != st { lastPeerState = st; peerStateSince = now }
         let proj = m.project.map { String($0.prefix(40)) }
         peer = Peer(id: m.id, state: st, project: proj, lastTs: m.ts, seen: now)
+        mission.recordPeer(state: st, project: proj ?? "")
         if old == nil || m.event == "appeared" { greetUntil = now.addingTimeInterval(3) }
         switch m.event {
         case "finished": cheerUntil = now.addingTimeInterval(2.5)
@@ -162,6 +229,7 @@ final class PetStore: ObservableObject {
         let now = Date()
         switch name {
         case "football":
+            guard gameGeometry != nil else { return }       // las dos mascotas deben verse y estar cerca
             game.forceStart(now: now)
             if game.isActive != gameActive { gameActive = game.isActive }
             return
@@ -175,6 +243,13 @@ final class PetStore: ObservableObject {
     }
 
     private func syncGame() {
+        updatePresence()
+        // sin Claude en uso (p. ej. solo Codex abierto) no hay partido automatico
+        guard (claudePresent || game.forced), gameGeometry != nil else {
+            game.cancel()
+            if gameActive { gameActive = false }
+            return
+        }
         guard animationsEnabled, footballEnabled || game.forced else {
             game.cancel()
             if gameActive { gameActive = false }
@@ -188,7 +263,16 @@ final class PetStore: ObservableObject {
         guard peer != nil || date < demoUntil || game.isActive else { return nil }
         let p = peer ?? Peer(id: "demo", state: .idle, project: nil, lastTs: 0, seen: date)
         let frame = game.elapsed(at: date).flatMap { FootballChoreography.frame(elapsed: $0, reduceMotion: reduceMotion) }
-        return PeerCue(state: p.state, greet: date < greetUntil, cheer: date < cheerUntil, concern: date < concernUntil, game: frame)
+        // greet tambien al terminar Codex: Claude levanta el brazo (choque de manos)
+        return PeerCue(state: p.state, greet: date < greetUntil || date < cheerUntil, cheer: date < cheerUntil, concern: date < concernUntil, game: frame,
+                       companion: visibility.codexWindow,
+                       lookX: CompanionLogic.lookX(peer: peer?.state, claude: state, mirrored: codexSide > 0))
+    }
+
+    /// Lo que el escenario necesita para dibujar a Codex junto a Claude. Solo estados y marcas de tiempo: nada del chat.
+    func companionInfo(at date: Date) -> CompanionInfo {
+        CompanionInfo(codex: peer?.state ?? .idle, claude: claudePresent ? state : .idle, codexCheer: date < cheerUntil,
+                      codexConcern: date < concernUntil, claudeDone: claudePresent && date < claudeDoneUntil)
     }
 
     private var lastPublished: (PetState, String)?
@@ -257,16 +341,24 @@ final class PetStore: ObservableObject {
     // MARK: ciclo
 
     private func prune() {
-        let now = Date()
+        prune(at: Date())
+    }
+
+    func prune(at now: Date) {
         for (k, v) in sessions {
             let age = now.timeIntervalSince(v.at)
             if (v.state == .done && age > 5) || (v.state == .error && age > 8) || age > 900 { drop(k) }
         }
         if let m = manual, now.timeIntervalSince(m.1) > 5 { manual = nil }
-        if let p = peer, now.timeIntervalSince(p.seen) > peerTTL { peer = nil }   // el par desaparecio sin avisar
+        if let p = peer, now.timeIntervalSince(p.seen) > peerTTL {
+            peer = nil
+            peerStateKnown = false
+            mission.peerLeft()
+        }   // el par desaparecio sin avisar
         if bugBattleLevel > 0, now.timeIntervalSince(lastBugChange) >= 60 { bugBattleLevel -= 1; lastBugChange = now }   // la infestacion cede sola
         checkWorkspaceChanges(now)
         updateSafetyAlert(now)
+        mission.tick()
         refresh()
     }
 
@@ -314,9 +406,11 @@ final class PetStore: ObservableObject {
             syncGame()
             return
         }
-        let top = sessions.values.max { a, b in
-            a.state.priority != b.state.priority ? a.state.priority < b.state.priority : a.at < b.at
+        let topPair = sessions.max { a, b in
+            a.value.state.priority != b.value.state.priority ? a.value.state.priority < b.value.state.priority : a.value.at < b.value.at
         }
+        let top = topPair?.value
+        let topSession = topPair?.key ?? ""
         let new = top?.state ?? .idle
         let newTool = top?.tool ?? ""
         let newProject = top?.project ?? ""
@@ -331,7 +425,19 @@ final class PetStore: ObservableObject {
         if shown != activity { activity = shown }
         let changed = new != state || newProject != project
         project = newProject
-        if new != state { state = new }
+        if new != state {
+            state = new
+            if new == .done { claudeDoneUntil = Date().addingTimeInterval(2.5) }
+            announce("claude pet: \(new.label.lowercased())")
+        }
+        let workspace = top?.workspace ?? ""
+        if new != lastMissionState || newProject != lastMissionProject || workspace != lastMissionWorkspace || topSession != lastMissionSession {
+            mission.recordLocal(state: new, project: newProject, workspace: workspace, tool: newTool, session: topSession)
+            lastMissionState = new
+            lastMissionProject = newProject
+            lastMissionWorkspace = workspace
+            lastMissionSession = topSession
+        }
         if changed { publish(event: eventFor(new)) }
         syncGame()
         updateReviewReady()
@@ -345,5 +451,11 @@ final class PetStore: ObservableObject {
     func openReview() {
         guard let name = peer?.project, let info = sessions.values.first(where: { $0.project == name && !$0.workspace.isEmpty }) else { return }
         DiffOpener.open(workspace: info.workspace)
+    }
+
+    private func announce(_ text: String) {
+        guard NSWorkspace.shared.isVoiceOverEnabled else { return }
+        NSAccessibility.post(element: NSApplication.shared, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 }

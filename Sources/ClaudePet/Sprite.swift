@@ -15,7 +15,13 @@ enum Pal {
 }
 
 /// Lo que la mascota sabe de su par (otra mascota en el pet bus).
-struct PeerCue { var state: PetState; var greet: Bool; var cheer: Bool; var concern: Bool; var game: GameFrame? = nil }
+struct PeerCue {
+    var state: PetState; var greet: Bool; var cheer: Bool; var concern: Bool; var game: GameFrame? = nil
+    /// El escenario dibuja a Codex en grande a su lado: no hace falta el mini de la esquina.
+    var companion = false
+    /// -1/+1: Claude mira hacia Codex (izquierda/derecha) mientras este trabaja. 0: mira al frente.
+    var lookX = 0
+}
 
 struct Px { let x: Int; let y: Int; let c: Color }
 
@@ -36,7 +42,7 @@ enum Sprite {
     /// Companero en miniatura (esquina superior izquierda) que refleja el estado del par,
     /// mas destellos de celebracion o preocupacion.
     static func peerOverlay(_ cue: PeerCue?, tick t: Int) -> [Px] {
-        guard let c = cue, c.game == nil else { return [] }   // durante el partido el avatar de Codex esta en el escenario
+        guard let c = cue, c.game == nil, !c.companion else { return [] }   // durante el partido el avatar de Codex esta en el escenario
         var o: [Px] = []
         // mini de Codex: nube azul con visor oscuro y un destello cian
         let blue = Color(hex: 0x5270E8), shade = Color(hex: 0x3E5ACE), screen = Color(hex: 0x161B40), cyan = Color(hex: 0x96EBFF)
@@ -101,7 +107,8 @@ enum Sprite {
         let blink = (t % 30) >= 28
         switch s {
         case .idle:
-            if !blink { put(3, 1, ink); put(8, 1, ink) }
+            let lx = max(-1, min(1, cue?.lookX ?? 0))
+            if !blink { put(3 + lx, 1, ink); put(8 + lx, 1, ink) }
         case .starting:
             break
         case .thinking:
@@ -193,10 +200,12 @@ enum Sprite {
         let chevR = [(11, 6), (10, 7), (9, 8), (10, 9), (11, 10)]
         let blink = (t % 30) >= 28
 
+        let lx = max(-1, min(1, cue?.lookX ?? 0))
+        func look(_ pts: [(Int, Int)]) -> [(Int, Int)] { pts.map { ($0.0 + lx, $0.1) } }
         switch s {
         case .idle:
-            if blink { line([(4, 8), (5, 8), (6, 8), (9, 8), (10, 8), (11, 8)]) }
-            else { line(chevL); line(chevR) }
+            if blink { line(look([(4, 8), (5, 8), (6, 8), (9, 8), (10, 8), (11, 8)])) }
+            else { line(look(chevL)); line(look(chevR)) }
         case .starting:
             line([(4, 8), (5, 8), (6, 8), (9, 8), (10, 8), (11, 8)])
         case .thinking:

@@ -5,7 +5,6 @@ struct GameFrame: Equatable {
     var ballT = 0.0            // 0 = junto a Codex, 1 = sobre la cabeza de Claude
     var arc = 0.0              // 0...1, altura del vuelo
     var ballOpacity = 1.0
-    var avatarIn = 1.0         // 0...1, entrada del avatar de Codex
     var kickFoot = false       // Codex levanta la pierna
     var kickPulse = 0.0        // 1 -> 0 tras patear (polvo)
     var headerPulse = 0.0      // 1 -> 0 tras tocar la cabeza de Claude (destello)
@@ -18,7 +17,7 @@ struct GameFrame: Equatable {
 
 /// Coreografia pura: tiempo transcurrido -> fotograma. Sin estado ni dependencias.
 ///
-/// Normal (12 s): Codex entra caminando, patea a Claude (1.6 s de vuelo), Claude cabecea y la
+/// Normal (12 s): Codex patea a Claude desde su ventana (1.6 s de vuelo), Claude cabecea y la
 /// devuelve, segunda vuelta, y celebracion (saltos, brazos arriba, confeti).
 /// Reducir movimiento: la pelota y el avatar aparecen con un fundido y quedan quietos; el confeti
 /// es fijo. Ningun elemento se desplaza.
@@ -62,7 +61,6 @@ enum FootballChoreography {
         f.ballT = b.t
         f.arc = b.arc
         f.ballOpacity = max(0, min(1, min((t - 0.8) / 0.4, (duration - t) / 0.4)))
-        f.avatarIn = min(1, t / 1.2)
 
         for (a, e, dir) in passes {
             if dir > 0 {

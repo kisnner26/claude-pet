@@ -14,6 +14,20 @@ mascota pixel-art para macos que vive en la barra de menu y muestra en tiempo re
 - detector de atasco: avisa si claude o codex llevan 5 min pensando o 15 min en una herramienta sin ninguna actividad.
 - cuando codex termina en un proyecto donde claude sigue trabajando, el menu ofrece abrir el diff.
 
+## mission control
+
+cinco funciones locales convierten la mascota en un tablero operativo:
+
+- radar de colision: marca una posible colision cuando ambos llevan 10 s pensando o usando herramientas en un proyecto compartido. compara solo el nombre de la carpeta, ignora nombres genericos y tarda 5 s en apagarse; no pretende detectar ramas ni worktrees distintos con el mismo nombre.
+- pulso git: muestra archivos afectados, staged, nuevos y conflictos sin leer su contenido. escanea al cambiar de proyecto, terminar, fallar, quedar inactivo o cada 15 s mientras trabaja; nunca ejecuta mas de un `git status` y conserva como maximo una solicitud pendiente.
+- linea de tiempo: conserva en memoria los ultimos 16 cambios de estado de ambos agentes, con su hora.
+- presupuesto de atencion: mide duracion, cantidad de herramientas usadas y las tres mas frecuentes. el ultimo resumen permanece visible al terminar.
+- capsula de recuperacion: si el estado agregado permanece en error al menos 3 s, conserva la salud git del proyecto que fallo y ofrece abrir su diff. claude pet no distingue por si solo un `StopFailure` de otros errores agregados.
+
+el pulso git usa `--no-optional-locks`, no permite prompts y corta cada proceso a los 10 s. limita la salida a 4 mb; ante ese limite o mas de 20 000 registros repite el estado sin archivos no rastreados y lo indica en el menu.
+
+ninguno de estos datos cruza el pet bus ni se persiste entre ejecuciones.
+
 ![estados](docs/img/estados.png)
 
 ## pet bus y futbol
@@ -39,6 +53,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - se apaga desde el menu. el nombre del proyecto no se comparte con otras mascotas salvo que lo actives.
 - el detector de contexto solo calcula una huella local de nombres, fechas y tamanos de archivos; no lee contenido. ignora `.git`, dependencias, builds y logs.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
+- mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia". la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 
 ## instalacion
@@ -61,6 +76,7 @@ tests/manual.sh              # recorre cada estado
 tests/bridge-capture.sh      # comprueba que el hook no filtra contenido
 tests/hook-guard.sh          # el hook no bloquea por defecto; bloqueo opt-in, caducidad, clasificacion de pruebas
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-safety   # huella, monitor, diff grande, parseo
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, timeline, presupuesto, recuperacion
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --trigger football   # greet | cheer | concern

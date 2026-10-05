@@ -17,6 +17,8 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
     override func hitTest(_ point: NSPoint) -> NSView? { self }
     private var downAt: NSPoint = .zero
     private var dragged = false
+    /// Accion del clic sin arrastre. Por omision abre la app de Claude.
+    var onClick: (() -> Void)?
     override func mouseDown(with event: NSEvent) {
         downAt = NSEvent.mouseLocation
         dragged = false
@@ -27,9 +29,9 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
         if abs(p.x - downAt.x) > 3 || abs(p.y - downAt.y) > 3 { dragged = true }
         if dragged { window?.setFrameOrigin(p - grab) }
     }
-    /// Un clic (sin arrastre) abre la app de Claude.
     override func mouseUp(with event: NSEvent) {
         guard !dragged else { return }
+        if let onClick { onClick(); return }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
         }
@@ -45,6 +47,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var panel: PetPanel!
     private var bubble: NSPanel!
     private var stage: NSPanel!
+    private var codexPanel: PetPanel!
+    private var presence: AppPresence?
     private var cancellables = Set<AnyCancellable>()
     private let server = EventServer()
     private let busServer = EventServer(path: PetBus.ownSocket)
@@ -54,9 +58,11 @@ final class AppController: NSObject, NSApplicationDelegate {
             HeroSnapshot.run(into: CommandLine.arguments[i + 1]); exit(0)
         }
         if CommandLine.arguments.contains("--selftest-safety") { exit(SafetySelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-mission") { exit(MissionSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-companion") { exit(CompanionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
-            snapshotFootball(to: CommandLine.arguments[i + 1]); exit(0)
+            HeroSnapshot.footballSheet(to: CommandLine.arguments[i + 1]); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
             snapshot(to: CommandLine.arguments[i + 1]); exit(0)
@@ -78,10 +84,15 @@ final class AppController: NSObject, NSApplicationDelegate {
         if !p.setFrameUsingName("ClaudePetWindow"), let s = NSScreen.main {
             p.setFrameTopLeftPoint(NSPoint(x: s.visibleFrame.maxX - 180, y: s.visibleFrame.maxY - 24))
         }
-        p.orderFrontRegardless()
-        panel = p
+        panel = p                      // se muestra segun la presencia (applyVisibility)
         setUpBubble()
+        setUpCodexWindow()
         setUpStage()
+        PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }.store(in: &cancellables)
+        let watcher = AppPresence { claude, codex in PetStore.shared.setApps(claude: claude, codex: codex) }
+        presence = watcher
+        watcher.start()
+        applyVisibility()
 
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.trigger"), object: nil, queue: .main) { n in
             guard let name = n.userInfo?["name"] as? String else { return }
@@ -98,35 +109,6 @@ final class AppController: NSObject, NSApplicationDelegate {
         busServer.onLine = { line in Task { @MainActor in PetStore.shared.receive(line: line) } }
         do { try busServer.start(); PetStore.shared.setBus(true) }
         catch { PetStore.shared.setBus(false); NSLog("ClaudePet: pet bus no disponible: \(error)") }
-    }
-
-    /// Fotogramas del partido (normal arriba, reducir movimiento abajo), con escenario y sprite de Claude.
-    private func snapshotFootball(to path: String) {
-        let times: [Double] = [0.6, 2.0, 3.0, 3.8, 4.8, 6.4, 7.3, 8.4, 9.0, 10.3, 11.2]
-        func cell(_ tm: Double, _ reduce: Bool) -> some View {
-            ZStack(alignment: .topLeading) {
-                Canvas { gc, _ in
-                    let u: CGFloat = 7
-                    let g = FootballChoreography.frame(elapsed: tm, reduceMotion: reduce)
-                    let cue = PeerCue(state: .idle, greet: false, cheer: false, concern: false, game: g)
-                    for p in Sprite.pixels(.idle, tick: Int(tm * 8), cue: cue) {
-                        gc.fill(Path(CGRect(x: StageMetrics.petX + CGFloat(p.x) * u, y: StageMetrics.petY + CGFloat(p.y) * u, width: u, height: u)), with: .color(p.c))
-                    }
-                    var g2 = gc
-                    StageRenderer.draw(&g2, elapsed: tm, reduceMotion: reduce, mirrored: false)
-                }
-            }.frame(width: StageMetrics.width, height: StageMetrics.height).background(Pal.charcoal)
-        }
-        let view = VStack(spacing: 2) {
-            ForEach([false, true], id: \.self) { reduce in
-                HStack(spacing: 2) { ForEach(times.prefix(6), id: \.self) { cell($0, reduce) } }
-                HStack(spacing: 2) { ForEach(times.suffix(5), id: \.self) { cell($0, reduce) } }
-            }
-        }.background(Color.black)
-        let r = ImageRenderer(content: view)
-        r.scale = 1
-        if let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-           let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
     }
 
     /// Renderiza cada estado (4 fotogramas) a un PNG para revisar el sprite sin abrir la ventana.
@@ -172,9 +154,54 @@ final class AppController: NSObject, NSApplicationDelegate {
         placeBubble()
     }
 
-    /// Escenario del partido: ventana aparte, transparente y sin raton, pegada a la mascota.
+    /// Ventana de Codex: una entidad independiente de la de Claude (su propia posicion, su propio arrastre, su propio clic).
+    private func setUpCodexWindow() {
+        let host = DragHostingView(rootView: CodexPetView(store: PetStore.shared))
+        host.onClick = {
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: AppPresence.codexBundle) {
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            }
+        }
+        let p = PetPanel(contentRect: NSRect(origin: .zero, size: StageMetrics.codexSize),
+                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        p.contentView = host
+        p.isOpaque = false
+        p.backgroundColor = .clear
+        p.hasShadow = false
+        p.level = .statusBar
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        p.isMovableByWindowBackground = false
+        p.hidesOnDeactivate = false
+        p.setFrameAutosaveName("CodexPetWindow")
+        if !p.setFrameUsingName("CodexPetWindow") {
+            // primera vez: junto a Claude, a su izquierda (o a su derecha si no hay sitio). Desde ahi cada una se mueve sola.
+            let pf = panel.frame
+            let vis = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pf
+            var x = pf.minX - StageMetrics.codexSize.width - 12
+            if x < vis.minX { x = pf.maxX + 12 }
+            p.setFrameOrigin(NSPoint(x: x, y: pf.minY))
+        }
+        codexPanel = p
+        for w in [p, panel as NSWindow] {
+            NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: w, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.windowsMoved() }
+            }
+        }
+    }
+
+    private func windowsMoved() { updatePair(); placeStage(); placeBubble() }
+
+    /// Recalcula si las dos mascotas se ven y estan lo bastante cerca para jugar, y de que lado esta cada una.
+    private func updatePair() {
+        guard panel != nil, codexPanel != nil else { return }
+        let both = panel.isVisible && codexPanel.isVisible
+        let geo = both ? GameLayout.make(claude: panel.frame, codex: codexPanel.frame) : nil
+        PetStore.shared.setPair(geometry: geo, codexSide: codexPanel.frame.midX < panel.frame.midX ? -1 : 1)
+    }
+
+    /// Capa del partido: transparente y sin raton, cubre a las dos mascotas solo mientras se juega.
     private func setUpStage() {
-        let st = PetPanel(contentRect: NSRect(x: 0, y: 0, width: StageMetrics.width, height: StageMetrics.height),
+        let st = PetPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         st.contentView = NSHostingView(rootView: StageView(store: PetStore.shared))
         st.isOpaque = false
@@ -184,19 +211,13 @@ final class AppController: NSObject, NSApplicationDelegate {
         st.level = .statusBar
         st.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         stage = st
-        NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: panel, queue: .main) { [weak self] _ in Task { @MainActor in self?.placeStage() } }
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.placeStage() } }.store(in: &cancellables)
     }
 
     private func placeStage() {
-        guard PetStore.shared.gameActive, panel.isVisible else { stage.orderOut(nil); return }
-        let pf = panel.frame
-        let vis = (panel.screen ?? NSScreen.main)?.visibleFrame ?? pf
-        // el avatar entra por la izquierda; si no hay sitio, la escena se refleja hacia la derecha
-        let mirrored = pf.minX - StageMetrics.leftReach < vis.minX
-        if PetStore.shared.stageMirrored != mirrored { PetStore.shared.stageMirrored = mirrored }
-        let x = mirrored ? pf.minX : pf.minX - StageMetrics.leftReach
-        stage.setFrameOrigin(NSPoint(x: x, y: pf.minY - 8))
+        let store = PetStore.shared
+        guard !store.userHidden, store.gameActive, let geo = store.gameGeometry else { stage.orderOut(nil); return }
+        if stage.frame != geo.stageFrame { stage.setFrame(geo.stageFrame, display: false) }
         if !stage.isVisible { stage.orderFrontRegardless() }
     }
 
@@ -220,7 +241,18 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     var windowVisible: Bool { panel?.isVisible ?? false }
-    func toggleWindow() { windowVisible ? panel.orderOut(nil) : panel.orderFrontRegardless(); placeBubble() }
+    func toggleWindow() { PetStore.shared.userHidden.toggle() }
+
+    /// Cada mascota se muestra u oculta por su cuenta segun la presencia de su herramienta (y lo que se oculto desde el menu).
+    private func applyVisibility() {
+        guard panel != nil, codexPanel != nil else { return }
+        let v = PetStore.shared.visibility
+        if v.claudeWindow != panel.isVisible { v.claudeWindow ? panel.orderFrontRegardless() : panel.orderOut(nil) }
+        if v.codexWindow != codexPanel.isVisible { v.codexWindow ? codexPanel.orderFrontRegardless() : codexPanel.orderOut(nil) }
+        updatePair()
+        placeBubble()
+        placeStage()
+    }
 }
 
 enum MenuIcon {
@@ -260,9 +292,13 @@ struct ClaudePetApp: App {
         MenuBarExtra {
             Text("Estado: \(store.state.label.capitalized)")
             Text(store.bridgeOK ? "Puente local activo" : "Puente local caido")
+            Text(store.claudePresent ? "Claude Code: en uso" : "Claude Code: sin usar")
+            Text(store.codexPresent ? "Codex: en uso" : "Codex: sin usar")
+            Toggle("Mostrar cada mascota solo cuando uso su herramienta", isOn: $store.autoVisibility)
             Text(store.peer.map { "Pet bus: \($0.id) presente" } ?? (store.busOK ? "Pet bus: sin otras mascotas" : "Pet bus caido"))
             if let warning = store.safetyAlert { Text(warning.title) }
             if store.reviewReady { Button("codex listo para revision: abrir diff") { store.openReview() } }
+            Menu("mission control") { MissionControlMenu(control: store.mission) }
             Toggle("Mostrar burbuja de actividad", isOn: $store.showBubble)
             Toggle("Detalle en la burbuja (archivos, comandos)", isOn: $store.showDetail)
             Toggle("Avisar si claude o codex parecen bloqueados", isOn: $store.stallWatch)
@@ -276,6 +312,7 @@ struct ClaudePetApp: App {
                     .disabled(!store.animationsEnabled)
                 Divider()
                 Button("Partido de futbol ahora") { store.trigger("football") }
+                    .disabled(!store.pairNear)
                 Button("Saludo") { store.trigger("greet") }
                 Button("Celebracion del par") { store.trigger("cheer") }
                 Button("Preocupacion") { store.trigger("concern") }

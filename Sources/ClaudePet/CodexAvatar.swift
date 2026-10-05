@@ -8,8 +8,12 @@ enum CodexAvatar {
     static let height = 21
     private static let bodyOffset = 11      // fila de la cabeza donde empieza el cuerpo
 
-    enum Legs { case stand, step, kick }
-    enum Face { case prompt(cursor: Bool), happy }
+    enum Legs: Equatable { case stand, step, kick }
+    /// Lo que muestra el visor. `dots(n)`: n puntos (pensando); `typing(k)`: `>_` con el cursor en movimiento;
+    /// `alert`: `!` naranja (espera tu aprobacion); `cross`: `x x` (error).
+    enum Face: Equatable { case prompt(cursor: Bool), happy, dots(Int), typing(Int), alert(on: Bool), cross }
+    /// Globo de atencion sobre la cabeza: lo que Codex piensa de lo que hace Claude.
+    enum Emote: Equatable { case dots(Int), bang, question, check }
 
     static let head: [String] = [
         ".....OOOOOOOO.....",
@@ -86,13 +90,29 @@ enum CodexAvatar {
         switch legs { case .stand: body = bodyStand; case .step: body = bodyStep; case .kick: body = bodyKick }
         for (y, row) in body.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch) { out.append((x, y + bodyOffset, c)) } } }
         for (y, row) in head.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch) { out.append((x, y, c)) } } }
-        let cyan = color("C")!
-        let glyph: [(Int, Int)]
+        let cyan = color("C")!, orange = Color(hex: 0xE0824F), coral = Color(hex: 0xFF8A7A)
+        var glyph: [(Int, Int)] = []
+        var tint = cyan
         switch face {
         case .prompt(let cursor): glyph = [(6, 5), (7, 6), (6, 7)] + (cursor ? [(9, 7), (10, 7), (11, 7)] : [])
         case .happy: glyph = [(6, 6), (7, 5), (8, 6), (10, 6), (11, 5), (12, 6)]
+        case .dots(let n): glyph = [(6, 6), (8, 6), (10, 6)].prefix(max(0, min(3, n))).map { $0 }
+        case .typing(let k): glyph = [(6, 5), (7, 6), (6, 7)] + [(9 + k % 3, 7), (10 + k % 3, 7)]
+        case .alert(let on): if on { glyph = [(8, 4), (9, 4), (8, 5), (9, 5), (8, 6), (9, 6), (8, 8), (9, 8)]; tint = orange }
+        case .cross: glyph = [(6, 5), (8, 5), (7, 6), (6, 7), (8, 7), (10, 5), (12, 5), (11, 6), (10, 7), (12, 7)]; tint = coral
         }
-        for (x, y) in glyph { out.append((x, y, cyan)) }
+        for (x, y) in glyph { out.append((x, y, tint)) }
         return out
+    }
+
+    /// Celdas del globo (y negativa = por encima de la cabeza).
+    static func emote(_ e: Emote) -> [(x: Int, y: Int, c: Color)] {
+        let cream = Color(hex: 0xEDE3DA), orange = Color(hex: 0xE0824F)
+        switch e {
+        case .dots(let n): return [(6, -3), (8, -3), (10, -3)].prefix(max(0, min(3, n))).map { ($0.0, $0.1, cream) }
+        case .bang: return [(8, -6), (9, -6), (8, -5), (9, -5), (8, -4), (9, -4), (8, -2), (9, -2)].map { ($0.0, $0.1, orange) }
+        case .question: return [(7, -5), (8, -6), (9, -6), (10, -5), (9, -4), (8, -3), (8, -1)].map { ($0.0, $0.1, cream) }
+        case .check: return [(6, -3), (7, -2), (8, -3), (9, -4), (10, -5)].map { ($0.0, $0.1, cream) }
+        }
     }
 }
