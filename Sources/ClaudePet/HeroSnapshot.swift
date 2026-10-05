@@ -11,6 +11,7 @@ enum HeroSnapshot {
         write(states, to: dir + "/estados.png")
         write(football, to: dir + "/futbol.png")
         write(companion, to: dir + "/companero.png")
+        writeLandingAssets(into: dir)
     }
 
     private static func write<V: View>(_ view: V, to path: String) {
@@ -134,5 +135,28 @@ enum HeroSnapshot {
                 HStack(spacing: 3) { ForEach(0..<3, id: \.self) { c in scene(elapsed: nil, info: cases[r * 3 + c].1, look: cases[r * 3 + c].2, label: cases[r * 3 + c].0) } }
             }
         }.background(Color.black)
+    }
+
+    /// Recursos de la landing: sprites de Codex con fondo transparente y escenas de reacciones sin etiqueta.
+    private static func writeLandingAssets(into dir: String) {
+        func sprite(_ face: CodexAvatar.Face, legs: CodexAvatar.Legs = .stand) -> some View {
+            let u: CGFloat = 24
+            return Canvas { gc, _ in
+                for c in CodexAvatar.cells(legs: legs, face: face) {
+                    gc.fill(Path(CGRect(x: CGFloat(c.x) * u, y: CGFloat(c.y) * u, width: u, height: u)), with: .color(c.c))
+                }
+            }.frame(width: CGFloat(CodexAvatar.width) * u, height: CGFloat(CodexAvatar.height) * u)
+        }
+        write(sprite(.prompt(cursor: true)), to: dir + "/codex-idle.png")
+        write(sprite(.dots(3)), to: dir + "/codex-thinking.png")
+        write(sprite(.typing(1), legs: .step), to: dir + "/codex-tool.png")
+        write(sprite(.alert(on: true)), to: dir + "/codex-waiting.png")
+        write(sprite(.happy), to: dir + "/codex-done.png")
+        write(sprite(.cross), to: dir + "/codex-error.png")
+        func info(claude: PetState, done: Bool = false) -> CompanionInfo {
+            CompanionInfo(codex: .idle, claude: claude, codexCheer: false, codexConcern: false, claudeDone: done)
+        }
+        write(scene(elapsed: nil, info: info(claude: .thinking), look: 0), to: dir + "/escena-claude-piensa.png")
+        write(scene(elapsed: nil, info: info(claude: .done, done: true), look: 0), to: dir + "/escena-claude-termina.png")
     }
 }

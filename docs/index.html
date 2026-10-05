@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude Pet</title>
-<meta name="description" content="Una mascota pixel-art para la barra de menú de macOS que muestra, de un vistazo, lo que hace Claude Code. Todo local, sin permisos.">
+<meta name="description" content="Una mascota pixel-art para cada herramienta: Claude Code y Codex, cada una con su ventana, que aparecen cuando las usas y muestran lo que hacen. Todo local, sin permisos.">
 <meta name="theme-color" content="#000000">
 <meta property="og:title" content="Claude Pet">
-<meta property="og:description" content="Sabe qué hace Claude Code. De un vistazo.">
+<meta property="og:description" content="Una mascota para cada herramienta: Claude Code y Codex, de un vistazo.">
 <meta property="og:type" content="website">
 <link rel="icon" href="img/block-idle.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,7 +25,7 @@
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{font-family:var(--f);background:#fff;color:var(--ink);letter-spacing:-.022em;-webkit-font-smoothing:antialiased;line-height:1.4}
 a{color:inherit}
-img{display:block;max-width:100%}
+img{display:block;max-width:100%;height:auto}
 :focus-visible{outline:2px solid var(--link-d);outline-offset:3px;border-radius:6px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
@@ -134,13 +134,54 @@ img{display:block;max-width:100%}
   .numbers{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}
   .hero{min-height:620px}
 }
+
+/* ---- v2: dos mascotas independientes, Codex, mission control ---- */
+.ink{background:#1c1b1a;color:var(--ink-on-dark)}
+.duo{position:relative;display:flex;justify-content:center;align-items:flex-end;gap:clamp(4px,7vw,110px);width:100%;margin-top:auto}
+.duo .a{width:min(34vw,390px);image-rendering:pixelated;margin-bottom:-5%}
+.duo .b{width:min(25vw,270px);image-rendering:pixelated;margin-bottom:1%}
+.hero{min-height:min(820px,100vw)}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(8px,2vw,28px);width:min(980px,100%);margin:clamp(28px,4vw,56px) auto 0;padding:0 clamp(8px,2vw,24px)}
+.case{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:10px;padding-bottom:clamp(20px,3vw,40px)}
+.case .pair{display:flex;align-items:flex-end;justify-content:center;gap:2%;min-height:clamp(120px,16vw,200px)}
+.case .pair img{height:auto;image-rendering:pixelated}
+.case .pair .c{width:clamp(70px,13vw,160px)}
+.case .pair .x{width:clamp(54px,10vw,120px)}
+.case figcaption{font-size:clamp(13px,1.3vw,17px);color:var(--gray-d)}
+.apart{display:flex;justify-content:space-between;align-items:flex-end;width:min(1040px,100%);margin:clamp(28px,4vw,56px) auto 0;padding:0 clamp(8px,3vw,40px)}
+.apart img{image-rendering:pixelated;height:auto}
+.apart .c{width:min(26vw,300px);margin-bottom:-4%}
+.apart .x{width:min(19vw,220px)}
+.states.six{grid-template-columns:repeat(6,minmax(0,1fr))}
+.dark .state figcaption{color:var(--gray)}
+.scene{width:min(100%,560px);margin:auto 0 0;image-rendering:pixelated}
+.menu{width:min(560px,100%);margin:clamp(28px,4vw,52px) auto clamp(28px,4vw,52px);text-align:left;background:#fff;border:1px solid #e3e3e8;border-radius:14px;
+  box-shadow:0 24px 50px -24px rgba(0,0,0,.28);padding:8px;font-size:13px;line-height:1.25;letter-spacing:-.01em;color:var(--ink)}
+.menu div{display:flex;gap:14px;padding:6px 12px;border-radius:6px}
+.menu div.btn-row{color:var(--link)}
+.menu .t{font:400 12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gray);min-width:3.2em}
+.menu hr{border:0;border-top:1px solid #e8e8ed;margin:6px 8px}
+.five{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(12px,2vw,28px);width:min(1100px,100%);margin:0 auto clamp(40px,5vw,72px);padding:0 clamp(12px,3vw,40px);text-align:left}
+.five h3{font-size:clamp(15px,1.4vw,18px);font-weight:600;letter-spacing:-.01em}
+.five p{font-size:clamp(13px,1.2vw,15px);color:var(--gray-d);margin-top:6px;line-height:1.35}
+.dark .numbers span{color:var(--gray)}
+.dark .numbers b{color:var(--ink-on-dark)}
+@media (max-width:860px){
+  .cases{grid-template-columns:1fr;gap:4px}
+  .case .pair{min-height:0}
+  .apart .c{width:38vw}.apart .x{width:28vw}
+  .states.six{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .five{grid-template-columns:1fr;gap:20px}
+  .hero{min-height:660px}
+  .duo .a{width:46vw}.duo .b{width:34vw}
+}
 </style>
 </head>
 <body>
 
 <nav class="nav" aria-label="Principal">
   <a class="brand" href="#top"><img src="img/classic-idle.png" alt="" width="20" height="20">Claude Pet</a>
-  <a class="x" href="#estados">Estados</a><a class="x" href="#tarea">Tarea</a><a class="x" href="#futbol">Fútbol</a><a href="#privacidad">Privacidad</a><a href="#instalar">Instalar</a>
+  <a class="x" href="#herramientas">Herramientas</a><a class="x" href="#estados">Estados</a><a class="x" href="#codex">Codex</a><a class="x" href="#futbol">Fútbol</a><a class="x" href="#mission">Mission control</a><a href="#privacidad">Privacidad</a><a href="#instalar">Instalar</a>
   <a href="https://github.com/kisnner26/claude-pet">GitHub</a>
 </nav>
 
@@ -151,19 +192,44 @@ img{display:block;max-width:100%}
   <div class="ghost-word" aria-hidden="true">PET</div>
   <p class="eyebrow rv">Para macOS</p>
   <h1 id="h1" class="title rv" style="--d:1">Claude Pet</h1>
-  <p class="sub rv" style="--d:2">Sabe qué hace Claude. De un vistazo.</p>
-  <p class="note rv" style="--d:3">Una mascota pixel-art en tu barra de menú, conectada a Claude Code.</p>
-  <div class="ctas rv" style="--d:4"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="#privacidad">Cómo funciona</a></div>
+  <p class="sub rv" style="--d:2">Una mascota para cada herramienta.</p>
+  <p class="note rv" style="--d:3">Claude Code y Codex, cada uno con la suya. Aparecen cuando los usas.</p>
+  <div class="ctas rv" style="--d:4"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="#herramientas">Cómo funciona</a></div>
   <div class="bubble rv" style="--d:5" role="img" aria-label="Ejemplo de burbuja: Editando PetStore.swift">
     <div class="grow"><b>Editando PetStore.swift</b><span>mostrar la tarea exacta  desktop</span></div><i class="ring"></i>
   </div>
-  <img class="pet rv" style="--d:6" src="img/block-tool.png" alt="La mascota de Claude Pet tecleando, con chispas sobre la cabeza" width="640" height="640">
+  <div class="duo rv" style="--d:6">
+    <img class="b" src="img/codex-tool.png" alt="La mascota de Codex tecleando, con >_ en su visor" width="864" height="1008">
+    <img class="a" src="img/block-tool.png" alt="La mascota de Claude tecleando, con chispas sobre la cabeza" width="640" height="640">
+  </div>
 </section>
 
-<!-- 2. SIETE ESTADOS -->
-<section id="estados" class="tile light full" aria-labelledby="h2">
-  <h2 id="h2" class="title rv">Siete estados.<br>Un vistazo.</h2>
-  <p class="sub rv" style="--d:1">Sin abrir la terminal. Sin preguntar.</p>
+<!-- 2. UNA POR HERRAMIENTA -->
+<section id="herramientas" class="tile light full" aria-labelledby="h2">
+  <h2 id="h2" class="title rv">Una por herramienta.</h2>
+  <p class="sub rv" style="--d:1">Cada mascota aparece solo cuando usas la suya. Si usas las dos, salen las dos.</p>
+  <div class="cases">
+    <figure class="case rv" style="--d:1"><div class="pair"><img class="c" src="img/block-idle.png" alt="" width="640" height="640"></div><figcaption>Solo Claude Code</figcaption></figure>
+    <figure class="case rv" style="--d:2"><div class="pair"><img class="x" src="img/codex-idle.png" alt="" width="864" height="1008"></div><figcaption>Solo Codex</figcaption></figure>
+    <figure class="case rv" style="--d:3"><div class="pair"><img class="x" src="img/codex-idle.png" alt="" width="864" height="1008"><img class="c" src="img/block-idle.png" alt="" width="640" height="640"></div><figcaption>Las dos</figcaption></figure>
+  </div>
+</section>
+
+<!-- 3. SEPARADAS -->
+<section class="tile dark full" aria-labelledby="h3s">
+  <h2 id="h3s" class="title rv">Separadas de verdad.</h2>
+  <p class="sub rv" style="--d:1">Arrastra cada una por su cuenta, a cualquier parte de la pantalla. Recuerdan dónde las dejaste.</p>
+  <p class="note rv" style="--d:2">Un clic sobre cada mascota abre su app.</p>
+  <div class="apart rv" style="--d:3">
+    <img class="x" src="img/codex-idle.png" alt="La mascota de Codex a la izquierda de la pantalla" width="864" height="1008">
+    <img class="c" src="img/block-idle.png" alt="La mascota de Claude a la derecha de la pantalla" width="640" height="640">
+  </div>
+</section>
+
+<!-- 4. SIETE ESTADOS (CLAUDE) -->
+<section id="estados" class="tile light full" aria-labelledby="h4e">
+  <h2 id="h4e" class="title rv">Siete estados.<br>Un vistazo.</h2>
+  <p class="sub rv" style="--d:1">Lo que hace Claude Code, sin abrir la terminal.</p>
   <div class="states">
     <figure class="state rv" style="--d:1"><img class="pixel" src="img/block-idle.png" alt="Inactivo" width="640" height="640"><figcaption>Inactivo</figcaption></figure>
     <figure class="state rv" style="--d:2"><img class="pixel" src="img/block-starting.png" alt="Iniciando sesión" width="640" height="640"><figcaption>Iniciando</figcaption></figure>
@@ -175,10 +241,24 @@ img{display:block;max-width:100%}
   </div>
 </section>
 
-<!-- 3. TAREA + PRIVACIDAD -->
+<!-- 5. EL VISOR DE CODEX -->
+<section id="codex" class="tile dark full" aria-labelledby="h5c">
+  <h2 id="h5c" class="title rv">El visor de Codex<br>habla.</h2>
+  <p class="sub rv" style="--d:1">Puntos al pensar, un cursor que teclea, un signo de exclamación naranja cuando pide permiso.</p>
+  <div class="states six">
+    <figure class="state rv" style="--d:1"><img class="pixel" src="img/codex-idle.png" alt="Codex en reposo: >_ con el cursor" width="864" height="1008"><figcaption>Reposo</figcaption></figure>
+    <figure class="state rv" style="--d:2"><img class="pixel" src="img/codex-thinking.png" alt="Codex pensando: tres puntos" width="864" height="1008"><figcaption>Pensando</figcaption></figure>
+    <figure class="state rv" style="--d:3"><img class="pixel" src="img/codex-tool.png" alt="Codex tecleando" width="864" height="1008"><figcaption>Teclea</figcaption></figure>
+    <figure class="state rv" style="--d:4"><img class="pixel" src="img/codex-waiting.png" alt="Codex pide permiso: signo de exclamación naranja" width="864" height="1008"><figcaption>Permiso</figcaption></figure>
+    <figure class="state rv" style="--d:5"><img class="pixel" src="img/codex-done.png" alt="Codex terminó: cara feliz" width="864" height="1008"><figcaption>Listo</figcaption></figure>
+    <figure class="state rv" style="--d:6"><img class="pixel" src="img/codex-error.png" alt="Codex falló: cruces" width="864" height="1008"><figcaption>Error</figcaption></figure>
+  </div>
+</section>
+
+<!-- 6. TAREA + PRIVACIDAD -->
 <div class="grid">
-  <section id="tarea" class="tile dark half" aria-labelledby="h3">
-    <h2 id="h3" class="title rv">La tarea exacta.</h2>
+  <section id="tarea" class="tile dark half" aria-labelledby="h6t">
+    <h2 id="h6t" class="title rv">La tarea exacta.</h2>
     <p class="sub rv" style="--d:1">No “pensando”. “Editando PetStore.swift”.</p>
     <div class="stack rv" style="--d:2">
       <div class="bubble"><div class="grow"><b>Leyendo GitPulse.swift</b><span>arreglar el escaneo de git</span></div><i class="ring"></i></div>
@@ -187,8 +267,8 @@ img{display:block;max-width:100%}
     </div>
   </section>
 
-  <section id="privacidad" class="tile light half" aria-labelledby="h4">
-    <h2 id="h4" class="title rv">Todo se queda<br>en tu Mac.</h2>
+  <section id="privacidad" class="tile light half" aria-labelledby="h6p">
+    <h2 id="h6p" class="title rv">Todo se queda<br>en tu Mac.</h2>
     <p class="sub rv" style="--d:1">Sockets Unix locales. Sin red, sin credenciales, sin telemetría.</p>
     <div class="big rv" style="--d:2">
       <div><b>0</b><span>permisos del sistema</span></div>
@@ -197,37 +277,78 @@ img{display:block;max-width:100%}
   </section>
 </div>
 
-<!-- 4. FUTBOL -->
-<section id="futbol" class="tile dark full" aria-labelledby="h5">
-  <h2 id="h5" class="title rv">Cuando llega Codex,<br>juegan.</h2>
-  <p class="sub rv" style="--d:1">Si ambos llevan 8 segundos inactivos, un partido de fútbol. Se cancela al instante si alguno se pone a trabajar.</p>
+<!-- 7. SE MIRAN, SE APLAUDEN -->
+<div class="grid">
+  <section class="tile ink half" aria-labelledby="h7a">
+    <h2 id="h7a" class="title rv">Se miran.</h2>
+    <p class="sub rv" style="--d:1">Mientras Claude piensa, Codex lo observa. Y Claude mira hacia Codex cuando este trabaja.</p>
+    <img class="scene rv" style="--d:2" src="img/escena-claude-piensa.png" alt="Codex, en su ventana, con tres puntos sobre la cabeza mientras Claude piensa" width="741" height="359">
+  </section>
+  <section class="tile ink half" aria-labelledby="h7b">
+    <h2 id="h7b" class="title rv">Se aplauden.</h2>
+    <p class="sub rv" style="--d:1">Cuando uno termina, el otro pone cara feliz, un check y salta.</p>
+    <img class="scene rv" style="--d:2" src="img/escena-claude-termina.png" alt="Claude con un check sobre la cabeza y Codex contento al lado, cada uno en su ventana" width="741" height="395">
+  </section>
+</div>
+
+<!-- 8. FUTBOL -->
+<section id="futbol" class="tile dark full" aria-labelledby="h8">
+  <h2 id="h8" class="title rv">Y juegan al fútbol,<br>estén donde estén.</h2>
+  <p class="sub rv" style="--d:1">Si se ven las dos, están cerca y llevan unos segundos sin trabajar, Codex le pasa la pelota a Claude. Ninguna ventana se mueve.</p>
   <div class="ctas rv" style="--d:2"><a class="lnk" href="https://github.com/kisnner26/claude-pet/blob/main/docs/PET-BUS.md">Leer el protocolo</a></div>
-  <img class="pitch rv" style="--d:3" src="img/futbol-escena.png" alt="Escena del partido: Codex y Claude, cada uno en su ventana, con la pelota viajando de uno a otro" width="1040" height="540">
+  <img class="pitch rv" style="--d:3" src="img/futbol-escena.png" alt="Escena del partido: Codex y Claude, cada uno en su ventana, con la pelota viajando de uno a otro" width="670" height="258">
 </section>
 
-<!-- 5. CIFRAS -->
-<section class="tile light full" aria-labelledby="h6">
-  <h2 id="h6" class="title m rv">Hecho para pasar desapercibido.</h2>
+<!-- 9. MISSION CONTROL -->
+<section id="mission" class="tile light full" aria-labelledby="h9">
+  <h2 id="h9" class="title rv">Mission control.</h2>
+  <p class="sub rv" style="--d:1">Un tablero en la barra de menú. Todo local.</p>
+  <div class="menu rv" style="--d:2" role="img" aria-label="Ejemplo del menú de mission control">
+    <div>coordinación: sin colisiones</div>
+    <div>git: 3 cambios · 1 staged</div>
+    <div>sesión: 12 min · 8 herramientas</div>
+    <div class="btn-row">actualizar salud git</div>
+    <hr>
+    <div>cápsula de recuperación: pc-acceso</div>
+    <div class="btn-row">abrir diff de recuperación</div>
+    <hr>
+    <div><span class="t">11:42</span>claude: herramienta · pc-acceso</div>
+    <div><span class="t">11:41</span>codex: pensando · pc-acceso</div>
+    <div><span class="t">11:38</span>claude: pensando · pc-acceso</div>
+  </div>
+  <div class="five">
+    <div class="rv" style="--d:1"><h3>Radar de colisión</h3><p>Avisa si Claude y Codex trabajan en el mismo proyecto.</p></div>
+    <div class="rv" style="--d:2"><h3>Pulso git</h3><p>Cambios, staged, archivos nuevos y conflictos. Sin leer su contenido.</p></div>
+    <div class="rv" style="--d:3"><h3>Línea de tiempo</h3><p>Los últimos cambios de estado de ambos, con su hora.</p></div>
+    <div class="rv" style="--d:4"><h3>Presupuesto de atención</h3><p>Cuánto dura la sesión y cuántas herramientas usó.</p></div>
+    <div class="rv" style="--d:5"><h3>Cápsula de recuperación</h3><p>Tras un error, el estado git y el diff a un clic.</p></div>
+  </div>
+</section>
+
+<!-- 10. CIFRAS -->
+<section class="tile dark full" aria-labelledby="h10">
+  <h2 id="h10" class="title m rv">Hecho para pasar desapercibido.</h2>
   <div class="numbers">
-    <div class="rv" style="--d:1"><b>10</b><span>eventos de hook traducidos</span></div>
-    <div class="rv" style="--d:2"><b>7</b><span>estados con su propia animación</span></div>
-    <div class="rv" style="--d:3"><b>12 s</b><span>dura el partido con Codex</span></div>
+    <div class="rv" style="--d:1"><b>2</b><span>mascotas, cada una con su ventana</span></div>
+    <div class="rv" style="--d:2"><b>10</b><span>eventos de hook traducidos</span></div>
+    <div class="rv" style="--d:3"><b>12 s</b><span>dura el partido</span></div>
     <div class="rv" style="--d:4"><b>5 min</b><span>como mínimo entre partidos</span></div>
   </div>
 </section>
 
-<!-- 6. INSTALAR -->
-<section id="instalar" class="tile dark full" aria-labelledby="h7">
-  <h2 id="h7" class="title rv">Instálalo en un minuto.</h2>
+<!-- 11. INSTALAR -->
+<section id="instalar" class="tile light full" aria-labelledby="h11">
+  <h2 id="h11" class="title rv">Instálalo en un minuto.</h2>
   <p class="sub rv" style="--d:1">Muestra el cambio exacto antes de tocar tu configuración.</p>
-  <pre class="code rv" style="--d:2" aria-label="Comandos de instalación"><span class="c"># compila la app</span>
+  <p class="note rv" style="--d:2">Codex se conecta por el pet bus. Protocolo y cliente de referencia en el repositorio.</p>
+  <pre class="code rv" style="--d:3" aria-label="Comandos de instalación"><span class="c"># compila la app</span>
 ./build.sh
 open build/ClaudePet.app
 
 <span class="c"># revisa el diff y aplícalo con tu confirmación</span>
 ./install-hooks.sh --dry-run
 ./install-hooks.sh</pre>
-  <div class="ctas rv" style="--d:3;margin-bottom:clamp(40px,5vw,72px)"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="https://github.com/kisnner26/claude-pet#readme">Leer el README</a></div>
+  <div class="ctas rv" style="--d:4;margin-bottom:clamp(40px,5vw,72px)"><a class="btn" href="https://github.com/kisnner26/claude-pet">Ver en GitHub</a><a class="lnk" href="https://github.com/kisnner26/claude-pet#readme">Leer el README</a></div>
 </section>
 
 </main>
@@ -235,7 +356,8 @@ open build/ClaudePet.app
 <footer class="foot">
   <p>1. Las imágenes son renders del propio código de dibujo de la app, no capturas de pantalla.</p>
   <p>2. Requiere macOS 13 o posterior y las Command Line Tools para compilar.</p>
-  <p>3. Proyecto independiente: no está afiliado a Anthropic ni a OpenAI. Inspirado en ClaudeHub de NormanSMA.</p>
+  <p>3. Proyecto independiente: no está afiliado a Anthropic ni a OpenAI. Claude y Codex son marcas de sus respectivos dueños. Inspirado en ClaudeHub de NormanSMA.</p>
+  <p>4. Las mascotas aparecen según la herramienta en uso: la app abierta o una sesión activa. Todo se calcula en tu Mac.</p>
   <hr>
   <nav aria-label="Pie"><a href="https://github.com/kisnner26/claude-pet">Código en GitHub</a><a href="https://github.com/kisnner26/claude-pet/blob/main/docs/PET-BUS.md">Protocolo del pet bus</a><span>© 2026 kisnner26</span></nav>
 </footer>
