@@ -10,6 +10,7 @@ import subprocess
 import threading
 
 from pet_state import Event
+from pet_bus import PeerMessage
 
 
 def private_directory(root):
@@ -63,7 +64,7 @@ def start_server(root, on_event):
                     if not connection.poll(1):
                         continue
                     message = connection.recv_bytes(2048).decode("utf-8")
-                    event = Event.parse(message)
+                    event = PeerMessage.parse(message) if message.startswith("{") else Event.parse(message)
                     if event:
                         on_event(event)
                 except (OSError, EOFError, UnicodeError):

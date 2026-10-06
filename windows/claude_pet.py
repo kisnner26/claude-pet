@@ -8,6 +8,7 @@ import tkinter as tk
 
 from pet_ipc import start_server
 from pet_state import Event, PRIORITY, Sessions
+from pet_bus import PeerMessage, Peers
 
 ROOT = Path.home() / ".claude-pet"
 LABELS = dict(idle="inactivo", starting="iniciando", thinking="pensando",
@@ -19,6 +20,7 @@ class Pet:
     def __init__(self):
         self.events = Queue()
         self.sessions = Sessions()
+        self.peers = Peers()
         self.listener = start_server(ROOT, self.events.put)
         self.window = tk.Tk()
         self.window.title("claude-pet")
@@ -151,7 +153,11 @@ class Pet:
     def update(self):
         try:
             while True:
-                self.sessions.apply(self.events.get_nowait())
+                event = self.events.get_nowait()
+                if isinstance(event, PeerMessage):
+                    self.peers.apply(event)
+                else:
+                    self.sessions.apply(event)
         except Empty:
             pass
         self.draw(self.sessions.current())

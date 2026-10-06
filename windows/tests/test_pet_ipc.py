@@ -2,6 +2,7 @@ from pathlib import Path
 from queue import Queue
 import tempfile
 import unittest
+import json
 
 from pet_ipc import send, start_server
 
@@ -18,6 +19,8 @@ class TransportTests(unittest.TestCase):
                 event = events.get(timeout=3)
                 self.assertEqual((event.state, event.tool), ("tool", "Read"))
                 self.assertTrue(events.empty())
+                send(root, json.dumps(dict(v=1, id="codex", state="thinking", ts=1)))
+                self.assertEqual(events.get(timeout=3).id, "codex")
                 with self.assertRaises(ValueError):
                     send(root, "a" * 2049)
             finally:
