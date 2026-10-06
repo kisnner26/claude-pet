@@ -25,6 +25,7 @@ class TransportTests(unittest.TestCase):
                 with self.assertRaises((AuthenticationError, EOFError, OSError)):
                     Client(address, family=family, authkey=b"incorrect-key")
                 send(root, "unknown\ts")
+                send(root, json.dumps(dict(v=1, id="codex", state="thinking", ts=10 ** 400)))
                 send(root, "tool\ts\tRead")
                 event = events.get(timeout=3)
                 self.assertEqual((event.state, event.tool), ("tool", "Read"))

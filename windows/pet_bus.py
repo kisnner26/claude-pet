@@ -33,7 +33,7 @@ class PeerMessage:
             if not isinstance(state, str) or state not in PRIORITY:
                 state = "idle"
             return cls(name, state, timestamp, data.get("event") == "left")
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, OverflowError):
             return None
 
 

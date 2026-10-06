@@ -9,7 +9,7 @@ class BusTests(unittest.TestCase):
         data = dict(v=1, id="codex", ts=1, state="thinking")
         self.assertEqual(PeerMessage.parse(json.dumps(data)).state, "thinking")
         for field, value in (("v", True), ("v", 2), ("id", "../codex"), ("ts", float("nan")),
-                             ("ts", True), ("ts", "1")):
+                             ("ts", True), ("ts", "1"), ("ts", 10 ** 400)):
             with self.subTest(field=field, value=value):
                 self.assertIsNone(PeerMessage.parse(json.dumps({**data, field: value})))
         self.assertEqual(PeerMessage.parse(json.dumps({**data, "state": []})).state, "idle")
