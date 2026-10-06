@@ -1,0 +1,84 @@
+"""authenticated local transport; messages are bytes, never pickle objects."""
+
+import csv
+import hashlib
+from multiprocessing.connection import Client, Listener
+import os
+from pathlib import Path
+import secrets
+import subprocess
+import threading
+
+from pet_state import Event
+
+
+def private_directory(root):
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name == "nt":
+        identity = subprocess.check_output(
+            ["whoami", "/user", "/fo", "csv", "/nh"], text=True)
+        sid = next(csv.reader(identity.strip().splitlines()))[1]
+        subprocess.run(["icacls", str(root), "/inheritance:r", "/grant:r",
+                        f"*{sid}:(OI)(CI)F"], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        root.chmod(0o700)
+
+
+def endpoint(root):
+    digest = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:24]
+    if os.name == "nt":
+        return rf"\\.\pipe\claude-pet-{digest}", "AF_PIPE"
+    return str(root / "windows-pet.sock"), "AF_UNIX"
+
+
+def start_server(root, on_event):
+    root = Path(root)
+    private_directory(root)
+    address, family = endpoint(root)
+    key_path = root / "windows-pet.key"
+    # preserve the key across restarts so installed hooks need no rewriting.
+    try:
+        fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        key = key_path.read_bytes()
+    else:
+        key = secrets.token_bytes(32)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(key)
+    if len(key) != 32:
+        raise ValueError("invalid local authentication key")
+    listener = Listener(address, family=family, authkey=key)
+
+    def serve():
+        while True:
+            try:
+                connection = listener.accept()
+            except (OSError, EOFError):
+                return
+            except Exception:
+                continue
+            with connection:
+                try:
+                    if not connection.poll(1):
+                        continue
+                    message = connection.recv_bytes(2048).decode("utf-8")
+                    event = Event.parse(message)
+                    if event:
+                        on_event(event)
+                except (OSError, EOFError, UnicodeError):
+                    pass
+
+    threading.Thread(target=serve, daemon=True).start()
+    return listener
+
+
+def send(root, message):
+    root = Path(root)
+    address, family = endpoint(root)
+    key = (root / "windows-pet.key").read_bytes()
+    payload = message.encode("utf-8")
+    if len(payload) > 2048:
+        raise ValueError("event exceeds local transport limit")
+    with Client(address, family=family, authkey=key) as connection:
+        connection.send_bytes(payload)
