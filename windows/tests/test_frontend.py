@@ -2,6 +2,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import os
+from unittest.mock import patch
 
 import claude_pet
 from pet_state import Event, PRIORITY
@@ -39,7 +40,10 @@ class FrontendTests(unittest.TestCase):
                 self.assertTrue(pet.settings.exists())
                 pet.demo("tool")
                 pet.events.put(PeerMessage("codex", "thinking", 1))
-                pet.update()
+                with patch.object(pet.codex.window, "deiconify", wraps=pet.codex.window.deiconify) as show:
+                    pet.update()
+                    pet.update()
+                    self.assertEqual(show.call_count, 1)
                 pet.codex.update()
                 pet.window.update()
                 self.assertEqual(pet.sessions.current().state, "tool")

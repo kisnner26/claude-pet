@@ -208,9 +208,9 @@ class Pet:
         if self.codex:
             peer = self.peers.current("codex")
             self.codex.peer_event = Event(peer.state, "codex") if peer else None
-            if peer:
+            if peer and self.codex.window.state() == "withdrawn":
                 self.codex.window.deiconify()
-            elif not self.codex.sessions.entries:
+            elif not peer and not self.codex.sessions.entries and self.codex.window.state() != "withdrawn":
                 self.codex.window.withdraw()
         self.draw(self.peer_event if self.peer_event and not self.sessions.entries else current)
         self.tick += 1
