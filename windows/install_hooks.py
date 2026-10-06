@@ -55,7 +55,7 @@ def main():
             parser.error("no se encontró el ejecutable del hook")
     path = args.settings
     original = path.read_text(encoding="utf-8") if path.exists() else "{}\n"
-    settings = json.loads(original)
+    settings = json.loads(original.removeprefix("\ufeff"))
     script = Path(__file__).resolve().with_name("pet_hook.py")
     updated = json.dumps(merge(settings, script, sys.executable, args.uninstall, args.hook_executable),
                          indent=2, ensure_ascii=False) + "\n"
