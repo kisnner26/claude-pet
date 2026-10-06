@@ -112,8 +112,8 @@ class Pet:
             self.draw_codex(state, tick)
             return
         scale, left, top = 7, 44, 12
-        dy = -1 if state == "done" and tick % 8 < 2 else 0
-        dx = (1 if tick % 2 else -1) if state == "error" else 0
+        dy = -1 if self.animations and state == "done" and tick % 8 < 2 else 0
+        dx = (1 if tick % 2 else -1) if self.animations and state == "error" else 0
 
         def rect(x, y, w, h, color):
             self.canvas.create_rectangle(left + (x + dx) * scale,
@@ -176,7 +176,7 @@ class Pet:
                 ".....OBO..OBO.....", ".....ODO..ODO.....", ".....OOO..OOO.....")
         palette = dict(O="#223496", B="#5270e8", D="#3e5ace", L="#7e98ff",
                        W="#6e8cf5", s="#2c346e", S="#161b40", C="#96ebff")
-        hop = -5 if state == "done" and tick % 8 < 2 else 0
+        hop = -5 if self.animations and state == "done" and tick % 8 < 2 else 0
         for rows, offset in ((body, 11), (head, 0)):
             for y, row in enumerate(rows):
                 for x, cell in enumerate(row):
