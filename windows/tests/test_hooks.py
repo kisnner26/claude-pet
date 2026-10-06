@@ -14,6 +14,18 @@ from pet_ipc import start_server
 
 
 class HookTests(unittest.TestCase):
+    def test_uninstall_after_hook_executable_is_deleted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = (Path(directory) / "missing-hook.exe").resolve()
+            settings = Path(directory) / "settings.json"
+            settings.write_text(json.dumps(merge({}, Path("pet_hook.py"), "python.exe",
+                                                  hook_executable=executable)), encoding="utf-8")
+            installer = Path(__file__).resolve().parents[1] / "install_hooks.py"
+            subprocess.run([sys.executable, str(installer), "--settings", str(settings),
+                            "--hook-executable", str(executable), "--uninstall", "--apply"],
+                           check=True, capture_output=True, timeout=5)
+            self.assertEqual(json.loads(settings.read_text(encoding="utf-8")), {"hooks": {}})
+
     def test_all_states_and_windows_project(self):
         for hook, state in HOOKS.items():
             event = Event.parse(event_line(hook, dict(session_id="s", tool_name="Read",

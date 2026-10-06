@@ -51,7 +51,7 @@ def main():
                                 "claude-pet-hook" / "claude-pet-hook.exe")
     if args.hook_executable:
         args.hook_executable = args.hook_executable.resolve()
-        if not args.hook_executable.is_file():
+        if not args.uninstall and not args.hook_executable.is_file():
             parser.error("no se encontró el ejecutable del hook")
     path = args.settings
     original = path.read_text(encoding="utf-8") if path.exists() else "{}\n"
