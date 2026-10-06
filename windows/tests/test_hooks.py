@@ -41,6 +41,17 @@ class HookTests(unittest.TestCase):
         self.assertEqual(hook["command"], executable)
         self.assertEqual(hook["args"], [str(script), "Stop"])
 
+    def test_standalone_hook_install_and_removal(self):
+        executable = Path("C:/pet/claude-pet-hook.exe")
+        script = Path("C:/pet/pet_hook.py")
+        installed = merge({}, script, "python.exe", hook_executable=executable)
+        hook = installed["hooks"]["Stop"][0]["hooks"][0]
+        self.assertEqual(hook["command"], str(executable))
+        self.assertEqual(hook["args"], ["Stop"])
+        self.assertEqual(merge(installed, script, "python.exe", hook_executable=executable), installed)
+        self.assertEqual(merge(installed, script, "python.exe", uninstall=True,
+                               hook_executable=executable), {"hooks": {}})
+
     def test_hook_process_delivers_event_and_fails_open_when_pet_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / ".claude-pet"
@@ -48,7 +59,9 @@ class HookTests(unittest.TestCase):
             listener = start_server(root, events.put)
             script = Path(__file__).resolve().parents[1] / "pet_hook.py"
             environment = {**os.environ, "HOME": directory, "USERPROFILE": directory}
-            command = [sys.executable, str(script), "PreToolUse"]
+            executable = os.environ.get("PET_HOOK_EXECUTABLE")
+            command = ([executable, "PreToolUse"] if executable else
+                       [sys.executable, str(script), "PreToolUse"])
             payload = json.dumps(dict(session_id="s", tool_name="Read", cwd=r"C:\work\pet"))
             try:
                 result = subprocess.run(command, input=payload, text=True, capture_output=True,

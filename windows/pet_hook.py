@@ -38,7 +38,10 @@ def main():
         if not (root / "windows-pet.key").is_file():
             return
         # isolate the connection so a stopped or wedged pet cannot block a tool.
-        subprocess.run([sys.executable, str(Path(__file__).resolve()), "--send", line],
+        worker = [sys.executable]
+        if not getattr(sys, "frozen", False):
+            worker.append(str(Path(__file__).resolve()))
+        subprocess.run([*worker, "--send", line],
                        timeout=1, stdin=subprocess.DEVNULL,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -46,7 +49,7 @@ def main():
         pass
 
 
-if __name__ == "__main__":
+def run():
     if len(sys.argv) == 3 and sys.argv[1] == "--send":
         try:
             send(Path.home() / ".claude-pet", sys.argv[2])
@@ -54,3 +57,7 @@ if __name__ == "__main__":
             pass
     else:
         main()
+
+
+if __name__ == "__main__":
+    run()
