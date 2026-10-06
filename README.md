@@ -1,5 +1,7 @@
 # claude pet
 
+windows: [frontend inicial e instalación](windows/README.md), con mascota de claude y hooks locales. la versión de macos mantiene las funciones completas descritas abajo.
+
 dos mascotas pixel-art para macos, una por herramienta: claude code y codex. cada una es una ventana independiente que aparece cuando usas su herramienta y muestra en tiempo real lo que hace. swiftui puro, sin dependencias, todo local.
 
 pagina: https://kisnner26.github.io/claude-pet/
