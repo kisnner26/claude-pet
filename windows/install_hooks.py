@@ -54,19 +54,20 @@ def main():
         if not args.uninstall and not args.hook_executable.is_file():
             parser.error("no se encontró el ejecutable del hook")
     path = args.settings
-    original = path.read_text(encoding="utf-8") if path.exists() else "{}\n"
+    original_bytes = path.read_bytes() if path.exists() else b"{}\n"
+    original = original_bytes.decode("utf-8")
     settings = json.loads(original.removeprefix("\ufeff"))
     script = Path(__file__).resolve().with_name("pet_hook.py")
     updated = json.dumps(merge(settings, script, sys.executable, args.uninstall, args.hook_executable),
                          indent=2, ensure_ascii=False) + "\n"
-    print("".join(difflib.unified_diff(original.splitlines(True), updated.splitlines(True),
+    print("".join(difflib.unified_diff(original.removeprefix("\ufeff").splitlines(True), updated.splitlines(True),
                                      fromfile=str(path), tofile=str(path))), end="")
     if not args.apply:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         suffix = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-        path.with_name(path.name + f".claudepet-{suffix}.bak").write_text(original, encoding="utf-8")
+        path.with_name(path.name + f".claudepet-{suffix}.bak").write_bytes(original_bytes)
     temporary = path.with_name(path.name + ".claudepet.tmp")
     temporary.write_text(updated, encoding="utf-8")
     temporary.replace(path)

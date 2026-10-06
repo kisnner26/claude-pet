@@ -17,11 +17,12 @@ class HookTests(unittest.TestCase):
     def test_install_reads_bom_and_keeps_original_backup(self):
         with tempfile.TemporaryDirectory() as directory:
             settings = Path(directory) / "settings.json"
-            original = b'\xef\xbb\xbf{"theme":"dark"}\n'
+            original = b'\xef\xbb\xbf{"theme":"dark"}\r\n'
             settings.write_bytes(original)
             installer = Path(__file__).resolve().parents[1] / "install_hooks.py"
             subprocess.run([sys.executable, str(installer), "--settings", str(settings), "--apply"],
-                           check=True, capture_output=True, timeout=5)
+                           check=True, capture_output=True, timeout=5,
+                           env={**os.environ, "PYTHONIOENCODING": "cp1252"})
             self.assertEqual(json.loads(settings.read_text(encoding="utf-8"))["theme"], "dark")
             self.assertEqual(next(Path(directory).glob("*.bak")).read_bytes(), original)
 
