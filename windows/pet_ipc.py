@@ -19,11 +19,13 @@ class LocalListener:
     def __init__(self, listener, lock):
         self.listener = listener
         self.lock = lock
+        self.closed = False
 
     def accept(self):
         return self.listener.accept()
 
     def close(self):
+        self.closed = True
         self.listener.close()
         self.lock.close()
 
@@ -99,7 +101,9 @@ def start_server(root, on_event):
             try:
                 connection = listener.accept()
             except (OSError, EOFError):
-                return
+                if listener.closed:
+                    return
+                continue
             except Exception:
                 continue
             with connection:

@@ -3,8 +3,10 @@ from queue import Queue
 import tempfile
 import unittest
 import json
+from multiprocessing.connection import Client
+from multiprocessing import AuthenticationError
 
-from pet_ipc import send, start_server
+from pet_ipc import endpoint, send, start_server
 
 
 class TransportTests(unittest.TestCase):
@@ -16,6 +18,12 @@ class TransportTests(unittest.TestCase):
             try:
                 with self.assertRaises(RuntimeError):
                     start_server(root, events.put)
+                address, family = endpoint(root)
+                # disconnect before authentication finishes, then send a wrong key.
+                with Client(address, family=family, authkey=None):
+                    pass
+                with self.assertRaises((AuthenticationError, EOFError, OSError)):
+                    Client(address, family=family, authkey=b"incorrect-key")
                 send(root, "unknown\ts")
                 send(root, "tool\ts\tRead")
                 event = events.get(timeout=3)
