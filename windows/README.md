@@ -4,7 +4,7 @@ frontend inicial para windows 10/11 con python y tkinter: mascota de claude, sie
 
 ## ejecutar
 
-el workflow [windows](https://github.com/kisnner26/claude-pet/actions/workflows/windows.yml) genera el artefacto `claude-pet-windows`. extrae el zip completo y abre `claude-pet/claude-pet.exe`. este paquete incluye python y tkinter; no requiere instalarlos. conserva las tres carpetas del paquete juntas.
+el workflow [windows](https://github.com/kisnner26/claude-pet/actions/workflows/windows.yml) genera el artefacto `claude-pet-windows`. extrae el zip completo y abre `claude-pet/claude-pet.exe`. este paquete incluye python y tkinter; no requiere instalarlos. conserva todas las carpetas del paquete juntas.
 
 para conectar claude code desde el paquete:
 
@@ -59,6 +59,15 @@ py -3 windows/bus_send.py --hold idle
 ```
 
 estos comandos sirven para probar la presencia; el repositorio no lee conversaciones ni detecta automáticamente la actividad de codex.
+
+el paquete también incluye el cliente ejecutable, para conectar un adaptador sin instalar python:
+
+```powershell
+.\pet-bus\pet-bus.exe thinking
+.\pet-bus\pet-bus.exe --hold idle
+```
+
+un adaptador puede invocarlo cuando cambie el estado de codex. `--hold` envía latidos cada diez segundos hasta pulsar ctrl+c; sin latidos, la presencia dura hasta 25 segundos.
 
 ## alcance actual
 

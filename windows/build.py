@@ -2,6 +2,7 @@
 
 import json
 import os
+from queue import Queue
 from pathlib import Path
 import subprocess
 import sys
@@ -18,7 +19,8 @@ def main():
     distribution = output / "dist"
     targets = (("claude-pet", "claude_pet.py", True),
                ("claude-pet-hook", "hook_entry.py", False),
-               ("install-hooks", "install_hooks.py", False))
+               ("install-hooks", "install_hooks.py", False),
+               ("pet-bus", "bus_send.py", False))
     for name, entry, windowed in targets:
         command = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
                    "--onedir", "--noupx", "--name", name, "--paths", str(source),
@@ -31,6 +33,7 @@ def main():
     application = distribution / "claude-pet" / "claude-pet.exe"
     hook = distribution / "claude-pet-hook" / "claude-pet-hook.exe"
     installer = distribution / "install-hooks" / "install-hooks.exe"
+    bus = distribution / "pet-bus" / "pet-bus.exe"
     subprocess.run([str(application), "--self-test"], check=True, timeout=30)
     environment = {**os.environ, "PYTHONPATH": str(source), "PET_HOOK_EXECUTABLE": str(hook)}
     subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", str(source / "tests"),
@@ -46,6 +49,18 @@ def main():
                        check=True, timeout=30)
         if json.loads(settings.read_text(encoding="utf-8"))["hooks"]:
             raise RuntimeError("el instalador no retiró los hooks empaquetados")
+    from pet_ipc import start_server
+    with tempfile.TemporaryDirectory() as directory:
+        events = Queue()
+        listener = start_server(Path(directory) / ".claude-pet", events.put)
+        try:
+            environment = {**os.environ, "HOME": directory, "USERPROFILE": directory}
+            subprocess.run([str(bus), "thinking"], check=True, env=environment, timeout=10)
+            peer = events.get(timeout=3)
+            if peer.id != "codex" or peer.state != "thinking":
+                raise RuntimeError("el cliente empaquetado no transmite el estado de codex")
+        finally:
+            listener.close()
     with ZipFile(output / "claude-pet-windows.zip", "w", ZIP_DEFLATED) as archive:
         for path in sorted(distribution.rglob("*")):
             if path.is_file():
