@@ -17,7 +17,7 @@ py -3 windows/install_hooks.py
 py -3 windows/install_hooks.py --apply
 ```
 
-el primer comando muestra los cambios; el segundo crea una copia de `~/.claude/settings.json` e instala los hooks sin duplicarlos ni borrar otros hooks. reinicia claude code. conserva la ruta del repositorio; para moverlo, desinstala primero y vuelve a instalar.
+el primer comando muestra los cambios; el segundo crea una copia de `~/.claude/settings.json` e instala los hooks sin duplicarlos ni borrar otros hooks. usa una versión actual de claude code con [hooks en formato ejecutable y argumentos](https://code.claude.com/docs/en/hooks#exec-form-and-shell-form), para que las rutas con espacios no dependan de bash o powershell. reinicia claude code. conserva la ruta del repositorio; para moverlo, desinstala primero y vuelve a instalar.
 
 ```powershell
 py -3 windows/install_hooks.py --uninstall --apply

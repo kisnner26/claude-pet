@@ -20,12 +20,13 @@ def merge(settings, script, executable, uninstall=False):
         entries = []
         for entry in hooks.get(event, []):
             remaining = [hook for hook in entry.get("hooks", [])
-                         if marker not in hook.get("command", "")]
+                         if not (hook.get("args", [None])[0:1] == [str(script)]
+                                 or marker in hook.get("command", ""))]
             if remaining:
                 entries.append({**entry, "hooks": remaining})
         if not uninstall:
             entries.append({"matcher": "", "hooks": [{"type": "command",
-                            "command": subprocess.list2cmdline([executable, str(script), event])}]})
+                            "command": executable, "args": [str(script), event]}]})
         if entries:
             hooks[event] = entries
         else:
