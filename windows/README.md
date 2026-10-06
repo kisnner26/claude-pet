@@ -4,6 +4,19 @@ frontend inicial para windows 10/11 con python y tkinter: mascota de claude, sie
 
 ## ejecutar
 
+el workflow [windows](https://github.com/kisnner26/claude-pet/actions/workflows/windows.yml) genera el artefacto `claude-pet-windows`. extrae el zip completo y abre `claude-pet/claude-pet.exe`. este paquete incluye python y tkinter; no requiere instalarlos. conserva las tres carpetas del paquete juntas.
+
+para conectar claude code desde el paquete:
+
+```powershell
+.\install-hooks\install-hooks.exe
+.\install-hooks\install-hooks.exe --apply
+```
+
+para retirarlo usa `--uninstall --apply`. los ejecutables todavía no tienen firma digital. la compilación verifica el arranque de ambas mascotas, el hook empaquetado y la instalación y retirada en un archivo temporal.
+
+## ejecutar desde el código
+
 instala python 3.12 o posterior desde python.org con tkinter y el lanzador `py`. clona o descarga este repositorio en una carpeta permanente y abre `windows/start.cmd`.
 
 clic derecho abre el menú; escape cierra la mascota. la transparencia se activa solo en windows. en macos se puede probar con fondo visible.
@@ -33,6 +46,8 @@ py -3 -m unittest discover -s windows/tests -v
 ```
 
 github actions comprueba la tubería y el renderizado en windows. la experiencia visual en un escritorio real requiere validación manual.
+
+para generar el paquete en windows, instala `pyinstaller==6.22.3` y ejecuta `py -3 windows/build.py`. el resultado queda en `build/windows/claude-pet-windows.zip`.
 
 ## codex
 

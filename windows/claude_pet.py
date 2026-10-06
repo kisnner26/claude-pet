@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
@@ -229,7 +230,25 @@ class Pet:
 
 if __name__ == "__main__":
     try:
-        Pet().window.mainloop()
+        if sys.argv[1:] == ["--self-test"]:
+            with tempfile.TemporaryDirectory() as directory:
+                ROOT = Path(directory) / "pet"
+                pet = Pet()
+                try:
+                    for state in PRIORITY:
+                        pet.demo(state)
+                        pet.codex.demo(state)
+                        pet.update()
+                        pet.codex.update()
+                        pet.window.update()
+                finally:
+                    pet.close()
+        else:
+            Pet().window.mainloop()
     except (RuntimeError, OSError) as error:
-        print(str(error), file=sys.stderr)
+        if sys.stderr is not None:
+            print(str(error), file=sys.stderr)
+        else:
+            from tkinter import messagebox
+            messagebox.showerror("claude-pet", str(error))
         sys.exit(1)
