@@ -53,12 +53,13 @@ def instance_lock(root):
 def private_directory(root):
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     if os.name == "nt":
+        hidden = subprocess.CREATE_NO_WINDOW
         identity = subprocess.check_output(
-            ["whoami", "/user", "/fo", "csv", "/nh"], text=True)
+            ["whoami", "/user", "/fo", "csv", "/nh"], text=True, creationflags=hidden)
         sid = next(csv.reader(identity.strip().splitlines()))[1]
         subprocess.run(["icacls", str(root), "/inheritance:r", "/grant:r",
                         f"*{sid}:(OI)(CI)F"], check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=hidden)
     else:
         root.chmod(0o700)
 
