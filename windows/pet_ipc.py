@@ -13,6 +13,41 @@ from pet_state import Event
 from pet_bus import PeerMessage
 
 
+class LocalListener:
+    """hold a process lock for the lifetime of the local endpoint."""
+
+    def __init__(self, listener, lock):
+        self.listener = listener
+        self.lock = lock
+
+    def accept(self):
+        return self.listener.accept()
+
+    def close(self):
+        self.listener.close()
+        self.lock.close()
+
+
+def instance_lock(root):
+    handle = open(root / "windows-pet.lock", "a+b")
+    handle.seek(0, os.SEEK_END)
+    if handle.tell() == 0:
+        handle.write(b"0")
+        handle.flush()
+    handle.seek(0)
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as error:
+        handle.close()
+        raise RuntimeError("claude-pet ya está abierto") from error
+    return handle
+
+
 def private_directory(root):
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     if os.name == "nt":
@@ -36,6 +71,7 @@ def endpoint(root):
 def start_server(root, on_event):
     root = Path(root)
     private_directory(root)
+    lock = instance_lock(root)
     address, family = endpoint(root)
     key_path = root / "windows-pet.key"
     # preserve the key across restarts so installed hooks need no rewriting.
@@ -48,8 +84,15 @@ def start_server(root, on_event):
         with os.fdopen(fd, "wb") as handle:
             handle.write(key)
     if len(key) != 32:
+        lock.close()
         raise ValueError("invalid local authentication key")
-    listener = Listener(address, family=family, authkey=key)
+    try:
+        if family == "AF_UNIX":
+            Path(address).unlink(missing_ok=True)
+        listener = LocalListener(Listener(address, family=family, authkey=key), lock)
+    except Exception:
+        lock.close()
+        raise
 
     def serve():
         while True:

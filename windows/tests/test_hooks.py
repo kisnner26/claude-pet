@@ -1,9 +1,16 @@
 from pathlib import Path
 import unittest
+import json
+import os
+from queue import Queue
+import subprocess
+import sys
+import tempfile
 
 from install_hooks import merge
 from pet_hook import HOOKS, event_line
 from pet_state import Event
+from pet_ipc import start_server
 
 
 class HookTests(unittest.TestCase):
@@ -33,3 +40,25 @@ class HookTests(unittest.TestCase):
         hook = installed["hooks"]["Stop"][0]["hooks"][0]
         self.assertEqual(hook["command"], executable)
         self.assertEqual(hook["args"], [str(script), "Stop"])
+
+    def test_hook_process_delivers_event_and_fails_open_when_pet_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / ".claude-pet"
+            events = Queue()
+            listener = start_server(root, events.put)
+            script = Path(__file__).resolve().parents[1] / "pet_hook.py"
+            environment = {**os.environ, "HOME": directory, "USERPROFILE": directory}
+            command = [sys.executable, str(script), "PreToolUse"]
+            payload = json.dumps(dict(session_id="s", tool_name="Read", cwd=r"C:\work\pet"))
+            try:
+                result = subprocess.run(command, input=payload, text=True, capture_output=True,
+                                        env=environment, timeout=5)
+                self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+                self.assertEqual(events.get(timeout=3).tool, "Read")
+            finally:
+                listener.close()
+            # a separate directory has no running pet and no authentication key.
+            environment.update(HOME=directory + "/absent", USERPROFILE=directory + "/absent")
+            result = subprocess.run(command, input=payload, text=True, capture_output=True,
+                                    env=environment, timeout=5)
+            self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))

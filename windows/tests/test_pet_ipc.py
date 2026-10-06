@@ -14,6 +14,8 @@ class TransportTests(unittest.TestCase):
             root = Path(directory) / "pet"
             listener = start_server(root, events.put)
             try:
+                with self.assertRaises(RuntimeError):
+                    start_server(root, events.put)
                 send(root, "unknown\ts")
                 send(root, "tool\ts\tRead")
                 event = events.get(timeout=3)

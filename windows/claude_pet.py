@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
@@ -55,6 +56,7 @@ class Pet:
         self.canvas.bind("<Button-3>", self.menu)
         self.window.bind("<Escape>", lambda _: self.close())
         self.window.protocol("WM_DELETE_WINDOW", self.close)
+        self.window.bind("<<PetQuit>>", lambda _: self.close())
         if kind == "claude":
             self.codex = Pet("codex", self.window)
         else:
@@ -216,7 +218,7 @@ class Pet:
     def close(self):
         self.save()
         if self.listener is None:
-            self.window.withdraw()
+            self.window.master.event_generate("<<PetQuit>>")
             return
         if self.codex:
             self.codex.save()
@@ -225,4 +227,8 @@ class Pet:
 
 
 if __name__ == "__main__":
-    Pet().window.mainloop()
+    try:
+        Pet().window.mainloop()
+    except (RuntimeError, OSError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)
