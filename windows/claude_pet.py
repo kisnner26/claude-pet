@@ -10,6 +10,7 @@ import tkinter as tk
 from pet_ipc import start_server
 from pet_state import Event, PRIORITY, Sessions
 from pet_bus import PeerMessage, Peers
+from pet_position import desktop_bounds, geometry
 
 ROOT = Path.home() / ".claude-pet"
 LABELS = dict(idle="inactivo", starting="iniciando", thinking="pensando",
@@ -44,12 +45,11 @@ class Pet:
             position = json.loads(self.settings.read_text(encoding="utf-8"))
             x, y = int(position["x"]), int(position["y"])
             self.animations = bool(position.get("animations", True))
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, OverflowError, KeyError, TypeError):
             x = self.window.winfo_screenwidth() - (220 if kind == "claude" else 440)
             y = self.window.winfo_screenheight() - 220
-        x = max(0, min(x, self.window.winfo_screenwidth() - 200))
-        y = max(0, min(y, self.window.winfo_screenheight() - 160))
-        self.window.geometry(f"200x160+{x}+{y}")
+        x, y = desktop_bounds(self.window).clamp(x, y)
+        self.window.geometry(geometry(x, y))
         self.canvas.bind("<ButtonPress-1>", self.begin_drag)
         self.canvas.bind("<B1-Motion>", self.move)
         self.canvas.bind("<ButtonRelease-1>", self.save)
@@ -69,8 +69,9 @@ class Pet:
 
     def move(self, event):
         if self.drag:
-            self.window.geometry(f"+{max(0, event.x_root - self.drag[0])}"
-                                 f"+{max(0, event.y_root - self.drag[1])}")
+            x, y = desktop_bounds(self.window).clamp(event.x_root - self.drag[0],
+                                                     event.y_root - self.drag[1])
+            self.window.geometry(geometry(x, y))
 
     def save(self, _event=None):
         self.drag = None

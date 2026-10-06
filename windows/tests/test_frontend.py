@@ -1,10 +1,12 @@
 from pathlib import Path
 import tempfile
 import unittest
+import os
 
 import claude_pet
 from pet_state import Event, PRIORITY
 from pet_bus import PeerMessage
+from pet_position import geometry
 
 
 class FrontendTests(unittest.TestCase):
@@ -14,6 +16,11 @@ class FrontendTests(unittest.TestCase):
             claude_pet.ROOT = Path(directory) / "pet"
             pet = claude_pet.Pet()
             try:
+                pet.window.geometry(geometry(-100, -100))
+                pet.window.update_idletasks()
+                if os.name == "nt":
+                    self.assertEqual(pet.window.winfo_x(), -100)
+                pet.window.geometry(geometry(60, 60))
                 for mascot, body_index in ((pet, 10), (pet.codex, 0)):
                     mascot.animations = False
                     mascot.draw(Event("idle", "preview"))
