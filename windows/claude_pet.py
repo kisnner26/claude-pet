@@ -17,13 +17,16 @@ TRANSPARENT = "#ff00ff"
 
 
 class Pet:
-    def __init__(self):
+    def __init__(self, kind="claude", master=None):
+        self.kind = kind
+        self.codex = None
+        self.peer_event = None
         self.events = Queue()
         self.sessions = Sessions()
         self.peers = Peers()
-        self.listener = start_server(ROOT, self.events.put)
-        self.window = tk.Tk()
-        self.window.title("claude-pet")
+        self.listener = start_server(ROOT, self.events.put) if master is None else None
+        self.window = tk.Tk() if master is None else tk.Toplevel(master)
+        self.window.title(f"{kind}-pet")
         self.window.overrideredirect(True)
         self.window.attributes("-topmost", True)
         self.window.configure(bg=TRANSPARENT)
@@ -35,13 +38,14 @@ class Pet:
         self.tick = 0
         self.animations = True
         self.drag = None
-        self.settings = ROOT / "windows-position.json"
+        self.settings = ROOT / f"windows-{kind}-position.json"
         try:
             position = json.loads(self.settings.read_text(encoding="utf-8"))
             x, y = int(position["x"]), int(position["y"])
             self.animations = bool(position.get("animations", True))
         except (OSError, ValueError, KeyError, TypeError):
-            x, y = self.window.winfo_screenwidth() - 220, self.window.winfo_screenheight() - 220
+            x = self.window.winfo_screenwidth() - (220 if kind == "claude" else 440)
+            y = self.window.winfo_screenheight() - 220
         x = max(0, min(x, self.window.winfo_screenwidth() - 200))
         y = max(0, min(y, self.window.winfo_screenheight() - 160))
         self.window.geometry(f"200x160+{x}+{y}")
@@ -51,6 +55,10 @@ class Pet:
         self.canvas.bind("<Button-3>", self.menu)
         self.window.bind("<Escape>", lambda _: self.close())
         self.window.protocol("WM_DELETE_WINDOW", self.close)
+        if kind == "claude":
+            self.codex = Pet("codex", self.window)
+        else:
+            self.window.withdraw()
         self.update()
 
     def begin_drag(self, event):
@@ -76,6 +84,8 @@ class Pet:
 
     def demo(self, state):
         self.sessions.apply(Event(state, "preview"))
+        if self.kind == "codex" and state != "end":
+            self.window.deiconify()
 
     def menu(self, event):
         menu = tk.Menu(self.window, tearoff=False)
@@ -96,6 +106,9 @@ class Pet:
     def draw(self, event):
         self.canvas.delete("all")
         state, tick = event.state, self.tick if self.animations else 0
+        if self.kind == "codex":
+            self.draw_codex(state, tick)
+            return
         scale, left, top = 7, 44, 12
         dy = -1 if state == "done" and tick % 8 < 2 else 0
         dx = (1 if tick % 2 else -1) if state == "error" else 0
@@ -150,6 +163,34 @@ class Pet:
         self.canvas.create_rectangle(2, 132, 198, 158, fill=ink, outline="")
         self.canvas.create_text(100, 145, text=label, fill="#ede3da", font=("Consolas", 10))
 
+    def draw_codex(self, state, tick):
+        # the same cloud robot grid and palette as CodexAvatar.swift.
+        head = (".....OOOOOOOO.....", "..OLOOBBBBBBOOOO..", ".OLLBBBBBBBBBBBBO.",
+                ".OLBBssssssssBBBO.", "OLBBsSSSSSSSSsBBBO", "OLBBsSSSSSSSSsBBBO",
+                "OBBBsSSSSSSSSsBBBO", "OBBBsSSSSSSSSsBBBO", "OBBBsSSSSSSSSsBBBO",
+                ".OBBBssssssssBBBO.", "..ODDDDDDDDDDDDO..", "...OOOOOOOOOOOO...")
+        body = (".....OOOOOOOO.....", "..OOOBBBBBBBBOOO..", "..OBBBBCWWWBBBBO..",
+                "..ODDBBWCWWBBDDO..", "..OOODBCWCCBDOOO..", ".....OBDOODBO.....",
+                ".....OBO..OBO.....", ".....ODO..ODO.....", ".....OOO..OOO.....")
+        palette = dict(O="#223496", B="#5270e8", D="#3e5ace", L="#7e98ff",
+                       W="#6e8cf5", s="#2c346e", S="#161b40", C="#96ebff")
+        hop = -5 if state == "done" and tick % 8 < 2 else 0
+        for rows, offset in ((body, 11), (head, 0)):
+            for y, row in enumerate(rows):
+                for x, cell in enumerate(row):
+                    if cell in palette:
+                        self.canvas.create_rectangle(46 + x * 6, 6 + (y + offset) * 6 + hop,
+                                                     52 + x * 6, 12 + (y + offset) * 6 + hop,
+                                                     fill=palette[cell], outline="")
+        face = {"idle": ">_" if tick % 8 < 4 else ">", "starting": "·",
+                "thinking": "." * (1 + (tick // 3) % 3), "tool": ">_",
+                "waiting": "!", "done": "^ ^", "error": "x x"}[state]
+        color = "#e0824f" if state == "waiting" else "#ff8a7a" if state == "error" else "#96ebff"
+        self.canvas.create_text(100, 44 + hop, text=face, fill=color, font=("Consolas", 16, "bold"))
+        self.canvas.create_rectangle(2, 132, 198, 158, fill="#1c1b1a", outline="")
+        self.canvas.create_text(100, 145, text=f"codex · {LABELS[state]}",
+                                fill="#ede3da", font=("Consolas", 10))
+
     def update(self):
         try:
             while True:
@@ -160,12 +201,25 @@ class Pet:
                     self.sessions.apply(event)
         except Empty:
             pass
-        self.draw(self.sessions.current())
+        current = self.sessions.current()
+        if self.codex:
+            peer = self.peers.current("codex")
+            self.codex.peer_event = Event(peer.state, "codex") if peer else None
+            if peer:
+                self.codex.window.deiconify()
+            elif not self.codex.sessions.entries:
+                self.codex.window.withdraw()
+        self.draw(self.peer_event if self.peer_event and not self.sessions.entries else current)
         self.tick += 1
         self.window.after(150, self.update)
 
     def close(self):
         self.save()
+        if self.listener is None:
+            self.window.withdraw()
+            return
+        if self.codex:
+            self.codex.save()
         self.listener.close()
         self.window.destroy()
 

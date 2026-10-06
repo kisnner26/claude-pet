@@ -4,6 +4,7 @@ import unittest
 
 import claude_pet
 from pet_state import PRIORITY
+from pet_bus import PeerMessage
 
 
 class FrontendTests(unittest.TestCase):
@@ -21,6 +22,17 @@ class FrontendTests(unittest.TestCase):
                 pet.animations = False
                 pet.save()
                 self.assertTrue(pet.settings.exists())
+                pet.demo("tool")
+                pet.events.put(PeerMessage("codex", "thinking", 1))
+                pet.update()
+                pet.codex.update()
+                pet.window.update()
+                self.assertEqual(pet.sessions.current().state, "tool")
+                self.assertEqual(pet.codex.peer_event.state, "thinking")
+                self.assertEqual(pet.codex.window.state(), "normal")
+                pet.events.put(PeerMessage("codex", "idle", 2, left=True))
+                pet.update()
+                self.assertEqual(pet.codex.window.state(), "withdrawn")
             finally:
                 pet.close()
                 claude_pet.ROOT = previous

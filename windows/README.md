@@ -34,6 +34,17 @@ py -3 -m unittest discover -s windows/tests -v
 
 github actions comprueba la tubería y el renderizado en windows. la experiencia visual en un escritorio real requiere validación manual.
 
+## codex
+
+codex tiene una ventana independiente con el avatar nube azul, sus siete estados y posición propia. aparece al recibir presencia y desaparece después de 25 segundos sin latidos. un adaptador puede enviar estados por el protocolo pet-bus v1 usando `windows/pet_ipc.py`.
+
+```powershell
+py -3 windows/bus_send.py thinking
+py -3 windows/bus_send.py --hold idle
+```
+
+estos comandos sirven para probar la presencia; el repositorio no lee conversaciones ni detecta automáticamente la actividad de codex.
+
 ## alcance actual
 
-todavía no incluye codex, pet-bus, fútbol, mission control ni bloqueo por cambios del workspace. esas funciones siguen disponibles en macos.
+todavía no incluye fútbol, mission control ni bloqueo por cambios del workspace. esas funciones siguen disponibles en macos. el transporte de windows usa una tubería autenticada; los clientes de sockets unix de macos necesitan un adaptador y no se conectan directamente.
