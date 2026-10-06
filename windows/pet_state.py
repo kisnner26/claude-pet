@@ -49,7 +49,7 @@ class Event:
 class Sessions:
     """select the highest-priority live session, with newest events breaking ties."""
 
-    def __init__(self, clock=time.monotonic, ttl=7200):
+    def __init__(self, clock=time.monotonic, ttl=900):
         self.clock = clock
         self.ttl = ttl
         self.entries = {}
@@ -63,7 +63,8 @@ class Sessions:
     def current(self):
         now = self.clock()
         self.entries = {key: value for key, value in self.entries.items()
-                        if now - value[1] < self.ttl}
+                        if now - value[1] < min(self.ttl,
+                           {"done": 5, "error": 8}.get(value[0].state, self.ttl))}
         return max(self.entries.values(),
                    key=lambda item: (PRIORITY[item[0].state], item[1]),
                    default=(Event("idle", "local"), now))[0]

@@ -45,6 +45,18 @@ class ProtocolTests(unittest.TestCase):
         sessions.apply(Event("tool", "b"))
         self.assertEqual(sessions.current().session, "b")
 
+    def test_terminal_states_expire_without_hiding_other_work(self):
+        for state, lifetime in (("done", 5), ("error", 8)):
+            with self.subTest(state=state):
+                now = [0]
+                sessions = Sessions(clock=lambda: now[0])
+                sessions.apply(Event("starting", "active"))
+                sessions.apply(Event(state, "finished"))
+                now[0] = lifetime
+                self.assertEqual(sessions.current().session, "active")
+                now[0] = 900
+                self.assertEqual(sessions.current().state, "idle")
+
 
 if __name__ == "__main__":
     unittest.main()
