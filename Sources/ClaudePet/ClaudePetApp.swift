@@ -64,6 +64,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--selftest-safety") { exit(SafetySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-mission") { exit(MissionSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-handoff") { exit(HandoffSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-companion") { exit(CompanionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
