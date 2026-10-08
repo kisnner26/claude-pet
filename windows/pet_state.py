@@ -53,18 +53,34 @@ class Sessions:
         self.clock = clock
         self.ttl = ttl
         self.entries = {}
+        self.prompts = {}
+        self.todos = {}
 
     def apply(self, event):
         if event.state == "end":
             self.entries.pop(event.session, None)
-        else:
-            self.entries[event.session] = (event, self.clock())
+            self.prompts.pop(event.session, None)
+            self.todos.pop(event.session, None)
+            return
+        if event.task.startswith("p:"):
+            self.prompts[event.session] = event.task[2:]
+            self.todos.pop(event.session, None)
+        elif event.task.startswith("t:"):
+            self.todos[event.session] = event.task[2:]
+        self.entries[event.session] = (event, self.clock())
+
+    def task(self, event):
+        """the task in progress for a session: claude's own list first, then the last message."""
+        return self.todos.get(event.session) or self.prompts.get(event.session, "")
 
     def current(self):
         now = self.clock()
         self.entries = {key: value for key, value in self.entries.items()
                         if now - value[1] < min(self.ttl,
                            {"done": 5, "error": 8}.get(value[0].state, self.ttl))}
+        for stale in set(self.prompts) - set(self.entries):
+            self.prompts.pop(stale, None)
+            self.todos.pop(stale, None)
         return max(self.entries.values(),
                    key=lambda item: (PRIORITY[item[0].state], item[1]),
                    default=(Event("idle", "local"), now))[0]

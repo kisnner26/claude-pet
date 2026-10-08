@@ -11,11 +11,10 @@ import tkinter as tk
 from pet_ipc import start_server
 from pet_state import Event, PRIORITY, Sessions
 from pet_bus import PeerMessage, Peers
-from pet_position import desktop_bounds, geometry
+from bubble import LABELS, describe
+from pet_position import HEIGHT, WIDTH, desktop_bounds, geometry
 
 ROOT = Path.home() / ".claude-pet"
-LABELS = dict(idle="inactivo", starting="iniciando", thinking="pensando",
-              tool="ejecutando", waiting="tu aprobación", done="listo", error="error")
 TRANSPARENT = "#ff00ff"
 
 
@@ -35,7 +34,7 @@ class Pet:
         self.window.configure(bg=TRANSPARENT)
         if os.name == "nt":
             self.window.attributes("-transparentcolor", TRANSPARENT)
-        self.canvas = tk.Canvas(self.window, width=200, height=160,
+        self.canvas = tk.Canvas(self.window, width=WIDTH, height=HEIGHT,
                                 bg=TRANSPARENT, highlightthickness=0)
         self.canvas.pack()
         self.tick = 0
@@ -47,8 +46,8 @@ class Pet:
             x, y = int(position["x"]), int(position["y"])
             self.animations = bool(position.get("animations", True))
         except (OSError, ValueError, OverflowError, KeyError, TypeError):
-            x = self.window.winfo_screenwidth() - (220 if kind == "claude" else 440)
-            y = self.window.winfo_screenheight() - 220
+            x = self.window.winfo_screenwidth() - (WIDTH + 20 if kind == "claude" else 2 * WIDTH + 40)
+            y = self.window.winfo_screenheight() - HEIGHT - 60
         x, y = desktop_bounds(self.window).clamp(x, y)
         self.window.geometry(geometry(x, y))
         self.canvas.bind("<ButtonPress-1>", self.begin_drag)
@@ -163,9 +162,32 @@ class Pet:
             rect(7, 3, 2, 1, "#ede3da")
         elif state == "tool":
             rect(5 + tick % 4, 11, 3, 1, ink)
-        label = LABELS[state] + (f" · {event.tool}" if event.tool else "")
-        self.canvas.create_rectangle(2, 132, 198, 158, fill=ink, outline="")
-        self.canvas.create_text(100, 145, text=label, fill="#ede3da", font=("Consolas", 10))
+        title, subtitle = describe(state, event.tool, event.detail, self.sessions.task(event))
+        self.finish("claude", state, title or LABELS[state], subtitle or event.origin)
+
+    def finish(self, who, state, title, subtitle):
+        """center the sprite in the wider window, then draw the bubble under it."""
+        self.canvas.move("all", (WIDTH - 200) // 2, 0)
+        if state == "idle" and not subtitle:
+            title = LABELS["idle"]
+        self.bubble(title, subtitle, "#e0824f" if state == "waiting" else
+                    "#ff8a7a" if state == "error" else "#ede3da")
+
+    def bubble(self, title, subtitle, accent):
+        left, top, right, bottom = 6, 128, WIDTH - 6, HEIGHT - 4
+        r = 10
+        points = [left + r, top, right - r, top, right, top, right, top + r,
+                  right, bottom - r, right, bottom, right - r, bottom, left + r, bottom,
+                  left, bottom, left, bottom - r, left, top + r, left, top]
+        self.canvas.create_polygon(points, smooth=True, fill="#1c1b1a", outline="#3a3835")
+        limit = 32
+        title = title if len(title) <= limit else title[:limit - 1] + "…"
+        subtitle = subtitle if len(subtitle) <= 38 else subtitle[:37] + "…"
+        self.canvas.create_text(left + 12, top + (14 if subtitle else 29), anchor="w", text=title,
+                                fill=accent, font=("Segoe UI", 10, "bold"))
+        if subtitle:
+            self.canvas.create_text(left + 12, top + 38, anchor="w", text=subtitle,
+                                    fill="#9a948c", font=("Consolas", 9))
 
     def draw_codex(self, state, tick):
         # the same cloud robot grid and palette as CodexAvatar.swift.
@@ -191,9 +213,7 @@ class Pet:
                 "waiting": "!", "done": "^ ^", "error": "x x"}[state]
         color = "#e0824f" if state == "waiting" else "#ff8a7a" if state == "error" else "#96ebff"
         self.canvas.create_text(100, 44 + hop, text=face, fill=color, font=("Consolas", 16, "bold"))
-        self.canvas.create_rectangle(2, 132, 198, 158, fill="#1c1b1a", outline="")
-        self.canvas.create_text(100, 145, text=f"codex · {LABELS[state]}",
-                                fill="#ede3da", font=("Consolas", 10))
+        self.finish("codex", state, f"Codex: {LABELS[state].capitalize()}", "")
 
     def update(self):
         try:
