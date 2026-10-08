@@ -119,3 +119,7 @@ rm -rf build ~/.claude-pet
 ## inspiracion
 
 la idea de una mascota flotante conectada a claude code viene de [ClaudeHub](https://github.com/NormanSMA/ClaudeHub) de NormanSMA, un monitor local de tokens con una mascota llamada chispa. claude pet no usa su codigo: es otro proyecto, en swift, centrado en el estado y la tarea en curso.
+
+## licencia
+
+[MIT](LICENSE)
