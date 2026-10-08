@@ -70,7 +70,8 @@ enum GitPulse {
         return value.components(separatedBy: "...").first ?? value
     }
 
-    private static func run(executable: String, arguments: [String], timeout: TimeInterval) -> (data: Data, truncated: Bool, status: Int32)? {
+    static func run(executable: String = "/usr/bin/git", arguments: [String], timeout: TimeInterval,
+                    limit: Int = outputLimit) -> (data: Data, truncated: Bool, status: Int32)? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
@@ -82,7 +83,7 @@ enum GitPulse {
         process.standardOutput = output
         process.standardError = FileHandle.nullDevice
         process.standardInput = FileHandle.nullDevice
-        let capture = CappedOutput(limit: outputLimit)
+        let capture = CappedOutput(limit: limit)
         let reader = DispatchGroup()
         reader.enter()
         DispatchQueue.global(qos: .utility).async {
@@ -112,7 +113,7 @@ enum GitPulse {
     }
 }
 
-private final class CappedOutput: @unchecked Sendable {
+final class CappedOutput: @unchecked Sendable {
     private let lock = NSLock()
     private let limit: Int
     private var data = Data()

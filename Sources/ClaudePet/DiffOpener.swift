@@ -25,6 +25,17 @@ enum DiffOpener {
         }
     }
 
+    /// El diff sin commitear para enviarlo a otro agente: mismas defensas que `renderSync`
+    /// (sin drivers ni filtros del repo), con un tope propio de tamano. nil si no es un repo usable.
+    static func capture(workspace: String, maxBytes: Int, timeout: TimeInterval = 20) -> (data: Data, truncated: Bool)? {
+        var isDir: ObjCBool = false
+        guard workspace.hasPrefix("/"), FileManager.default.fileExists(atPath: workspace, isDirectory: &isDir), isDir.boolValue else { return nil }
+        let arguments = ["-C", workspace, "-c", "core.fsmonitor=false", "-c", "core.pager=cat",
+                         "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--"]
+        guard let result = GitPulse.run(arguments: arguments, timeout: timeout, limit: maxBytes), result.status == 0 else { return nil }
+        return (result.data, result.truncated)
+    }
+
     static func renderSync(workspace: String) -> URL? {
         var isDir: ObjCBool = false
         guard workspace.hasPrefix("/"), FileManager.default.fileExists(atPath: workspace, isDirectory: &isDir), isDir.boolValue else { return nil }

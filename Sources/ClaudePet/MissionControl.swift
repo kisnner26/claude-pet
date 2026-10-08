@@ -106,6 +106,9 @@ final class MissionControl: ObservableObject {
         return lastSummary ?? "sin sesión activa"
     }
     var scanLaunchCount: Int { scanner.launchCount }
+    /// Ultimo proyecto conocido de Claude (persiste aunque la sesion este en reposo).
+    var workspace: String { localWorkspace }
+    var project: String { localProject }
 
     func recordLocal(state: PetState, project: String, workspace: String, tool: String = "", session: String = "") {
         let date = now()
