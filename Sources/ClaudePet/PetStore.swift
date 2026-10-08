@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -5,6 +6,8 @@ import SwiftUI
 final class PetStore: ObservableObject {
     static let shared = PetStore()
     let mission: MissionControl
+    let handoff = HandoffController()
+    private var handoffObserver: AnyCancellable?
 
     @Published private(set) var state: PetState = .idle
     @Published private(set) var tool: String = ""
@@ -93,12 +96,17 @@ final class PetStore: ObservableObject {
     /// La burbuja puede pertenecer a cualquiera de las dos mascotas. El bus nunca aporta detalle privado de Codex.
     var bubbleActivity: Activity? {
         if let safetyAlert { return safetyAlert }
+        if let notice = handoff.notice { return notice }
         if let activity { return activity }
         guard codexState != .idle else { return nil }
         return Activity(title: "Codex: \(codexState.label.capitalized)", subtitle: "", origin: "")
     }
-    var bubbleState: PetState { safetyAlert != nil ? .error : (activity != nil ? state : codexState) }
-    var bubbleFollowsCodex: Bool { activity == nil && safetyAlert == nil && codexState != .idle }
+    var bubbleState: PetState {
+        if safetyAlert != nil { return .error }
+        if handoff.notice != nil { return handoff.noticeState }
+        return activity != nil ? state : codexState
+    }
+    var bubbleFollowsCodex: Bool { activity == nil && safetyAlert == nil && handoff.notice == nil && codexState != .idle }
     /// Codex mira hacia Claude: +1 derecha, -1 izquierda.
     var codexFacing: Int { codexSide < 0 ? 1 : -1 }
 
@@ -144,6 +152,7 @@ final class PetStore: ObservableObject {
 
     init(mission: MissionControl? = nil) {
         self.mission = mission ?? MissionControl()
+        handoffObserver = handoff.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         Sprite.skin = skin
         WorkspaceSafety.setBlocking(blockOnChange)          // la bandera del hook refleja siempre la opcion guardada
         monitor.onChange = { [weak self] session in Task { @MainActor in self?.contextChanged(session) } }
@@ -527,6 +536,25 @@ final class PetStore: ObservableObject {
     private func updateReviewReady() {
         guard let peer, peer.state == .done, let name = peer.project, !name.isEmpty else { reviewReady = false; return }
         reviewReady = sessions.values.contains { ($0.state == .starting || $0.state == .thinking || $0.state == .tool || $0.state == .waiting) && $0.project == name && !$0.workspace.isEmpty }
+    }
+
+    /// La tarea en curso del proyecto conocido: su lista de Claude y, si no hay, su ultimo mensaje.
+    private var currentTask: String {
+        let name = mission.project
+        guard let info = sessions.values.filter({ $0.project == name }).max(by: { $0.at < $1.at }) else { return "" }
+        return info.todo.isEmpty ? info.prompt : info.todo
+    }
+
+    func requestReview(by reviewer: Agent) {
+        handoff.requestReview(reviewer: reviewer, workspace: mission.workspace, project: mission.project, task: currentTask)
+    }
+
+    /// Ante una colision: la siguiente herramienta de cada sesion de Claude en ese proyecto se deniega
+    /// hasta tu proximo mensaje (el hook lee la marca "paused"). Solo la pide el usuario desde el menu.
+    func pauseClaude() {
+        for (session, info) in sessions where info.project == mission.project {
+            WorkspaceSafety.markChanged(session: session, reason: "paused")
+        }
     }
 
     func openReview() {

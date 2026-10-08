@@ -356,6 +356,7 @@ struct ClaudePetApp: App {
             if let warning = store.safetyAlert { Text(warning.title) }
             if store.reviewReady { Button("codex listo para revision: abrir diff") { store.openReview() } }
             Menu("mission control") { MissionControlMenu(control: store.mission) }
+            Menu("traspaso claude y codex") { HandoffMenu(store: store, handoff: store.handoff, control: store.mission) }
             Toggle("Mostrar burbuja de actividad (ambas)", isOn: $store.showBubble)
             Toggle("Detalle en la burbuja de Claude (archivos, comandos)", isOn: $store.showDetail)
             Toggle("Avisar si claude o codex parecen bloqueados", isOn: $store.stallWatch)

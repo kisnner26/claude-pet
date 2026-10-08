@@ -66,7 +66,7 @@ def review_prompt(author, project, task, diff, truncated, untracked):
         "Busca, por orden de importancia: errores de lógica, problemas de seguridad, casos límite sin "
         "cubrir, pruebas que faltan y regresiones. Puedes leer los archivos del proyecto para entender "
         "el contexto. Ignora el estilo salvo que cause errores.",
-        "Responde en español, breve. Por cada hallazgo: severidad (alta/media/baja), archivo:línea, "
+        "Responde en español, breve y sin emojis. Por cada hallazgo: severidad (alta/media/baja), archivo:línea, "
         "el problema y un arreglo concreto. Si no encuentras nada serio, dilo claramente.",
     ]
     if task:

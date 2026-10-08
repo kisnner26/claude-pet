@@ -47,7 +47,7 @@ enum HandoffPrompt {
             "Eres el segundo par de ojos de un cambio hecho por \(author.displayName)" + (project.isEmpty ? "." : " en el proyecto «\(project)»."),
             "Revisa el diff de abajo. Solo lectura: no modifiques archivos ni ejecutes nada que escriba.",
             "Busca, por orden de importancia: errores de lógica, problemas de seguridad, casos límite sin cubrir, pruebas que faltan y regresiones. Puedes leer los archivos del proyecto para entender el contexto. Ignora el estilo salvo que cause errores.",
-            "Responde en español, breve. Por cada hallazgo: severidad (alta/media/baja), archivo:línea, el problema y un arreglo concreto. Si no encuentras nada serio, dilo claramente.",
+            "Responde en español, breve y sin emojis. Por cada hallazgo: severidad (alta/media/baja), archivo:línea, el problema y un arreglo concreto. Si no encuentras nada serio, dilo claramente.",
         ]
         if !task.isEmpty { parts.append("Tarea que se le pidió al otro agente: \(task)") }
         if !untracked.isEmpty {

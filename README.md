@@ -1,6 +1,6 @@
 # claude pet
 
-windows: [frontend inicial e instalación](windows/README.md), con mascota de claude y hooks locales. la versión de macos mantiene las funciones completas descritas abajo.
+windows: [instalación y detalles](windows/README.md). tiene la burbuja con la tarea, mission control, avisos de cambio y atasco, diff y el traspaso entre claude y codex. todavía no tiene el fútbol, el abrazo ni el panel de aspectos de codex, que son solo de macos.
 
 dos mascotas pixel-art para macos, una por herramienta: claude code y codex. cada una es una ventana independiente que aparece cuando usas su herramienta y muestra en tiempo real lo que hace. swiftui puro, sin dependencias, todo local.
 
@@ -40,6 +40,16 @@ ninguno de estos datos cruza el pet bus ni se persiste entre ejecuciones.
 
 ![estados](docs/img/estados.png)
 
+## traspaso entre claude y codex
+
+la mascota junta a los dos agentes y te evita el copiar y pegar entre ellos. todo es a pedido tuyo desde el menu `traspaso claude y codex`; nada corre solo.
+
+- **segunda opinion**: `pedir a codex que revise lo de claude` (y al reves). arma el diff sin commitear del proyecto, lista los archivos nuevos sin seguimiento y lo manda al otro agente en modo solo lectura: `codex exec --sandbox read-only` o `claude -p` con solo `Read`, `Grep` y `Glob`. el resultado queda en `~/.claude-pet/review/` (0600) y se abre solo. se puede cancelar y tiene tope de 10 minutos.
+- **confirmacion antes de enviar**: antes de lanzar, un dialogo te dice que proyecto, cuantos KB y a que proveedor se manda el diff. si cancelas, no sale nada. el diff viaja por stdin, nunca por argumentos.
+- **colision resuelta**: cuando el radar marca que los dos trabajan en el mismo proyecto, el menu ofrece `pausar a claude hasta mi proximo mensaje` (el hook deniega su siguiente herramienta; tu siguiente mensaje lo levanta) y `worktree aislado` para claude o codex (una carpeta hermana `proyecto-pet-<agente>` en una rama nueva `pet/...`; no borra ni mueve nada y deja la ruta en el portapapeles).
+- las revisiones lanzadas por la mascota no cuentan como una sesion tuya: el hook las ignora (`CLAUDE_PET_REVIEW=1`).
+- necesita tener instalado el CLI del agente que revisa; el menu lo deshabilita si no lo encuentra.
+
 ## pet bus y futbol
 
 las mascotas se descubren entre si por sockets unix locales (`~/.claude-pet/bus/`, protocolo json v1). cada mascota es una ventana propia. si se ven las dos, estan a menos de 640 px y llevan unos segundos inactivas, juegan un partido breve: una capa transparente une a las dos y la pelota viaja de la ventana de codex a la de claude, sin mover ninguna. si ambas trabajan, la misma capa cambia a modo dúo y muestra paquetes azul/terracota, sin enviar datos nuevos. se cancela al instante si alguna trabaja, respeta "reducir movimiento" y se puede disparar a mano.
@@ -66,7 +76,8 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - el detector de contexto solo calcula una huella local de nombres, fechas y tamanos de archivos; no lee contenido. ignora `.git`, dependencias, builds y logs.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
-- el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia". la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
+- el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
+- el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
 
 ## instalacion
 
@@ -89,6 +100,7 @@ tests/bridge-capture.sh      # comprueba que el hook no filtra contenido
 tests/hook-guard.sh          # el hook no bloquea por defecto; bloqueo opt-in, caducidad, clasificacion de pruebas
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-safety   # huella, monitor, diff grande, parseo
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, timeline, presupuesto, recuperacion
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de solo lectura, prompt, revision con agentes simulados, worktree
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --trigger football   # greet | cheer | concern

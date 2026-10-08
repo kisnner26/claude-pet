@@ -1,6 +1,16 @@
 # claude-pet para windows
 
-frontend inicial para windows 10/11 con python y tkinter: mascota de claude, siete estados, ventana transparente siempre visible, arrastre, posición guardada, pausa de animaciones y hooks de claude code. no requiere paquetes de pip.
+frontend para windows 10/11 con python y tkinter: mascota de claude, siete estados, ventana transparente siempre visible, arrastre, posición guardada, pausa de animaciones y hooks de claude code. no requiere paquetes de pip.
+
+## qué incluye
+
+- burbuja con la tarea exacta ("Editando store.py", "Ejecutando pruebas (pytest)"), con el mismo texto que en macos. del comando solo se conserva el programa, nunca los argumentos; de una url, solo el host.
+- mission control (menú, clic derecho): salud git, línea de tiempo de los últimos 16 cambios, presupuesto de atención, radar de colisión entre claude y codex y cápsula de recuperación si una sesión falla.
+- avisos en la burbuja si el proyecto cambia mientras claude piensa o si algo lleva 5 o 15 minutos sin actividad. el bloqueo de herramientas es opcional y está apagado por defecto.
+- abrir el diff del proyecto desde el menú.
+- traspaso entre claude y codex: revisión cruzada en solo lectura (con confirmación antes de enviar el diff), pausar a claude y worktree aislado ante una colisión.
+
+todavía no tiene el fútbol, el abrazo, el modo dúo ni el panel de aspectos de codex.
 
 ## ejecutar
 
@@ -38,6 +48,10 @@ py -3 windows/install_hooks.py --uninstall --apply
 
 los eventos viajan por una tubería local autenticada, sin puertos tcp. la clave y preferencias están en `~/.claude-pet`, con permisos restringidos al usuario. el hook limita la conexión a un segundo y no bloquea herramientas si la mascota está cerrada. no guarda prompts ni argumentos de comandos.
 
+## traspaso
+
+`pedir a codex que revise lo de claude` (y al revés) necesita tener instalado el CLI del agente que revisa. el menú lo busca en el `PATH` y en las carpetas habituales (`%APPDATA%\npm`, `~/.local/bin`). antes de enviar, un diálogo indica el proyecto, el tamaño y el proveedor; si cancelas no sale nada. el resultado queda en `~/.claude-pet/review/` y se abre solo.
+
 ## pruebas
 
 ```powershell
@@ -58,7 +72,7 @@ py -3 windows/bus_send.py thinking
 py -3 windows/bus_send.py --hold idle
 ```
 
-estos comandos sirven para probar la presencia; el repositorio no lee conversaciones ni detecta automáticamente la actividad de codex.
+estos comandos sirven para probar la presencia; el repositorio no lee conversaciones ni detecta automáticamente la actividad de codex. con `--project <carpeta>` se publica solo el nombre de la carpeta (nunca la ruta), lo que permite al radar detectar que claude y codex trabajan en el mismo proyecto.
 
 el paquete también incluye el cliente ejecutable, para conectar un adaptador sin instalar python:
 
