@@ -142,3 +142,78 @@ class AlertTests(unittest.TestCase):
         self.assertEqual(self.pet.alert[0], "claude y codex en el mismo proyecto")
         self.pet.draw(Event("idle", "x"))
         self.assertGreater(len(self.pet.canvas.find_all()), 10)
+
+
+class HandoffUiTests(unittest.TestCase):
+    def setUp(self):
+        self.pet = SHARED["pet"]
+        reset(self.pet)
+        self.directory = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def test_review_flow_confirms_runs_and_reports(self):
+        import subprocess
+        import sys
+        import time
+        import handoff
+        root = Path(self.directory.name) / "proyecto"
+        root.mkdir()
+        for command in (["init", "-q", "-b", "main"], ["add", "-A"]):
+            subprocess.run(["git", "-C", str(root), *command], check=True, capture_output=True)
+        (root / "a.py").write_text("x = 1\n")
+        script = Path(self.directory.name) / "fake.py"
+        script.write_text("import sys; sys.stdin.read(); print('todo bien')")
+        self.pet.mission.local.update(workspace=str(root), project="proyecto")
+        asked, opened = [], []
+        with patch.object(claude_pet.messagebox, "askokcancel", lambda *a, **k: asked.append(a[1]) or True), \
+                patch.object(handoff, "find_agent", return_value="fake"), \
+                patch.object(handoff, "build_command", lambda *a: [sys.executable, str(script)]), \
+                patch.object(claude_pet, "open_file", opened.append):
+            self.pet.start_review("claude")
+            self.assertIn("solo lectura", asked[0])
+            self.assertIn("Anthropic", asked[0])
+            deadline = time.time() + 10
+            while not self.pet.review.done.is_set() and time.time() < deadline:
+                time.sleep(0.05)
+            self.pet.watch(0)
+            self.assertEqual(self.pet.alert[0], "revisión lista")
+            self.assertEqual(self.pet.alert_tone, "info")
+            self.assertEqual(opened, [self.pet.review.result])
+            self.pet.draw(Event("idle", "x"))
+
+    def test_declined_confirmation_sends_nothing(self):
+        import handoff
+        self.pet.mission.local.update(workspace=self.directory.name, project="p")
+        with patch.object(claude_pet.messagebox, "askokcancel", return_value=False), \
+                patch.object(claude_pet.messagebox, "showinfo"), \
+                patch.object(handoff, "prepare", return_value=("prompt", 10)):
+            self.pet.start_review("codex")
+        self.assertIsNone(self.pet.review)
+
+    def test_pause_marks_only_sessions_of_the_collision_project(self):
+        from workspace import marker_path
+        self.pet.mission.local.update(project="inventario")
+        self.pet.sessions.apply(Event("tool", "uno", project="inventario"))
+        self.pet.sessions.apply(Event("tool", "dos", project="otro"))
+        self.pet.pause_claude()
+        self.assertEqual(marker_path(claude_pet.ROOT, "uno").read_text(), "paused")
+        self.assertFalse(marker_path(claude_pet.ROOT, "dos").exists())
+
+
+class MenuTests(unittest.TestCase):
+    def test_menus_build_in_every_state(self):
+        import tkinter as tk
+        pet = SHARED["pet"]
+        reset(pet)
+        pet.mission.collision = True
+        pet.mission.local.update(workspace=tempfile.gettempdir(), project="p")
+        root = tk.Menu(pet.window, tearoff=False)
+        pet.mission_menu(root)
+        labels = [root.entrycget(i, "label") for i in range(root.index("end") + 1)]
+        self.assertEqual(labels, ["mission control", "traspaso claude y codex"])
+        panel = root.nametowidget(root.entrycget(1, "menu"))
+        texts = [panel.entrycget(i, "label") for i in range(panel.index("end") + 1)
+                 if panel.type(i) != "separator"]
+        self.assertTrue(any("worktree aislado para codex" in text for text in texts))

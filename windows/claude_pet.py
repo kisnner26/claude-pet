@@ -9,12 +9,14 @@ import time
 from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
+from tkinter import messagebox
 
 from pet_ipc import start_server
 from pet_state import Event, PRIORITY, Sessions
 from pet_bus import PeerMessage, Peers
 from bubble import LABELS, describe
-from diffview import open_diff
+from diffview import open_diff, open_file
+import handoff
 from mission import Mission
 from workspace import Monitor, clear_mark, flag_path, mark, set_blocking, stalled
 from pet_position import HEIGHT, WIDTH, desktop_bounds, geometry
@@ -34,10 +36,14 @@ class Pet:
         self.mission = Mission() if kind == "claude" else None
         self.monitor = Monitor()
         self.alert = None
+        self.alert_tone = "warn"
         self.last_key = None
         self.marked = set()
         self.next_scan = 0.0
         self.stall_watch = True
+        self.review = None
+        self.notice = None
+        self.notice_done = True
         self.listener = start_server(ROOT, self.events.put) if master is None else None
         self.window = tk.Tk() if master is None else tk.Toplevel(master)
         self.window.title(f"{kind}-pet")
@@ -153,6 +159,75 @@ class Pet:
                           " bloqueo de herramientas si el proyecto cambia",
                           command=lambda: set_blocking(ROOT, not blocking))
         menu.add_cascade(label="mission control", menu=panel)
+        self.handoff_menu(menu)
+
+    def handoff_menu(self, menu):
+        panel, review = tk.Menu(menu, tearoff=False), self.review
+        workspace = self.known_workspace()
+        busy = bool(review and review.running)
+        if busy:
+            panel.add_command(label=f"{handoff.NAMES[review.reviewer]} está revisando…", state="disabled")
+            panel.add_command(label="cancelar revisión", command=review.cancel)
+        else:
+            for reviewer in ("codex", "claude"):
+                author = "claude" if reviewer == "codex" else "codex"
+                available = bool(workspace and handoff.find_agent(reviewer))
+                panel.add_command(
+                    label=f"pedir a {reviewer} que revise lo de {author}",
+                    command=lambda r=reviewer: self.start_review(r),
+                    state="normal" if available else "disabled")
+            if not workspace:
+                panel.add_command(label="aún no conozco el proyecto (usa claude una vez)", state="disabled")
+        if review and review.result:
+            panel.add_command(label="abrir la última revisión", command=lambda: open_file(review.result))
+        if self.mission and self.mission.collision:
+            panel.add_separator()
+            panel.add_command(label="colisión: pausar a claude hasta mi próximo mensaje",
+                              command=self.pause_claude)
+            panel.add_command(label="colisión: worktree aislado para codex",
+                              command=lambda: self.isolate("codex"))
+            panel.add_command(label="colisión: worktree aislado para claude",
+                              command=lambda: self.isolate("claude"))
+        menu.add_cascade(label="traspaso claude y codex", menu=panel)
+
+    def known_workspace(self):
+        return self.current_workspace() or (self.mission.local["workspace"] if self.mission else "")
+
+    def start_review(self, reviewer):
+        workspace = self.known_workspace()
+        author = "claude" if reviewer == "codex" else "codex"
+        project = self.mission.local["project"]
+        task = self.sessions.task(self.sessions.current())
+        prompt, detail = handoff.prepare(workspace, author, project, task)
+        if prompt is None:
+            messagebox.showinfo("claude pet", detail, parent=self.window)
+            return
+        provider = "OpenAI" if reviewer == "codex" else "Anthropic"
+        if not messagebox.askokcancel(
+                "claude pet", f"Se enviará el diff sin commitear de «{project or workspace}» "
+                f"(unos {detail // 1024 + 1} KB), junto con tu última tarea, a {reviewer} ({provider}) "
+                "en modo solo lectura. ¿Continuar?", parent=self.window):
+            return
+        self.review = handoff.Review(reviewer, workspace, project, ROOT, prompt)
+        self.review.start()
+        self.notice_done = False
+
+    def pause_claude(self):
+        project = self.mission.local["project"]
+        for session, (event, _) in list(self.sessions.entries.items()):
+            if event.project == project and event.state != "end":
+                mark(ROOT, session, "paused")
+
+    def isolate(self, agent):
+        try:
+            destination, branch = handoff.create_worktree(self.known_workspace(), agent)
+        except ValueError as error:
+            messagebox.showerror("claude pet", str(error), parent=self.window)
+            return
+        self.window.clipboard_clear()
+        self.window.clipboard_append(str(destination))
+        messagebox.showinfo("claude pet", f"Worktree creado en la rama {branch}.\n{destination}\n"
+                            f"La ruta está en el portapapeles: abre {agent} ahí.", parent=self.window)
 
     def flag(self, name):
         return tk.BooleanVar(master=self.window, value=getattr(self, name))
@@ -228,7 +303,7 @@ class Pet:
             rect(5 + tick % 4, 11, 3, 1, ink)
         title, subtitle = describe(state, event.tool, event.detail, self.sessions.task(event))
         if self.alert:
-            self.finish("claude", "error", *self.alert)
+            self.finish("claude", "error" if self.alert_tone == "warn" else "tool", *self.alert)
         else:
             self.finish("claude", state, title or LABELS[state], subtitle or event.origin)
 
@@ -311,21 +386,38 @@ class Pet:
                 mark(ROOT, session)
             self.marked.add(session)
         if changed:
-            self.alert = ("El proyecto cambió mientras claude pensaba",
-                          "herramientas detenidas hasta nuevo mensaje" if flag_path(ROOT).is_file()
-                          else "revisa el diff antes de seguir")
+            self.raise_alert("El proyecto cambió mientras claude pensaba",
+                             "herramientas detenidas hasta nuevo mensaje" if flag_path(ROOT).is_file()
+                             else "revisa el diff antes de seguir")
             return
         if self.stall_watch:
             for event, since in entries.values():
                 if stalled(event.state, since, self.sessions.clock()):
                     minutes = int((self.sessions.clock() - since) // 60)
-                    self.alert = ("claude parece bloqueado", f"sin actividad desde hace {minutes} min")
+                    self.raise_alert("claude parece bloqueado", f"sin actividad desde hace {minutes} min")
                     return
+        review = self.review
+        if review and review.running:
+            self.raise_alert(f"{handoff.NAMES[review.reviewer]} revisa lo de {handoff.NAMES[review.author]}",
+                             f"{int(time.monotonic() - review.started)} s · solo lectura", "info")
+            return
+        if review and review.state in ("done", "failed") and not self.notice_done:
+            if review.state == "done":
+                open_file(review.result)
+            self.notice_done = True
+            self.notice = (time.monotonic() + 12, "revisión lista" if review.state == "done"
+                           else "revisión fallida", review.error or handoff.NAMES[review.reviewer])
+        if self.notice and time.monotonic() < self.notice[0]:
+            self.raise_alert(*self.notice[1:], "info" if review.state == "done" else "warn")
+            return
         if self.mission and self.mission.collision:
             project = self.mission.local["project"]
-            self.alert = ("claude y codex en el mismo proyecto", project or "revisen quién edita qué")
+            self.raise_alert("claude y codex en el mismo proyecto", project or "revisen quién edita qué")
             return
         self.alert = None
+
+    def raise_alert(self, title, subtitle, tone="warn"):
+        self.alert, self.alert_tone = (title, subtitle), tone
 
     def sync_mission(self, current, peer):
         mission = self.mission
