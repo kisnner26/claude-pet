@@ -44,7 +44,40 @@ class HookTests(unittest.TestCase):
                                                      cwd=r"C:\work\pet", prompt="private")))
             self.assertEqual(event.state, state)
             self.assertEqual(event.project, "pet")
-            self.assertEqual(event.task, "")
+
+    def test_bubble_detail_keeps_only_the_minimum(self):
+        def line(hook, **tool):
+            return Event.parse(event_line(hook, dict(session_id="s", cwd=r"C:\work\pet", **tool)))
+        self.assertEqual(line("PreToolUse", tool_name="Edit",
+                              tool_input=dict(file_path=r"C:\work\pet\store.py")).detail, "store.py")
+        self.assertEqual(line("PreToolUse", tool_name="Bash",
+                              tool_input=dict(command=r"C:\bin\curl.exe -H secret-token")).detail, "$ curl.exe")
+        self.assertEqual(line("PreToolUse", tool_name="Bash",
+                              tool_input=dict(command="ls", description="lista archivos")).detail, "lista archivos")
+        self.assertEqual(line("PreToolUse", tool_name="WebFetch",
+                              tool_input=dict(url="https://example.com/a?token=1")).detail, "example.com")
+        self.assertEqual(line("PostToolUse", tool_name="Bash",
+                              tool_input=dict(description="no se muestra")).detail, "")
+
+    def test_tests_are_classified_without_keeping_the_command(self):
+        result = Event.parse(event_line("PreToolUse", dict(
+            session_id="s", tool_name="Bash", cwd=r"C:\work\pet",
+            tool_input=dict(command="python -m pytest -k secret"))))
+        self.assertEqual(result.tool, "test")
+        self.assertNotIn("secret", result.detail)
+
+    def test_task_comes_from_prompt_or_todo_and_oversize_lines_survive(self):
+        prompt = Event.parse(event_line("UserPromptSubmit", dict(
+            session_id="s", cwd=r"C:\work\pet", prompt="arregla\nel   login")))
+        self.assertEqual(prompt.task, "p:arregla el login")
+        todo = Event.parse(event_line("PreToolUse", dict(
+            session_id="s", tool_name="TodoWrite", cwd=r"C:\work\pet", tool_input=dict(todos=[
+                dict(status="completed", activeForm="a"),
+                dict(status="in_progress", activeForm="escribiendo pruebas")]))))
+        self.assertEqual(todo.task, "t:escribiendo pruebas")
+        huge = Event.parse(event_line("UserPromptSubmit", dict(
+            session_id="s", cwd="C:\\" + "\u00e9" * 1000, prompt="\u00e9" * 400)))
+        self.assertIsNotNone(huge)
 
     def test_idempotent_install_preserves_other_hooks(self):
         original = {"theme": "dark", "hooks": {"Stop": [{"hooks": [
