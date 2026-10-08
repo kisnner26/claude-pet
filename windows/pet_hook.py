@@ -1,6 +1,7 @@
 """fail-open claude code hook: no stdout and no transcript persistence."""
 
 import json
+import os
 from pathlib import Path, PureWindowsPath
 import subprocess
 import sys
@@ -114,7 +115,8 @@ def block_reason(name, payload, root):
 
 def main():
     try:
-        if len(sys.argv) != 2 or sys.argv[1] not in HOOKS:
+        # a review launched by claude pet itself must not show up as the user's own session.
+        if len(sys.argv) != 2 or sys.argv[1] not in HOOKS or os.environ.get("CLAUDE_PET_REVIEW"):
             return
         raw = sys.stdin.buffer.read(65537)
         if len(raw) > 65536:

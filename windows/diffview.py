@@ -13,14 +13,22 @@ ARGUMENTS = ["-c", "core.fsmonitor=false", "-c", "core.pager=cat", "diff",
              "--no-ext-diff", "--no-textconv", "--no-color", "--"]
 
 
-def diff_bytes(workspace, limit=MAX_BYTES, timeout=TIMEOUT):
-    """git diff without external drivers or filters defined by the repo; capped in size and time."""
+def raw_diff(workspace, limit=MAX_BYTES, timeout=TIMEOUT):
+    """git diff without external drivers or filters defined by the repo; capped in size and time.
+    returns (data, truncated) or None when the folder is not a usable repository."""
     if not is_directory(workspace):
         return None
     result = run(["-C", workspace, *ARGUMENTS], timeout=timeout, limit=limit)
     if result is None or result[2] not in (0, None):
         return None
-    data, truncated, _ = result
+    return result[0], result[1]
+
+
+def diff_bytes(workspace, limit=MAX_BYTES, timeout=TIMEOUT):
+    result = raw_diff(workspace, limit, timeout)
+    if result is None:
+        return None
+    data, truncated = result
     if not data:
         data = "sin cambios sin commitear en el proyecto (git diff)\n".encode()
     if truncated:
