@@ -132,3 +132,40 @@ class HookTests(unittest.TestCase):
             result = subprocess.run(command, input=payload, text=True, capture_output=True,
                                     env=environment, timeout=5)
             self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+
+class BlockTests(unittest.TestCase):
+    def run_hook(self, directory, name, payload):
+        environment = {**os.environ, "HOME": directory, "USERPROFILE": directory}
+        script = Path(__file__).resolve().parents[1] / "pet_hook.py"
+        return subprocess.run([sys.executable, str(script), name], input=json.dumps(payload),
+                              text=True, capture_output=True, env=environment, timeout=5)
+
+    def test_marker_blocks_only_with_flag_and_expires(self):
+        import time
+        from workspace import mark, set_blocking
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / ".claude-pet"
+            payload = dict(session_id="abc", tool_name="Read", cwd=r"C:\work\pet")
+            mark(root, "abc")
+            self.assertEqual(self.run_hook(directory, "PreToolUse", payload).stdout, "")
+            set_blocking(root, True)
+            denied = json.loads(self.run_hook(directory, "PreToolUse", payload).stdout)
+            self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
+            self.assertEqual(self.run_hook(directory, "PostToolUse", payload).stdout, "")
+            old = time.time() - 700
+            os.utime(root / "context-changed" / "abc", (old, old))
+            self.assertEqual(self.run_hook(directory, "PreToolUse", payload).stdout, "")
+            mark(root, "abc")
+            self.run_hook(directory, "UserPromptSubmit", payload)
+            self.assertFalse((root / "context-changed" / "abc").exists())
+
+    def test_paused_marker_needs_no_flag_and_is_per_session(self):
+        from workspace import mark
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / ".claude-pet"
+            mark(root, "abc", "paused")
+            mine = self.run_hook(directory, "PreToolUse", dict(session_id="abc", cwd="C:\\p"))
+            other = self.run_hook(directory, "PreToolUse", dict(session_id="xyz", cwd="C:\\p"))
+            self.assertIn("deny", mine.stdout)
+            self.assertEqual(other.stdout, "")

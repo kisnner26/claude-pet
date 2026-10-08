@@ -4,6 +4,7 @@ import json
 from pathlib import Path, PureWindowsPath
 import subprocess
 import sys
+import time
 
 from pet_ipc import send
 from pet_state import identifier, text
@@ -81,6 +82,36 @@ def event_line(name, payload):
     return "\t".join(fields)
 
 
+DENY = {"context": "El proyecto cambió mientras Claude pensaba. Revisa el diff y envía un nuevo "
+                   "mensaje para continuar con contexto actualizado.",
+        "paused": "Pausado desde claude pet: otra herramienta trabaja en este proyecto. "
+                  "Envía un nuevo mensaje cuando quieras continuar."}
+MARKER_TTL = 600
+
+
+def block_reason(name, payload, root):
+    """the only case where the hook prints: an opt-in marker younger than 10 minutes denies the
+    next tool. a marker is cleared by the user's next message and when the session ends."""
+    session = identifier(str(payload.get("session_id", "x")), 16) or "x"
+    marker = root / "context-changed" / session
+    if name in ("UserPromptSubmit", "SessionEnd"):
+        marker.unlink(missing_ok=True)
+        return None
+    if name != "PreToolUse":
+        return None
+    try:
+        age = time.time() - marker.stat().st_mtime
+        kind = marker.read_text(encoding="utf-8").strip() or "context"
+    except OSError:
+        return None
+    if age > MARKER_TTL or kind not in DENY:
+        return None
+    # "context" needs the explicit opt-in flag; "paused" was requested from the menu.
+    if kind == "context" and not (root / "block-on-change").is_file():
+        return None
+    return DENY[kind]
+
+
 def main():
     try:
         if len(sys.argv) != 2 or sys.argv[1] not in HOOKS:
@@ -91,8 +122,14 @@ def main():
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             return
-        line = event_line(sys.argv[1], payload)
         root = Path.home() / ".claude-pet"
+        reason = block_reason(sys.argv[1], payload, root)
+        if reason:
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
+                  "permissionDecision": "deny", "permissionDecisionReason": reason}},
+                  ensure_ascii=False))
+            return
+        line = event_line(sys.argv[1], payload)
         if not (root / "windows-pet.key").is_file():
             return
         # isolate the connection so a stopped or wedged pet cannot block a tool.
