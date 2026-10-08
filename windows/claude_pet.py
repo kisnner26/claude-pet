@@ -4,6 +4,8 @@ import json
 import os
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 from queue import Empty, Queue
 import tkinter as tk
@@ -12,6 +14,9 @@ from pet_ipc import start_server
 from pet_state import Event, PRIORITY, Sessions
 from pet_bus import PeerMessage, Peers
 from bubble import LABELS, describe
+from diffview import open_diff
+from mission import Mission
+from workspace import Monitor, clear_mark, flag_path, mark, set_blocking, stalled
 from pet_position import HEIGHT, WIDTH, desktop_bounds, geometry
 
 ROOT = Path.home() / ".claude-pet"
@@ -26,6 +31,13 @@ class Pet:
         self.events = Queue()
         self.sessions = Sessions()
         self.peers = Peers()
+        self.mission = Mission() if kind == "claude" else None
+        self.monitor = Monitor()
+        self.alert = None
+        self.last_key = None
+        self.marked = set()
+        self.next_scan = 0.0
+        self.stall_watch = True
         self.listener = start_server(ROOT, self.events.put) if master is None else None
         self.window = tk.Tk() if master is None else tk.Toplevel(master)
         self.window.title(f"{kind}-pet")
@@ -45,6 +57,7 @@ class Pet:
             position = json.loads(self.settings.read_text(encoding="utf-8"))
             x, y = int(position["x"]), int(position["y"])
             self.animations = bool(position.get("animations", True))
+            self.stall_watch = bool(position.get("stall_watch", True))
         except (OSError, ValueError, OverflowError, KeyError, TypeError):
             x = self.window.winfo_screenwidth() - (WIDTH + 20 if kind == "claude" else 2 * WIDTH + 40)
             y = self.window.winfo_screenheight() - HEIGHT - 60
@@ -76,7 +89,7 @@ class Pet:
     def save(self, _event=None):
         self.drag = None
         data = dict(x=self.window.winfo_x(), y=self.window.winfo_y(),
-                    animations=self.animations)
+                    animations=self.animations, stall_watch=self.stall_watch)
         temporary = self.settings.with_suffix(".tmp")
         temporary.write_text(json.dumps(data), encoding="utf-8")
         temporary.replace(self.settings)
@@ -97,6 +110,8 @@ class Pet:
             preview.add_command(label=LABELS[state], command=lambda s=state: self.demo(s))
         preview.add_command(label="terminar prueba", command=lambda: self.demo("end"))
         menu.add_cascade(label="probar estado", menu=preview)
+        if self.mission:
+            self.mission_menu(menu)
         menu.add_command(label="pausar animación" if self.animations else "activar animación",
                          command=self.toggle_animation)
         menu.add_separator()
@@ -105,6 +120,55 @@ class Pet:
             menu.tk_popup(event.x_root, event.y_root)
         finally:
             menu.grab_release()
+
+    def mission_menu(self, menu):
+        mission, panel = self.mission, tk.Menu(menu, tearoff=False)
+        panel.add_command(label=f"git: {mission.git.label}", state="disabled")
+        if mission.git.branch:
+            panel.add_command(label=f"rama: {mission.git.branch}", state="disabled")
+        panel.add_command(label=f"atención: {mission.focus_label}", state="disabled")
+        panel.add_separator()
+        history = tk.Menu(panel, tearoff=False)
+        for item in list(mission.timeline)[:8]:
+            history.add_command(label=f"{time.strftime('%H:%M:%S', time.localtime(item.at))}  "
+                                f"{item.agent}: {LABELS.get(item.state, item.state)}"
+                                + (f" · {item.project}" if item.project else ""), state="disabled")
+        if not mission.timeline:
+            history.add_command(label="sin cambios todavía", state="disabled")
+        panel.add_cascade(label="línea de tiempo", menu=history)
+        panel.add_separator()
+        workspace = self.current_workspace()
+        panel.add_command(label="abrir diff del proyecto", command=self.show_diff,
+                          state="normal" if workspace else "disabled")
+        if mission.recovery:
+            panel.add_command(label=f"recuperar: abrir diff de {mission.recovery.project or 'el proyecto'}",
+                              command=lambda: self.show_diff(mission.recovery.workspace))
+            panel.add_command(label="descartar cápsula de recuperación", command=mission.clear_recovery)
+        panel.add_command(label="actualizar git", command=mission.refresh_git)
+        panel.add_separator()
+        panel.add_checkbutton(label="avisar si algo se atasca", onvalue=True, offvalue=False,
+                              variable=self.flag("stall_watch"), command=self.toggle_stall)
+        blocking = flag_path(ROOT).is_file()
+        panel.add_command(label=("desactivar" if blocking else "activar") +
+                          " bloqueo de herramientas si el proyecto cambia",
+                          command=lambda: set_blocking(ROOT, not blocking))
+        menu.add_cascade(label="mission control", menu=panel)
+
+    def flag(self, name):
+        return tk.BooleanVar(master=self.window, value=getattr(self, name))
+
+    def toggle_stall(self):
+        self.stall_watch = not self.stall_watch
+        self.save()
+
+    def current_workspace(self):
+        event = self.sessions.current()
+        return event.workspace
+
+    def show_diff(self, workspace=None):
+        workspace = workspace or self.current_workspace()
+        if workspace:
+            threading.Thread(target=open_diff, args=(ROOT, workspace), daemon=True).start()
 
     def draw(self, event):
         self.canvas.delete("all")
@@ -163,7 +227,10 @@ class Pet:
         elif state == "tool":
             rect(5 + tick % 4, 11, 3, 1, ink)
         title, subtitle = describe(state, event.tool, event.detail, self.sessions.task(event))
-        self.finish("claude", state, title or LABELS[state], subtitle or event.origin)
+        if self.alert:
+            self.finish("claude", "error", *self.alert)
+        else:
+            self.finish("claude", state, title or LABELS[state], subtitle or event.origin)
 
     def finish(self, who, state, title, subtitle):
         """center the sprite in the wider window, then draw the bubble under it."""
@@ -215,6 +282,63 @@ class Pet:
         self.canvas.create_text(100, 44 + hop, text=face, fill=color, font=("Consolas", 16, "bold"))
         self.finish("codex", state, f"Codex: {LABELS[state].capitalize()}", "")
 
+    def ingest(self, event):
+        self.sessions.apply(event)
+        if event.state == "end":
+            self.monitor.forget(event.session)
+            self.marked.discard(event.session)
+            clear_mark(ROOT, event.session)
+            return
+        if event.state == "tool" and self.mission:
+            self.mission.record_tool(event.tool)
+        # a new baseline when claude starts thinking or comes back from a tool, so its own edits
+        # do not count as the project changing underneath it.
+        if event.state == "thinking" and event.workspace:
+            self.monitor.arm(event.session, event.workspace)
+            self.marked.discard(event.session)
+
+    def watch(self, now):
+        """ask for project scans every 3 s, then pick the alert for the bubble."""
+        entries = self.sessions.entries
+        if now >= self.next_scan:
+            self.next_scan = now + 3
+            for session, (event, _) in entries.items():
+                if event.state == "thinking" and event.workspace:
+                    self.monitor.check(session, event.workspace)
+        changed = [s for s in self.monitor.changed_sessions() if s in entries]
+        for session in changed:
+            if session not in self.marked and flag_path(ROOT).is_file():
+                mark(ROOT, session)
+            self.marked.add(session)
+        if changed:
+            self.alert = ("El proyecto cambió mientras claude pensaba",
+                          "herramientas detenidas hasta nuevo mensaje" if flag_path(ROOT).is_file()
+                          else "revisa el diff antes de seguir")
+            return
+        if self.stall_watch:
+            for event, since in entries.values():
+                if stalled(event.state, since, self.sessions.clock()):
+                    minutes = int((self.sessions.clock() - since) // 60)
+                    self.alert = ("claude parece bloqueado", f"sin actividad desde hace {minutes} min")
+                    return
+        if self.mission and self.mission.collision:
+            project = self.mission.local["project"]
+            self.alert = ("claude y codex en el mismo proyecto", project or "revisen quién edita qué")
+            return
+        self.alert = None
+
+    def sync_mission(self, current, peer):
+        mission = self.mission
+        key = (current.state, current.project, current.workspace, current.session)
+        if key != self.last_key:
+            self.last_key = key
+            mission.record_local(current.state, current.project, current.workspace, current.session)
+        if peer:
+            mission.record_peer(peer.state, peer.project)
+        else:
+            mission.peer_left()
+        mission.tick()
+
     def update(self):
         try:
             while True:
@@ -222,7 +346,7 @@ class Pet:
                 if isinstance(event, PeerMessage):
                     self.peers.apply(event)
                 else:
-                    self.sessions.apply(event)
+                    self.ingest(event)
         except Empty:
             pass
         current = self.sessions.current()
@@ -233,6 +357,8 @@ class Pet:
                 self.codex.window.deiconify()
             elif not peer and not self.codex.sessions.entries and self.codex.window.state() != "withdrawn":
                 self.codex.window.withdraw()
+            self.sync_mission(current, peer)
+            self.watch(time.monotonic())
         self.draw(self.peer_event if self.peer_event and not self.sessions.entries else current)
         self.tick += 1
         self.window.after(150, self.update)
