@@ -103,7 +103,6 @@ final class AppController: NSObject, NSApplicationDelegate {
         let foregroundWatcher = ForegroundAppMonitor { PetStore.shared.setForegroundApp($0) }
         foreground = foregroundWatcher
         foregroundWatcher.start()
-        PetStore.shared.voice.onCommand = { [weak self] command in self?.handleVoice(command) }
         applyVisibility()
 
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.trigger"), object: nil, queue: .main) { n in
@@ -246,19 +245,6 @@ final class AppController: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func handleVoice(_ command: VoiceCommand) {
-        switch command {
-        case .showPets: PetStore.shared.userHidden = false
-        case .hidePets: PetStore.shared.userHidden = true
-        case .dashboard: showMissionDashboard()
-        case .refreshGit: PetStore.shared.mission.refreshGit()
-        case .openDiff: PetStore.shared.mission.perform(.openDiff)
-        case .football: PetStore.shared.trigger("football")
-        case .showBubble: PetStore.shared.showBubble = true
-        case .hideBubble: PetStore.shared.showBubble = false
-        case .status: break
-        }
-    }
 
     private func placeStage() {
         let store = PetStore.shared

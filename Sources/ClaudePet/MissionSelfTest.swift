@@ -32,7 +32,6 @@ enum MissionSelfTest {
         testScanScheduling(check)
         testRadarRecoveryAndBudget(check)
         testInsights(check)
-        testVoiceCommands(check)
         testPrivacy(check)
 
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
@@ -53,13 +52,6 @@ enum MissionSelfTest {
         check("panel operativo conserva el ritmo local", control.insights.first(where: { $0.id == "pace" })?.detail.contains("1 min") == true)
     }
 
-    private static func testVoiceCommands(_ check: (String, @autoclosure () -> Bool) -> Void) {
-        check("voz reconoce comandos y acentos", VoiceCommand.parse("muestra mascotas") == .showPets
-              && VoiceCommand.parse("abre el tablero") == .dashboard
-              && VoiceCommand.parse("juega fútbol") == .football
-              && VoiceCommand.parse("actualiza git") == .refreshGit)
-        check("voz ignora frases sin acción", VoiceCommand.parse("qué tal") == nil)
-    }
 
     private static func testRealRepositories(_ check: (String, @autoclosure () -> Bool) -> Void) {
         guard let root = temporaryDirectory() else { check("crea repos temporales", false); return }

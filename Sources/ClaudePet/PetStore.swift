@@ -28,7 +28,6 @@ final class PetStore: ObservableObject {
     @Published private(set) var codexPresent = false
     /// Nombre de la app al frente: solo presencia, nunca captura de pantalla ni contenido.
     @Published private(set) var foregroundAppName = ""
-    let voice = VoiceCompanion()
     /// Apagado: la mascota de Claude se ve siempre (comportamiento anterior).
     @Published var autoVisibility: Bool = UserDefaults.standard.object(forKey: "autoVisibility") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoVisibility, forKey: "autoVisibility") }
