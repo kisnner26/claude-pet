@@ -29,7 +29,7 @@ struct MissionDashboardView: View {
                 BriefCard(brief: brief) { control.perform($0) }
                 if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
                 attention(excluding: brief)
-                Timeline(events: Array(control.timeline.prefix(5)))
+                Timeline(events: Array(control.timeline.prefix(4)), all: control.timeline, reduceMotion: store.reduceMotion)
                 footer
             }
             .padding(.horizontal, 22)
@@ -197,10 +197,13 @@ private struct GitStrip: View {
 
 private struct Timeline: View {
     let events: [MissionEvent]
+    let all: [MissionEvent]
+    let reduceMotion: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("actividad reciente")
+            SectionLabel("estela de sesión")
+            if !all.isEmpty { SessionTrailView(events: all, reduceMotion: reduceMotion) }
             if events.isEmpty {
                 Text("sin actividad todavía · aparecerá cuando Claude o Codex empiecen")
                     .font(.callout).foregroundStyle(Ink.tertiary)
