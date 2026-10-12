@@ -31,10 +31,25 @@ enum MissionSelfTest {
         testRealRepositories(check)
         testScanScheduling(check)
         testRadarRecoveryAndBudget(check)
+        testInsights(check)
         testPrivacy(check)
 
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
+    }
+
+    private static func testInsights(_ check: (String, @autoclosure () -> Bool) -> Void) {
+        var date = Date(timeIntervalSince1970: 4_000)
+        let control = MissionControl(now: { date })
+        control.recordLocal(state: .waiting, project: "demo", workspace: "", session: "s")
+        control.recordPeer(state: .done, project: "demo")
+        let ids = control.insights.map(\.id)
+        check("panel operativo expone doce lecturas estables", ids.count == 12 && Set(ids).count == 12)
+        check("panel operativo detecta aprobación y relevo", control.insights.first(where: { $0.id == "approval" })?.tone == .caution && control.insights.first(where: { $0.id == "handoff" })?.tone == .active)
+        control.recordLocal(state: .thinking, project: "demo", workspace: "", session: "s")
+        check("panel operativo activa relevo mientras Claude trabaja", control.insights.first(where: { $0.id == "handoff" })?.tone == .active)
+        date.addTimeInterval(60); control.tick()
+        check("panel operativo conserva el ritmo local", control.insights.first(where: { $0.id == "pace" })?.detail.contains("1 min") == true)
     }
 
     private static func testRealRepositories(_ check: (String, @autoclosure () -> Bool) -> Void) {
