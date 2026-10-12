@@ -96,6 +96,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         setUpCodexWindow()
         setUpStage()
         setUpMissionPanel()
+        if CommandLine.arguments.contains("--open-mission") { DispatchQueue.main.async { [weak self] in self?.showMissionDashboard() } }
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }.store(in: &cancellables)
         let watcher = AppPresence { claude, codex in PetStore.shared.setApps(claude: claude, codex: codex) }
         presence = watcher
@@ -230,8 +231,10 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func setUpMissionPanel() {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 590, height: 560),
-                            styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
-        panel.title = "Claude Pet · Mission Control"
+                            styleMask: [.titled, .closable, .utilityWindow, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.title = "Mission Control"
+        panel.titlebarAppearsTransparent = true
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
@@ -240,7 +243,11 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     func showMissionDashboard() {
-        missionPanel.center()
+        if let view = missionPanel.contentView {
+            view.layoutSubtreeIfNeeded()
+            missionPanel.setContentSize(view.fittingSize)
+        }
+        if !missionPanel.isVisible { missionPanel.center() }
         missionPanel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
