@@ -247,8 +247,27 @@ final class AppController: NSObject, NSApplicationDelegate {
             view.layoutSubtreeIfNeeded()
             missionPanel.setContentSize(view.fittingSize)
         }
-        if !missionPanel.isVisible { missionPanel.center() }
+        let wasVisible = missionPanel.isVisible
+        if !wasVisible { missionPanel.center() }
+        let final = missionPanel.frame
+        let animate = !wasVisible && !PetStore.shared.reduceMotion
+        if animate {
+            // se abre desde arriba, un poco más pequeño y transparente, y se asienta
+            missionPanel.alphaValue = 0
+            missionPanel.setFrame(final.insetBy(dx: final.width * 0.02, dy: final.height * 0.02).offsetBy(dx: 0, dy: 10), display: false)
+        }
         missionPanel.makeKeyAndOrderFront(nil)
+        if animate {
+            NotificationCenter.default.post(name: .dashboardRevealed, object: nil)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.3
+                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1)
+                missionPanel.animator().setFrame(final, display: true)
+                missionPanel.animator().alphaValue = 1
+            }
+        } else {
+            missionPanel.alphaValue = 1
+        }
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -272,7 +291,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         var y = pf.maxY - 8
         if y + 76 > vis.maxY { y = pf.minY - 68 }
         bubble.setFrameOrigin(NSPoint(x: x, y: y))
-        if !bubble.isVisible { bubble.orderFrontRegardless() }
+        if !bubble.isVisible {
+            bubble.orderFrontRegardless()
+            NotificationCenter.default.post(name: .bubbleRevealed, object: nil)
+        }
     }
 
     func applicationWillTerminate(_ n: Notification) {

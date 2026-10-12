@@ -14,6 +14,8 @@ struct MissionDashboardView: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var control: MissionControl
 
+    @State private var dissolved = 0.0
+
     init(store: PetStore) {
         self.store = store
         _control = ObservedObject(wrappedValue: store.mission)
@@ -40,6 +42,12 @@ struct MissionDashboardView: View {
             .padding(.horizontal, 22)
             .padding(.top, 34)
             .padding(.bottom, 18)
+            .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion, anchor: .top))
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dashboardRevealed)) { _ in
+            var instant = Transaction(); instant.disablesAnimations = true
+            withTransaction(instant) { dissolved = 0.6 }
+            withAnimation(.easeOut(duration: 0.45)) { dissolved = 0 }
         }
         .frame(width: 560)
         .environment(\.colorScheme, .dark)

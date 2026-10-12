@@ -1,12 +1,39 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let bubbleRevealed = Notification.Name("claudepet.bubble.revealed")
+    static let dashboardRevealed = Notification.Name("claudepet.dashboard.revealed")
+}
+
+/// Aparición con materia: la burbuja se condensa desde la mascota (desenfoque, escala y opacidad).
+/// Con reducir movimiento solo hay un fundido.
+struct Condense: ViewModifier {
+    let progress: Double       // 0 = formada, 1 = disuelta
+    let reduceMotion: Bool
+    var anchor: UnitPoint = .bottom
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: reduceMotion ? 0 : progress * 10)
+            .scaleEffect(reduceMotion ? 1 : 1 - 0.3 * progress, anchor: anchor)
+            .opacity(1 - progress)
+    }
+}
+
 struct BubbleView: View {
     @ObservedObject var store: PetStore
+    @State private var dissolved = 0.0
 
     var body: some View {
         if let a = store.bubbleActivity, store.showBubble {
             BubbleCard(activity: a, state: store.bubbleState, flat: false)
+                .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion))
                 .frame(width: 360, height: 76)
+                .onReceive(NotificationCenter.default.publisher(for: .bubbleRevealed)) { _ in
+                    var instant = Transaction(); instant.disablesAnimations = true
+                    withTransaction(instant) { dissolved = 1 }
+                    withAnimation(store.reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.42, dampingFraction: 0.78)) { dissolved = 0 }
+                }
         } else {
             Color.clear.frame(width: 360, height: 76)
         }
