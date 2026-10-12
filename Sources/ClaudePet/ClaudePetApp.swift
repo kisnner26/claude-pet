@@ -227,6 +227,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         st.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         stage = st
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.placeStage() } }.store(in: &cancellables)
+        PetStore.shared.mission.$handoff.sink { [weak self] _ in DispatchQueue.main.async { self?.placeStage() } }.store(in: &cancellables)
     }
 
     private func setUpMissionPanel() {
@@ -274,7 +275,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func placeStage() {
         let store = PetStore.shared
-        guard !store.userHidden, (store.gameActive || store.collaborationActive || store.hugActive), let geo = store.gameGeometry else { stage.orderOut(nil); return }
+        guard !store.userHidden, (store.gameActive || store.collaborationActive || store.hugActive || (store.animationsEnabled && store.mission.handoff != nil)), let geo = store.gameGeometry else { stage.orderOut(nil); return }
         if stage.frame != geo.stageFrame { stage.setFrame(geo.stageFrame, display: false) }
         if !stage.isVisible { stage.orderFrontRegardless() }
     }

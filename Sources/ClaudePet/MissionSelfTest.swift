@@ -72,6 +72,32 @@ enum MissionSelfTest {
         control.recordLocal(state: .waiting, project: "demo", workspace: "", session: "s")
         check("aprobación pendiente es lo primero y no ofrece botón", control.brief.title == "claude espera tu aprobación" && control.brief.action == nil)
         clock = base.addingTimeInterval(1)
+
+        // relevo entre agentes
+        var hClock = base
+        let relay = MissionControl(now: { hClock })
+        relay.recordLocal(state: .thinking, project: "demo", workspace: "", session: "s")
+        hClock = base.addingTimeInterval(30)
+        relay.recordLocal(state: .done, project: "demo", workspace: "", session: "s")
+        hClock = base.addingTimeInterval(40)
+        relay.recordPeer(state: .thinking, project: "demo")
+        check("relevo: claude termina y codex retoma", relay.handoff?.from == "claude" && relay.handoff?.to == "codex")
+        hClock = base.addingTimeInterval(50)
+        relay.tick()
+        check("relevo expira solo", relay.handoff == nil)
+        let late = MissionControl(now: { hClock })
+        hClock = base
+        late.recordPeer(state: .done, project: "demo")
+        hClock = base.addingTimeInterval(120)
+        late.recordLocal(state: .thinking, project: "demo", workspace: "", session: "s")
+        check("sin relevo si pasó demasiado tiempo", late.handoff == nil)
+        let p0 = HandoffRenderer.point(0, from: CGPoint(x: 0, y: 100), to: CGPoint(x: 200, y: 100), lift: 50)
+        let p1 = HandoffRenderer.point(1, from: CGPoint(x: 0, y: 100), to: CGPoint(x: 200, y: 100), lift: 50)
+        let pm = HandoffRenderer.point(0.5, from: CGPoint(x: 0, y: 100), to: CGPoint(x: 200, y: 100), lift: 50)
+        check("la chispa sale, llega y sube en medio", p0.x == 0 && p1.x == 200 && pm.y < 100)
+        let aura = PetAura.style(state: .waiting, collision: false)
+        check("aura: reposo sin halo, espera con borde, colisión en rojo",
+              PetAura.style(state: .idle, collision: false) == nil && aura?.ring == true && PetAura.style(state: .tool, collision: true)?.tint == .alert)
     }
 
     private static func testInsights(_ check: (String, @autoclosure () -> Bool) -> Void) {

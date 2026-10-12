@@ -105,6 +105,12 @@ enum CodexRenderer {
 
 struct StageView: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var mission: MissionControl
+
+    init(store: PetStore) {
+        self.store = store
+        _mission = ObservedObject(wrappedValue: store.mission)
+    }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
@@ -112,6 +118,8 @@ struct StageView: View {
                 guard let geo = store.gameGeometry else { return }
                 if let start = store.gameStart {
                     GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                } else if store.animationsEnabled, let handoff = mission.handoff {
+                    HandoffRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(handoff.at), reduceMotion: store.reduceMotion, geo: geo, handoff: handoff)
                 } else if store.collaborationActive, let start = store.collaborationStartedAt {
                     CollaborationRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
                 } else if store.hugActive {

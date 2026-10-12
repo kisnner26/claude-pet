@@ -57,6 +57,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var timeline: [MissionEvent] = []
     @Published private(set) var git = GitHealth()
     @Published private(set) var changes: [ChangedFile] = []
+    @Published private(set) var handoff: Handoff?
     @Published private(set) var collision = false
     @Published private(set) var recovery: RecoveryCapsule?
     @Published private(set) var toolCalls = 0
@@ -87,6 +88,7 @@ final class MissionControl: ObservableObject {
     private var handledError: PendingError?
     private var toolFrequency: [String: Int] = [:]
     private var lastSummary: String?
+    private var lastDone: [String: Date] = [:]
 
     init(now: @escaping () -> Date = Date.init,
          scanner: @escaping GitScanCoordinator.Scanner = { GitPulse.scan($0) }) {
@@ -147,6 +149,7 @@ final class MissionControl: ObservableObject {
         let projectChanged = project != localProject
         let workspaceChanged = !workspace.isEmpty && workspace != localWorkspace
 
+        noteTransition(agent: "claude", from: localState, to: state, at: date)
         if stateChanged || projectChanged {
             append(agent: "claude", state: state, project: project, at: date)
         }
@@ -188,6 +191,7 @@ final class MissionControl: ObservableObject {
 
     func recordPeer(state: PetState, project: String) {
         let date = now()
+        noteTransition(agent: "codex", from: peerState, to: state, at: date)
         if state != peerState || project != peerProject { append(agent: "codex", state: state, project: project, at: date) }
         peerState = state
         peerProject = project
@@ -202,6 +206,7 @@ final class MissionControl: ObservableObject {
 
     func tick() {
         let date = now()
+        if let handoff, date.timeIntervalSince(handoff.at) > Handoff.duration + 0.4 { self.handoff = nil }
         updateCollision(at: date)
         updateRecovery(at: date)
         if localState.isActive, date.timeIntervalSince(lastActiveScan) >= 15 {
@@ -219,6 +224,17 @@ final class MissionControl: ObservableObject {
         guard date.timeIntervalSince(lastManualScan) >= 2 else { return }
         lastManualScan = date
         requestScan(workspace: localWorkspace)
+    }
+
+    /// Un agente termina y el otro empieza a trabajar poco después: es un relevo.
+    private func noteTransition(agent: String, from old: PetState, to new: PetState, at date: Date) {
+        if new == .done && old != .done { lastDone[agent] = date }
+        guard SessionTrail.isWorking(new), !SessionTrail.isWorking(old) else { return }
+        let other = agent == "claude" ? "codex" : "claude"
+        if let done = lastDone[other], date.timeIntervalSince(done) <= Handoff.window {
+            handoff = Handoff(from: other, to: agent, at: date)
+            lastDone[other] = nil
+        }
     }
 
     private func summary(elapsed: TimeInterval) -> String {
