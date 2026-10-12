@@ -345,63 +345,7 @@ struct ClaudePetApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Text("Estado: \(store.state.label.capitalized)")
-            Text(store.bridgeOK ? "Puente local activo" : "Puente local caido")
-            Text(store.claudePresent ? "Claude Code: en uso" : "Claude Code: sin usar")
-            Text(store.codexPresent ? "Codex: en uso" : "Codex: sin usar")
-            Toggle("Mostrar cada mascota solo cuando uso su herramienta", isOn: $store.autoVisibility)
-            Text(store.peer.map { "Pet bus: \($0.id) presente" } ?? (store.busOK ? "Pet bus: sin otras mascotas" : "Pet bus caido"))
-            Menu("panel de codex") { CodexControlMenu(store: store) }
-            if let warning = store.safetyAlert { Text(warning.title) }
-            if store.reviewReady { Button("codex listo para revision: abrir diff") { store.openReview() } }
-            Menu("mission control") { MissionControlMenu(control: store.mission) }
-            Toggle("Mostrar burbuja de actividad (ambas)", isOn: $store.showBubble)
-            Toggle("Detalle en la burbuja de Claude (archivos, comandos)", isOn: $store.showDetail)
-            Toggle("Avisar si claude o codex parecen bloqueados", isOn: $store.stallWatch)
-            Toggle("Bloquear herramientas de Claude si el proyecto cambia", isOn: $store.blockOnChange)
-            Toggle("Compartir nombre del proyecto de Claude", isOn: $store.shareProject)
-            Divider()
-            Button("Mostrar u ocultar mascotas") { AppController.shared.toggleWindow() }
-            Menu("Animaciones") {
-                Toggle("Activar animaciones (ambas)", isOn: $store.animationsEnabled)
-                Toggle("Partido automatico con Codex", isOn: $store.footballEnabled)
-                    .disabled(!store.animationsEnabled)
-                Divider()
-                Button("Partido de futbol ahora") { store.trigger("football") }
-                    .disabled(!store.pairNear)
-                Menu("Acciones de Claude") {
-                    Button("Saludo") { store.trigger("greet") }
-                    Button("Celebracion") { store.trigger("cheer") }
-                    Button("Preocupacion") { store.trigger("concern") }
-                }
-                Menu("Acciones de Codex") {
-                    ForEach(CodexGesture.allCases, id: \.self) { gesture in
-                        Button(gesture.title) { store.triggerCodex(gesture) }
-                    }
-                }
-            }
-            Menu("Aspecto") {
-                Picker("Claude", selection: $store.skin) {
-                    ForEach(Skin.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-                Picker("Codex", selection: $store.codexSkin) {
-                    ForEach(CodexSkin.allCases, id: \.self) { Text($0.title).tag($0) }
-                }
-            }
-            Menu("Probar estado") {
-                Menu("Claude") {
-                    ForEach(PetState.allCases, id: \.self) { s in
-                        Button(s.label.capitalized) { store.preview(s) }
-                    }
-                }
-                Menu("Codex") {
-                    ForEach(PetState.allCases, id: \.self) { s in
-                        Button(s.label.capitalized) { store.previewCodex(s) }
-                    }
-                }
-            }
-            Divider()
-            Button("Salir") { NSApp.terminate(nil) }
+            MenuBarContent(store: store)
         } label: {
             Image(nsImage: MenuIcon.image(claude: store.claudePresent, codex: store.codexPresent))
         }
