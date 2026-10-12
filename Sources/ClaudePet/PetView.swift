@@ -23,6 +23,19 @@ struct PetView: View {
     }
 
     var body: some View {
+        ZStack {
+            AuraView(state: store.state, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
+            petCanvas
+        }
+        .padding(8)
+        .frame(width: 128, height: 128)
+        // casi invisible: mantiene el arrastre de la ventana sin dibujar ningun panel
+        .background(Color.black.opacity(0.001))
+        .accessibilityLabel("Claude Pet, estado \(store.state.label.lowercased())" + (mission.collision ? "; posible colisión con Codex" : ""))
+        .accessibilityValue(mission.collision ? "ambos trabajan en el mismo proyecto compartido" : "sin colisión")
+    }
+
+    private var petCanvas: some View {
         VStack(spacing: 10) {
             TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
                 let tick = store.animationsEnabled && !store.reduceMotion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
@@ -53,12 +66,6 @@ struct PetView: View {
                 .frame(width: 112, height: 112)
             }
         }
-        .padding(8)
-        .frame(width: 128, height: 128)
-        // casi invisible: mantiene el arrastre de la ventana sin dibujar ningun panel
-        .background(Color.black.opacity(0.001))
         .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
-        .accessibilityLabel("Claude Pet, estado \(store.state.label.lowercased())" + (mission.collision ? "; posible colisión con Codex" : ""))
-        .accessibilityValue(mission.collision ? "ambos trabajan en el mismo proyecto compartido" : "sin colisión")
     }
 }

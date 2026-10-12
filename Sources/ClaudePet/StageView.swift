@@ -26,8 +26,25 @@ enum StageMetrics {
 
 struct CodexPetView: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var mission: MissionControl
+
+    init(store: PetStore) {
+        self.store = store
+        _mission = ObservedObject(wrappedValue: store.mission)
+    }
 
     var body: some View {
+        ZStack {
+            AuraView(state: store.codexState, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
+                .offset(y: 24)
+            codexCanvas
+        }
+        .frame(width: StageMetrics.codexSize.width, height: StageMetrics.codexSize.height)
+        .background(Color.black.opacity(0.001))     // mantiene el arrastre sin dibujar ningun panel
+        .accessibilityLabel("Codex, estado \(store.companionInfo(at: Date()).codex.label.lowercased())")
+    }
+
+    private var codexCanvas: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
             Canvas { gc, _ in
                 guard !store.hugActive else { return }
@@ -35,9 +52,6 @@ struct CodexPetView: View {
                                    reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin)
             }
         }
-        .frame(width: StageMetrics.codexSize.width, height: StageMetrics.codexSize.height)
-        .background(Color.black.opacity(0.001))     // mantiene el arrastre sin dibujar ningun panel
-        .accessibilityLabel("Codex, estado \(store.companionInfo(at: Date()).codex.label.lowercased())")
     }
 }
 
