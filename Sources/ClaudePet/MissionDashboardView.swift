@@ -52,10 +52,13 @@ struct MissionDashboardView: View {
             AgentStatus(name: "claude", state: store.state, active: store.claudePresent, tint: Pal.body)
             AgentStatus(name: "codex", state: store.codexState, active: store.codexPresent, tint: Color(hex: 0x96EBFF))
             Spacer(minLength: 0)
-            Label(control.git.label, systemImage: control.git.conflicts > 0 ? "exclamationmark.triangle.fill" : "point.3.connected.trianglepath.dotted")
-                .font(.caption)
-                .foregroundStyle(control.git.conflicts > 0 ? Pal.body : Pal.cream.opacity(0.72))
-                .lineLimit(1)
+            VStack(alignment: .trailing, spacing: 4) {
+                Label(control.git.label, systemImage: control.git.conflicts > 0 ? "exclamationmark.triangle.fill" : "point.3.connected.trianglepath.dotted")
+                Label(store.foregroundAppName.isEmpty ? "sin app activa" : store.foregroundAppName, systemImage: "rectangle.inset.filled")
+            }
+            .font(.caption)
+            .foregroundStyle(control.git.conflicts > 0 ? Pal.body : Pal.cream.opacity(0.72))
+            .lineLimit(1)
         }
         .padding(12)
         .background(Pal.charcoal.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))

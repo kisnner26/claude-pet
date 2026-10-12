@@ -26,6 +26,9 @@ final class PetStore: ObservableObject {
     // Presencia: cada mascota aparece solo si su herramienta esta en uso.
     @Published private(set) var claudePresent = false
     @Published private(set) var codexPresent = false
+    /// Nombre de la app al frente: solo presencia, nunca captura de pantalla ni contenido.
+    @Published private(set) var foregroundAppName = ""
+    let voice = VoiceCompanion()
     /// Apagado: la mascota de Claude se ve siempre (comportamiento anterior).
     @Published var autoVisibility: Bool = UserDefaults.standard.object(forKey: "autoVisibility") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoVisibility, forKey: "autoVisibility") }
@@ -117,6 +120,10 @@ final class PetStore: ObservableObject {
     func setApps(claude: Bool, codex: Bool) {
         claudeAppOpen = claude; codexAppOpen = codex
         updatePresence()
+    }
+
+    func setForegroundApp(_ name: String) {
+        if foregroundAppName != name { foregroundAppName = name }
     }
 
     private func updatePresence() {

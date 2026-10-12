@@ -35,6 +35,12 @@ struct MenuBarContent: View {
             Toggle("aparición automática", systemImage: "figure.walk.arrival", isOn: $store.autoVisibility)
             Toggle("burbuja de actividad", systemImage: "text.bubble", isOn: $store.showBubble)
             Button("abrir tablero operativo", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
+            Menu("hablar con las mascotas", systemImage: "waveform") {
+                Button(store.voice.status == .listening ? "detener escucha" : "escuchar un comando", systemImage: store.voice.status == .listening ? "stop.circle" : "mic") {
+                    store.voice.toggle()
+                }
+                voiceStatus
+            }
             Menu("operaciones", systemImage: "scope") { MissionControlMenu(control: store.mission) }
             Menu("codex", systemImage: "cpu") { CodexControlMenu(store: store) }
         }
@@ -112,6 +118,17 @@ struct MenuBarContent: View {
             ForEach(PetState.allCases, id: \.self) { state in
                 Button(state.label.capitalized) { store.previewCodex(state) }
             }
+        }
+    }
+
+    @ViewBuilder private var voiceStatus: some View {
+        switch store.voice.status {
+        case .idle:
+            Text("di: muestra mascotas, abre tablero o actualiza git")
+        case .listening:
+            Text(store.voice.transcript.isEmpty ? "escuchando…" : store.voice.transcript)
+        case .unavailable(let message):
+            Text(message)
         }
     }
 }
