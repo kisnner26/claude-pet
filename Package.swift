@@ -5,7 +5,6 @@ let package = Package(
     name: "ClaudePet",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "ClaudePet", path: "Sources/ClaudePet",
-                          linkerSettings: [.linkedFramework("Speech"), .linkedFramework("AVFoundation")])
+        .executableTarget(name: "ClaudePet", path: "Sources/ClaudePet")
     ]
 )

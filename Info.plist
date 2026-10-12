@@ -12,7 +12,5 @@
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
-    <key>NSMicrophoneUsageDescription</key><string>Claude Pet usa el micrófono solo cuando activas comandos por voz.</string>
-    <key>NSSpeechRecognitionUsageDescription</key><string>Claude Pet reconoce comandos locales para controlar las mascotas.</string>
 </dict>
 </plist>
