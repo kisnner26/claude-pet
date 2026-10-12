@@ -44,7 +44,40 @@ class HookTests(unittest.TestCase):
                                                      cwd=r"C:\work\pet", prompt="private")))
             self.assertEqual(event.state, state)
             self.assertEqual(event.project, "pet")
-            self.assertEqual(event.task, "")
+
+    def test_bubble_detail_keeps_only_the_minimum(self):
+        def line(hook, **tool):
+            return Event.parse(event_line(hook, dict(session_id="s", cwd=r"C:\work\pet", **tool)))
+        self.assertEqual(line("PreToolUse", tool_name="Edit",
+                              tool_input=dict(file_path=r"C:\work\pet\store.py")).detail, "store.py")
+        self.assertEqual(line("PreToolUse", tool_name="Bash",
+                              tool_input=dict(command=r"C:\bin\curl.exe -H secret-token")).detail, "$ curl.exe")
+        self.assertEqual(line("PreToolUse", tool_name="Bash",
+                              tool_input=dict(command="ls", description="lista archivos")).detail, "lista archivos")
+        self.assertEqual(line("PreToolUse", tool_name="WebFetch",
+                              tool_input=dict(url="https://example.com/a?token=1")).detail, "example.com")
+        self.assertEqual(line("PostToolUse", tool_name="Bash",
+                              tool_input=dict(description="no se muestra")).detail, "")
+
+    def test_tests_are_classified_without_keeping_the_command(self):
+        result = Event.parse(event_line("PreToolUse", dict(
+            session_id="s", tool_name="Bash", cwd=r"C:\work\pet",
+            tool_input=dict(command="python -m pytest -k secret"))))
+        self.assertEqual(result.tool, "test")
+        self.assertNotIn("secret", result.detail)
+
+    def test_task_comes_from_prompt_or_todo_and_oversize_lines_survive(self):
+        prompt = Event.parse(event_line("UserPromptSubmit", dict(
+            session_id="s", cwd=r"C:\work\pet", prompt="arregla\nel   login")))
+        self.assertEqual(prompt.task, "p:arregla el login")
+        todo = Event.parse(event_line("PreToolUse", dict(
+            session_id="s", tool_name="TodoWrite", cwd=r"C:\work\pet", tool_input=dict(todos=[
+                dict(status="completed", activeForm="a"),
+                dict(status="in_progress", activeForm="escribiendo pruebas")]))))
+        self.assertEqual(todo.task, "t:escribiendo pruebas")
+        huge = Event.parse(event_line("UserPromptSubmit", dict(
+            session_id="s", cwd="C:\\" + "\u00e9" * 1000, prompt="\u00e9" * 400)))
+        self.assertIsNotNone(huge)
 
     def test_idempotent_install_preserves_other_hooks(self):
         original = {"theme": "dark", "hooks": {"Stop": [{"hooks": [
@@ -99,3 +132,40 @@ class HookTests(unittest.TestCase):
             result = subprocess.run(command, input=payload, text=True, capture_output=True,
                                     env=environment, timeout=5)
             self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "", ""))
+
+
+class BlockTests(unittest.TestCase):
+    def run_hook(self, directory, name, payload):
+        environment = {**os.environ, "HOME": directory, "USERPROFILE": directory}
+        script = Path(__file__).resolve().parents[1] / "pet_hook.py"
+        return subprocess.run([sys.executable, str(script), name], input=json.dumps(payload),
+                              text=True, capture_output=True, env=environment, timeout=5)
+
+    def test_marker_blocks_only_with_flag_and_expires(self):
+        import time
+        from workspace import mark, set_blocking
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / ".claude-pet"
+            payload = dict(session_id="abc", tool_name="Read", cwd=r"C:\work\pet")
+            mark(root, "abc")
+            self.assertEqual(self.run_hook(directory, "PreToolUse", payload).stdout, "")
+            set_blocking(root, True)
+            denied = json.loads(self.run_hook(directory, "PreToolUse", payload).stdout)
+            self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
+            self.assertEqual(self.run_hook(directory, "PostToolUse", payload).stdout, "")
+            old = time.time() - 700
+            os.utime(root / "context-changed" / "abc", (old, old))
+            self.assertEqual(self.run_hook(directory, "PreToolUse", payload).stdout, "")
+            mark(root, "abc")
+            self.run_hook(directory, "UserPromptSubmit", payload)
+            self.assertFalse((root / "context-changed" / "abc").exists())
+
+    def test_paused_marker_needs_no_flag_and_is_per_session(self):
+        from workspace import mark
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / ".claude-pet"
+            mark(root, "abc", "paused")
+            mine = self.run_hook(directory, "PreToolUse", dict(session_id="abc", cwd="C:\\p"))
+            other = self.run_hook(directory, "PreToolUse", dict(session_id="xyz", cwd="C:\\p"))
+            self.assertIn("deny", mine.stdout)
+            self.assertEqual(other.stdout, "")

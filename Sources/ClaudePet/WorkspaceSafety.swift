@@ -63,12 +63,14 @@ enum WorkspaceSafety {
         }
     }
 
-    static func markChanged(session: String) {
+    /// `reason` queda dentro de la marca: vacio = el proyecto cambio (requiere la bandera opt-in);
+    /// "paused" = el usuario pidio pausar a claude desde el menu (no requiere la bandera).
+    static func markChanged(session: String, reason: String = "") {
         guard safe(session) else { return }
         let url = markerURL(session)
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: 0o700])
-        FileManager.default.createFile(atPath: url.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+        FileManager.default.createFile(atPath: url.path, contents: Data(reason.utf8), attributes: [.posixPermissions: 0o600])
     }
 
     static func clearMarker(session: String) {

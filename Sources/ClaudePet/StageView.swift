@@ -118,8 +118,8 @@ struct StageView: View {
                 guard let geo = store.gameGeometry else { return }
                 if let start = store.gameStart {
                     GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
-                } else if store.animationsEnabled, let handoff = mission.handoff {
-                    HandoffRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(handoff.at), reduceMotion: store.reduceMotion, geo: geo, handoff: handoff)
+                } else if store.animationsEnabled, let relay = mission.relay {
+                    RelayRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(relay.at), reduceMotion: store.reduceMotion, geo: geo, relay: relay)
                 } else if store.collaborationActive, let start = store.collaborationStartedAt {
                     CollaborationRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
                 } else if store.hugActive {

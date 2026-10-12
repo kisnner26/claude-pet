@@ -9,10 +9,14 @@
 # escribe a disco y no cruza el pet bus).
 #
 # Por defecto no imprime nada en stdout y siempre sale con 0: no altera ni bloquea a Claude Code.
-# Unica excepcion, OPT-IN: si activas "Bloquear herramientas si el proyecto cambia" en el menu
-# (crea ~/.claude-pet/block-on-change), una marca reciente (< 10 min) de la app deniega la siguiente
-# herramienta de esa sesion con la salida documentada de PreToolUse. La marca se borra con tu
-# siguiente mensaje o al terminar la sesion.
+# Excepciones, ambas bajo tu control: (1) OPT-IN, si activas "Bloquear herramientas si el proyecto
+# cambia" (crea ~/.claude-pet/block-on-change); (2) si pides "pausar a claude" ante una colision.
+# En los dos casos una marca reciente (< 10 min) de la app deniega la siguiente herramienta de esa
+# sesion con la salida documentada de PreToolUse. La marca se borra con tu siguiente mensaje o al
+# terminar la sesion.
+
+# Una revision lanzada por la propia mascota no es una sesion del usuario: no se reporta.
+[ -n "$CLAUDE_PET_REVIEW" ] && exit 0
 
 SOCK="${CLAUDE_PET_SOCK:-$HOME/.claude-pet/pet.sock}"
 PET_DIR="$HOME/.claude-pet"
@@ -29,10 +33,18 @@ MARK="$PET_DIR/context-changed/${sid:-x}"
 [ "$1" = "UserPromptSubmit" ] && rm -f "$MARK"
 [ "$1" = "SessionEnd" ] && rm -f "$MARK"
 
-# Bloqueo opt-in: solo con la bandera activada Y una marca de menos de 10 minutos.
-if [ "$1" = "PreToolUse" ] && [ -f "$PET_DIR/block-on-change" ] && [ -n "$(find "$MARK" -mmin -10 2>/dev/null)" ]; then
-  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"El proyecto cambio mientras Claude pensaba. Revisa el diff y envia un nuevo mensaje para continuar con contexto actualizado."}}'
-  exit 0
+# Bloqueo: una marca reciente (< 10 min) de la app deniega la siguiente herramienta de esa sesion.
+# Marca vacia = "el proyecto cambio" y solo cuenta con la bandera opt-in; "paused" = el usuario
+# pidio pausar a claude desde el menu (colision con codex) y no necesita la bandera.
+if [ "$1" = "PreToolUse" ] && [ -n "$(find "$MARK" -mmin -10 2>/dev/null)" ]; then
+  kind=$(head -c 16 "$MARK" 2>/dev/null | tr -cd 'a-z')
+  if [ "$kind" = "paused" ]; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Pausado desde claude pet: otra herramienta trabaja en este proyecto. Envia un nuevo mensaje cuando quieras continuar."}}'
+    exit 0
+  elif [ -f "$PET_DIR/block-on-change" ]; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"El proyecto cambio mientras Claude pensaba. Revisa el diff y envia un nuevo mensaje para continuar con contexto actualizado."}}'
+    exit 0
+  fi
 fi
 
 [ -S "$SOCK" ] || exit 0

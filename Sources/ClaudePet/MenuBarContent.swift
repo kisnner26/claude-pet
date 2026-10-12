@@ -39,6 +39,9 @@ struct MenuBarContent: View {
                 Menu("codex", systemImage: "cpu") { CodexControlMenu(store: store) }
             }
             Menu("operaciones", systemImage: "scope") { MissionControlMenu(control: store.mission) }
+            Menu("traspaso claude y codex", systemImage: "arrow.left.arrow.right") {
+                HandoffMenu(store: store, handoff: store.handoff, control: store.mission)
+            }
             Menu("privacidad y avisos", systemImage: "lock.shield") { protectionMenu }
         }
 

@@ -30,6 +30,25 @@ out=$(printf '%s' "$PAYLOAD" | sh "$HOOK" PreToolUse)
 [ ! -f "$MARK" ] && ok "terminar la sesion borra la marca" || bad "la marca sigue tras SessionEnd"
 out=$(printf '%s' "$PAYLOAD" | sh "$HOOK" PostToolUse); [ -z "$out" ] && ok "otros eventos nunca imprimen" || bad "imprime en PostToolUse"
 
+# pausa pedida desde el menu (colision): no necesita la bandera y solo afecta a esa sesion
+rm -f "$H/.claude-pet/block-on-change"
+printf 'paused' > "$MARK"
+out=$(printf '%s' "$PAYLOAD" | sh "$HOOK" PreToolUse)
+printf '%s' "$out" | grep -q '"permissionDecision":"deny"' && ok "marca 'paused': deniega sin la bandera opt-in" || bad "paused no deniega: $out"
+printf '%s' "$out" | grep -q 'Pausado desde claude pet' || bad "paused sin su mensaje"
+out=$(printf '%s' '{"session_id":"otrasesion-1","tool_name":"Read","cwd":"/Users/x/p"}' | sh "$HOOK" PreToolUse)
+[ -z "$out" ] && ok "la pausa no afecta a otras sesiones" || bad "la pausa bloqueo otra sesion: $out"
+printf '%s' "$PAYLOAD" | sh "$HOOK" UserPromptSubmit >/dev/null
+[ ! -f "$MARK" ] && ok "tu siguiente mensaje levanta la pausa" || bad "la pausa sigue tras UserPromptSubmit"
+
+# una revision lanzada por la mascota no se reporta como sesion del usuario
+d=$(mktemp -d); export CLAUDE_PET_SOCK="$d/s.sock"
+nc -lU "$CLAUDE_PET_SOCK" > "$d/o" & lp=$!; sleep 0.4
+printf '%s' "$PAYLOAD" | CLAUDE_PET_REVIEW=1 sh "$HOOK" PreToolUse; sleep 0.4; kill $lp 2>/dev/null
+[ ! -s "$d/o" ] && ok "CLAUDE_PET_REVIEW=1: el hook no reporta nada" || bad "reporto una revision propia"
+rm -rf "$d"
+export CLAUDE_PET_SOCK="$H/none.sock"
+
 # clasificacion de pruebas con un oyente real
 nc_capture() { # evento json -> linea enviada
   d=$(mktemp -d); export CLAUDE_PET_SOCK="$d/s.sock"

@@ -57,7 +57,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var timeline: [MissionEvent] = []
     @Published private(set) var git = GitHealth()
     @Published private(set) var changes: [ChangedFile] = []
-    @Published private(set) var handoff: Handoff?
+    @Published private(set) var relay: Relay?
     @Published private(set) var collision = false
     @Published private(set) var recovery: RecoveryCapsule?
     @Published private(set) var toolCalls = 0
@@ -110,6 +110,8 @@ final class MissionControl: ObservableObject {
         return lastSummary ?? "sin sesión activa"
     }
     var scanLaunchCount: Int { scanner.launchCount }
+    /// Ultimo proyecto conocido de Claude (persiste aunque la sesion este en reposo).
+    var project: String { localProject }
 
     /// Doce lecturas locales de la sesión. Son deliberadamente derivadas de estado, tiempos y
     /// `git status`: no añaden contenido de prompts, comandos ni archivos al pet bus.
@@ -206,7 +208,7 @@ final class MissionControl: ObservableObject {
 
     func tick() {
         let date = now()
-        if let handoff, date.timeIntervalSince(handoff.at) > Handoff.duration + 0.4 { self.handoff = nil }
+        if let relay, date.timeIntervalSince(relay.at) > Relay.duration + 0.4 { self.relay = nil }
         updateCollision(at: date)
         updateRecovery(at: date)
         if localState.isActive, date.timeIntervalSince(lastActiveScan) >= 15 {
@@ -231,8 +233,8 @@ final class MissionControl: ObservableObject {
         if new == .done && old != .done { lastDone[agent] = date }
         guard SessionTrail.isWorking(new), !SessionTrail.isWorking(old) else { return }
         let other = agent == "claude" ? "codex" : "claude"
-        if let done = lastDone[other], date.timeIntervalSince(done) <= Handoff.window {
-            handoff = Handoff(from: other, to: agent, at: date)
+        if let done = lastDone[other], date.timeIntervalSince(done) <= Relay.window {
+            relay = Relay(from: other, to: agent, at: date)
             lastDone[other] = nil
         }
     }

@@ -15,6 +15,7 @@ class PeerMessage:
     state: str
     timestamp: float
     left: bool = False
+    project: str = ""
 
     @classmethod
     def parse(cls, message):
@@ -32,7 +33,9 @@ class PeerMessage:
             state = data.get("state")
             if not isinstance(state, str) or state not in PRIORITY:
                 state = "idle"
-            return cls(name, state, timestamp, data.get("event") == "left")
+            project = data.get("project")
+            project = re.sub(r"[^a-zA-Z0-9_.-]", "", project)[:40] if isinstance(project, str) else ""
+            return cls(name, state, timestamp, data.get("event") == "left", project)
         except (ValueError, TypeError, OverflowError):
             return None
 

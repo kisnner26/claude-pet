@@ -5,6 +5,9 @@ from dataclasses import dataclass
 import os
 
 
+WIDTH, HEIGHT = 260, 190
+
+
 @dataclass(frozen=True)
 class Bounds:
     x: int
@@ -12,7 +15,7 @@ class Bounds:
     width: int
     height: int
 
-    def clamp(self, x, y, width=200, height=160):
+    def clamp(self, x, y, width=WIDTH, height=HEIGHT):
         return (max(self.x, min(x, self.x + max(0, self.width - width))),
                 max(self.y, min(y, self.y + max(0, self.height - height))))
 
@@ -31,4 +34,4 @@ def desktop_bounds(window):
 
 def geometry(x, y):
     # an explicit '+' preserves negative absolute coordinates in tk.
-    return f"200x160+{x}+{y}"
+    return f"{WIDTH}x{HEIGHT}+{x}+{y}"
