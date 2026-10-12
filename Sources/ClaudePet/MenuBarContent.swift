@@ -4,47 +4,41 @@ import AppKit
 struct MenuBarContent: View {
     @ObservedObject var store: PetStore
 
-    private var connectionLabel: String {
-        store.bridgeOK ? "puente local activo" : "puente local no disponible"
-    }
-
-    private var companionLabel: String {
-        store.peer.map { "pet bus: \($0.id) presente" }
-            ?? (store.busOK ? "pet bus: sin otras mascotas" : "pet bus no disponible")
-    }
-
     var body: some View {
         Section("en vivo") {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
-            Label(connectionLabel, systemImage: store.bridgeOK ? "link" : "link.badge.plus")
-            Label(store.claudePresent ? "claude code en uso" : "claude code en reposo", systemImage: "curlybraces")
-            Label(store.codexPresent ? "codex en uso" : "codex en reposo", systemImage: "sparkles")
-            Label(companionLabel, systemImage: "dot.radiowaves.left.and.right")
+            Label("codex: \(store.codexPresent ? store.codexState.label.lowercased() : "en reposo")", systemImage: "sparkles")
             if let warning = store.safetyAlert {
                 Label(warning.title, systemImage: "exclamationmark.triangle.fill")
+            }
+            if !store.bridgeOK {
+                Label("puente local no disponible", systemImage: "link.badge.plus")
+            }
+            if !store.busOK {
+                Label("pet bus no disponible", systemImage: "dot.radiowaves.left.and.right")
             }
             if store.reviewReady {
                 Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() }
             }
         }
 
-        Section("ahora") {
+        Section {
+            Button("abrir tablero", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
             Button(store.userHidden ? "mostrar mascotas" : "ocultar mascotas", systemImage: store.userHidden ? "eye" : "eye.slash") {
                 AppController.shared.toggleWindow()
             }
-            Toggle("aparición automática", systemImage: "figure.walk.arrival", isOn: $store.autoVisibility)
-            Toggle("burbuja de actividad", systemImage: "text.bubble", isOn: $store.showBubble)
-            Button("abrir tablero operativo", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
+        }
+
+        Section {
+            Menu("mascotas", systemImage: "pawprint") {
+                Toggle("aparición automática", isOn: $store.autoVisibility)
+                Toggle("burbuja de actividad", isOn: $store.showBubble)
+                Divider()
+                Menu("animaciones", systemImage: "figure.run") { animationMenu }
+                Menu("aspecto", systemImage: "paintpalette") { appearanceMenu }
+                Menu("codex", systemImage: "cpu") { CodexControlMenu(store: store) }
+            }
             Menu("operaciones", systemImage: "scope") { MissionControlMenu(control: store.mission) }
-            Menu("codex", systemImage: "cpu") { CodexControlMenu(store: store) }
-        }
-
-        Section("experiencia") {
-            Menu("animaciones", systemImage: "figure.run") { animationMenu }
-            Menu("aspecto", systemImage: "paintpalette") { appearanceMenu }
-        }
-
-        Section("protección") {
             Menu("privacidad y avisos", systemImage: "lock.shield") { protectionMenu }
         }
 
