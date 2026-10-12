@@ -51,6 +51,60 @@ enum GitPulse {
         return parse(first.data)
     }
 
+    static func isConflict(_ status: String) -> Bool {
+        ["UU", "AA", "DD", "AU", "UA", "DU", "UD"].contains(status)
+    }
+
+    /// Estado y ruta de cada archivo con cambios (porcelain v1 -z; consume la ruta origen de renombres y copias).
+    static func parseRecords(_ data: Data) -> [(status: String, path: String)] {
+        let records = data.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+        var out: [(status: String, path: String)] = []
+        var index = 0
+        while index < records.count {
+            let record = records[index]
+            index += 1
+            if record.hasPrefix("## ") || record.count < 4 { continue }
+            let status = String(record.prefix(2))
+            out.append((status, String(record.dropFirst(3))))
+            if status.first == "R" || status.first == "C" || status.last == "R" || status.last == "C" { index += 1 }
+        }
+        return out
+    }
+
+    static func statusRecords(workspace: String, timeout: TimeInterval = 10) -> [(status: String, path: String)]? {
+        guard workspace.hasPrefix("/"), let result = status(workspace: workspace, includeUntracked: true, timeout: timeout), !result.truncated else { return nil }
+        return parseRecords(result.data)
+    }
+
+    /// Líneas añadidas y borradas por ruta, contra HEAD (preparado + sin preparar). Binarios cuentan como 0/0.
+    static func parseNumstat(_ data: Data) -> [String: (Int, Int)] {
+        let records = data.split(separator: 0, omittingEmptySubsequences: false).map { String(decoding: $0, as: UTF8.self) }
+        var out: [String: (Int, Int)] = [:]
+        var index = 0
+        while index < records.count {
+            let parts = records[index].split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+            index += 1
+            guard parts.count == 3 else { continue }
+            let added = Int(parts[0]) ?? 0, deleted = Int(parts[1]) ?? 0
+            if parts[2].isEmpty {
+                // renombre: dos registros más (origen y destino); el peso va a la ruta nueva
+                guard index + 1 < records.count else { break }
+                out[records[index + 1]] = (added, deleted)
+                index += 2
+            } else {
+                out[String(parts[2])] = (added, deleted)
+            }
+        }
+        return out
+    }
+
+    static func numstat(workspace: String, timeout: TimeInterval = 10) -> [String: (Int, Int)] {
+        let args = ["--no-optional-locks", "-c", "core.fsmonitor=false", "-C", workspace,
+                    "diff", "HEAD", "--numstat", "-z", "--no-ext-diff", "--no-textconv"]
+        guard let result = run(executable: "/usr/bin/git", arguments: args, timeout: timeout), result.status == 0 else { return [:] }
+        return parseNumstat(result.data)
+    }
+
     static func runForTest(executable: String, arguments: [String], timeout: TimeInterval) -> Bool {
         run(executable: executable, arguments: arguments, timeout: timeout)?.status == 0
     }

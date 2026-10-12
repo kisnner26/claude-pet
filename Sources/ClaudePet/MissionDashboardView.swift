@@ -28,6 +28,11 @@ struct MissionDashboardView: View {
                 agents
                 BriefCard(brief: brief) { control.perform($0) }
                 if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
+                if !control.changes.isEmpty {
+                    ChangeMapView(files: control.changes) { file in
+                        DiffOpener.open(workspace: control.recovery?.workspace ?? control.workspace, path: file.path)
+                    }
+                }
                 attention(excluding: brief)
                 Timeline(events: Array(control.timeline.prefix(4)), all: control.timeline, reduceMotion: store.reduceMotion)
                 footer

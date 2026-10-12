@@ -12,20 +12,20 @@ enum DiffOpener {
         URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("claude-pet-review.diff")
     }
 
-    static func open(workspace: String) {
+    static func open(workspace: String, path: String? = nil) {
         Task.detached(priority: .utility) {
-            guard let url = await render(workspace: workspace) else { return }
+            guard let url = await render(workspace: workspace, path: path) else { return }
             await MainActor.run { _ = NSWorkspace.shared.open(url) }
         }
     }
 
-    static func render(workspace: String) async -> URL? {
+    static func render(workspace: String, path: String? = nil) async -> URL? {
         await withCheckedContinuation { c in
-            DispatchQueue.global(qos: .utility).async { c.resume(returning: renderSync(workspace: workspace)) }
+            DispatchQueue.global(qos: .utility).async { c.resume(returning: renderSync(workspace: workspace, path: path)) }
         }
     }
 
-    static func renderSync(workspace: String) -> URL? {
+    static func renderSync(workspace: String, path: String? = nil) -> URL? {
         var isDir: ObjCBool = false
         guard workspace.hasPrefix("/"), FileManager.default.fileExists(atPath: workspace, isDirectory: &isDir), isDir.boolValue else { return nil }
         let p = Process()
@@ -33,6 +33,10 @@ enum DiffOpener {
         // --no-ext-diff / --no-textconv / fsmonitor desactivado: ni drivers ni filtros definidos por el repo
         p.arguments = ["-C", workspace, "-c", "core.fsmonitor=false", "-c", "core.pager=cat",
                        "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--"]
+        if let path {
+            guard ChangeMap.isSafe(path) else { return nil }
+            p.arguments?.append(path)       // tras `--`: nunca se interpreta como opción
+        }
         var env = ProcessInfo.processInfo.environment
         env["GIT_OPTIONAL_LOCKS"] = "0"; env["GIT_TERMINAL_PROMPT"] = "0"
         p.environment = env

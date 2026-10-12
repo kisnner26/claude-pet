@@ -56,6 +56,7 @@ private extension NSLock {
 final class MissionControl: ObservableObject {
     @Published private(set) var timeline: [MissionEvent] = []
     @Published private(set) var git = GitHealth()
+    @Published private(set) var changes: [ChangedFile] = []
     @Published private(set) var collision = false
     @Published private(set) var recovery: RecoveryCapsule?
     @Published private(set) var toolCalls = 0
@@ -93,6 +94,7 @@ final class MissionControl: ObservableObject {
         self.scanner = GitScanCoordinator(scanner: scanner)
     }
 
+    var workspace: String { localWorkspace }
     var elapsed: TimeInterval { activeSince.map { max(0, now().timeIntervalSince($0)) } ?? 0 }
     var topTools: [(name: String, count: Int)] {
         let pairs: [(name: String, count: Int)] = toolFrequency.map { (name: $0.key, count: $0.value) }
@@ -273,11 +275,31 @@ final class MissionControl: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.workspaceHealth[scannedWorkspace] = result
-                if scannedWorkspace == self.localWorkspace { self.git = result }
+                if scannedWorkspace == self.localWorkspace {
+                    self.git = result
+                    self.loadChanges(workspace: scannedWorkspace, affected: result.affected)
+                }
                 if let capsule = self.recovery, capsule.workspace == scannedWorkspace {
                     self.recovery = RecoveryCapsule(createdAt: capsule.createdAt, project: capsule.project,
                                                     workspace: capsule.workspace, health: result, session: capsule.session)
                 }
+            }
+        }
+    }
+
+    private var changeScanRunning = false
+
+    /// El mapa de cambios se calcula fuera del hilo principal y solo si hay algo que mostrar.
+    private func loadChanges(workspace: String, affected: Int) {
+        guard affected > 0 else { if !changes.isEmpty { changes = [] }; return }
+        guard !changeScanRunning else { return }
+        changeScanRunning = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let files = ChangeMap.scan(workspace)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.changeScanRunning = false
+                if workspace == self.localWorkspace, self.changes != files { self.changes = files }
             }
         }
     }

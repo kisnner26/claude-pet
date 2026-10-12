@@ -33,9 +33,45 @@ enum MissionSelfTest {
         testRadarRecoveryAndBudget(check)
         testInsights(check)
         testPrivacy(check)
+        testVisualModels(check)
 
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
+    }
+
+    private static func testVisualModels(_ check: (String, @autoclosure () -> Bool) -> Void) {
+        // mapa de cambios
+        let numstat = GitPulse.parseNumstat(Data("5\t2\tuno.swift\0-\t-\timg.png\0".utf8) + Data("1\t0\t\0viejo.swift\0nuevo.swift\0".utf8))
+        check("numstat lee líneas, binarios y renombres", numstat["uno.swift"]?.0 == 5 && numstat["uno.swift"]?.1 == 2 && numstat["img.png"]?.0 == 0 && numstat["nuevo.swift"]?.0 == 1)
+        let records = GitPulse.parseRecords(Data("## main\0 M uno\0R  nuevo\0viejo\0?? tres\0".utf8))
+        check("registros de status con ruta y renombre", records.map(\.path) == ["uno", "nuevo", "tres"])
+        check("rutas inseguras se rechazan", !ChangeMap.isSafe("../fuera") && !ChangeMap.isSafe("/etc/passwd") && ChangeMap.isSafe("a/b.swift"))
+        let rect = CGRect(x: 0, y: 0, width: 400, height: 120)
+        let cells = ChangeMap.layout([60, 20, 10, 10], in: rect)
+        let area = cells.reduce(0) { $0 + $1.width * $1.height }
+        check("treemap cubre el área y respeta proporciones", cells.count == 4 && abs(area - 48_000) < 1 && abs(cells[0].width * cells[0].height - 28_800) < 1)
+        let inside = cells.allSatisfy { rect.insetBy(dx: -0.01, dy: -0.01).contains($0) }
+        check("treemap no se sale del marco", inside)
+        let base = Date(timeIntervalSince1970: 9_000)
+        check("brillo baja con la antigüedad", ChangeMap.brightness(modified: base, now: base) > ChangeMap.brightness(modified: base.addingTimeInterval(-900), now: base)
+              && ChangeMap.brightness(modified: base.addingTimeInterval(-9000), now: base) == 0.3)
+
+        // estela de sesión
+        func event(_ agent: String, _ state: PetState, _ sec: Double) -> MissionEvent { MissionEvent(at: base.addingTimeInterval(sec), agent: agent, state: state, project: "p") }
+        let events = [event("codex", .done, 100), event("claude", .tool, 60), event("codex", .thinking, 20), event("claude", .thinking, 0)]
+        let segs = SessionTrail.segments(events: events, now: base.addingTimeInterval(120))
+        let summary = SessionTrail.summary(segs)
+        check("estela suma el trabajo de cada agente", Int(summary.claude) == 120 && Int(summary.codex) == 80)
+        check("estela detecta cuándo coincidieron", Int(summary.together) == 80)
+        check("estela sin eventos no inventa tramos", SessionTrail.segments(events: [], now: base).isEmpty)
+
+        // prioridad del tablero
+        var clock = base
+        let control = MissionControl(now: { clock })
+        check("tablero tranquilo sin proyecto", control.brief.action == nil && control.brief.tone == .calm)
+        control.recordLocal(state: .waiting, project: "demo", workspace: "", session: "s")
+        check("aprobación pendiente es lo primero y no ofrece botón", control.brief.title == "claude espera tu aprobación" && control.brief.action == nil)
+        clock = base.addingTimeInterval(1)
     }
 
     private static func testInsights(_ check: (String, @autoclosure () -> Bool) -> Void) {
