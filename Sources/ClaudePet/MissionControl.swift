@@ -107,6 +107,38 @@ final class MissionControl: ObservableObject {
     }
     var scanLaunchCount: Int { scanner.launchCount }
 
+    /// Doce lecturas locales de la sesión. Son deliberadamente derivadas de estado, tiempos y
+    /// `git status`: no añaden contenido de prompts, comandos ni archivos al pet bus.
+    var insights: [MissionInsight] {
+        let elapsedMinutes = Int(elapsed / 60)
+        let peerWorking = peerState.isActive
+        let localWorking = localState.isActive
+        let toolName = topTools.first?.name ?? ""
+        let checkpoint = git.available && git.affected == 0
+        return [
+            .init(id: "radar", title: "radar de coordinación", detail: collision ? "dos agentes trabajan sobre el mismo proyecto" : "sin zona compartida detectada", tone: collision ? .caution : .calm),
+            .init(id: "approval", title: "decisión pendiente", detail: localState == .waiting ? "claude espera tu aprobación" : "no hay decisiones bloqueando el flujo", tone: localState == .waiting ? .caution : .calm),
+            .init(id: "recovery", title: "recuperación", detail: recovery == nil ? "sin fallos que recuperar" : "hay un punto seguro para revisar", tone: recovery == nil ? .calm : .danger),
+            .init(id: "conflicts", title: "integridad git", detail: git.conflicts > 0 ? "\(git.conflicts) conflictos requieren intervención" : (git.available ? "sin conflictos de merge" : "sin repositorio activo"), tone: git.conflicts > 0 ? .danger : (git.available ? .calm : .active)),
+            .init(id: "checkpoint", title: "punto de control", detail: checkpoint ? "árbol limpio: listo para cambiar de contexto" : (git.available ? "\(git.affected) cambios antes del próximo corte" : "esperando proyecto"), tone: checkpoint ? .calm : .active),
+            .init(id: "staging", title: "preparación", detail: git.staged > 0 ? "\(git.staged) cambios preparados para commit" : "todavía no hay cambios staged", tone: git.staged > 0 ? .active : .calm),
+            .init(id: "untracked", title: "material nuevo", detail: git.untracked > 0 ? "\(git.untracked) archivos aún sin seguimiento" : "no hay archivos sueltos", tone: git.untracked > 0 ? .caution : .calm),
+            .init(id: "pace", title: "ritmo", detail: localWorking ? "sesión activa · \(elapsedMinutes) min" : focusLabel, tone: localWorking ? .active : .calm),
+            .init(id: "tools", title: "patrón de herramientas", detail: toolName.isEmpty ? "aún no hay patrón suficiente" : "predomina \(toolName) · \(toolCalls) usos", tone: toolCalls >= 12 ? .caution : .calm),
+            .init(id: "handoff", title: "relevo", detail: peerState == .done && localWorking ? "codex terminó: revisa el resultado antes de continuar" : (peerWorking ? "codex sigue trabajando" : "sin relevo pendiente"), tone: peerState == .done && localWorking ? .active : .calm),
+            .init(id: "focus", title: "foco", detail: localWorking && peerWorking ? "los dos agentes están activos" : (localWorking ? "claude concentra la sesión" : (peerWorking ? "codex concentra la sesión" : "sin agentes activos")), tone: localWorking && peerWorking ? .active : .calm),
+            .init(id: "boundary", title: "límite de datos", detail: "los detalles y rutas siguen solo en esta mac", tone: .calm)
+        ]
+    }
+
+    func perform(_ action: MissionAction) {
+        switch action {
+        case .refreshGit: refreshGit()
+        case .openDiff: DiffOpener.open(workspace: recovery?.workspace ?? localWorkspace)
+        case .clearRecovery: clearRecovery()
+        }
+    }
+
     func recordLocal(state: PetState, project: String, workspace: String, tool: String = "", session: String = "") {
         let date = now()
         let stateChanged = state != localState
