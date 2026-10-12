@@ -34,6 +34,7 @@ struct MenuBarContent: View {
             }
             Toggle("aparición automática", systemImage: "figure.walk.arrival", isOn: $store.autoVisibility)
             Toggle("burbuja de actividad", systemImage: "text.bubble", isOn: $store.showBubble)
+            Button("abrir tablero operativo", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
             Menu("operaciones", systemImage: "scope") { MissionControlMenu(control: store.mission) }
             Menu("codex", systemImage: "cpu") { CodexControlMenu(store: store) }
         }

@@ -52,6 +52,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var panel: PetPanel!
     private var bubble: NSPanel!
     private var stage: NSPanel!
+    private var missionPanel: NSPanel!
     private var codexPanel: PetPanel!
     private var presence: AppPresence?
     private var cancellables = Set<AnyCancellable>()
@@ -93,6 +94,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         setUpBubble()
         setUpCodexWindow()
         setUpStage()
+        setUpMissionPanel()
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }.store(in: &cancellables)
         let watcher = AppPresence { claude, codex in PetStore.shared.setApps(claude: claude, codex: codex) }
         presence = watcher
@@ -220,6 +222,23 @@ final class AppController: NSObject, NSApplicationDelegate {
         st.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         stage = st
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.placeStage() } }.store(in: &cancellables)
+    }
+
+    private func setUpMissionPanel() {
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 590, height: 560),
+                            styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+        panel.title = "Claude Pet · Mission Control"
+        panel.isReleasedWhenClosed = false
+        panel.isMovableByWindowBackground = true
+        panel.hidesOnDeactivate = false
+        panel.contentView = NSHostingView(rootView: MissionDashboardView(store: PetStore.shared))
+        missionPanel = panel
+    }
+
+    func showMissionDashboard() {
+        missionPanel.center()
+        missionPanel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func placeStage() {
