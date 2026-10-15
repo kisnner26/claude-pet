@@ -7,7 +7,9 @@ final class PetStore: ObservableObject {
     static let shared = PetStore()
     let mission: MissionControl
     let handoff = HandoffController()
+    let relay = SessionRelayController()
     private var handoffObserver: AnyCancellable?
+    private var relayObserver: AnyCancellable?
 
     @Published private(set) var state: PetState = .idle
     @Published private(set) var tool: String = ""
@@ -159,6 +161,7 @@ final class PetStore: ObservableObject {
     init(mission: MissionControl? = nil) {
         self.mission = mission ?? MissionControl()
         handoffObserver = handoff.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        relayObserver = relay.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         Sprite.skin = skin
         WorkspaceSafety.setBlocking(blockOnChange)          // la bandera del hook refleja siempre la opcion guardada
         monitor.onChange = { [weak self] session in Task { @MainActor in self?.contextChanged(session) } }
@@ -553,6 +556,11 @@ final class PetStore: ObservableObject {
 
     func requestReview(by reviewer: Agent) {
         handoff.requestReview(reviewer: reviewer, workspace: mission.workspace, project: mission.project, task: currentTask)
+    }
+
+    func createRelay(from source: Agent) {
+        relay.create(source: source, workspace: mission.workspace, project: mission.project,
+                     task: currentTask, state: state, health: mission.git)
     }
 
     /// Ante una colision: la siguiente herramienta de cada sesion de Claude en ese proyecto se deniega

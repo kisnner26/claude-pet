@@ -46,6 +46,7 @@ la mascota junta a los dos agentes y te evita el copiar y pegar entre ellos. tod
 
 - **segunda opinion**: `pedir a codex que revise lo de claude` (y al reves). arma el diff sin commitear del proyecto, lista los archivos nuevos sin seguimiento y lo manda al otro agente en modo solo lectura: `codex exec --sandbox read-only` o `claude -p` con solo `Read`, `Grep` y `Glob`. el resultado queda en `~/.claude-pet/review/` (0600) y se abre solo. se puede cancelar y tiene tope de 10 minutos.
 - **confirmacion antes de enviar**: antes de lanzar, un dialogo te dice que proyecto, cuantos KB y a que proveedor se manda el diff. si cancelas, no sale nada. el diff viaja por stdin, nunca por argumentos.
+- **relevo de sesión**: crea una cápsula portable desde el menú con la tarea actual, carpeta, rama, commit, estado git y siguiente paso. se guarda en `~/.claude-pet/handoff/` (`0700`, archivos `0600`), vence a las 24 h y queda copiada al portapapeles. al elegir continuar en claude o codex, la app muestra una confirmación, vuelve a copiar el contexto y abre el destino para pegarlo. no intenta copiar los formatos internos de sesión: cada proveedor conserva sus propios ids e historial; la cápsula permite continuar la tarea en una sesión nueva sin reconstruir el contexto desde cero.
 - **colision resuelta**: cuando el radar marca que los dos trabajan en el mismo proyecto, el menu ofrece `pausar a claude hasta mi proximo mensaje` (el hook deniega su siguiente herramienta; tu siguiente mensaje lo levanta) y `worktree aislado` para claude o codex (una carpeta hermana `proyecto-pet-<agente>` en una rama nueva `pet/...`; no borra ni mueve nada y deja la ruta en el portapapeles).
 - las revisiones lanzadas por la mascota no cuentan como una sesion tuya: el hook las ignora (`CLAUDE_PET_REVIEW=1`).
 - necesita tener instalado el CLI del agente que revisa; el menu lo deshabilita si no lo encuentra.
@@ -78,6 +79,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
+- las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
 
 ## instalacion
 
@@ -101,6 +103,7 @@ tests/hook-guard.sh          # el hook no bloquea por defecto; bloqueo opt-in, c
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-safety   # huella, monitor, diff grande, parseo
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, timeline, presupuesto, recuperacion
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de solo lectura, prompt, revision con agentes simulados, worktree
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-relay    # cápsulas portables, prompt y permisos locales
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --trigger football   # greet | cheer | concern
