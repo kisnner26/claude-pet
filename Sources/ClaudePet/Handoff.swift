@@ -2,7 +2,7 @@ import Foundation
 
 /// Traspaso entre Claude y Codex: revision cruzada en solo lectura y salidas a una colision.
 /// Nada corre solo: el diff solo se envia al otro agente cuando el usuario lo pide desde el menu.
-enum Agent: String, CaseIterable {
+enum Agent: String, CaseIterable, Codable {
     case claude, codex
     var displayName: String { self == .claude ? "Claude" : "Codex" }
     var provider: String { self == .claude ? "Anthropic" : "OpenAI" }
