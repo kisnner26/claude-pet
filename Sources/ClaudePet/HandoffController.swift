@@ -106,9 +106,7 @@ struct HandoffMenu: View {
         Group {
             Menu("relevo de sesión", systemImage: "arrow.triangle.branch") {
                 Button("crear relevo desde claude") { store.createRelay(from: .claude) }
-                    .disabled(control.workspace.isEmpty)
                 Button("crear relevo desde codex") { store.createRelay(from: .codex) }
-                    .disabled(control.workspace.isEmpty)
                 Divider()
                 ForEach(Agent.allCases, id: \.self) { destination in
                     Button("continuar último relevo en \(destination.rawValue)") { store.relay.continueLatest(in: destination) }

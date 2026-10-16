@@ -9,7 +9,11 @@ final class SessionRelayController: ObservableObject {
 
     func create(source: Agent, workspace: String, project: String, task: String, state: PetState, health: GitHealth) {
         do {
-            let capsule = try SessionCapsuleFactory.make(source: source, workspace: workspace, project: project, task: task, state: state, health: health)
+            let selected = workspace.isEmpty ? chooseWorkspace() : workspace
+            guard let selected else { return }
+            let selectedProject = project.isEmpty ? URL(fileURLWithPath: selected).lastPathComponent : project
+            let selectedHealth = workspace.isEmpty ? GitPulse.scan(selected) : health
+            let capsule = try SessionCapsuleFactory.make(source: source, workspace: selected, project: selectedProject, task: task, state: state, health: selectedHealth)
             let url = try SessionCapsuleStore.save(capsule)
             latest = capsule; latestURL = url
             copy(SessionCapsulePrompt.build(capsule, destination: source.other))
@@ -45,6 +49,20 @@ final class SessionRelayController: ObservableObject {
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    /// Codex no expone una carpeta activa a la mascota. En ese caso el usuario la elige una vez,
+    /// sin leer sesiones privadas ni depender de que Claude esté abierto.
+    private func chooseWorkspace() -> String? {
+        let panel = NSOpenPanel()
+        panel.message = "elige la carpeta del proyecto para este relevo"
+        panel.prompt = "usar carpeta"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        NSApp.activate(ignoringOtherApps: true)
+        return panel.runModal() == .OK ? panel.url?.path : nil
     }
 
     private func open(_ agent: Agent) {
