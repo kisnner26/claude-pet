@@ -1,133 +1,193 @@
 import Foundation
 
-/// Una conversación local identificada por su carpeta real, no por una carpeta de exportación.
 struct LocalAgentSession: Identifiable, Equatable {
     let url: URL
     let agent: Agent
     let workspace: String
     let title: String
     let modifiedAt: Date
-
     var id: String { url.path }
     var project: String { URL(fileURLWithPath: workspace).lastPathComponent }
 }
 
 enum LocalAgentSessionError: LocalizedError {
-    case unreadable
-    case noMessages
-
+    case unreadable, noMessages, compressedUnavailable
     var errorDescription: String? {
         switch self {
-        case .unreadable: "no se pudo leer ese chat local"
-        case .noMessages: "ese chat no contiene mensajes de usuario y asistente para continuar"
+        case .unreadable: "no se pudo leer ese chat local; actualiza la lista o elige otro"
+        case .noMessages: "ese chat no contiene mensajes visibles para continuar"
+        case .compressedUnavailable: "este chat está comprimido y falta zstd para leerlo"
         }
     }
 }
 
-/// Lee únicamente mensajes visibles del usuario y del asistente. Omite herramientas, razonamiento y datos del sistema.
-enum LocalAgentSessionReader {
-    static var codexRoot = URL(fileURLWithPath: NSHomeDirectory() + "/.codex/sessions")
-    static var claudeRoot = URL(fileURLWithPath: NSHomeDirectory() + "/.claude/projects")
+struct SessionExcerpt {
+    let text: String
+    let included: Int
+    let total: Int
+    let clipped: Bool
+    let skipped: Int
+    var description: String {
+        "\(included) de \(total) mensajes" + (clipped ? " · extracto limitado por tamaño" : "")
+            + (skipped > 0 ? " · \(skipped) registros grandes omitidos" : "")
+    }
+}
 
-    static func recent(for agent: Agent, limit: Int = 20) -> [LocalAgentSession] {
+enum LocalAgentSessionReader {
+    static var codexRoot = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CODEX_HOME"] ?? NSHomeDirectory() + "/.codex").appendingPathComponent("sessions")
+    static var claudeRoot = URL(fileURLWithPath: ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] ?? NSHomeDirectory() + "/.claude").appendingPathComponent("projects")
+
+    static func recent(for agent: Agent, limit: Int = 100) -> [LocalAgentSession] {
         let root = agent == .codex ? codexRoot : claudeRoot
         guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey], options: [.skipsHiddenFiles]) else { return [] }
         var files: [(URL, Date)] = []
-        for case let url as URL in enumerator where url.pathExtension == "jsonl" {
-            guard !url.path.contains("/tool-results/"), !url.path.contains("/vercel-plugin/"),
-                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey]),
-                  values.isRegularFile == true else { continue }
+        for case let url as URL in enumerator where url.lastPathComponent.hasSuffix(".jsonl") || url.lastPathComponent.hasSuffix(".jsonl.zst") {
+            if Task.isCancelled { return [] }
+            guard !url.path.contains("/tool-results/"), !url.path.contains("/vercel-plugin/"), !url.path.contains("/subagents/"),
+                  let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey]), values.isRegularFile == true else { continue }
             files.append((url, values.contentModificationDate ?? .distantPast))
         }
-        return files.sorted { $0.1 > $1.1 }.prefix(200).compactMap { url, date in
-            metadata(url: url, agent: agent, date: date)
-        }.prefix(limit).map { $0 }
+        var names: [String: String] = [:]
+        if agent == .codex {
+            let index = root.deletingLastPathComponent().appendingPathComponent("session_index.jsonl")
+            _ = try? SessionJSONLines.read(index) { row in
+                if let id = row["id"] as? String, let name = row["thread_name"] as? String { names[id] = name }
+            }
+        }
+        var result: [LocalAgentSession] = []
+        for (url, date) in files.sorted(by: { $0.1 > $1.1 }) {
+            if Task.isCancelled { break }
+            if let session = metadata(url: url, agent: agent, date: date, names: names) { result.append(session) }
+            if result.count >= limit { break }
+        }
+        return result
     }
 
-    static func transcript(_ session: LocalAgentSession) throws -> String {
+    static func transcript(_ session: LocalAgentSession) throws -> String { try excerpt(session).text }
+
+    /// Diagnóstico local sin imprimir mensajes ni copiar datos al portapapeles.
+    static func diagnose() -> Bool {
+        var failures = 0
+        for agent in Agent.allCases {
+            let started = Date()
+            let sessions = recent(for: agent)
+            print("\(agent.rawValue): \(sessions.count) chats detectados en \(String(format: "%.2f", Date().timeIntervalSince(started))) s")
+            let samples = Array(sessions.prefix(5)) + Array(sessions.filter { $0.url.pathExtension == "zst" }.prefix(1))
+            for session in samples {
+                do {
+                    let excerpt = try excerpt(session)
+                    print("PASS \(agent.rawValue) \(session.url.lastPathComponent): \(excerpt.description)")
+                } catch LocalAgentSessionError.noMessages {
+                    print("INFO sesión sin diálogo visible")
+                } catch { failures += 1; print("FAIL \(error.localizedDescription)") }
+            }
+        }
+        return failures == 0
+    }
+
+    static func excerpt(_ session: LocalAgentSession) throws -> SessionExcerpt {
         var firstUser: String?
         var recent: [(String, String)] = []
-        try eachLine(at: session.url) { object in
-            guard let message = visibleMessage(object, agent: session.agent) else { return }
+        var total = 0
+        var previousID: String?
+        let report = try SessionJSONLines.read(session.url) { row in
+            guard let message = visibleMessage(row, agent: session.agent) else { return }
+            let id = row["uuid"] as? String
+            if let id, id == previousID { return }
+            previousID = id
+            if recent.last?.0 == message.0 && recent.last?.1 == message.1 { return }
+            total += 1
             if message.0 == "usuario" && firstUser == nil { firstUser = message.1 }
             recent.append(message)
-            if recent.count > 24 { recent.removeFirst() }
+            if recent.count > 60 { recent.removeFirst() }
         }
         guard !recent.isEmpty else { throw LocalAgentSessionError.noMessages }
-        var sections = ["extracto del chat local de \(session.agent.rawValue)"]
-        if let firstUser, !recent.contains(where: { $0.0 == "usuario" && $0.1 == firstUser }) {
-            sections.append("objetivo inicial del usuario:\n\(String(firstUser.prefix(2500)))")
+        var blocks: [String] = []
+        var count = 0
+        var clipped = total > recent.count
+        var budget = 48_000
+        for (role, text) in recent.reversed() {
+            let maximum = min(8000, budget - role.count - 40)
+            guard maximum > 200 else { clipped = true; break }
+            let cut = text.count > maximum
+            let block = "\(role):\n" + String(text.prefix(maximum)) + (cut ? "\n[mensaje recortado]" : "")
+            blocks.insert(block, at: 0)
+            budget -= block.count + 2
+            clipped = clipped || cut
+            count += 1
         }
-        sections.append("mensajes recientes (sin llamadas a herramientas):")
-        let dialogue = recent.map { role, text in "\(role):\n\(String(text.prefix(3000)))" }.joined(separator: "\n\n")
-        return sections.joined(separator: "\n\n") + "\n\n" + String(dialogue.suffix(30_000))
+        var header = "extracto del chat local de \(session.agent.rawValue)\n\(count) de \(total) mensajes visibles. herramientas e imágenes no incluidas."
+        if let firstUser, count < total { header += "\n\nsolicitud inicial:\n" + String(firstUser.prefix(3000)) }
+        return SessionExcerpt(text: header + "\n\n" + blocks.joined(separator: "\n\n"), included: count, total: total, clipped: clipped, skipped: report.skipped)
     }
 
-    private static func metadata(url: URL, agent: Agent, date: Date) -> LocalAgentSession? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: 262_144), !data.isEmpty else { return nil }
+    private static func metadata(url: URL, agent: Agent, date: Date, names: [String: String]) -> LocalAgentSession? {
         var workspace: String?
         var title: String?
-        for line in data.split(separator: 10).dropLast() {
-            guard let object = dictionary(Data(line)) else { continue }
-            if agent == .codex, object["type"] as? String == "session_meta",
-               let payload = object["payload"] as? [String: Any] { workspace = payload["cwd"] as? String }
-            if agent == .claude, workspace == nil { workspace = object["cwd"] as? String }
-            if title == nil, let message = visibleMessage(object, agent: agent), message.0 == "usuario" {
-                title = message.1.split(separator: "\n").first.map(String.init)
+        var sessionID: String?
+        do {
+            try SessionJSONLines.read(url, byteLimit: 1_048_576) { row in
+                if agent == .codex, row["type"] as? String == "session_meta", let payload = row["payload"] as? [String: Any] {
+                    workspace = payload["cwd"] as? String
+                    sessionID = payload["id"] as? String ?? payload["session_id"] as? String
+                }
+                if agent == .claude, workspace == nil { workspace = row["cwd"] as? String }
+                if title == nil, let message = visibleMessage(row, agent: agent), message.0 == "usuario" {
+                    title = message.1.split(separator: "\n").first.map(String.init)
+                }
             }
-            if workspace != nil && title != nil { break }
-        }
-        guard let workspace, (try? SessionCapsuleFactory.validateWorkspace(workspace)) != nil else { return nil }
-        let cleanTitle = (title ?? "chat sin título").trimmingCharacters(in: .whitespacesAndNewlines)
-        return LocalAgentSession(url: url, agent: agent, workspace: workspace,
-                                 title: String(cleanTitle.prefix(90)), modifiedAt: date)
-    }
-
-    private static func eachLine(at url: URL, _ visit: ([String: Any]) -> Void) throws {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        var pending = Data()
-        while let chunk = try handle.read(upToCount: 65_536), !chunk.isEmpty {
-            pending.append(chunk)
-            while let newline = pending.firstIndex(of: 10) {
-                let line = pending.prefix(upTo: newline)
-                if let object = dictionary(Data(line)) { visit(object) }
-                pending.removeSubrange(...newline)
+        } catch { return nil }
+        if agent == .claude, let handle = try? FileHandle(forReadingFrom: url) {
+            defer { try? handle.close() }
+            if let end = try? handle.seekToEnd() {
+                try? handle.seek(toOffset: end > 131_072 ? end - 131_072 : 0)
+                if let data = try? handle.readToEnd() {
+                    for line in data.split(separator: 10) {
+                        guard let row = SessionJSONLines.object(Data(line)) else { continue }
+                        if row["type"] as? String == "custom-title", let name = row["customTitle"] as? String { title = name }
+                        if workspace == nil { workspace = row["cwd"] as? String }
+                    }
+                }
             }
-            if pending.count > 4_000_000 { throw LocalAgentSessionError.unreadable }
         }
-        if let object = dictionary(pending) { visit(object) }
+        guard let workspace, workspace.hasPrefix("/") else { return nil }
+        let indexedName = sessionID.flatMap { names[$0] }.flatMap { usableTitle($0) }
+        guard let name = indexedName ?? title.flatMap(usableTitle) else { return nil }
+        return LocalAgentSession(url: url, agent: agent, workspace: workspace, title: String(name.prefix(160)), modifiedAt: date)
     }
 
-    private static func dictionary(_ data: Data) -> [String: Any]? {
-        (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-    }
-
-    private static func visibleMessage(_ object: [String: Any], agent: Agent) -> (String, String)? {
+    private static func visibleMessage(_ row: [String: Any], agent: Agent) -> (String, String)? {
         let payload: [String: Any]
         if agent == .codex {
-            guard object["type"] as? String == "response_item",
-                  let item = object["payload"] as? [String: Any], item["type"] as? String == "message" else { return nil }
+            guard row["type"] as? String == "response_item", let item = row["payload"] as? [String: Any], item["type"] as? String == "message" else { return nil }
             payload = item
         } else {
-            guard let type = object["type"] as? String, ["user", "assistant"].contains(type),
-                  let item = object["message"] as? [String: Any] else { return nil }
+            guard let type = row["type"] as? String, ["user", "assistant"].contains(type), row["isMeta"] as? Bool != true,
+                  let item = row["message"] as? [String: Any] else { return nil }
             payload = item
         }
         guard let role = payload["role"] as? String, role == "user" || role == "assistant" else { return nil }
-        let raw = payload["content"]
         let text: String
-        if let string = raw as? String { text = string }
-        else if let blocks = raw as? [[String: Any]] {
+        if let string = payload["content"] as? String { text = string }
+        else if let blocks = payload["content"] as? [[String: Any]] {
             text = blocks.compactMap { block in
                 guard ["text", "input_text", "output_text"].contains(block["type"] as? String ?? "") else { return nil }
                 return block["text"] as? String
             }.joined(separator: "\n")
         } else { return nil }
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if role == "user" {
+            if let range = clean.range(of: "## My request:\n") { clean = String(clean[range.upperBound...]) }
+            if ["# AGENTS.md instructions", "# Files mentioned by the user:", "<environment_context>", "<permissions instructions>", "<local-command-", "<command-name>", "<external_", "<codex_apps_", "<app-context>"].contains(where: { clean.hasPrefix($0) }) { return nil }
+        }
         guard !clean.isEmpty else { return nil }
         return (role == "user" ? "usuario" : "asistente", clean)
+    }
+
+    private static func usableTitle(_ value: String) -> String? {
+        let title = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty,
+              !["<external_", "<codex_apps_", "<environment_context>", "<permissions instructions>"].contains(where: { title.hasPrefix($0) }) else { return nil }
+        return title
     }
 }
