@@ -17,6 +17,10 @@ enum SessionCapsuleStore {
     }
 
     static func latest(now: Date = Date()) throws -> (capsule: SessionCapsule, url: URL) {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw SessionCapsuleError.missing
+        }
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])
             .filter { $0.pathExtension == "json" }
             .sorted { modificationDate($0) > modificationDate($1) }

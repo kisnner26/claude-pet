@@ -23,6 +23,14 @@ enum SessionRelaySelfTest {
         let prior = SessionCapsuleStore.directory
         SessionCapsuleStore.directory = URL(fileURLWithPath: root + "/handoff")
         defer { SessionCapsuleStore.directory = prior }
+        do {
+            _ = try SessionCapsuleStore.latest(now: Date())
+            check("carpeta de relevo ausente no filtra un error de archivos", false)
+        } catch SessionCapsuleError.missing {
+            check("carpeta de relevo ausente no filtra un error de archivos", true)
+        } catch {
+            check("carpeta de relevo ausente no filtra un error de archivos", false)
+        }
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let health = GitPulse.scan(root)
         guard let capsule = try? SessionCapsuleFactory.make(source: .claude, workspace: root, project: "demo", task: "terminar el relevo", state: .thinking, health: health, now: now) else {
