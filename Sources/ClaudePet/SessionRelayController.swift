@@ -10,6 +10,22 @@ final class SessionRelayController: ObservableObject {
 
     init(interaction: SessionRelayInteraction? = nil) { self.interaction = interaction ?? .live }
 
+    func saveAndCopy(_ capsule: SessionCapsule, prompt: String) throws -> URL {
+        guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw SessionCapsuleError.missingContext }
+        var prepared = capsule
+        prepared.preparedPrompt = prompt
+        let url = try SessionCapsuleStore.save(prepared)
+        latest = prepared
+        latestURL = url
+        interaction.copy(prompt)
+        return url
+    }
+
+    func launch(_ agent: Agent) async throws {
+        if let launch = interaction.launch { try await launch(agent) }
+        else { interaction.open(agent) }
+    }
+
     func prepare(source: Agent, workspace: String, context: String, state: PetState) throws -> (SessionCapsule, String) {
         let selected = try SessionCapsuleFactory.validateWorkspace(workspace)
         let capsule = try SessionCapsuleFactory.make(source: source, workspace: selected, project: "",

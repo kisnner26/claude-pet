@@ -11,6 +11,7 @@ struct SessionRelayInteraction {
     var reveal: (URL) -> Void
     var copy: (String) -> Void
     var open: (Agent) -> Void
+    var launch: ((Agent) async throws -> Void)? = nil
 
     static let live = SessionRelayInteraction(
         chooseWorkspace: { suggested in
@@ -86,6 +87,18 @@ struct SessionRelayInteraction {
             let bundle = agent == .claude ? AppPresence.claudeBundle : AppPresence.codexBundle
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
                 NSWorkspace.shared.openApplication(at: url, configuration: .init())
+            }
+        },
+        launch: { agent in
+            let bundle = agent == .claude ? AppPresence.claudeBundle : AppPresence.codexBundle
+            guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else {
+                throw NSError(domain: "SessionRelay", code: 1, userInfo: [NSLocalizedDescriptionKey: "no encontré la app de \(agent.rawValue). el contexto quedó copiado; abre tu agente y pégalo allí."])
+            }
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
+                    if let error { continuation.resume(throwing: error) }
+                    else { continuation.resume() }
+                }
             }
         }
     )

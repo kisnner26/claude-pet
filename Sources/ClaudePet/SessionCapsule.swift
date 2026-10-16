@@ -19,6 +19,7 @@ struct SessionCapsule: Codable, Identifiable, Equatable {
     let nextStep: String
     let changedFiles: [String]?
     let recentCommits: [String]?
+    var preparedPrompt: String? = nil
 
     var expired: Bool { expiresAt <= Date() }
 }
@@ -33,8 +34,8 @@ enum SessionCapsuleError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noWorkspace: "todavía no hay un proyecto activo para crear el relevo"
-        case .invalidWorkspace: "el proyecto activo ya no es accesible"
+        case .noWorkspace: "elige la carpeta del proyecto para preparar el relevo"
+        case .invalidWorkspace: "la carpeta de ese chat ya no está disponible; usa cambiar… para elegir la ubicación actual"
         case .emptyWorkspace: "esa carpeta está vacía; elige la carpeta del proyecto que quieres continuar"
         case .missingContext: "escribe o pega el contexto de la tarea antes de crear el relevo"
         case .missing: "no hay un relevo guardado"
@@ -84,6 +85,7 @@ enum SessionCapsuleFactory {
 
 enum SessionCapsulePrompt {
     static func build(_ capsule: SessionCapsule, destination: Agent) -> String {
+        if destination == capsule.source.other, let prepared = capsule.preparedPrompt { return prepared }
         let changedFiles = capsule.changedFiles.flatMap { $0.isEmpty ? nil : $0.joined(separator: "\n") } ?? "sin cambios detectados"
         let recentCommits = capsule.recentCommits.flatMap { $0.isEmpty ? nil : $0.joined(separator: "\n") } ?? "sin historial git disponible"
         return """
