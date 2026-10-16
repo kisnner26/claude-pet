@@ -3,7 +3,7 @@ import Foundation
 /// `ClaudePet --selftest-relay`: formato, contexto generado y permisos del almacén local.
 @MainActor
 enum SessionRelaySelfTest {
-    static func run() -> Bool {
+    static func run() async -> Bool {
         var failures = 0
         func check(_ name: String, _ value: @autoclosure () -> Bool) {
             let passed = value()
@@ -138,6 +138,8 @@ enum SessionRelaySelfTest {
         let encodedPath = (try? JSONSerialization.data(withJSONObject: root, options: .fragmentsAllowed)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
         let codexLines = [
             "{\"type\":\"session_meta\",\"payload\":{\"cwd\":\(encodedPath)}}",
+            "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"<external_codex_apps_open_page>{}\"}]}}",
+            "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"# Files mentioned by the user:\\n\"}]}}",
             "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"arreglar la interfaz\"}]}}",
             "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"output\":\"secreto de herramienta\"}}",
             "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"interfaz terminada\"}]}}"
@@ -154,9 +156,47 @@ enum SessionRelaySelfTest {
         if let codexLocal = codexLocal.first, let claudeLocal = claudeLocal.first {
             let codexText = try? LocalAgentSessionReader.transcript(codexLocal)
             let claudeText = try? LocalAgentSessionReader.transcript(claudeLocal)
-            check("codex extrae solo el diálogo visible", codexText?.contains("arreglar la interfaz") == true && codexText?.contains("interfaz terminada") == true && codexText?.contains("secreto de herramienta") == false)
+            check("codex extrae solo el diálogo visible", codexText?.contains("arreglar la interfaz") == true && codexText?.contains("interfaz terminada") == true && codexText?.contains("secreto de herramienta") == false && codexText?.contains("external_codex") == false && codexText?.contains("Files mentioned") == false)
             check("claude excluye pensamiento y herramientas", claudeText?.contains("continuar proyecto") == true && claudeText?.contains("trabajo listo") == true && claudeText?.contains("pensamiento privado") == false)
         }
+        // Una línea enorme y la última línea sin salto no deben perder los mensajes posteriores.
+        let largeURL = codexSessions.appendingPathComponent("large.jsonl")
+        let largeData = Data((codexLines + String(repeating: "x", count: 17 * 1024 * 1024) + "\n" + codexLines.trimmingCharacters(in: .newlines)).utf8)
+        try? largeData.write(to: largeURL)
+        let large = LocalAgentSession(url: largeURL, agent: .codex, workspace: root, title: "grande", modifiedAt: Date())
+        let largeExcerpt = try? LocalAgentSessionReader.excerpt(large)
+        check("una línea enorme no aborta el chat y conserva el final", largeExcerpt?.skipped == 1 && largeExcerpt?.text.hasSuffix("interfaz terminada") == true)
+        let single = claudeSessions.appendingPathComponent("single.jsonl")
+        try? Data((claudeLines.split(separator: "\n").first.map(String.init) ?? "").utf8).write(to: single)
+        check("indexa una sesión sin salto de línea final", LocalAgentSessionReader.recent(for: .claude).contains { $0.url.resolvingSymlinksInPath().path == single.resolvingSymlinksInPath().path })
+        if let zstd = AgentLocator.find("zstd") {
+            let archive = codexSessions.appendingPathComponent("compressed.jsonl.zst")
+            let compressor = Process()
+            compressor.executableURL = URL(fileURLWithPath: zstd)
+            compressor.arguments = ["-q", "-f", codexSessions.appendingPathComponent("chat.jsonl").path, "-o", archive.path]
+            try? compressor.run(); compressor.waitUntilExit()
+            let compressed = LocalAgentSessionReader.recent(for: .codex).first { $0.url.resolvingSymlinksInPath().path == archive.resolvingSymlinksInPath().path }
+            check("detecta y lee sesiones comprimidas", compressed.flatMap { try? LocalAgentSessionReader.transcript($0) }?.contains("interfaz terminada") == true)
+        }
+        let flow = SessionRelayModel(relay: controller)
+        flow.source = .claude
+        flow.manual = true
+        flow.workspace = root
+        flow.context = "continuar la tarea de prueba"
+        await flow.prepare()
+        flow.prompt = "contexto revisado por el usuario"
+        await flow.complete(open: false)
+        check("guarda y copia exactamente la vista previa editada", copied.last == flow.prompt && (try? SessionCapsuleStore.latest().capsule.preparedPrompt) == flow.prompt)
+        flow.back()
+        flow.source = .codex
+        flow.useLatest()
+        check("reabrir el último relevo conserva carpeta al cambiar origen", flow.workspace == root && flow.source == .claude && flow.prompt == "contexto revisado por el usuario")
+        var failedLaunch = interaction
+        failedLaunch.launch = { _ in throw LocalAgentSessionError.unreadable }
+        let failedFlow = SessionRelayModel(relay: SessionRelayController(interaction: failedLaunch))
+        failedFlow.useLatest()
+        await failedFlow.complete(open: true)
+        check("un fallo al abrir mantiene el archivo y comunica el error", failedFlow.savedURL != nil && failedFlow.status != nil && failedFlow.error != nil)
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
     }
