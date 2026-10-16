@@ -123,6 +123,40 @@ enum SessionRelaySelfTest {
         } catch {
             check("el panel rechaza carpetas vacías", false)
         }
+        let priorCodexRoot = LocalAgentSessionReader.codexRoot
+        let priorClaudeRoot = LocalAgentSessionReader.claudeRoot
+        defer {
+            LocalAgentSessionReader.codexRoot = priorCodexRoot
+            LocalAgentSessionReader.claudeRoot = priorClaudeRoot
+        }
+        let codexSessions = URL(fileURLWithPath: root + "/codex-sessions")
+        let claudeSessions = URL(fileURLWithPath: root + "/claude-sessions")
+        try? FileManager.default.createDirectory(at: codexSessions, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: claudeSessions, withIntermediateDirectories: true)
+        LocalAgentSessionReader.codexRoot = codexSessions
+        LocalAgentSessionReader.claudeRoot = claudeSessions
+        let encodedPath = (try? JSONSerialization.data(withJSONObject: root, options: .fragmentsAllowed)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+        let codexLines = [
+            "{\"type\":\"session_meta\",\"payload\":{\"cwd\":\(encodedPath)}}",
+            "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"arreglar la interfaz\"}]}}",
+            "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"output\":\"secreto de herramienta\"}}",
+            "{\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"interfaz terminada\"}]}}"
+        ].joined(separator: "\n") + "\n"
+        try? Data(codexLines.utf8).write(to: codexSessions.appendingPathComponent("chat.jsonl"))
+        let claudeLines = [
+            "{\"type\":\"user\",\"cwd\":\(encodedPath),\"message\":{\"role\":\"user\",\"content\":\"continuar proyecto\"}}",
+            "{\"type\":\"assistant\",\"cwd\":\(encodedPath),\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"pensamiento privado\"},{\"type\":\"text\",\"text\":\"trabajo listo\"},{\"type\":\"tool_use\",\"name\":\"Bash\"}]}}"
+        ].joined(separator: "\n") + "\n"
+        try? Data(claudeLines.utf8).write(to: claudeSessions.appendingPathComponent("chat.jsonl"))
+        let codexLocal = LocalAgentSessionReader.recent(for: .codex)
+        let claudeLocal = LocalAgentSessionReader.recent(for: .claude)
+        check("detecta chats de ambos agentes y su proyecto real", codexLocal.count == 1 && claudeLocal.count == 1 && codexLocal.first?.workspace == root && claudeLocal.first?.workspace == root)
+        if let codexLocal = codexLocal.first, let claudeLocal = claudeLocal.first {
+            let codexText = try? LocalAgentSessionReader.transcript(codexLocal)
+            let claudeText = try? LocalAgentSessionReader.transcript(claudeLocal)
+            check("codex extrae solo el diálogo visible", codexText?.contains("arreglar la interfaz") == true && codexText?.contains("interfaz terminada") == true && codexText?.contains("secreto de herramienta") == false)
+            check("claude excluye pensamiento y herramientas", claudeText?.contains("continuar proyecto") == true && claudeText?.contains("trabajo listo") == true && claudeText?.contains("pensamiento privado") == false)
+        }
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
     }
