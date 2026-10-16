@@ -1,11 +1,15 @@
 import SwiftUI
 
-/// Un relevo es un contexto portable, no una importación del historial nativo.
+/// Selección explícita de un chat local para crear un contexto portable.
 struct SessionRelayView: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var relay: SessionRelayController
 
     @State private var source: Agent = .claude
+    @State private var sessions: [LocalAgentSession] = []
+    @State private var selectedSessionID = ""
+    @State private var loading = true
+    @State private var manual = false
     @State private var workspace = ""
     @State private var context = ""
     @State private var preview: SessionCapsule?
@@ -44,13 +48,18 @@ struct SessionRelayView: View {
         .frame(width: 560, height: 590)
         .environment(\.colorScheme, .dark)
         .onAppear(perform: refresh)
+        .onChange(of: source) { _ in
+            selectedSessionID = sessions.first(where: { $0.agent == source })?.id ?? ""
+            error = nil
+        }
+        .onChange(of: selectedSessionID) { _ in workspace = "" }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("continuar en otro agente")
                 .font(.title2.weight(.semibold))
-            Text("guarda el contexto de tu tarea y pásalo al otro agente en tres pasos.")
+            Text("elige un chat local. la app detectará su proyecto y preparará el contexto.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -68,52 +77,85 @@ struct SessionRelayView: View {
                 .labelsHidden()
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                caption("2 · proyecto")
-                HStack(spacing: 10) {
-                    Text(workspace.isEmpty ? "ninguna carpeta elegida" : workspace)
-                        .font(.callout.monospaced())
-                        .foregroundStyle(workspace.isEmpty ? .secondary : .primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button("elegir carpeta…") {
-                        if let path = relay.chooseProject(suggested: workspace) {
-                            workspace = path
-                            error = nil
-                        }
-                    }
-                }
-                Text("elige donde está el código; el relevo se guarda aparte, no en esta carpeta.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                caption("3 · contexto del chat")
-                ZStack(alignment: .topLeading) {
-                    RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.06))
-                    if context.isEmpty {
-                        Text("objetivo, decisiones, trabajo hecho y siguiente paso…")
-                            .font(.callout)
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 10)
-                            .padding(.top, 10)
-                            .allowsHitTesting(false)
-                    }
-                    TextEditor(text: $context)
-                        .font(.callout)
-                        .scrollContentBackground(.hidden)
-                        .padding(4)
-                }
-                .frame(height: 132)
-                Text("pega un resumen: la app no puede leer el historial de chats desde la carpeta.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            if manual { manualEditor } else { sessionPicker }
             Spacer(minLength: 0)
         }
     }
+
+    private var sessionPicker: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            caption("2 · conversación")
+            if loading {
+                ProgressView("buscando chats locales…")
+            } else if sourceSessions.isEmpty {
+                Text("no encontré chats locales de \(source.rawValue). puedes usar el modo manual.")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
+                Picker("chat de \(source.rawValue)", selection: $selectedSessionID) {
+                    ForEach(sourceSessions) { session in
+                        Text("\(session.project) · \(session.title)").tag(session.id)
+                    }
+                }
+                .labelsHidden()
+                if let selected = sourceSessions.first(where: { $0.id == selectedSessionID }) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(selected.project).font(.headline)
+                        Text(workspace.isEmpty ? selected.workspace : workspace)
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text("última actividad: \(selected.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("cambiar carpeta del proyecto…") {
+                            if let path = relay.chooseProject(suggested: workspace.isEmpty ? selected.workspace : workspace) {
+                                workspace = path
+                                error = nil
+                            }
+                        }
+                        .font(.callout)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            Text("leeré los mensajes visibles de ese chat; no necesitas elegir carpeta ni escribir un resumen.")
+                .font(.callout).foregroundStyle(.secondary)
+            Button("no encuentro mi chat · usar contexto manual") {
+                manual = true
+                error = nil
+            }
+            .font(.callout)
+        }
+    }
+
+    private var manualEditor: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Button("volver a chats locales") { manual = false; error = nil }
+                .font(.callout)
+            caption("2 · carpeta del proyecto")
+            HStack(spacing: 10) {
+                Text(workspace.isEmpty ? "ninguna carpeta elegida" : workspace)
+                    .font(.callout.monospaced())
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("elegir carpeta…") {
+                    if let path = relay.chooseProject(suggested: workspace) { workspace = path; error = nil }
+                }
+            }
+            Text("elige la carpeta con código, no una carpeta vacía para guardar relevos.")
+                .font(.caption).foregroundStyle(.secondary)
+            caption("3 · resumen del chat")
+            TextField("objetivo, decisiones, trabajo hecho y siguiente paso…", text: $context, axis: .vertical)
+                .lineLimit(5...8)
+                .textFieldStyle(.roundedBorder)
+            Text("solo si no aparece el chat local que quieres continuar.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var sourceSessions: [LocalAgentSession] { sessions.filter { $0.agent == source } }
 
     private func previewContent(_ capsule: SessionCapsule) -> some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -168,6 +210,7 @@ struct SessionRelayView: View {
                         source = item.capsule.source
                         workspace = item.capsule.workspace
                         context = item.capsule.task
+                        manual = true
                         preview = item.capsule
                         prompt = SessionCapsulePrompt.build(item.capsule, destination: item.capsule.source.other)
                         savedURL = item.url
@@ -189,9 +232,10 @@ struct SessionRelayView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(Color(red: 0.35, green: 0.58, blue: 0.96))
             } else {
-                Button("revisar relevo", systemImage: "arrow.right") { prepare() }
+                Button(manual ? "revisar relevo" : "ver contexto detectado", systemImage: "arrow.right") { prepare() }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.35, green: 0.58, blue: 0.96))
+                    .disabled(loading || (!manual && selectedSessionID.isEmpty))
             }
         }
         .controlSize(.large)
@@ -203,7 +247,15 @@ struct SessionRelayView: View {
 
     private func prepare() {
         do {
-            let result = try relay.prepare(source: source, workspace: workspace, context: context,
+            let selected = sessions.first { $0.id == selectedSessionID && $0.agent == source }
+            let path = manual ? workspace : (workspace.isEmpty ? selected?.workspace ?? "" : workspace)
+            let text: String
+            if manual { text = context }
+            else {
+                guard let selected else { throw LocalAgentSessionError.noMessages }
+                text = try LocalAgentSessionReader.transcript(selected)
+            }
+            let result = try relay.prepare(source: source, workspace: path, context: text,
                                            state: source == .claude ? store.state : store.codexState)
             preview = result.0
             prompt = result.1
@@ -213,7 +265,14 @@ struct SessionRelayView: View {
     }
 
     private func refresh() {
-        if workspace.isEmpty { workspace = store.mission.workspace }
         last = try? SessionCapsuleStore.latest().capsule
+        Task.detached {
+            let found = LocalAgentSessionReader.recent(for: .claude) + LocalAgentSessionReader.recent(for: .codex)
+            await MainActor.run {
+                sessions = found
+                selectedSessionID = found.first(where: { $0.agent == source })?.id ?? ""
+                loading = false
+            }
+        }
     }
 }
