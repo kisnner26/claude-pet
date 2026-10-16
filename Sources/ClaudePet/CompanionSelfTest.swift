@@ -138,7 +138,9 @@ enum CompanionSelfTest {
         // 5d. los controles generales tambien pueden probar y mostrar actividad de Codex.
         store.preview(.idle)
         store.previewCodex(.thinking)
-        check("probar estado de Codex cambia solo a Codex", store.codexState == .thinking && store.bubbleFollowsCodex && store.bubbleState == .thinking)
+        check("probar estado de Codex cambia solo a Codex", store.codexState == .thinking && store.bubbleFollowsCodex && store.codexBubbleState == .thinking)
+        store.preview(.tool)
+        check("los dos agentes conservan su burbuja simultánea", store.claudeBubbleActivity != nil && store.codexBubbleActivity != nil)
 
         // 5d2. abrazo: solo con ambas mascotas tranquilas, para no esconder un estado que pide atencion.
         let hugGeo = GameLayout.make(claude: claudeF, codex: CGRect(x: 650, y: 400, width: 128, height: 152))

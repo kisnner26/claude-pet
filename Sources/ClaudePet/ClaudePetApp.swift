@@ -50,7 +50,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     nonisolated(unsafe) static var shared: AppController!
     override init() { super.init(); AppController.shared = self }
     private var panel: PetPanel!
-    private var bubble: NSPanel!
+    private var claudeBubble: NSPanel!
+    private var codexBubble: NSPanel!
     private var stage: NSPanel!
     private var missionPanel: NSPanel!
     private var codexPanel: PetPanel!
@@ -94,8 +95,8 @@ final class AppController: NSObject, NSApplicationDelegate {
             p.setFrameTopLeftPoint(NSPoint(x: s.visibleFrame.maxX - 180, y: s.visibleFrame.maxY - 24))
         }
         panel = p                      // se muestra segun la presencia (applyVisibility)
-        setUpBubble()
         setUpCodexWindow()
+        setUpBubbles()
         setUpStage()
         setUpMissionPanel()
         if CommandLine.arguments.contains("--open-mission") { DispatchQueue.main.async { [weak self] in self?.showMissionDashboard() } }
@@ -150,22 +151,29 @@ final class AppController: NSObject, NSApplicationDelegate {
            let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
     }
 
-    /// Burbuja de actividad: ventana aparte que no captura el raton y sigue a la mascota.
-    private func setUpBubble() {
+    /// Cada mascota tiene su propia burbuja. Separarlas impide que el estado de una esconda al de la otra.
+    private func setUpBubbles() {
+        claudeBubble = makeBubble(for: .claude)
+        codexBubble = makeBubble(for: .codex)
+        let refresh: () -> Void = { [weak self] in self?.placeBubbles() }
+        for window in [panel as NSWindow, codexPanel as NSWindow] {
+            NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: window, queue: .main) { _ in refresh() }
+        }
+        PetStore.shared.objectWillChange.sink { DispatchQueue.main.async { refresh() } }.store(in: &cancellables)
+        placeBubbles()
+    }
+
+    private func makeBubble(for owner: BubbleOwner) -> NSPanel {
         let b = PetPanel(contentRect: NSRect(x: 0, y: 0, width: 360, height: 76),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        b.contentView = NSHostingView(rootView: BubbleView(store: PetStore.shared))
+        b.contentView = NSHostingView(rootView: BubbleView(store: PetStore.shared, owner: owner))
         b.isOpaque = false
         b.backgroundColor = .clear
         b.hasShadow = false
         b.ignoresMouseEvents = true
         b.level = .statusBar
         b.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        bubble = b
-        let refresh: () -> Void = { [weak self] in self?.placeBubble() }
-        NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: panel, queue: .main) { _ in refresh() }
-        PetStore.shared.objectWillChange.sink { DispatchQueue.main.async { refresh() } }.store(in: &cancellables)
-        placeBubble()
+        return b
     }
 
     /// Ventana de Codex: una entidad independiente de la de Claude (su propia posicion, su propio arrastre, su propio clic).
@@ -206,7 +214,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func windowsMoved() { updatePair(); placeStage(); placeBubble() }
+    private func windowsMoved() { updatePair(); placeStage(); placeBubbles() }
 
     /// Recalcula si las dos mascotas se ven y estan lo bastante cerca para jugar, y de que lado esta cada una.
     private func updatePair() {
@@ -282,21 +290,44 @@ final class AppController: NSObject, NSApplicationDelegate {
         if !stage.isVisible { stage.orderFrontRegardless() }
     }
 
-    private func placeBubble() {
+    private func placeBubbles() {
         let store = PetStore.shared
-        let anchor = store.bubbleFollowsCodex ? codexPanel : panel
-        guard store.showBubble, store.bubbleActivity != nil, anchor?.isVisible == true, let anchor else { bubble.orderOut(nil); return }
-        let pf = anchor.frame
-        let vis = (anchor.screen ?? NSScreen.main)?.visibleFrame ?? pf
-        var x = pf.midX - 180
-        x = min(max(x, vis.minX + 4), vis.maxX - 364)
-        // encima de la mascota; si no cabe, debajo
-        var y = pf.maxY - 8
-        if y + 76 > vis.maxY { y = pf.minY - 68 }
-        bubble.setFrameOrigin(NSPoint(x: x, y: y))
+        let claude = bubbleRect(for: panel, above: true)
+        var codex = bubbleRect(for: codexPanel, above: true)
+        // Si ambas mascotas están cerca, la segunda burbuja prueba abajo para que las dos sigan legibles.
+        if let claude, let candidate = codex, claude.intersects(candidate) {
+            codex = bubbleRect(for: codexPanel, above: false)
+            if let placedCodex = codex, claude.intersects(placedCodex) { codex = offsetBubble(placedCodex, awayFrom: claude, screen: codexPanel.screen) }
+        }
+        placeBubble(claudeBubble, rect: claude, visible: store.showBubble && store.claudeBubbleActivity != nil, owner: .claude)
+        placeBubble(codexBubble, rect: codex, visible: store.showBubble && store.codexBubbleActivity != nil, owner: .codex)
+    }
+
+    private func bubbleRect(for anchor: NSWindow?, above: Bool) -> NSRect? {
+        guard let anchor else { return nil }
+        let frame = anchor.frame
+        let visible = (anchor.screen ?? NSScreen.main)?.visibleFrame ?? frame
+        let width: CGFloat = 360, height: CGFloat = 76
+        let x = min(max(frame.midX - width / 2, visible.minX + 4), visible.maxX - width - 4)
+        var y = above ? frame.maxY - 8 : frame.minY - height + 8
+        if y + height > visible.maxY { y = frame.minY - height + 8 }
+        if y < visible.minY { y = frame.maxY - 8 }
+        return NSRect(x: x, y: y, width: width, height: height)
+    }
+
+    private func offsetBubble(_ rect: NSRect, awayFrom other: NSRect, screen: NSScreen?) -> NSRect {
+        let visible = screen?.visibleFrame ?? rect
+        let direction: CGFloat = rect.midX <= other.midX ? -1 : 1
+        let x = min(max(rect.origin.x + direction * (rect.width + 10), visible.minX + 4), visible.maxX - rect.width - 4)
+        return NSRect(x: x, y: rect.origin.y, width: rect.width, height: rect.height)
+    }
+
+    private func placeBubble(_ bubble: NSPanel?, rect: NSRect?, visible: Bool, owner: BubbleOwner) {
+        guard let bubble, let rect, visible else { bubble?.orderOut(nil); return }
+        if bubble.frame != rect { bubble.setFrame(rect, display: false) }
         if !bubble.isVisible {
             bubble.orderFrontRegardless()
-            NotificationCenter.default.post(name: .bubbleRevealed, object: nil)
+            NotificationCenter.default.post(name: .bubbleRevealed(owner), object: nil)
         }
     }
 
@@ -315,7 +346,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if v.claudeWindow != panel.isVisible { v.claudeWindow ? panel.orderFrontRegardless() : panel.orderOut(nil) }
         if v.codexWindow != codexPanel.isVisible { v.codexWindow ? codexPanel.orderFrontRegardless() : codexPanel.orderOut(nil) }
         updatePair()
-        placeBubble()
+        placeBubbles()
         placeStage()
     }
 }

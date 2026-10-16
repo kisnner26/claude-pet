@@ -97,20 +97,25 @@ final class PetStore: ObservableObject {
     var collaborationStartedAt: Date? { collaborationSince }
     /// Estado que se muestra para Codex: la prueba local tiene prioridad, luego el bus.
     var codexState: PetState { codexManual?.0 ?? peer?.state ?? .idle }
-    /// La burbuja puede pertenecer a cualquiera de las dos mascotas. El bus nunca aporta detalle privado de Codex.
-    var bubbleActivity: Activity? {
+    /// Actividad que pertenece a Claude. Los avisos locales no desplazan la actividad de Codex.
+    var claudeBubbleActivity: Activity? {
         if let safetyAlert { return safetyAlert }
         if let notice = handoff.notice { return notice }
-        if let activity { return activity }
+        return activity
+    }
+    var claudeBubbleState: PetState {
+        if safetyAlert != nil { return .error }
+        if handoff.notice != nil { return handoff.noticeState }
+        return state
+    }
+    /// El bus solo aporta el estado de Codex; nunca texto de su sesión o de sus herramientas.
+    var codexBubbleActivity: Activity? {
         guard codexState != .idle else { return nil }
         return Activity(title: "Codex: \(codexState.label.capitalized)", subtitle: "", origin: "")
     }
-    var bubbleState: PetState {
-        if safetyAlert != nil { return .error }
-        if handoff.notice != nil { return handoff.noticeState }
-        return activity != nil ? state : codexState
-    }
-    var bubbleFollowsCodex: Bool { activity == nil && safetyAlert == nil && handoff.notice == nil && codexState != .idle }
+    var codexBubbleState: PetState { codexState }
+    /// Compatibilidad para las pruebas de presencia existentes.
+    var bubbleFollowsCodex: Bool { claudeBubbleActivity == nil && codexBubbleActivity != nil }
     /// Codex mira hacia Claude: +1 derecha, -1 izquierda.
     var codexFacing: Int { codexSide < 0 ? 1 : -1 }
 

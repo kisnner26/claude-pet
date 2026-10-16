@@ -1,9 +1,11 @@
 import SwiftUI
 
 extension Notification.Name {
-    static let bubbleRevealed = Notification.Name("claudepet.bubble.revealed")
+    static func bubbleRevealed(_ owner: BubbleOwner) -> Notification.Name { Notification.Name("claudepet.bubble.revealed.\(owner.rawValue)") }
     static let dashboardRevealed = Notification.Name("claudepet.dashboard.revealed")
 }
+
+enum BubbleOwner: String { case claude, codex }
 
 /// Aparición con materia: la burbuja se condensa desde la mascota (desenfoque, escala y opacidad).
 /// Con reducir movimiento solo hay un fundido.
@@ -22,14 +24,15 @@ struct Condense: ViewModifier {
 
 struct BubbleView: View {
     @ObservedObject var store: PetStore
+    let owner: BubbleOwner
     @State private var dissolved = 0.0
 
     var body: some View {
-        if let a = store.bubbleActivity, store.showBubble {
-            BubbleCard(activity: a, state: store.bubbleState, flat: false)
+        if let a = activity, store.showBubble {
+            BubbleCard(activity: a, state: state, flat: false)
                 .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion))
                 .frame(width: 360, height: 76)
-                .onReceive(NotificationCenter.default.publisher(for: .bubbleRevealed)) { _ in
+                .onReceive(NotificationCenter.default.publisher(for: .bubbleRevealed(owner))) { _ in
                     var instant = Transaction(); instant.disablesAnimations = true
                     withTransaction(instant) { dissolved = 1 }
                     withAnimation(store.reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.42, dampingFraction: 0.78)) { dissolved = 0 }
@@ -38,6 +41,9 @@ struct BubbleView: View {
             Color.clear.frame(width: 360, height: 76)
         }
     }
+
+    private var activity: Activity? { owner == .claude ? store.claudeBubbleActivity : store.codexBubbleActivity }
+    private var state: PetState { owner == .claude ? store.claudeBubbleState : store.codexBubbleState }
 }
 
 /// La tarjeta de la burbuja. `flat` sustituye el cristal por carbon solido (para renders sin ventana).
