@@ -104,18 +104,7 @@ struct HandoffMenu: View {
 
     var body: some View {
         Group {
-            Menu("relevo de sesión", systemImage: "arrow.triangle.branch") {
-                Button("crear relevo desde claude") { store.createRelay(from: .claude) }
-                Button("crear relevo desde codex") { store.createRelay(from: .codex) }
-                Divider()
-                ForEach(Agent.allCases, id: \.self) { destination in
-                    Button("continuar último relevo en \(destination.rawValue)") { store.relay.continueLatest(in: destination) }
-                }
-                Button("mostrar último archivo de relevo") { store.relay.revealLatest() }
-                if let capsule = store.relay.latest {
-                    Text("último: \(capsule.project) · vence en 24 h")
-                }
-            }
+            Button("continuar en otro agente…", systemImage: "arrow.triangle.branch") { AppController.shared.showRelay() }
             if handoff.running, let job = handoff.job {
                 Text("\(job.reviewer.displayName) está revisando…")
                 Button("cancelar revisión") { handoff.cancel() }

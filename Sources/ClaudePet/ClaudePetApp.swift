@@ -54,6 +54,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var codexBubble: NSPanel!
     private var stage: NSPanel!
     private var missionPanel: NSPanel!
+    private var relayPanel: NSPanel!
     private var codexPanel: PetPanel!
     private var presence: AppPresence?
     private var foreground: ForegroundAppMonitor?
@@ -99,7 +100,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         setUpBubbles()
         setUpStage()
         setUpMissionPanel()
+        setUpRelayPanel()
         if CommandLine.arguments.contains("--open-mission") { DispatchQueue.main.async { [weak self] in self?.showMissionDashboard() } }
+        if CommandLine.arguments.contains("--open-relay") { DispatchQueue.main.async { [weak self] in self?.showRelay() } }
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }.store(in: &cancellables)
         let watcher = AppPresence { claude, codex in PetStore.shared.setApps(claude: claude, codex: codex) }
         presence = watcher
@@ -251,6 +254,25 @@ final class AppController: NSObject, NSApplicationDelegate {
         panel.hidesOnDeactivate = false
         panel.contentView = NSHostingView(rootView: MissionDashboardView(store: PetStore.shared))
         missionPanel = panel
+    }
+
+    private func setUpRelayPanel() {
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 590),
+                            styleMask: [.titled, .closable, .utilityWindow, .fullSizeContentView], backing: .buffered, defer: false)
+        panel.title = "relevo de sesión"
+        panel.titlebarAppearsTransparent = true
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.isReleasedWhenClosed = false
+        panel.isMovableByWindowBackground = true
+        panel.hidesOnDeactivate = false
+        panel.contentView = NSHostingView(rootView: SessionRelayView(store: PetStore.shared))
+        relayPanel = panel
+    }
+
+    func showRelay() {
+        if !relayPanel.isVisible { relayPanel.center() }
+        relayPanel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func showMissionDashboard() {
