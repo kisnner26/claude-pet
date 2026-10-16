@@ -7,6 +7,7 @@ enum SessionCapsuleStore {
     static func save(_ capsule: SessionCapsule) throws -> URL {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         let url = directory.appendingPathComponent("relay-\(capsule.id.uuidString.lowercased()).json")
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -27,6 +28,8 @@ enum SessionCapsuleStore {
         for url in files {
             guard let data = try? Data(contentsOf: url), let capsule = decode(data) else { continue }
             guard capsule.version == SessionCapsule.version else { continue }
+            guard !capsule.task.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  (try? SessionCapsuleFactory.validateWorkspace(capsule.workspace)) != nil else { continue }
             if capsule.expiresAt > now { return (capsule, url) }
         }
         throw SessionCapsuleError.missing

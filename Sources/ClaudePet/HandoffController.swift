@@ -111,6 +111,7 @@ struct HandoffMenu: View {
                 ForEach(Agent.allCases, id: \.self) { destination in
                     Button("continuar último relevo en \(destination.rawValue)") { store.relay.continueLatest(in: destination) }
                 }
+                Button("mostrar último archivo de relevo") { store.relay.revealLatest() }
                 if let capsule = store.relay.latest {
                     Text("último: \(capsule.project) · vence en 24 h")
                 }

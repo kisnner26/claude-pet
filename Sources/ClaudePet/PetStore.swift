@@ -564,8 +564,8 @@ final class PetStore: ObservableObject {
     }
 
     func createRelay(from source: Agent) {
-        relay.create(source: source, workspace: mission.workspace, project: mission.project,
-                     task: currentTask, state: state, health: mission.git)
+        relay.create(source: source, workspace: source == .claude ? mission.workspace : "",
+                     task: source == .claude ? currentTask : "", state: source == .claude ? state : codexState)
     }
 
     /// Ante una colision: la siguiente herramienta de cada sesion de Claude en ese proyecto se deniega
