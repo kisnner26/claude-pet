@@ -104,6 +104,25 @@ enum SessionRelaySelfTest {
         check("continuar reabre la cápsula y abre el agente destino", previews.count == 2 && copied.count == 2 && opened == [.claude])
         controller.revealLatest()
         check("mostrar archivo apunta al json guardado", revealed.map { $0.resolvingSymlinksInPath().path } == saved.map { $0.resolvingSymlinksInPath().path })
+        do {
+            let draft = try controller.prepare(source: .claude, workspace: root, context: "continuar desde el panel", state: .thinking)
+            check("el panel prepara la dirección correcta", draft.0.source == .claude && draft.1.contains("continúa en Codex"))
+            let before = copied.count
+            let savedFromPanel = try controller.saveAndContinue(draft.0, prompt: draft.1)
+            check("el panel guarda, copia y abre en una acción", savedFromPanel == controller.latestURL && copied.count == before + 1 && opened.last == .codex)
+            controller.copyAndContinue(draft.0)
+            check("reusar el relevo no crea otro archivo", controller.latestURL == savedFromPanel && opened.last == .codex && copied.count == before + 2)
+        } catch {
+            check("el panel crea un relevo válido", false)
+        }
+        do {
+            _ = try controller.prepare(source: .codex, workspace: empty, context: "algo", state: .idle)
+            check("el panel rechaza carpetas vacías", false)
+        } catch SessionCapsuleError.emptyWorkspace {
+            check("el panel rechaza carpetas vacías", true)
+        } catch {
+            check("el panel rechaza carpetas vacías", false)
+        }
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
     }

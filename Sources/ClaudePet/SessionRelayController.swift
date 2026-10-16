@@ -10,6 +10,31 @@ final class SessionRelayController: ObservableObject {
 
     init(interaction: SessionRelayInteraction? = nil) { self.interaction = interaction ?? .live }
 
+    func prepare(source: Agent, workspace: String, context: String, state: PetState) throws -> (SessionCapsule, String) {
+        let selected = try SessionCapsuleFactory.validateWorkspace(workspace)
+        let capsule = try SessionCapsuleFactory.make(source: source, workspace: selected, project: "",
+                                                     task: context, state: state, health: GitPulse.scan(selected))
+        return (capsule, SessionCapsulePrompt.build(capsule, destination: source.other))
+    }
+
+    @discardableResult
+    func saveAndContinue(_ capsule: SessionCapsule, prompt: String) throws -> URL {
+        let url = try SessionCapsuleStore.save(capsule)
+        latest = capsule
+        latestURL = url
+        interaction.copy(prompt)
+        interaction.open(capsule.source.other)
+        return url
+    }
+
+    func copyAndContinue(_ capsule: SessionCapsule) {
+        interaction.copy(SessionCapsulePrompt.build(capsule, destination: capsule.source.other))
+        latest = capsule
+        interaction.open(capsule.source.other)
+    }
+
+    func chooseProject(suggested: String) -> String? { interaction.chooseWorkspace(suggested) }
+
     func create(source: Agent, workspace: String, task: String, state: PetState) {
         do {
             guard let chosen = interaction.chooseWorkspace(workspace) else { return }
