@@ -1,278 +1,162 @@
 import SwiftUI
 
-/// Selección explícita de un chat local para crear un contexto portable.
 struct SessionRelayView: View {
-    @ObservedObject var store: PetStore
-    @ObservedObject private var relay: SessionRelayController
-
-    @State private var source: Agent = .claude
-    @State private var sessions: [LocalAgentSession] = []
-    @State private var selectedSessionID = ""
-    @State private var loading = true
-    @State private var manual = false
-    @State private var workspace = ""
-    @State private var context = ""
-    @State private var preview: SessionCapsule?
-    @State private var prompt = ""
-    @State private var last: SessionCapsule?
-    @State private var savedURL: URL?
-    @State private var error: String?
-
-    init(store: PetStore) {
-        self.store = store
-        _relay = ObservedObject(wrappedValue: store.relay)
-    }
+    @StateObject private var model: SessionRelayModel
+    init(store: PetStore) { _model = StateObject(wrappedValue: SessionRelayModel(relay: store.relay)) }
 
     var body: some View {
         ZStack {
             GlassBackground()
             Color.black.opacity(0.32)
-            VStack(alignment: .leading, spacing: 18) {
-                header
-                if let capsule = preview {
-                    previewContent(capsule)
-                } else {
-                    editor
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(model.capsule == nil ? "¿qué chat quieres continuar?" : "contexto listo para continuar")
+                        .font(.title2.bold())
+                    Text(model.capsule == nil ? "elige el origen y la conversación." : model.summary)
+                        .font(.callout).foregroundStyle(.secondary)
                 }
-                if let error {
+                if model.capsule != nil { preview } else { selection }
+                if model.busy { ProgressView(model.capsule == nil ? "leyendo sesiones…" : "preparando destino…").controlSize(.small) }
+                if let error = model.error {
                     Label(error, systemImage: "exclamationmark.circle")
-                        .font(.callout)
-                        .foregroundStyle(Color(red: 1, green: 0.58, blue: 0.52))
+                        .font(.callout).foregroundStyle(Color(red: 1, green: 0.65, blue: 0.58))
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Divider().overlay(.white.opacity(0.12))
+                if let status = model.status {
+                    Label(status, systemImage: "checkmark.circle")
+                        .font(.callout).foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Divider()
                 footer
             }
             .padding(24)
+            .padding(.top, 16)
         }
-        .frame(width: 560, height: 590)
+        .frame(minWidth: 600, idealWidth: 640, minHeight: 640, idealHeight: 690)
         .environment(\.colorScheme, .dark)
-        .onAppear(perform: refresh)
-        .onChange(of: source) { _ in
-            selectedSessionID = sessions.first(where: { $0.agent == source })?.id ?? ""
-            error = nil
-        }
-        .onChange(of: selectedSessionID) { _ in workspace = "" }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("continuar en otro agente")
-                .font(.title2.weight(.semibold))
-            Text("elige un chat local. la app detectará su proyecto y preparará el contexto.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        .task { await model.reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .relayPresented)) { _ in
+            Task { await model.reload() }
         }
     }
 
-    private var editor: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                caption("1 · dirección")
-                Picker("agente de origen", selection: $source) {
-                    Text("claude → codex").tag(Agent.claude)
-                    Text("codex → claude").tag(Agent.codex)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            if manual { manualEditor } else { sessionPicker }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private var sessionPicker: some View {
+    private var selection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            caption("2 · conversación")
-            if loading {
-                ProgressView("buscando chats locales…")
-            } else if sourceSessions.isEmpty {
-                Text("no encontré chats locales de \(source.rawValue). puedes usar el modo manual.")
-                    .font(.callout).foregroundStyle(.secondary)
+            Picker("dirección del relevo", selection: $model.source) {
+                Text("claude → codex").tag(Agent.claude)
+                Text("codex → claude").tag(Agent.codex)
+            }.pickerStyle(.segmented).labelsHidden().disabled(model.busy)
+            if model.manual {
+                Button("volver a mis chats") { model.manual = false }
+                Text("carpeta con el código").font(.headline)
+                project
+                TextField("objetivo, trabajo hecho y siguiente paso", text: $model.context, axis: .vertical)
+                    .lineLimit(6...12).textFieldStyle(.roundedBorder)
+                Spacer(minLength: 0)
             } else {
-                Picker("chat de \(source.rawValue)", selection: $selectedSessionID) {
-                    ForEach(sourceSessions) { session in
-                        Text("\(session.project) · \(session.title)").tag(session.id)
-                    }
+                HStack {
+                    TextField("buscar por chat o proyecto", text: $model.query)
+                        .textFieldStyle(.roundedBorder)
+                    Button("actualizar", systemImage: "arrow.clockwise") { Task { await model.reload() } }
+                        .disabled(model.busy)
                 }
-                .labelsHidden()
-                if let selected = sourceSessions.first(where: { $0.id == selectedSessionID }) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(selected.project).font(.headline)
-                        Text(workspace.isEmpty ? selected.workspace : workspace)
-                            .font(.callout.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text("última actividad: \(selected.modifiedAt.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Button("cambiar carpeta del proyecto…") {
-                            if let path = relay.chooseProject(suggested: workspace.isEmpty ? selected.workspace : workspace) {
-                                workspace = path
-                                error = nil
-                            }
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        if model.visibleSessions.isEmpty && !model.busy {
+                            Text(model.query.isEmpty ? "no hay chats locales disponibles de este agente." : "no hay coincidencias. prueba con otro nombre.")
+                                .foregroundStyle(.secondary).padding(.vertical, 30)
                         }
-                        .font(.callout)
+                        ForEach(model.visibleSessions) { session in
+                            Button { model.selectedID = session.id } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: model.selectedID == session.id ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(model.selectedID == session.id ? Color.accentColor : .secondary)
+                                        .padding(.top, 2)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(session.title).font(.body).lineLimit(2).multilineTextAlignment(.leading)
+                                        HStack {
+                                            Text(session.project).lineLimit(1)
+                                            Spacer()
+                                            Text(session.modifiedAt, format: .dateTime.day().month().hour().minute())
+                                        }.font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                                .padding(11)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(model.selectedID == session.id ? Color.white.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(model.selectedID == session.id ? .isSelected : [])
+                            .disabled(model.busy)
+                        }
                     }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .frame(maxHeight: .infinity)
+                if let selected = model.selected {
+                    Text("seleccionado: \(selected.title)").font(.callout).lineLimit(1)
+                    project
+                }
+                HStack {
+                    Text("\(model.visibleSessions.count) chats · lectura local").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("pegar contexto manual", action: model.enterManual)
+                        .font(.callout).disabled(model.busy)
                 }
             }
-            Text("leeré los mensajes visibles de ese chat; no necesitas elegir carpeta ni escribir un resumen.")
+        }
+    }
+
+    private var project: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("proyecto").font(.caption).foregroundStyle(.secondary)
+                Text(model.projectPath.isEmpty ? "elige la carpeta del código" : model.projectPath)
+                    .font(.callout.monospaced()).lineLimit(1).truncationMode(.middle)
+                    .help(model.projectPath)
+            }
+            Spacer(minLength: 0)
+            Button("cambiar…", action: model.chooseProject).disabled(model.busy)
+        }
+    }
+
+    private var preview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(model.capsule?.project ?? "") · \(model.source.rawValue) → \(model.source.other.rawValue)").font(.headline)
+            Text("puedes editar este texto antes de copiarlo.").font(.callout).foregroundStyle(.secondary)
+            TextEditor(text: $model.prompt)
+                .font(.body.monospaced())
+                .scrollContentBackground(.hidden)
+                .padding(10)
+                .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityLabel("contexto que se copiará al otro agente")
+            Text("al abrir la app de \(model.source.other.rawValue), elige el proyecto o modo de código y pega con cmd+v.")
                 .font(.callout).foregroundStyle(.secondary)
-            Button("no encuentro mi chat · usar contexto manual") {
-                manual = true
-                error = nil
-            }
-            .font(.callout)
-        }
-    }
-
-    private var manualEditor: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Button("volver a chats locales") { manual = false; error = nil }
-                .font(.callout)
-            caption("2 · carpeta del proyecto")
-            HStack(spacing: 10) {
-                Text(workspace.isEmpty ? "ninguna carpeta elegida" : workspace)
-                    .font(.callout.monospaced())
-                    .lineLimit(1).truncationMode(.middle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Button("elegir carpeta…") {
-                    if let path = relay.chooseProject(suggested: workspace) { workspace = path; error = nil }
-                }
-            }
-            Text("elige la carpeta con código, no una carpeta vacía para guardar relevos.")
-                .font(.caption).foregroundStyle(.secondary)
-            caption("3 · resumen del chat")
-            TextField("objetivo, decisiones, trabajo hecho y siguiente paso…", text: $context, axis: .vertical)
-                .lineLimit(5...8)
-                .textFieldStyle(.roundedBorder)
-            Text("solo si no aparece el chat local que quieres continuar.")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-    }
-
-    private var sourceSessions: [LocalAgentSession] { sessions.filter { $0.agent == source } }
-
-    private func previewContent(_ capsule: SessionCapsule) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                caption("revisar antes de continuar")
-                Spacer()
-                Text("\(capsule.source.rawValue) → \(capsule.source.other.rawValue)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-            }
-            Text(capsule.project)
-                .font(.headline)
-            Text(capsule.workspace)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            ScrollView {
-                Text(prompt)
-                    .font(.callout.monospaced())
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-            }
-            .frame(maxHeight: .infinity)
-            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
-            Text("se copiará el texto y se abrirá \(capsule.source.other.rawValue). pégalo allí con cmd+v.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let savedURL {
-                Text("guardado en \(savedURL.path)")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .textSelection(.enabled)
-            }
+            if model.savedURL != nil { Button("mostrar archivo guardado", action: model.reveal).font(.callout) }
         }
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            if preview != nil {
-                Button("editar") {
-                    preview = nil
-                    savedURL = nil
-                    error = nil
-                }
-            } else if let last {
-                Button("usar último: \(last.project)") {
-                    do {
-                        let item = try SessionCapsuleStore.latest()
-                        source = item.capsule.source
-                        workspace = item.capsule.workspace
-                        context = item.capsule.task
-                        manual = true
-                        preview = item.capsule
-                        prompt = SessionCapsulePrompt.build(item.capsule, destination: item.capsule.source.other)
-                        savedURL = item.url
-                        error = nil
-                    } catch { self.error = error.localizedDescription }
-                }
-                .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if let capsule = preview {
-                Button(savedURL == nil ? "guardar, copiar y abrir \(capsule.source.other.rawValue)" : "copiar y abrir \(capsule.source.other.rawValue)", systemImage: "arrow.up.right") {
-                    do {
-                        if savedURL == nil { savedURL = try relay.saveAndContinue(capsule, prompt: prompt) }
-                        else { relay.copyAndContinue(capsule) }
-                        last = capsule
-                        error = nil
-                    } catch { self.error = error.localizedDescription }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Color(red: 0.35, green: 0.58, blue: 0.96))
-            } else {
-                Button(manual ? "revisar relevo" : "ver contexto detectado", systemImage: "arrow.right") { prepare() }
+        HStack {
+            if model.capsule != nil { Button("volver", action: model.back).disabled(model.busy) }
+            else { Button("último relevo", action: model.useLatest).disabled(model.busy) }
+            Spacer()
+            if model.capsule != nil {
+                Button("solo copiar") { Task { await model.complete(open: false) } }
+                    .disabled(model.busy || model.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("copiar y abrir \(model.source.other.rawValue)") { Task { await model.complete(open: true) } }
                     .buttonStyle(.borderedProminent)
-                    .tint(Color(red: 0.35, green: 0.58, blue: 0.96))
-                    .disabled(loading || (!manual && selectedSessionID.isEmpty))
+                    .disabled(model.busy || model.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else {
+                Button("preparar contexto") { Task { await model.prepare() } }
+                    .buttonStyle(.borderedProminent).disabled(!model.canPrepare)
             }
-        }
-        .controlSize(.large)
+        }.controlSize(.large)
     }
+}
 
-    private func caption(_ title: String) -> some View {
-        Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-    }
-
-    private func prepare() {
-        do {
-            let selected = sessions.first { $0.id == selectedSessionID && $0.agent == source }
-            let path = manual ? workspace : (workspace.isEmpty ? selected?.workspace ?? "" : workspace)
-            let text: String
-            if manual { text = context }
-            else {
-                guard let selected else { throw LocalAgentSessionError.noMessages }
-                text = try LocalAgentSessionReader.transcript(selected)
-            }
-            let result = try relay.prepare(source: source, workspace: path, context: text,
-                                           state: source == .claude ? store.state : store.codexState)
-            preview = result.0
-            prompt = result.1
-            savedURL = nil
-            error = nil
-        } catch { self.error = error.localizedDescription }
-    }
-
-    private func refresh() {
-        last = try? SessionCapsuleStore.latest().capsule
-        Task.detached {
-            let found = LocalAgentSessionReader.recent(for: .claude) + LocalAgentSessionReader.recent(for: .codex)
-            await MainActor.run {
-                sessions = found
-                selectedSessionID = found.first(where: { $0.agent == source })?.id ?? ""
-                loading = false
-            }
-        }
-    }
+extension Notification.Name {
+    static let relayPresented = Notification.Name("local.claudepet.relayPresented")
 }
