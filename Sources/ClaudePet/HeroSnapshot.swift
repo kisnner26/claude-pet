@@ -16,6 +16,24 @@ enum HeroSnapshot {
         write(menuIcons, to: dir + "/icono-barra.png")
     }
 
+    static func overlayPreview(to path: String) {
+        let now = Date.now
+        let files = [
+            ChangedFile(path: "Sources/ClaudePet/PetView.swift", added: 84, deleted: 12, untracked: false, staged: false, conflict: false, modified: now),
+            ChangedFile(path: "Sources/ClaudePet/ContextMeter.swift", added: 42, deleted: 0, untracked: false, staged: true, conflict: false, modified: now),
+            ChangedFile(path: "Sources/ClaudePet/FileOrbitView.swift", added: 24, deleted: 0, untracked: true, staged: false, conflict: false, modified: now),
+            ChangedFile(path: "README.md", added: 3, deleted: 1, untracked: false, staged: false, conflict: true, modified: now)
+        ]
+        let view = ZStack {
+            Color(hex: 0x1C1B1A)
+            FileOrbitView(files: files)
+            ContextRingView(reading: ContextReading(usedTokens: 120_000, compactAtTokens: 160_000, model: "claude"))
+            sprite(.tool, tick: 3, skin: .block, unit: 7)
+        }
+        .frame(width: 128, height: 128)
+        write(view, to: path)
+    }
+
     private static func write<V: View>(_ view: V, to path: String) {
         let r = ImageRenderer(content: view)
         r.scale = 2

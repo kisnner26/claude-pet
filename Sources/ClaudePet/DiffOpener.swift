@@ -19,9 +19,30 @@ enum DiffOpener {
         }
     }
 
-    static func render(workspace: String, path: String? = nil) async -> URL? {
+    static func openChange(workspace: String, file: ChangedFile) {
+        if file.untracked {
+            openFile(workspace: workspace, path: file.path)
+        } else {
+            Task.detached(priority: .utility) {
+                guard let url = await render(workspace: workspace, path: file.path, includeStaged: true) else { return }
+                await MainActor.run { _ = NSWorkspace.shared.open(url) }
+            }
+        }
+    }
+
+    private static func openFile(workspace: String, path: String) {
+        guard ChangeMap.isSafe(path) else { return }
+        let root = URL(fileURLWithPath: workspace).resolvingSymlinksInPath().standardizedFileURL
+        let file = root.appendingPathComponent(path).resolvingSymlinksInPath().standardizedFileURL
+        guard file.path.hasPrefix(root.path + "/"), FileManager.default.fileExists(atPath: file.path) else { return }
+        _ = NSWorkspace.shared.open(file)
+    }
+
+    static func render(workspace: String, path: String? = nil, includeStaged: Bool = false) async -> URL? {
         await withCheckedContinuation { c in
-            DispatchQueue.global(qos: .utility).async { c.resume(returning: renderSync(workspace: workspace, path: path)) }
+            DispatchQueue.global(qos: .utility).async {
+                c.resume(returning: renderSync(workspace: workspace, path: path, includeStaged: includeStaged))
+            }
         }
     }
 
@@ -36,14 +57,19 @@ enum DiffOpener {
         return (result.data, result.truncated)
     }
 
-    static func renderSync(workspace: String, path: String? = nil) -> URL? {
+    static func renderSync(workspace: String, path: String? = nil, includeStaged: Bool = false) -> URL? {
         var isDir: ObjCBool = false
         guard workspace.hasPrefix("/"), FileManager.default.fileExists(atPath: workspace, isDirectory: &isDir), isDir.boolValue else { return nil }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         // --no-ext-diff / --no-textconv / fsmonitor desactivado: ni drivers ni filtros definidos por el repo
-        p.arguments = ["-C", workspace, "-c", "core.fsmonitor=false", "-c", "core.pager=cat",
-                       "diff", "--no-ext-diff", "--no-textconv", "--no-color", "--"]
+        var arguments = ["-C", workspace, "-c", "core.fsmonitor=false", "-c", "core.pager=cat", "diff"]
+        if includeStaged {
+            let hasHead = GitPulse.run(arguments: ["-C", workspace, "rev-parse", "--verify", "HEAD"], timeout: 2)?.status == 0
+            arguments.append(hasHead ? "HEAD" : "--cached")
+        }
+        arguments += ["--no-ext-diff", "--no-textconv", "--no-color", "--"]
+        p.arguments = arguments
         if let path {
             guard ChangeMap.isSafe(path) else { return nil }
             p.arguments?.append(path)       // tras `--`: nunca se interpreta como opción

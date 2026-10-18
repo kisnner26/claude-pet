@@ -6,6 +6,7 @@ struct ChangedFile: Identifiable, Equatable {
     let added: Int
     let deleted: Int
     let untracked: Bool
+    let staged: Bool
     let conflict: Bool
     let modified: Date?
     /// Peso real del archivo en el mapa: líneas tocadas (en archivos nuevos, sus líneas).
@@ -30,11 +31,13 @@ enum ChangeMap {
             let url = URL(fileURLWithPath: workspace).appendingPathComponent(record.path)
             let mtime = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
             if record.status == "??" {
-                files.append(ChangedFile(path: record.path, added: countLines(url), deleted: 0, untracked: true, conflict: false, modified: mtime))
+                files.append(ChangedFile(path: record.path, added: countLines(url), deleted: 0, untracked: true,
+                                         staged: false, conflict: false, modified: mtime))
             } else {
                 let stat = numstat[record.path] ?? (0, 0)
+                let staged = record.status.first != " " && record.status.first != "?"
                 files.append(ChangedFile(path: record.path, added: stat.0, deleted: stat.1, untracked: false,
-                                         conflict: GitPulse.isConflict(record.status), modified: mtime))
+                                         staged: staged, conflict: GitPulse.isConflict(record.status), modified: mtime))
             }
         }
         return files.sorted { $0.weight == $1.weight ? $0.path < $1.path : $0.weight > $1.weight }
@@ -142,14 +145,16 @@ struct ChangeMapView: View {
         }
     }
 
-    private func tint(_ f: ChangedFile) -> Color { f.conflict ? alert : (f.untracked ? Pal.cream : accent) }
+    private func tint(_ f: ChangedFile) -> Color {
+        f.conflict ? alert : (f.untracked ? Pal.cream : (f.staged ? Color(hex: 0x67D6A3) : accent))
+    }
 
     private func cell(_ f: ChangedFile, rect: CGRect, now: Date) -> some View {
         let level = ChangeMap.brightness(modified: f.modified, now: now)
         let inner = rect.insetBy(dx: 1.5, dy: 1.5)
         let radius = min(6, min(inner.width, inner.height) / 3)
         let roomy = inner.width > 70 && inner.height > 28
-        return Button { if !f.untracked { open(f) } } label: {
+        return Button { open(f) } label: {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(LinearGradient(colors: [tint(f).opacity(level * 0.55), tint(f).opacity(level * 0.28)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay { RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(tint(f).opacity(level * 0.7), lineWidth: 0.75) }
@@ -170,7 +175,7 @@ struct ChangeMapView: View {
         .frame(width: max(0, inner.width), height: max(0, inner.height))
         .offset(x: inner.minX, y: inner.minY)
         .help(f.path)
-        .accessibilityLabel("\(f.path), \(f.untracked ? "archivo nuevo, \(f.added) líneas" : "\(f.added) añadidas, \(f.deleted) borradas")\(f.conflict ? ", en conflicto" : "")")
+        .accessibilityLabel("\(f.path), \(f.untracked ? "archivo nuevo, \(f.added) líneas" : "\(f.added) añadidas, \(f.deleted) borradas")\(f.staged ? ", preparado" : "")\(f.conflict ? ", en conflicto" : "")")
     }
 
     private func restCell(count: Int, rect: CGRect) -> some View {

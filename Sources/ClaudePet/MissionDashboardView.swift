@@ -32,7 +32,7 @@ struct MissionDashboardView: View {
                 if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
                 if !control.changes.isEmpty {
                     ChangeMapView(files: control.changes) { file in
-                        DiffOpener.open(workspace: control.recovery?.workspace ?? control.workspace, path: file.path)
+                        DiffOpener.openChange(workspace: control.recovery?.workspace ?? control.workspace, file: file)
                     }
                 }
                 attention(excluding: brief)

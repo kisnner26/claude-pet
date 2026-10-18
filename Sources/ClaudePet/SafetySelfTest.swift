@@ -87,6 +87,10 @@ enum SafetySelfTest {
         sh(["config", "diff.external", root + "/ext.sh"], in: repo)
         _ = DiffOpener.renderSync(workspace: repo)
         check("un diff.external del repo no se ejecuta", !fm.fileExists(atPath: canary))
+        sh(["add", "big.txt"], in: repo)
+        let staged = DiffOpener.renderSync(workspace: repo, path: "big.txt", includeStaged: true)
+        let stagedData = staged.flatMap { try? Data(contentsOf: $0) } ?? Data()
+        check("el mapa abre también cambios staged", stagedData.count > 64 * 1024)
         check("ruta no valida: no hace nada", DiffOpener.renderSync(workspace: "no/absoluta") == nil && DiffOpener.renderSync(workspace: root + "/nope") == nil)
 
         // 4. parseo de eventos

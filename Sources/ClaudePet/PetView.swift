@@ -24,6 +24,9 @@ struct PetView: View {
 
     var body: some View {
         ZStack {
+            if !mission.changes.isEmpty {
+                FileOrbitView(files: mission.changes)
+            }
             if let reading = store.contextReading {
                 ContextRingView(reading: reading)
             }
@@ -41,6 +44,7 @@ struct PetView: View {
     private var accessibilityLabel: String {
         var label = "Claude Pet, estado \(store.state.label.lowercased())"
         if let reading = store.contextReading { label += "; contexto estimado: \(reading.remainingPercent) por ciento restante" }
+        if !mission.changes.isEmpty { label += "; \(mission.changes.count) archivos con cambios alrededor" }
         if mission.collision { label += "; posible colisión con Codex" }
         return label
     }

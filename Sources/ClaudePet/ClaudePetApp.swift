@@ -18,7 +18,7 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
     private var downAt: NSPoint = .zero
     private var dragged = false
     /// Accion del clic sin arrastre. Por omision abre la app de Claude.
-    var onClick: (() -> Void)?
+    var onClick: ((NSPoint) -> Void)?
     var onDragChanged: ((Bool) -> Void)?
     override func mouseDown(with event: NSEvent) {
         downAt = NSEvent.mouseLocation
@@ -36,7 +36,8 @@ final class DragHostingView<Content: View>: NSHostingView<Content> {
     override func mouseUp(with event: NSEvent) {
         onDragChanged?(false)
         guard !dragged else { return }
-        if let onClick { onClick(); return }
+        let point = convert(event.locationInWindow, from: nil)
+        if let onClick { onClick(point); return }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
         }
@@ -82,12 +83,16 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.footballSheet(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-overlay"), i + 1 < CommandLine.arguments.count {
+            HeroSnapshot.overlayPreview(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
             snapshot(to: CommandLine.arguments[i + 1]); exit(0)
         }
         NSApp.setActivationPolicy(.accessory)
 
         let host = DragHostingView(rootView: PetView(store: PetStore.shared))
+        host.onClick = { [weak self] point in self?.handleClaudePetClick(point) }
         let p = PetPanel(contentRect: NSRect(x: 0, y: 0, width: 128, height: 128),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.contentView = host
@@ -189,7 +194,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     /// Ventana de Codex: una entidad independiente de la de Claude (su propia posicion, su propio arrastre, su propio clic).
     private func setUpCodexWindow() {
         let host = DragHostingView(rootView: CodexPetView(store: PetStore.shared))
-        host.onClick = {
+        host.onClick = { _ in
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: AppPresence.codexBundle) {
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             }
@@ -221,6 +226,21 @@ final class AppController: NSObject, NSApplicationDelegate {
             NotificationCenter.default.addObserver(forName: NSWindow.didMoveNotification, object: w, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.windowsMoved() }
             }
+        }
+    }
+
+    private func handleClaudePetClick(_ point: NSPoint) {
+        let store = PetStore.shared
+        if let file = PetOverlayLayout.file(at: point, files: store.mission.changes) {
+            DiffOpener.openChange(workspace: store.mission.workspace, file: file)
+            return
+        }
+        if store.contextReading != nil, PetOverlayLayout.hitsContextRing(point) {
+            showRelay()
+            return
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
         }
     }
 

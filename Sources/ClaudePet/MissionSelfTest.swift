@@ -55,6 +55,16 @@ enum MissionSelfTest {
         let base = Date(timeIntervalSince1970: 9_000)
         check("brillo baja con la antigüedad", ChangeMap.brightness(modified: base, now: base) > ChangeMap.brightness(modified: base.addingTimeInterval(-900), now: base)
               && ChangeMap.brightness(modified: base.addingTimeInterval(-9000), now: base) == 0.3)
+        let orbitFiles = [
+            ChangedFile(path: "grande.swift", added: 80, deleted: 20, untracked: false, staged: true, conflict: false, modified: base),
+            ChangedFile(path: "nuevo.swift", added: 4, deleted: 0, untracked: true, staged: false, conflict: false, modified: base)
+        ]
+        let orbit = PetOverlayLayout.orbitItems(orbitFiles)
+        check("órbita representa archivos por peso", orbit.count == 2 && orbit[0].rect.width > orbit[1].rect.width)
+        let secondCenter = CGPoint(x: orbit[1].rect.midX, y: orbit[1].rect.midY)
+        check("órbita permite abrir cada bloque", PetOverlayLayout.file(at: secondCenter, files: orbitFiles)?.path == "nuevo.swift")
+        check("aro tiene una zona de clic separada de la mascota", PetOverlayLayout.hitsContextRing(CGPoint(x: 64, y: 10))
+              && !PetOverlayLayout.hitsContextRing(CGPoint(x: 64, y: 64)))
 
         // estela de sesión
         func event(_ agent: String, _ state: PetState, _ sec: Double) -> MissionEvent { MissionEvent(at: base.addingTimeInterval(sec), agent: agent, state: state, project: "p") }
