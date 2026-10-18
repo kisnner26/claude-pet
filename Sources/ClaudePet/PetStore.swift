@@ -24,6 +24,7 @@ final class PetStore: ObservableObject {
     @Published private(set) var safetyAlert: Activity?
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
+    @Published private(set) var contextReading: ContextReading?
     /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
     @Published private(set) var codexSide = -1
     /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
@@ -162,6 +163,10 @@ final class PetStore: ObservableObject {
     private var lastMissionProject = ""
     private var lastMissionWorkspace = ""
     private var lastMissionSession = ""
+    private let contextScanner = ContextMeterScanner()
+    private var contextScanTask: Task<Void, Never>?
+    private var contextSession = ""
+    private var nextContextScan = Date.distantPast
 
     init(mission: MissionControl? = nil) {
         self.mission = mission ?? MissionControl()
@@ -216,6 +221,12 @@ final class PetStore: ObservableObject {
         monitor.forget(session: session)
         testSessions.remove(session)
         WorkspaceSafety.clearMarker(session: session)
+        if session == contextSession {
+            contextScanTask?.cancel()
+            contextScanTask = nil
+            contextSession = ""
+            contextReading = nil
+        }
     }
 
     private func contextChanged(_ session: String) {
@@ -439,7 +450,31 @@ final class PetStore: ObservableObject {
         checkWorkspaceChanges(now)
         updateSafetyAlert(now)
         mission.tick()
+        refreshContext(session: lastMissionSession, now: now)
         refresh()
+    }
+
+    private func refreshContext(session: String, now: Date) {
+        guard !session.isEmpty else {
+            if contextReading != nil { contextReading = nil }
+            return
+        }
+        if session != contextSession {
+            contextScanTask?.cancel()
+            contextSession = session
+            contextReading = nil
+            nextContextScan = .distantPast
+        }
+        guard now >= nextContextScan, contextScanTask == nil else { return }
+        nextContextScan = now.addingTimeInterval(3)
+        let prefix = session
+        contextScanTask = Task { [weak self] in
+            guard let self else { return }
+            let reading = await contextScanner.read(sessionPrefix: prefix)
+            guard !Task.isCancelled, contextSession == prefix else { return }
+            if contextReading != reading { contextReading = reading }
+            contextScanTask = nil
+        }
     }
 
     private func syncCollaboration() {
@@ -542,6 +577,7 @@ final class PetStore: ObservableObject {
             lastMissionWorkspace = workspace
             lastMissionSession = topSession
         }
+        refreshContext(session: topSession, now: Date())
         if changed { publish(event: eventFor(new)) }
         syncGame()
         updateReviewReady()

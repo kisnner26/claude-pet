@@ -100,6 +100,18 @@ enum SafetySelfTest {
         // 5. titulos
         check("las pruebas se muestran como pruebas", PetStore.describe(.tool, tool: "test", detail: "$ swift", task: "").0 == "Ejecutando pruebas (swift)")
 
+        // 6. contexto: solo usa contadores, nunca el contenido del mensaje
+        let contextURL = URL(fileURLWithPath: root).appendingPathComponent("context.jsonl")
+        let contextLines = """
+        {"type":"assistant","message":{"model":"claude-test","content":[{"type":"text","text":"secreto"}],"usage":{"input_tokens":1000,"cache_creation_input_tokens":2000,"cache_read_input_tokens":3000,"output_tokens":400}}}
+        {"type":"assistant","message":{"model":"claude-test","usage":{"input_tokens":1000,"cache_creation_input_tokens":4000,"cache_read_input_tokens":9000,"output_tokens":1000}}}
+        """
+        try? Data(contextLines.utf8).write(to: contextURL)
+        let context = ContextMeter.read(url: contextURL, compactAt: 20_000)
+        check("medidor usa el último contador real", context?.usedTokens == 15_000 && context?.remainingPercent == 25)
+        check("medidor cambia de presión por margen", context?.pressure == .caution
+              && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
+
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
     }

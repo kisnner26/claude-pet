@@ -24,6 +24,9 @@ struct PetView: View {
 
     var body: some View {
         ZStack {
+            if let reading = store.contextReading {
+                ContextRingView(reading: reading)
+            }
             AuraView(state: store.state, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
             petCanvas
         }
@@ -31,8 +34,15 @@ struct PetView: View {
         .frame(width: 128, height: 128)
         // casi invisible: mantiene el arrastre de la ventana sin dibujar ningun panel
         .background(Color.black.opacity(0.001))
-        .accessibilityLabel("Claude Pet, estado \(store.state.label.lowercased())" + (mission.collision ? "; posible colisión con Codex" : ""))
+        .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(mission.collision ? "ambos trabajan en el mismo proyecto compartido" : "sin colisión")
+    }
+
+    private var accessibilityLabel: String {
+        var label = "Claude Pet, estado \(store.state.label.lowercased())"
+        if let reading = store.contextReading { label += "; contexto estimado: \(reading.remainingPercent) por ciento restante" }
+        if mission.collision { label += "; posible colisión con Codex" }
+        return label
     }
 
     private var petCanvas: some View {
