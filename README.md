@@ -23,6 +23,8 @@ pagina: https://kisnner26.github.io/claude-pet/
 - aviso de contexto: si el proyecto cambia mientras claude piensa, la burbuja avisa para que revises el diff. opcional (apagado por defecto): bloquear la siguiente herramienta hasta tu proximo mensaje.
 - detector de atasco: avisa si claude o codex llevan 5 min pensando o 15 min en una herramienta sin ninguna actividad.
 - cuando codex termina en un proyecto donde claude sigue trabajando, el menu ofrece abrir el diff.
+- un aro alrededor de claude estima cuánto contexto queda antes de la compactación: azul con margen, ámbar al acercarse y rojo en zona crítica. al pulsarlo abre el relevo de sesión.
+- hasta doce bloques rodean la mascota con los archivos que están cambiando. su tamaño refleja líneas tocadas; azul es modificado, verde staged, crema nuevo y coral conflicto. al pulsar abre el diff o el archivo nuevo.
 
 ## mission control
 
@@ -77,6 +79,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - el detector de contexto solo calcula una huella local de nombres, fechas y tamanos de archivos; no lee contenido. ignora `.git`, dependencias, builds y logs.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
+- el medidor de contexto lee únicamente los contadores de tokens del transcript local activo. no conserva ni muestra el contenido y permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS`.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
 - las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
