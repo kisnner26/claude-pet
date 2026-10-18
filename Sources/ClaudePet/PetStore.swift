@@ -472,7 +472,7 @@ final class PetStore: ObservableObject {
             guard let self else { return }
             let reading = await contextScanner.read(sessionPrefix: prefix)
             guard !Task.isCancelled, contextSession == prefix else { return }
-            if contextReading != reading { contextReading = reading }
+            if let reading, contextReading != reading { contextReading = reading }
             contextScanTask = nil
         }
     }
