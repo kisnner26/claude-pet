@@ -1,23 +1,129 @@
-#claude-pet-scout-layer { position: fixed; inset: 0; z-index: 2147483646; pointer-events: none; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; }
-.claude-pet-scout { position: fixed; right: 22px; bottom: 22px; width: 56px; height: 44px; border: 2px solid #1c1b1a; border-radius: 9px 9px 6px 6px; background: #e0824f; box-shadow: 0 8px 24px rgba(0,0,0,.28); }
-.claude-pet-scout::before, .claude-pet-scout::after { content: ""; position: absolute; top: -9px; width: 9px; height: 18px; border: 2px solid #1c1b1a; background: #e0824f; }
+#claude-pet-scout-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+
+#claude-pet-scout-layer, #claude-pet-scout-layer * { box-sizing: border-box; }
+.claude-pet-drawing { position: fixed; inset: 0; pointer-events: none; }
+.claude-pet-scout {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  width: 56px;
+  height: 44px;
+  border: 2px solid #1c1b1a;
+  border-radius: 9px 9px 6px 6px;
+  background: #e0824f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+}
+.claude-pet-scout::before, .claude-pet-scout::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  width: 9px;
+  height: 18px;
+  border: 2px solid #1c1b1a;
+  background: #e0824f;
+}
 .claude-pet-scout::before { left: 6px; transform: rotate(-16deg); }
 .claude-pet-scout::after { right: 6px; transform: rotate(16deg); }
 .claude-pet-scout-eyes { position: absolute; inset: 11px 9px 8px; border: 2px solid #1c1b1a; background: #23272c; }
-.claude-pet-scout-eyes::before, .claude-pet-scout-eyes::after { content: ""; position: absolute; top: 8px; width: 6px; height: 6px; background: #f1e8de; }
-.claude-pet-scout-eyes::before { left: 6px; }.claude-pet-scout-eyes::after { right: 6px; }
-.claude-pet-leg { position: fixed; height: 2px; background: #7db4ff; transform-origin: 0 50%; opacity: .9; }
-.claude-pet-mark { position: fixed; border: 2px solid #7db4ff; background: rgba(125,180,255,.09); border-radius: 4px; }
-.claude-pet-mark[data-tone="warning"] { border-color: #e7b45b; background: rgba(231,180,91,.09); }
-.claude-pet-mark[data-tone="error"] { border-color: #ff7b70; background: rgba(255,123,112,.09); }
-.claude-pet-label { position: fixed; max-width: 240px; padding: 5px 7px; border: 1px solid #56616d; border-radius: 4px; background: #17191c; color: #f1e8de; font-size: 11px; line-height: 1.3; box-shadow: 0 4px 14px rgba(0,0,0,.24); }
+.claude-pet-scout-eyes::before, .claude-pet-scout-eyes::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  background: #f1e8de;
+}
+.claude-pet-scout-eyes::before { left: 6px; }
+.claude-pet-scout-eyes::after { right: 6px; }
+.claude-pet-leg {
+  position: fixed;
+  height: 2px;
+  background: #7db4ff;
+  transform-origin: 0 50%;
+  opacity: .9;
+}
+.claude-pet-mark {
+  position: fixed;
+  border: 2px solid #7db4ff;
+  border-radius: 4px;
+  background: rgba(125, 180, 255, .09);
+}
+.claude-pet-mark[data-active="false"] { border-style: dotted; background: transparent; opacity: .38; }
+.claude-pet-mark[data-tone="warning"] { border-color: #e7b45b; background-color: rgba(231, 180, 91, .09); }
+.claude-pet-mark[data-tone="error"] { border-color: #ff7b70; background-color: rgba(255, 123, 112, .09); }
+.claude-pet-label {
+  position: fixed;
+  max-width: 268px;
+  padding: 6px 8px;
+  border: 1px solid #56616d;
+  border-radius: 5px;
+  background: #17191c;
+  color: #f1e8de;
+  font: 500 11px/1.35 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .24);
+}
+.claude-pet-label[data-tone="warning"] { border-color: #9b7534; }
+.claude-pet-label[data-tone="error"] { border-color: #a84f48; }
+.claude-pet-toolbar {
+  position: fixed;
+  right: 16px;
+  bottom: 82px;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #56616d;
+  border-radius: 8px;
+  background: #17191c;
+  color: #f1e8de;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+  pointer-events: auto;
+}
+.claude-pet-toolbar span {
+  display: block;
+  min-width: 98px;
+  max-width: 210px;
+  padding: 0 6px;
+  overflow: hidden;
+  color: #c7cbd0;
+  font: 500 11px/1.2 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.claude-pet-toolbar button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: #252b32;
+  color: #f1e8de;
+  font: 500 22px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.claude-pet-toolbar button:hover { background: #303844; }
+.claude-pet-toolbar button:focus-visible { outline: 2px solid #7db4ff; outline-offset: 2px; }
+.claude-pet-toolbar button:disabled { opacity: .34; cursor: default; }
+
 #claude-pet-scout-layer[data-agent="codex"] .claude-pet-scout,
 #claude-pet-scout-layer[data-agent="codex"] .claude-pet-scout::before,
 #claude-pet-scout-layer[data-agent="codex"] .claude-pet-scout::after { background: #5270e8; border-color: #223496; }
 #claude-pet-scout-layer[data-agent="codex"] .claude-pet-scout-eyes { border-color: #223496; background: #161b40; }
 #claude-pet-scout-layer[data-agent="codex"] .claude-pet-leg { background: #96ebff; }
-#claude-pet-scout-layer[data-agent="codex"] .claude-pet-mark { border-color: #96ebff; background: rgba(150,235,255,.09); }
-#claude-pet-scout-layer[data-agent="codex"] .claude-pet-mark[data-tone="warning"] { border-color: #e7b45b; background: rgba(231,180,91,.09); }
-#claude-pet-scout-layer[data-agent="codex"] .claude-pet-mark[data-tone="error"] { border-color: #ff7b70; background: rgba(255,123,112,.09); }
-@media (prefers-reduced-motion: no-preference) { .claude-pet-leg, .claude-pet-mark { animation: claude-pet-in 160ms ease-out both; } }
-@keyframes claude-pet-in { from { opacity: 0; } to { opacity: 1; } }
+#claude-pet-scout-layer[data-agent="codex"] .claude-pet-mark[data-tone="info"] { border-color: #96ebff; background-color: rgba(150, 235, 255, .09); }
+#claude-pet-scout-layer[data-agent="codex"] .claude-pet-toolbar button:focus-visible { outline-color: #96ebff; }
+
+@media (max-width: 480px) {
+  .claude-pet-toolbar { right: 8px; left: 8px; }
+  .claude-pet-toolbar span { min-width: 0; max-width: none; flex: 1; }
+}

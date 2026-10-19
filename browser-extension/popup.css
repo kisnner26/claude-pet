@@ -11,5 +11,6 @@ input:focus-visible { outline: 2px solid #7db4ff; outline-offset: 4px; }
 button { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid #3c4652; border-radius: 7px; background: #252b32; color: inherit; font: inherit; cursor: pointer; }
 button:hover { border-color: #7db4ff; }
 button:focus-visible { outline: 2px solid #7db4ff; outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: wait; }
 button.quiet { background: transparent; color: #b8b3ae; }
 #status { min-height: 28px; margin: 14px 0 0; color: #a9b0b8; font-size: 11px; line-height: 1.4; }
