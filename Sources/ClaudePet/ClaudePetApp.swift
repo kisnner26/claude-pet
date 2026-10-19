@@ -344,7 +344,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if animate {
             NotificationCenter.default.post(name: .dashboardRevealed, object: nil)
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.3
+                ctx.duration = 0.18
                 ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1)
                 missionPanel.animator().setFrame(final, display: true)
                 missionPanel.animator().alphaValue = 1

@@ -27,40 +27,48 @@ struct MissionDashboardView: View {
         ZStack {
             GlassBackground()
             Color.black.opacity(0.28)
-            VStack(alignment: .leading, spacing: 16) {
-                agents
-                BriefCard(brief: brief) { control.perform($0) }
-                if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
-                if !control.changes.isEmpty {
-                    ChangeMapView(files: control.changes) { file in
-                        store.pullDiff(file)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    agents
+                    BriefCard(brief: brief) { control.perform($0) }
+                    if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
+                    if !control.changes.isEmpty {
+                        ChangeMapView(files: control.changes, title: "mapa de cambios · claude") { file in
+                            store.pullDiff(file)
+                        }
                     }
-                }
-                if control.worktrees.count > 1 {
-                    BranchWebView(nodes: control.worktrees, title: "telaraña de ramas · claude") { node in
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
+                    if !store.codexChanges.isEmpty, store.codexWorkspace != control.workspace {
+                        ChangeMapView(files: store.codexChanges, title: "mapa de cambios · codex") { file in
+                            store.pullCodexDiff(file)
+                        }
                     }
-                }
-                if store.codexWorktrees.count > 1, store.codexWorkspace != control.workspace {
-                    BranchWebView(nodes: store.codexWorktrees, title: "telaraña de ramas · codex") { node in
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
+                    if control.worktrees.count > 1 {
+                        BranchWebView(nodes: control.worktrees, title: "telaraña de ramas · claude") { node in
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
+                        }
                     }
+                    if store.codexWorktrees.count > 1, store.codexWorkspace != control.workspace {
+                        BranchWebView(nodes: store.codexWorktrees, title: "telaraña de ramas · codex") { node in
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
+                        }
+                    }
+                    attention(excluding: brief)
+                    Timeline(events: Array(control.timeline.prefix(4)), all: control.timeline, reduceMotion: store.reduceMotion)
+                    footer
                 }
-                attention(excluding: brief)
-                Timeline(events: Array(control.timeline.prefix(4)), all: control.timeline, reduceMotion: store.reduceMotion)
-                footer
+                .padding(.horizontal, 22)
+                .padding(.top, 34)
+                .padding(.bottom, 18)
+                .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion, anchor: .top))
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 34)
-            .padding(.bottom, 18)
-            .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion, anchor: .top))
+            .scrollIndicators(.never)
         }
         .onReceive(NotificationCenter.default.publisher(for: .dashboardRevealed)) { _ in
             var instant = Transaction(); instant.disablesAnimations = true
             withTransaction(instant) { dissolved = 0.6 }
-            withAnimation(.easeOut(duration: 0.45)) { dissolved = 0 }
+            withAnimation(.easeOut(duration: 0.18)) { dissolved = 0 }
         }
-        .frame(width: 560)
+        .frame(width: 560, height: 700)
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("tablero operativo de claude pet")

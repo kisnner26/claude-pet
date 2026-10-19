@@ -112,6 +112,7 @@ enum ChangeMap {
 
 struct ChangeMapView: View {
     let files: [ChangedFile]
+    var title = "mapa de cambios"
     let open: (ChangedFile) -> Void
 
     private let accent = Color(hex: 0x7DB4FF)
@@ -122,7 +123,7 @@ struct ChangeMapView: View {
         let weights = split.shown.map(\.weight) + (split.rest > 0 ? [max(1, split.restWeight)] : [])
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("mapa de cambios").font(.caption.weight(.semibold)).foregroundStyle(Pal.cream.opacity(0.5))
+                Text(title).font(.caption.weight(.semibold)).foregroundStyle(Pal.cream.opacity(0.5))
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("tamaño = líneas · brillo = reciente").font(.caption2).foregroundStyle(Pal.cream.opacity(0.4))
