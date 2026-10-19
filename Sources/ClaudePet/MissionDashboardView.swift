@@ -37,7 +37,12 @@ struct MissionDashboardView: View {
                     }
                 }
                 if control.worktrees.count > 1 {
-                    BranchWebView(nodes: control.worktrees) { node in
+                    BranchWebView(nodes: control.worktrees, title: "telaraña de ramas · claude") { node in
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
+                    }
+                }
+                if store.codexWorktrees.count > 1, store.codexWorkspace != control.workspace {
+                    BranchWebView(nodes: store.codexWorktrees, title: "telaraña de ramas · codex") { node in
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
                     }
                 }

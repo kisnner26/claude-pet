@@ -35,13 +35,32 @@ struct CodexPetView: View {
 
     var body: some View {
         ZStack {
+            if let pressure = store.codexContextReading?.pressure, pressure != .normal {
+                ContextCocoonView(pressure: pressure).offset(y: 12)
+            }
+            if !store.codexChanges.isEmpty {
+                FileOrbitView(files: store.codexChanges).offset(y: 12)
+            }
+            if let reading = store.codexContextReading {
+                ContextRingView(reading: reading).offset(y: 12)
+            }
             AuraView(state: store.codexState, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
                 .offset(y: 24)
             codexCanvas
+            if let pull = store.codexDiffPull { DiffPullView(pull: pull).offset(y: 12) }
+            if let target = store.codexRadarTarget { AppRadarView(label: target).offset(y: 12) }
         }
         .frame(width: StageMetrics.codexSize.width, height: StageMetrics.codexSize.height)
         .background(Color.black.opacity(0.001))     // mantiene el arrastre sin dibujar ningun panel
-        .accessibilityLabel("Codex, estado \(store.companionInfo(at: Date()).codex.label.lowercased())")
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var label = "Codex, estado \(store.companionInfo(at: Date()).codex.label.lowercased())"
+        if let reading = store.codexContextReading { label += "; contexto estimado: \(reading.remainingPercent) por ciento restante" }
+        if !store.codexChanges.isEmpty { label += "; \(store.codexChanges.count) archivos con cambios alrededor" }
+        if mission.collision { label += "; posible colisión con Claude" }
+        return label
     }
 
     private var codexCanvas: some View {

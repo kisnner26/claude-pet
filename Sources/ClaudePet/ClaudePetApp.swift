@@ -197,11 +197,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     /// Ventana de Codex: una entidad independiente de la de Claude (su propia posicion, su propio arrastre, su propio clic).
     private func setUpCodexWindow() {
         let host = DragHostingView(rootView: CodexPetView(store: PetStore.shared))
-        host.onClick = { _ in
-            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: AppPresence.codexBundle) {
-                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
-            }
-        }
+        host.onClick = { [weak self] point in self?.handleCodexPetClick(point) }
         host.onDragChanged = { dragging in
             Task { @MainActor in PetStore.shared.setCodexDragging(dragging) }
         }
@@ -247,6 +243,26 @@ final class AppController: NSObject, NSApplicationDelegate {
             return
         }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+
+    private func handleCodexPetClick(_ point: NSPoint) {
+        let store = PetStore.shared
+        let overlayPoint = CGPoint(x: point.x, y: point.y - 12)
+        if let file = PetOverlayLayout.file(at: overlayPoint, files: store.codexChanges) {
+            store.pullCodexDiff(file)
+            return
+        }
+        if store.codexContextReading != nil, PetOverlayLayout.hitsContextRing(overlayPoint) {
+            showRelay()
+            return
+        }
+        if store.codexRadarTarget != nil {
+            store.activateCodexRadarTarget()
+            return
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: AppPresence.codexBundle) {
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
         }
     }

@@ -27,6 +27,13 @@ final class PetStore: ObservableObject {
     @Published private(set) var contextReading: ContextReading?
     @Published private(set) var diffPull: DiffPull?
     @Published private(set) var radarTarget: String?
+    @Published private(set) var codexContextReading: ContextReading?
+    @Published private(set) var codexChanges: [ChangedFile] = []
+    @Published private(set) var codexWorktrees: [WorktreeNode] = []
+    @Published private(set) var codexDiffPull: DiffPull?
+    @Published private(set) var codexRadarTarget: String?
+    @Published private(set) var codexWorkspace = ""
+    @Published private(set) var codexTask = ""
     /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
     @Published private(set) var codexSide = -1
     /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
@@ -114,7 +121,7 @@ final class PetStore: ObservableObject {
     /// El bus solo aporta el estado de Codex; nunca texto de su sesión o de sus herramientas.
     var codexBubbleActivity: Activity? {
         guard codexState != .idle else { return nil }
-        return Activity(title: "Codex: \(codexState.label.capitalized)", subtitle: "", origin: "")
+        return Activity(title: "Codex: \(codexState.label.capitalized)", subtitle: showDetail ? codexTask : "", origin: "codex")
     }
     var codexBubbleState: PetState { codexState }
     /// Compatibilidad para las pruebas de presencia existentes.
@@ -140,7 +147,7 @@ final class PetStore: ObservableObject {
     }
 
     func setForegroundApp(_ name: String) {
-        if foregroundAppName != name { foregroundAppName = name; updateRadar() }
+        if foregroundAppName != name { foregroundAppName = name; updateRadar(); updateCodexRadar() }
     }
 
     func pullDiff(_ file: ChangedFile) {
@@ -168,6 +175,27 @@ final class PetStore: ObservableObject {
         app?.activate(options: [.activateIgnoringOtherApps])
     }
 
+    func pullCodexDiff(_ file: ChangedFile) {
+        if codexDiffPull?.file == file {
+            DiffOpener.openChange(workspace: codexWorkspace, file: file)
+            return
+        }
+        let workspace = codexWorkspace
+        Task { [weak self] in
+            let pull = await Task.detached(priority: .utility) {
+                DiffPullReader.read(workspace: workspace, file: file)
+            }.value
+            guard self?.codexWorkspace == workspace else { return }
+            self?.codexDiffPull = pull
+        }
+    }
+
+    func activateCodexRadarTarget() {
+        guard codexRadarTarget != nil,
+              let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == AppPresence.codexBundle }) else { return }
+        app.activate(options: [.activateIgnoringOtherApps])
+    }
+
     private func updateRadar() {
         guard state == .waiting || state == .error || safetyAlert != nil else { radarTarget = nil; return }
         let origin = (activity?.origin ?? "").lowercased()
@@ -176,6 +204,11 @@ final class PetStore: ObservableObject {
         let alreadyThere = target == "claude" ? foreground.contains("claude")
             : foreground.contains("terminal") || foreground.contains("iterm") || foreground.contains("warp")
         radarTarget = alreadyThere ? nil : target
+    }
+
+    private func updateCodexRadar() {
+        guard codexState == .waiting || codexState == .error else { codexRadarTarget = nil; return }
+        codexRadarTarget = foregroundAppName.lowercased().contains("codex") ? nil : "codex"
     }
 
     private func updatePresence() {
@@ -204,6 +237,10 @@ final class PetStore: ObservableObject {
     private var contextScanTask: Task<Void, Never>?
     private var contextSession = ""
     private var nextContextScan = Date.distantPast
+    private let codexVisualScanner = CodexVisualScanner()
+    private var codexVisualTask: Task<Void, Never>?
+    private var nextCodexVisualScan = Date.distantPast
+    private var nextCodexGitScan = Date.distantPast
 
     init(mission: MissionControl? = nil) {
         self.mission = mission ?? MissionControl()
@@ -301,7 +338,8 @@ final class PetStore: ObservableObject {
         peerStateKnown = known != nil                              // desconocido: hay presencia, pero no cuenta como idle para el partido
         let st = known ?? .idle
         if lastPeerState != st { lastPeerState = st; peerStateSince = now }
-        let proj = m.project.map { String($0.prefix(40)) }
+        let localCodexProject = codexWorkspace.isEmpty ? nil : URL(fileURLWithPath: codexWorkspace).lastPathComponent
+        let proj = m.project.map { String($0.prefix(40)) } ?? localCodexProject
         peer = Peer(id: m.id, state: st, project: proj, lastTs: m.ts, seen: now)
         mission.recordPeer(state: st, project: proj ?? "")
         if old == nil || m.event == "appeared" { greetUntil = now.addingTimeInterval(3) }
@@ -314,6 +352,7 @@ final class PetStore: ObservableObject {
         syncGame()
         syncCollaboration()
         updateReviewReady()
+        updateCodexRadar()
     }
 
     /// Reduce movimiento del sistema (o forzado con CLAUDE_PET_REDUCE_MOTION=1 para pruebas).
@@ -488,7 +527,60 @@ final class PetStore: ObservableObject {
         updateSafetyAlert(now)
         mission.tick()
         refreshContext(session: lastMissionSession, now: now)
+        refreshCodexVisuals(now: now)
         refresh()
+    }
+
+    private func refreshCodexVisuals(now: Date) {
+        guard codexPresent else {
+            codexVisualTask?.cancel(); codexVisualTask = nil
+            clearCodexVisuals()
+            return
+        }
+        guard now >= nextCodexVisualScan, codexVisualTask == nil else { return }
+        nextCodexVisualScan = now.addingTimeInterval(8)
+        let shouldScanGit = now >= nextCodexGitScan
+        codexVisualTask = Task { [weak self] in
+            guard let self else { return }
+            let snapshot = await codexVisualScanner.read(now: now)
+            guard !Task.isCancelled else { codexVisualTask = nil; return }
+            guard let snapshot else {
+                clearCodexVisuals()
+                codexVisualTask = nil
+                return
+            }
+            let workspaceChanged = snapshot.workspace != codexWorkspace
+            if workspaceChanged { codexDiffPull = nil }
+            codexWorkspace = snapshot.workspace
+            codexTask = snapshot.task
+            codexContextReading = snapshot.context
+            let project = URL(fileURLWithPath: snapshot.workspace).lastPathComponent
+            if peer != nil, peer?.project != project {
+                peer?.project = project
+                mission.recordPeer(state: codexState, project: project)
+                updateReviewReady()
+            }
+            if workspaceChanged || shouldScanGit {
+                nextCodexGitScan = now.addingTimeInterval(15)
+                let workspace = snapshot.workspace
+                let result = await Task.detached(priority: .utility) {
+                    (ChangeMap.scan(workspace), WorktreeMap.scan(workspace))
+                }.value
+                guard !Task.isCancelled, codexWorkspace == workspace else { codexVisualTask = nil; return }
+                codexChanges = result.0
+                codexWorktrees = result.1
+            }
+            codexVisualTask = nil
+        }
+    }
+
+    private func clearCodexVisuals() {
+        if codexContextReading != nil { codexContextReading = nil }
+        if !codexChanges.isEmpty { codexChanges = [] }
+        if !codexWorktrees.isEmpty { codexWorktrees = [] }
+        if codexDiffPull != nil { codexDiffPull = nil }
+        if !codexWorkspace.isEmpty { codexWorkspace = "" }
+        if !codexTask.isEmpty { codexTask = "" }
     }
 
     private func refreshContext(session: String, now: Date) {

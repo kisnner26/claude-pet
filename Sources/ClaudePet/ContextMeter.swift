@@ -65,6 +65,32 @@ enum ContextMeter {
         return reading
     }
 
+    /// Codex registra el conteo vigente y la ventana del modelo en eventos `token_count`.
+    /// Se lee solo la cola del JSONL, igual que con Claude, y no se conserva contenido.
+    static func readCodex(url: URL) -> ContextReading? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        do {
+            let end = try handle.seekToEnd()
+            let start = end > 4 * 1024 * 1024 ? end - 4 * 1024 * 1024 : 0
+            try handle.seek(toOffset: start)
+            guard var data = try handle.readToEnd(), !data.isEmpty else { return nil }
+            if start > 0, let newline = data.firstIndex(of: 10) { data.removeSubrange(data.startIndex...newline) }
+            var reading: ContextReading?
+            for line in data.split(separator: 10) {
+                guard let row = SessionJSONLines.object(Data(line)), row["type"] as? String == "event_msg",
+                      let payload = row["payload"] as? [String: Any], payload["type"] as? String == "token_count",
+                      let info = payload["info"] as? [String: Any],
+                      let usage = info["last_token_usage"] as? [String: Any] else { continue }
+                let used = integer(usage["total_tokens"])
+                let window = integer(info["model_context_window"])
+                guard used > 0, window > 0 else { continue }
+                reading = ContextReading(usedTokens: used, compactAtTokens: window, model: "codex")
+            }
+            return reading
+        } catch { return nil }
+    }
+
     static func transcript(sessionPrefix: String, root: URL) -> URL? {
         guard let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey],
                                                          options: [.skipsHiddenFiles]) else { return nil }

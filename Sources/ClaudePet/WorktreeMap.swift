@@ -60,12 +60,13 @@ enum WorktreeMap {
 
 struct BranchWebView: View {
     let nodes: [WorktreeNode]
+    var title = "telaraña de ramas"
     let open: (WorktreeNode) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("telaraña de ramas").font(.caption.weight(.semibold)).foregroundStyle(Pal.cream.opacity(0.5))
+                Text(title).font(.caption.weight(.semibold)).foregroundStyle(Pal.cream.opacity(0.5))
                 Spacer()
                 Text("\(nodes.count) worktrees").font(.caption2.monospacedDigit()).foregroundStyle(Pal.cream.opacity(0.45))
             }
