@@ -1,0 +1,10 @@
+:root { color-scheme: dark; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; }
+body { margin: 0; width: 260px; background: #17191c; color: #f1e8de; }
+main { padding: 18px; }
+.eyebrow { margin: 0 0 5px; color: #7db4ff; font-size: 11px; }
+h1 { margin: 0 0 16px; font: 600 18px/1.2 system-ui, sans-serif; }
+button { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid #3c4652; border-radius: 7px; background: #252b32; color: inherit; font: inherit; cursor: pointer; }
+button:hover { border-color: #7db4ff; }
+button:focus-visible { outline: 2px solid #7db4ff; outline-offset: 2px; }
+button.quiet { background: transparent; color: #b8b3ae; }
+#status { min-height: 28px; margin: 14px 0 0; color: #a9b0b8; font-size: 11px; line-height: 1.4; }

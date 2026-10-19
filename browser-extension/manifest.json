@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "claude pet web scout",
+  "version": "0.1.0",
+  "description": "marca evidencia y problemas visuales con una mascota local.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "claude pet web scout",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

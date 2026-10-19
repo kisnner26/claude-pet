@@ -24,6 +24,7 @@ struct MenuBarContent: View {
 
         Section {
             Button("abrir tablero", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
+            Button("mostrar web scout", systemImage: "safari") { AppController.shared.revealWebScout() }
             Button(store.userHidden ? "mostrar mascotas" : "ocultar mascotas", systemImage: store.userHidden ? "eye" : "eye.slash") {
                 AppController.shared.toggleWindow()
             }
