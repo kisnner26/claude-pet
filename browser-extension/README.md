@@ -1,6 +1,6 @@
 # web scout
 
-extensión local para chromium. marca la selección actual con patas visuales y revisa problemas básicos visibles del dom.
+extensión local para chromium. claude o codex marcan la selección actual con patas visuales y revisan problemas básicos visibles del dom.
 
 ## instalar
 

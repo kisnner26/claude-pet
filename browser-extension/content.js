@@ -4,10 +4,11 @@
 
   function clear() { document.getElementById(LAYER_ID)?.remove(); }
 
-  function layer() {
+  function layer(agent = "claude") {
     clear();
     const root = document.createElement("div");
     root.id = LAYER_ID;
+    root.dataset.agent = agent === "codex" ? "codex" : "claude";
     root.setAttribute("aria-hidden", "true");
     root.innerHTML = '<div class="claude-pet-scout"><span class="claude-pet-scout-eyes"></span></div>';
     document.documentElement.append(root);
@@ -35,11 +36,11 @@
     root.append(leg, mark, note);
   }
 
-  function evidence() {
+  function evidence(agent) {
     const selection = getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) return { message: "selecciona un texto primero." };
     const rects = [...selection.getRangeAt(0).getClientRects()].filter(rect => rect.width > 2 && rect.height > 2).slice(0, 4);
-    const root = layer();
+    const root = layer(agent);
     rects.forEach((rect, index) => connect(root, rect, index === 0 ? "evidencia seleccionada" : "", "info"));
     return { message: `${rects.length} fragmentos marcados.` };
   }
@@ -78,9 +79,9 @@
     return found;
   }
 
-  function audit() {
+  function audit(agent) {
     const found = issues();
-    const root = layer();
+    const root = layer(agent);
     found.forEach(item => connect(root, item.rect, item.label, item.tone));
     if (!found.length) {
       const note = document.createElement("div"); note.className = "claude-pet-label"; note.textContent = "sin problemas básicos visibles"; note.style.cssText = "right:22px;bottom:74px"; root.append(note);
@@ -91,7 +92,7 @@
   chrome.runtime.onMessage.addListener((message, _sender, reply) => {
     if (message?.type !== "claude-pet") return;
     if (message.command === "clear") { clear(); reply({ message: "marcas eliminadas." }); }
-    else if (message.command === "evidence") reply(evidence());
-    else if (message.command === "audit") reply(audit());
+    else if (message.command === "evidence") reply(evidence(message.agent));
+    else if (message.command === "audit") reply(audit(message.agent));
   });
 })();
