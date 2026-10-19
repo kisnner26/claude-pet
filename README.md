@@ -32,8 +32,8 @@ en macos, ambas mascotas convierten señales reales de su propio proyecto y sesi
 
 1. **medidor de contexto**: aro azul, ámbar o rojo según los tokens que quedan antes del umbral de compactación; clic abre el relevo.
 2. **mapa vivo de archivos**: bloques por archivo, tamaño por líneas tocadas y estado por color.
-3. **patas de evidencia**: la extensión web conecta la mascota con el texto que seleccionaste en la página.
-4. **cazador visual**: la misma extensión marca controles sin nombre, imágenes sin `alt`, objetivos diminutos y contrastes probablemente bajos.
+3. **patas de evidencia**: web scout nativo conecta la mascota con el texto seleccionado en cualquier navegador mediante accesibilidad de macos.
+4. **cazador visual**: el mismo lector marca controles sin nombre, imágenes sin descripción y objetivos interactivos diminutos.
 5. **telaraña de ramas**: mission control dibuja los worktrees reales; línea gruesa significa cambios, coral significa conflicto y línea discontinua significa worktree bloqueado.
 6. **diff físico**: el primer clic sobre un archivo hace que la mascota tire de líneas reales del diff; el segundo abre el diff completo.
 7. **capullo de contexto**: al entrar en presión ámbar o roja, varios hilos rodean la mascota y el aro permite preparar el relevo existente.
@@ -41,7 +41,7 @@ en macos, ambas mascotas convierten señales reales de su propio proyecto y sesi
 
 ![sistemas visuales](docs/img/sistemas-visuales.png)
 
-`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida, elige claude o codex y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página. las marcas siguen al contenido al desplazarte; usa los controles flotantes o las flechas para recorrer problemas y `esc` para cerrar.
+`web scout` funciona de forma nativa con safari, chrome, edge, arc, firefox y cualquier navegador que exponga el árbol de accesibilidad de macos. autoriza claude pet una vez en privacidad y seguridad, abre `web scout nativo` en el menú y usa `marcar selección` o `auditar controles visibles`. las marcas siguen al contenido al desplazarte y el menú permite recorrer los hallazgos. no instala extensiones, no usa red y no guarda el contenido de la página.
 
 ## mission control
 
@@ -99,7 +99,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS` y codex usa la ventana registrada por su propia sesión.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
-- web scout se ejecuta dentro de la pestaña activa únicamente cuando pulsas una acción. no usa red, almacenamiento ni permisos sobre el historial.
+- web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla, no usa red, no guarda contenido ni accede al historial.
 - las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
 
 ## instalacion
@@ -125,6 +125,7 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-safety   # huella, monit
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, timeline, presupuesto, recuperacion
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de solo lectura, prompt, revision con agentes simulados, worktree
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-relay    # cápsulas portables, prompt y permisos locales
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-scout    # reglas del auditor nativo de accesibilidad
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
