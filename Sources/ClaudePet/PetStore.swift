@@ -8,6 +8,7 @@ final class PetStore: ObservableObject {
     let mission: MissionControl
     let handoff = HandoffController()
     let relay = SessionRelayController()
+    let webScout = NativeWebScoutController()
     private var handoffObserver: AnyCancellable?
     private var relayObserver: AnyCancellable?
 

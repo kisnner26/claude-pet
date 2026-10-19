@@ -80,6 +80,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--selftest-companion") { exit(CompanionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.footballSheet(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -130,6 +131,19 @@ final class AppController: NSObject, NSApplicationDelegate {
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.trigger"), object: nil, queue: .main) { n in
             guard let name = n.userInfo?["name"] as? String else { return }
             Task { @MainActor in if PetStore.triggerNames.contains(name) { PetStore.shared.trigger(name) } }
+        }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.webscout"), object: nil, queue: .main) { n in
+            guard let action = n.userInfo?["action"] as? String else { return }
+            Task { @MainActor in
+                switch action {
+                case "mark": PetStore.shared.webScout.markSelection()
+                case "audit": PetStore.shared.webScout.auditVisibleControls()
+                case "clear": PetStore.shared.webScout.clear()
+                case "next": PetStore.shared.webScout.nextFinding()
+                case "previous": PetStore.shared.webScout.previousFinding()
+                default: break
+                }
+            }
         }
 
         server.onLine = { line in
@@ -355,17 +369,6 @@ final class AppController: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func revealWebScout() {
-        let bundled = Bundle.main.resourceURL?.appendingPathComponent("browser-extension")
-        let development = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("browser-extension")
-        if let bundled, FileManager.default.fileExists(atPath: bundled.path) {
-            NSWorkspace.shared.activateFileViewerSelecting([bundled])
-        } else if FileManager.default.fileExists(atPath: development.path) {
-            NSWorkspace.shared.activateFileViewerSelecting([development])
-        }
-    }
-
-
     private func placeStage() {
         let store = PetStore.shared
         guard !store.userHidden, (store.gameActive || store.collaborationActive || store.hugActive || (store.animationsEnabled && store.mission.relay != nil)), let geo = store.gameGeometry else { stage.orderOut(nil); return }
@@ -506,6 +509,15 @@ struct ClaudePetApp: App {
             }
             DistributedNotificationCenter.default().postNotificationName(
                 Notification.Name("local.claudepet.trigger"), object: nil, userInfo: ["name": a[i + 1]], deliverImmediately: true)
+            exit(0)
+        }
+        if let i = a.firstIndex(of: "--web-scout"), i + 1 < a.count {
+            let action = a[i + 1]
+            guard ["mark", "audit", "clear", "next", "previous"].contains(action) else {
+                print("acciones válidas: mark, audit, clear, next, previous"); exit(1)
+            }
+            DistributedNotificationCenter.default().postNotificationName(
+                Notification.Name("local.claudepet.webscout"), object: nil, userInfo: ["action": action], deliverImmediately: true)
             exit(0)
         }
     }

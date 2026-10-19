@@ -3,6 +3,12 @@ import AppKit
 
 struct MenuBarContent: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var webScout: NativeWebScoutController
+
+    init(store: PetStore) {
+        self.store = store
+        _webScout = ObservedObject(wrappedValue: store.webScout)
+    }
 
     var body: some View {
         Section("en vivo") {
@@ -24,7 +30,24 @@ struct MenuBarContent: View {
 
         Section {
             Button("abrir tablero", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
-            Button("mostrar web scout", systemImage: "safari") { AppController.shared.revealWebScout() }
+            Menu("web scout nativo", systemImage: "scope") {
+                Picker("mascota", selection: $webScout.agent) {
+                    ForEach(WebScoutAgent.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                Divider()
+                Button("marcar selección", systemImage: "highlighter") { webScout.markSelection() }
+                Button("auditar controles visibles", systemImage: "viewfinder") { webScout.auditVisibleControls() }
+                if webScout.canNavigate {
+                    Divider()
+                    Button("problema anterior", systemImage: "chevron.left") { webScout.previousFinding() }
+                    Button("problema siguiente", systemImage: "chevron.right") { webScout.nextFinding() }
+                }
+                Button("limpiar marcas", systemImage: "xmark") { webScout.clear() }
+                    .disabled(!webScout.hasFindings)
+                Divider()
+                Button("autorizar accesibilidad", systemImage: "lock.open") { webScout.requestAccess() }
+                Text(webScout.status)
+            }
             Button(store.userHidden ? "mostrar mascotas" : "ocultar mascotas", systemImage: store.userHidden ? "eye" : "eye.slash") {
                 AppController.shared.toggleWindow()
             }
