@@ -41,7 +41,9 @@ en macos, ambas mascotas convierten señales reales de su propio proyecto y sesi
 
 ![sistemas visuales](docs/img/sistemas-visuales.png)
 
-`web scout` funciona de forma nativa con safari, chrome, edge, arc, firefox y cualquier navegador que exponga el árbol de accesibilidad de macos. autoriza claude pet una vez en privacidad y seguridad, abre `web scout nativo` en el menú y usa `marcar selección` o `auditar controles visibles`. las marcas siguen al contenido al desplazarte y el menú permite recorrer los hallazgos. no instala extensiones, no usa red y no guarda el contenido de la página.
+`web scout` funciona de forma nativa con safari, chrome, edge, arc, firefox y cualquier navegador que exponga el árbol de accesibilidad de macos. autoriza claude pet una vez en privacidad y seguridad, abre `web scout nativo` en el menú y usa `marcar selección` o `auditar controles visibles`. las marcas siguen al contenido al desplazarte y el menú permite recorrer los hallazgos. no instala extensiones y no guarda el contenido de la página.
+
+`claudwler` (`iniciar claudwler` en el mismo menú) recorre los enlaces visibles y los marca en verde, ámbar o rojo mientras baja la página. al terminar abre un informe visual en html y copia un informe en markdown para pegar en claude code. si la página es `localhost:puerto`, localiza cada problema en el código del proyecto (`archivo:línea`). guarda un resumen de cada recorrido en `~/Library/Application Support/ClaudePet/claudwler/` para mostrar qué cambió desde la última vez. `verificar enlaces rotos en red` está apagado por defecto: al activarlo contacta los destinos con peticiones sin cookies.
 
 ## mission control
 
@@ -99,7 +101,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS` y codex usa la ventana registrada por su propia sesión.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
-- web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla, no usa red, no guarda contenido ni accede al historial.
+- web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla ni accede al historial del navegador. claudwler solo usa red si activas `verificar enlaces rotos en red`, y guarda textos y destinos de enlaces de cada recorrido en tu carpeta de soporte.
 - las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
 
 ## instalacion
@@ -126,6 +128,7 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, t
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de solo lectura, prompt, revision con agentes simulados, worktree
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-relay    # cápsulas portables, prompt y permisos locales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-scout    # reglas del auditor nativo de accesibilidad
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler  # verificador, diff e informe de claudwler (usa red)
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
