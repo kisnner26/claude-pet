@@ -86,6 +86,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-overlay"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.overlayPreview(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-systems"), i + 1 < CommandLine.arguments.count {
+            HeroSnapshot.systemsPreview(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
             snapshot(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -232,11 +235,15 @@ final class AppController: NSObject, NSApplicationDelegate {
     private func handleClaudePetClick(_ point: NSPoint) {
         let store = PetStore.shared
         if let file = PetOverlayLayout.file(at: point, files: store.mission.changes) {
-            DiffOpener.openChange(workspace: store.mission.workspace, file: file)
+            store.pullDiff(file)
             return
         }
         if store.contextReading != nil, PetOverlayLayout.hitsContextRing(point) {
             showRelay()
+            return
+        }
+        if store.radarTarget != nil {
+            store.activateRadarTarget()
             return
         }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") {
@@ -330,6 +337,16 @@ final class AppController: NSObject, NSApplicationDelegate {
             missionPanel.alphaValue = 1
         }
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func revealWebScout() {
+        let bundled = Bundle.main.resourceURL?.appendingPathComponent("browser-extension")
+        let development = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("browser-extension")
+        if let bundled, FileManager.default.fileExists(atPath: bundled.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([bundled])
+        } else if FileManager.default.fileExists(atPath: development.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([development])
+        }
     }
 
 

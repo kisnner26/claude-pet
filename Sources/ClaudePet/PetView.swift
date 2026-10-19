@@ -24,6 +24,9 @@ struct PetView: View {
 
     var body: some View {
         ZStack {
+            if let pressure = store.contextReading?.pressure, pressure != .normal {
+                ContextCocoonView(pressure: pressure)
+            }
             if !mission.changes.isEmpty {
                 FileOrbitView(files: mission.changes)
             }
@@ -32,6 +35,8 @@ struct PetView: View {
             }
             AuraView(state: store.state, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
             petCanvas
+            if let pull = store.diffPull { DiffPullView(pull: pull) }
+            if let target = store.radarTarget { AppRadarView(label: target) }
         }
         .padding(8)
         .frame(width: 128, height: 128)

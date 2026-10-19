@@ -34,6 +34,42 @@ enum HeroSnapshot {
         write(view, to: path)
     }
 
+    static func systemsPreview(to path: String) {
+        let now = Date.now
+        let file = ChangedFile(path: "Sources/ClaudePet/PetStore.swift", added: 46, deleted: 9,
+                               untracked: false, staged: false, conflict: false, modified: now)
+        let pull = DiffPull(file: file, lines: [
+            .init(text: "let remaining = compactAt - used", kind: .added),
+            .init(text: "let estimate = total / 2", kind: .removed),
+            .init(text: "guard remaining > 0 else { return }", kind: .context)
+        ])
+        let worktrees = [
+            WorktreeNode(path: "/repo", branch: "main", revision: "1a2b3c4d", current: true, locked: false, dirty: true, conflicts: 0),
+            WorktreeNode(path: "/repo-pet-codex", branch: "pet/codex", revision: "4d3c2b1a", current: false, locked: false, dirty: true, conflicts: 0),
+            WorktreeNode(path: "/repo-conflict", branch: "feature/map", revision: "8e7d6c5b", current: false, locked: false, dirty: true, conflicts: 2)
+        ]
+        let pet = ZStack {
+            Color(hex: 0x1C1B1A)
+            ContextCocoonView(pressure: .critical)
+            ContextRingView(reading: ContextReading(usedTokens: 148_000, compactAtTokens: 160_000, model: "claude"))
+            sprite(.waiting, tick: 0, skin: .block, unit: 7)
+            DiffPullView(pull: pull)
+            AppRadarView(label: "terminal")
+        }.frame(width: 128, height: 128)
+        let view = HStack(spacing: 28) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("señales vivas").font(.headline).foregroundStyle(Pal.cream)
+                pet.scaleEffect(1.7).frame(width: 218, height: 218)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                Text("trabajo paralelo").font(.headline).foregroundStyle(Pal.cream)
+                BranchWebView(nodes: worktrees) { _ in }.frame(width: 360)
+            }
+        }
+        .padding(30).background(Color(hex: 0x1C1B1A))
+        write(view, to: path)
+    }
+
     private static func write<V: View>(_ view: V, to path: String) {
         let r = ImageRenderer(content: view)
         r.scale = 2

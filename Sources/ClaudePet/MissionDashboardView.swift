@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 private enum Ink {
@@ -32,7 +33,12 @@ struct MissionDashboardView: View {
                 if control.git.available { GitStrip(health: control.git, refresh: control.refreshGit) }
                 if !control.changes.isEmpty {
                     ChangeMapView(files: control.changes) { file in
-                        DiffOpener.openChange(workspace: control.recovery?.workspace ?? control.workspace, file: file)
+                        store.pullDiff(file)
+                    }
+                }
+                if control.worktrees.count > 1 {
+                    BranchWebView(nodes: control.worktrees) { node in
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: node.path)])
                     }
                 }
                 attention(excluding: brief)

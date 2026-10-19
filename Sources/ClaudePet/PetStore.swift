@@ -25,6 +25,8 @@ final class PetStore: ObservableObject {
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
     @Published private(set) var contextReading: ContextReading?
+    @Published private(set) var diffPull: DiffPull?
+    @Published private(set) var radarTarget: String?
     /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
     @Published private(set) var codexSide = -1
     /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
@@ -138,7 +140,42 @@ final class PetStore: ObservableObject {
     }
 
     func setForegroundApp(_ name: String) {
-        if foregroundAppName != name { foregroundAppName = name }
+        if foregroundAppName != name { foregroundAppName = name; updateRadar() }
+    }
+
+    func pullDiff(_ file: ChangedFile) {
+        if diffPull?.file == file {
+            DiffOpener.openChange(workspace: mission.workspace, file: file)
+            return
+        }
+        let workspace = mission.workspace
+        Task { [weak self] in
+            let pull = await Task.detached(priority: .utility) {
+                DiffPullReader.read(workspace: workspace, file: file)
+            }.value
+            guard self?.mission.workspace == workspace else { return }
+            self?.diffPull = pull
+        }
+    }
+
+    func activateRadarTarget() {
+        guard let target = radarTarget else { return }
+        let apps = NSWorkspace.shared.runningApplications.filter { !$0.isTerminated }
+        let app = apps.first { item in
+            let name = item.localizedName?.lowercased() ?? ""
+            return target == "claude" ? item.bundleIdentifier == AppPresence.claudeBundle : name.contains("terminal") || name.contains("iterm") || name.contains("warp")
+        }
+        app?.activate(options: [.activateIgnoringOtherApps])
+    }
+
+    private func updateRadar() {
+        guard state == .waiting || state == .error || safetyAlert != nil else { radarTarget = nil; return }
+        let origin = (activity?.origin ?? "").lowercased()
+        let target = origin == "desktop" ? "claude" : "terminal"
+        let foreground = foregroundAppName.lowercased()
+        let alreadyThere = target == "claude" ? foreground.contains("claude")
+            : foreground.contains("terminal") || foreground.contains("iterm") || foreground.contains("warp")
+        radarTarget = alreadyThere ? nil : target
     }
 
     private func updatePresence() {
@@ -570,6 +607,7 @@ final class PetStore: ObservableObject {
             announce("claude pet: \(new.label.lowercased())")
         }
         let workspace = top?.workspace ?? ""
+        if workspace != lastMissionWorkspace, diffPull != nil { diffPull = nil }
         if new != lastMissionState || newProject != lastMissionProject || workspace != lastMissionWorkspace || topSession != lastMissionSession {
             mission.recordLocal(state: new, project: newProject, workspace: workspace, tool: newTool, session: topSession)
             lastMissionState = new
@@ -581,6 +619,7 @@ final class PetStore: ObservableObject {
         if changed { publish(event: eventFor(new)) }
         syncGame()
         updateReviewReady()
+        updateRadar()
     }
 
     private func updateReviewReady() {
