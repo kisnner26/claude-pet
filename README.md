@@ -15,7 +15,7 @@ pagina: https://kisnner26.github.io/claude-pet/
 - el visor de codex muestra su estado real: reposo, pensando (puntos), herramienta (teclea), permiso (`!` naranja), listo (`^ ^`) y error (`x x`). al arrastrarlo alterna los pies; reaccionan entre si, se saludan, se aplauden y juegan al futbol aunque esten en lados distintos de la pantalla.
 - codex tiene su propio panel: tres aspectos, gestos automáticos y acciones manuales (saludar, saludo formal, celebrar, curiosidad y patrullar). cuando claude no está en uso, el panel pasa a modo solo; cuando ambos trabajan cerca, activa modo dúo con paquetes visuales entre las ventanas.
 - refleja el estado real de claude code: inactivo, iniciando, pensando, ejecutando herramienta, esperando tu aprobacion, listo y error.
-- la burbuja de actividad sirve a las dos: la de claude dice la tarea exacta y la de codex solo su estado (por el pet bus no llega ningun detalle); se ancla a la mascota que esta trabajando.
+- la burbuja de actividad sirve a las dos: cada una muestra estado y tarea desde su sesión local. el pet bus sigue llevando únicamente presencia; la tarea de codex se lee en esta mac y nunca se publica.
 - una burbuja sobre la mascota dice la tarea exacta: "editando PetStore.swift", la descripcion del comando que corre, la tarea en curso.
 - dos aspectos (bloque y clasico). el icono de la barra de menu cambia segun lo que usas: la silueta de claude, la de codex o las dos juntas.
 - abrazo automatico: si las dos mascotas estan juntas (menos de 56 px entre ventanas), a la misma altura y ambas tranquilas (en reposo o recien terminadas), se abrazan: comparten suelo y cada una rodea con un brazo el cuerpo de la otra. se corta si una trabaja, pide permiso o falla, para no esconder su estado, y respeta "reducir movimiento".
@@ -28,7 +28,7 @@ pagina: https://kisnner26.github.io/claude-pet/
 
 ## ocho sistemas visuales
 
-en macos, la mascota convierte señales reales del proyecto y de la sesión en ocho capas compactas:
+en macos, ambas mascotas convierten señales reales de su propio proyecto y sesión en ocho capas compactas. nunca reutilizan los datos de la otra para aparentar paridad:
 
 1. **medidor de contexto**: aro azul, ámbar o rojo según los tokens que quedan antes del umbral de compactación; clic abre el relevo.
 2. **mapa vivo de archivos**: bloques por archivo, tamaño por líneas tocadas y estado por color.
@@ -41,7 +41,7 @@ en macos, la mascota convierte señales reales del proyecto y de la sesión en o
 
 ![sistemas visuales](docs/img/sistemas-visuales.png)
 
-`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página; las marcas desaparecen al desplazarte o redimensionar.
+`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida, elige claude o codex y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página; las marcas desaparecen al desplazarte o redimensionar.
 
 ## mission control
 
@@ -96,7 +96,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - el detector de contexto solo calcula una huella local de nombres, fechas y tamanos de archivos; no lee contenido. ignora `.git`, dependencias, builds y logs.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
-- el medidor de contexto lee únicamente los contadores de tokens del transcript local activo. no conserva ni muestra el contenido y permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS`.
+- cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS` y codex usa la ventana registrada por su propia sesión.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
 - web scout se ejecuta dentro de la pestaña activa únicamente cuando pulsas una acción. no usa red, almacenamiento ni permisos sobre el historial.

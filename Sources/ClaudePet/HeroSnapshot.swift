@@ -43,6 +43,8 @@ enum HeroSnapshot {
             .init(text: "let estimate = total / 2", kind: .removed),
             .init(text: "guard remaining > 0 else { return }", kind: .context)
         ])
+        let files = [file, ChangedFile(path: "Sources/ClaudePet/StageView.swift", added: 18, deleted: 3,
+                                       untracked: false, staged: true, conflict: false, modified: now)]
         let worktrees = [
             WorktreeNode(path: "/repo", branch: "main", revision: "1a2b3c4d", current: true, locked: false, dirty: true, conflicts: 0),
             WorktreeNode(path: "/repo-pet-codex", branch: "pet/codex", revision: "4d3c2b1a", current: false, locked: false, dirty: true, conflicts: 0),
@@ -51,15 +53,34 @@ enum HeroSnapshot {
         let pet = ZStack {
             Color(hex: 0x1C1B1A)
             ContextCocoonView(pressure: .critical)
+            FileOrbitView(files: files)
             ContextRingView(reading: ContextReading(usedTokens: 148_000, compactAtTokens: 160_000, model: "claude"))
             sprite(.waiting, tick: 0, skin: .block, unit: 7)
             DiffPullView(pull: pull)
             AppRadarView(label: "terminal")
         }.frame(width: 128, height: 128)
+        let codexInfo = CompanionInfo(codex: .waiting, claude: .idle, codexCheer: false,
+                                      codexConcern: false, claudeDone: false)
+        let codexPet = ZStack {
+            Color(hex: 0x1C1B1A)
+            ContextCocoonView(pressure: .critical).offset(y: 12)
+            FileOrbitView(files: files).offset(y: 12)
+            ContextRingView(reading: ContextReading(usedTokens: 380_000, compactAtTokens: 475_000, model: "codex")).offset(y: 12)
+            Canvas { context, _ in
+                CodexRenderer.draw(&context, now: now, info: codexInfo, game: nil,
+                                   reduceMotion: true, animate: false, facing: 1)
+            }
+            DiffPullView(pull: pull).offset(y: 12)
+            AppRadarView(label: "codex").offset(y: 12)
+        }.frame(width: 128, height: 152)
         let view = HStack(spacing: 28) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("señales vivas").font(.headline).foregroundStyle(Pal.cream)
+                Text("claude").font(.headline).foregroundStyle(Pal.cream)
                 pet.scaleEffect(1.7).frame(width: 218, height: 218)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                Text("codex").font(.headline).foregroundStyle(Pal.cream)
+                codexPet.scaleEffect(1.45).frame(width: 218, height: 218)
             }
             VStack(alignment: .leading, spacing: 10) {
                 Text("trabajo paralelo").font(.headline).foregroundStyle(Pal.cream)

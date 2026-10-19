@@ -116,6 +116,19 @@ enum SafetySelfTest {
         check("medidor cambia de presión por margen", context?.pressure == .caution
               && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
 
+        let codexURL = URL(fileURLWithPath: root).appendingPathComponent("codex-context.jsonl")
+        let codexLines = """
+        {"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>dato interno</environment_context>"}]}}
+        {"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"## My request:\\ncontinua el trabajo de paridad"}]}}
+        {"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"total_tokens":160000},"model_context_window":200000}}}
+        """
+        try? Data(codexLines.utf8).write(to: codexURL)
+        let codexContext = ContextMeter.readCodex(url: codexURL)
+        check("codex obtiene su propio medidor del último conteo", codexContext?.usedTokens == 160_000
+              && codexContext?.remainingPercent == 20 && codexContext?.pressure == .caution)
+        check("codex muestra la tarea visible y omite contexto interno",
+              CodexVisualScanner.lastUserTask(codexURL) == "continua el trabajo de paridad")
+
         // 7. telaraña de worktrees: parseo sin consultar ni modificar repositorios.
         let worktreeText = """
         worktree /tmp/demo

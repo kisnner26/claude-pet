@@ -111,6 +111,10 @@ reposo, y levanta el brazo cuando Codex termina. Codex se refleja para mirar sie
 su app (`com.openai.codex`). Con "reducir movimiento" o animaciones apagadas se mantienen las caras y se anulan saltos,
 vaiven y temblor. Pruebas: `ClaudePet --selftest-companion`, `tests/companion.sh` y `tests/presence.sh`.
 
+En macOS, Codex también muestra el mismo aro de contexto, mapa de archivos, extracción de diff, capullo y radar que Claude.
+Esos datos se leen directamente de la sesión local más reciente de Codex y de su carpeta de trabajo; no se añaden al bus.
+Si no existe una sesión local reciente, la mascota conserva sus estados y gestos pero no inventa las capas de proyecto.
+
 ![companero](img/companero.png)
 
 ## Adaptador de Codex (para otro proceso)
