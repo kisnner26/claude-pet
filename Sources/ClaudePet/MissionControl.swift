@@ -57,6 +57,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var timeline: [MissionEvent] = []
     @Published private(set) var git = GitHealth()
     @Published private(set) var changes: [ChangedFile] = []
+    @Published private(set) var worktrees: [WorktreeNode] = []
     @Published private(set) var relay: Relay?
     @Published private(set) var collision = false
     @Published private(set) var recovery: RecoveryCapsule?
@@ -296,6 +297,7 @@ final class MissionControl: ObservableObject {
                 if scannedWorkspace == self.localWorkspace {
                     self.git = result
                     self.loadChanges(workspace: scannedWorkspace, affected: result.affected)
+                    self.loadWorktrees(workspace: scannedWorkspace)
                 }
                 if let capsule = self.recovery, capsule.workspace == scannedWorkspace {
                     self.recovery = RecoveryCapsule(createdAt: capsule.createdAt, project: capsule.project,
@@ -306,6 +308,20 @@ final class MissionControl: ObservableObject {
     }
 
     private var changeScanRunning = false
+    private var worktreeScanRunning = false
+
+    private func loadWorktrees(workspace: String) {
+        guard !worktreeScanRunning else { return }
+        worktreeScanRunning = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let nodes = WorktreeMap.scan(workspace)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.worktreeScanRunning = false
+                if workspace == self.localWorkspace, self.worktrees != nodes { self.worktrees = nodes }
+            }
+        }
+    }
 
     /// El mapa de cambios se calcula fuera del hilo principal y solo si hay algo que mostrar.
     private func loadChanges(workspace: String, affected: Int) {
