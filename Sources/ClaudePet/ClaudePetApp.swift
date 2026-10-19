@@ -80,6 +80,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--selftest-companion") { exit(CompanionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
+        if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
+            let out = CommandLine.arguments.indices.contains(flag + 1) ? CommandLine.arguments[flag + 1] : nil
+            exit(WebCrawlerSelfTest.run(htmlOut: out) ? 0 : 1)
+        }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.footballSheet(to: CommandLine.arguments[i + 1]); exit(0)
@@ -138,6 +142,8 @@ final class AppController: NSObject, NSApplicationDelegate {
                 switch action {
                 case "mark": PetStore.shared.webScout.markSelection()
                 case "audit": PetStore.shared.webScout.auditVisibleControls()
+                case "crawl": PetStore.shared.webScout.startCrawler()
+                case "stop": PetStore.shared.webScout.stopCrawler()
                 case "clear": PetStore.shared.webScout.clear()
                 case "next": PetStore.shared.webScout.nextFinding()
                 case "previous": PetStore.shared.webScout.previousFinding()
@@ -513,8 +519,8 @@ struct ClaudePetApp: App {
         }
         if let i = a.firstIndex(of: "--web-scout"), i + 1 < a.count {
             let action = a[i + 1]
-            guard ["mark", "audit", "clear", "next", "previous"].contains(action) else {
-                print("acciones válidas: mark, audit, clear, next, previous"); exit(1)
+            guard ["mark", "audit", "crawl", "stop", "clear", "next", "previous"].contains(action) else {
+                print("acciones válidas: mark, audit, crawl, stop, clear, next, previous"); exit(1)
             }
             DistributedNotificationCenter.default().postNotificationName(
                 Notification.Name("local.claudepet.webscout"), object: nil, userInfo: ["action": action], deliverImmediately: true)
