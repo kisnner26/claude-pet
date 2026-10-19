@@ -37,6 +37,15 @@ struct MenuBarContent: View {
                 Divider()
                 Button("marcar selección", systemImage: "highlighter") { webScout.markSelection() }
                 Button("auditar controles visibles", systemImage: "viewfinder") { webScout.auditVisibleControls() }
+                Button(webScout.isCrawling ? "detener claudwler" : "iniciar claudwler",
+                       systemImage: webScout.isCrawling ? "stop.fill" : "point.3.filled.connected.trianglepath.dotted") {
+                    webScout.isCrawling ? webScout.stopCrawler() : webScout.startCrawler()
+                }
+                Toggle("verificar enlaces rotos en red", isOn: $webScout.verifyLinks)
+                Button("abrir informe visual", systemImage: "chart.bar.doc.horizontal") { webScout.openReport() }
+                    .disabled(!webScout.hasReport)
+                Button("copiar informe para Claude Code", systemImage: "doc.on.clipboard") { webScout.copyReport() }
+                    .disabled(!webScout.hasReport)
                 if webScout.canNavigate {
                     Divider()
                     Button("problema anterior", systemImage: "chevron.left") { webScout.previousFinding() }

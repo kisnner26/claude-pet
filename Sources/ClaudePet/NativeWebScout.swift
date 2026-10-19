@@ -55,6 +55,11 @@ private struct TrackedFinding {
     let finding: WebScoutFinding
 }
 
+private struct TrackedLink {
+    let element: AXUIElement
+    let record: CrawledLink
+}
+
 private struct ScoutMark: Identifiable {
     let id: Int
     let rect: CGRect
@@ -74,6 +79,12 @@ final class NativeWebScoutController: ObservableObject {
     @Published private(set) var status = "listo para señalar"
     @Published private(set) var issueCount = 0
     @Published private(set) var issueIndex = 0
+    @Published private(set) var isCrawling = false
+    @Published private(set) var hasReport = false
+    /// Opt-in: contactar los destinos (HEAD/GET sin cookies) para detectar enlaces rotos.
+    @Published var verifyLinks: Bool = UserDefaults.standard.bool(forKey: "claudwler.verify") {
+        didSet { UserDefaults.standard.set(verifyLinks, forKey: "claudwler.verify") }
+    }
 
     private var panel: NSPanel?
     private var findings: [TrackedFinding] = []
@@ -82,8 +93,22 @@ final class NativeWebScoutController: ObservableObject {
     private var trackingTask: Task<Void, Never>?
     private var lastExternalPID: pid_t?
     private var activationObserver: NSObjectProtocol?
+    private var crawlerLinks: [TrackedLink] = []
+    private var crawlerVisited = Set<Int>()
+    private var crawlerIndex = 0
+    private var crawlerPage = 0
+    private var crawlerTask: Task<Void, Never>?
+    private var crawlerRecords: [CrawledLink] = []
+    private var crawlerSeen = Set<CrawledLink>()
+    private var lastReport = ""
+    private var lastReportURL: URL?
+    private var crawlerChecks: [String: LinkCheck] = [:]
+    private var pendingChecks: [String: Task<LinkCheck, Never>] = [:]
+    private var crawlerURLTexts: [String: Set<String>] = [:]
+    private var finishTask: Task<Void, Never>?
+    private var visitedRecords = Set<CrawledLink>()
 
-    var hasFindings: Bool { issueCount > 0 }
+    var hasFindings: Bool { issueCount > 0 || isCrawling }
     var canNavigate: Bool { issueCount > 1 }
 
     init() {
@@ -138,19 +163,207 @@ final class NativeWebScoutController: ObservableObject {
         }
     }
 
+    func startCrawler() {
+        guard ensureAccess() else { return }
+        resetCurrentMode()
+        crawlerPage = 1
+        finishTask?.cancel()
+        crawlerRecords = []
+        crawlerSeen = []
+        crawlerChecks = [:]
+        pendingChecks.values.forEach { $0.cancel() }
+        pendingChecks = [:]
+        crawlerURLTexts = [:]
+        visitedRecords = []
+        crawlerLinks = track(WebScoutAX.visibleLinks(applicationPID: targetPID))
+        guard !crawlerLinks.isEmpty else {
+            status = "no encontré enlaces visibles"
+            showMessage(status)
+            return
+        }
+        isCrawling = true
+        crawlerIndex = 0
+        crawlerVisited = [0]
+        status = "claudwler · página 1"
+        refreshCrawler()
+        startCrawlerLoop()
+    }
+
+    func copyReport() {
+        guard hasReport else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lastReport, forType: .string)
+        status = "informe de claudwler copiado"
+    }
+
+    func openReport() {
+        guard let lastReportURL else { return }
+        NSWorkspace.shared.open(lastReportURL)
+    }
+
+    private func track(_ elements: [AXUIElement]) -> [TrackedLink] {
+        elements.map { element in
+            let link = WebScoutAX.crawledLink(element)
+            if crawlerSeen.insert(link).inserted {
+                crawlerRecords.append(link)
+                if !link.url.isEmpty { crawlerURLTexts[link.url, default: []].insert(link.text) }
+                enqueueCheck(link.url)
+            }
+            return TrackedLink(element: element, record: link)
+        }
+    }
+
+    private func enqueueCheck(_ url: String) {
+        guard verifyLinks, !url.isEmpty, pendingChecks[url] == nil, LinkChecker.isCheckable(url) else { return }
+        let task = Task { await LinkChecker.check(url) }
+        pendingChecks[url] = task
+        Task { [weak self] in
+            let result = await task.value
+            guard !task.isCancelled else { return }
+            self?.crawlerChecks[url] = result
+        }
+    }
+
+    private func tone(for link: CrawledLink) -> (CrawlerTone, String?) {
+        if let check = crawlerChecks[link.url], check.state == .broken { return (.broken, check.note) }
+        let issues = WebCrawlerReport.problems(for: link, urlTexts: crawlerURLTexts)
+        if let first = issues.first { return (.warn, first == "mismo destino con textos distintos" ? "duplicado" : String(first.prefix(14))) }
+        if let check = crawlerChecks[link.url], check.state == .unknown { return (.warn, check.note) }
+        return (.ok, nil)
+    }
+
+    private func finishCrawl(pages: Int, openWhenDone: Bool) {
+        isCrawling = false
+        finishTask?.cancel()
+        guard !crawlerRecords.isEmpty else { status = "claudwler completo · \(pages) páginas"; return }
+        let records = crawlerRecords
+        let urlTexts = crawlerURLTexts
+        let verified = verifyLinks
+        let pending = pendingChecks
+        status = verified ? "claudwler · verificando enlaces…" : "claudwler · armando informe…"
+        finishTask = Task { [weak self] in
+            // Espera las verificaciones en curso, con tope de tiempo.
+            if verified {
+                await withTaskGroup(of: Void.self) { group in
+                    group.addTask { for task in pending.values { _ = await task.value } }
+                    group.addTask { try? await Task.sleep(for: .seconds(20)) }
+                    _ = await group.next()
+                    group.cancelAll()
+                }
+            }
+            guard !Task.isCancelled, let self else { return }
+            let checks = self.crawlerChecks
+            let site = Self.site(for: records)
+            let root = await Task.detached { Self.projectRoot(for: records) }.value
+            var entries: [ReportEntry] = []
+            for link in records {
+                var problems = WebCrawlerReport.problems(for: link, urlTexts: urlTexts)
+                let check = checks[link.url]
+                if let check, check.state != .ok { problems.insert(check.state == .broken ? "roto · \(check.note)" : "sin confirmar · \(check.note)", at: 0) }
+                entries.append(ReportEntry(link: link, problems: problems, check: check, hints: []))
+            }
+            if let root {
+                self.status = "claudwler · buscando en el código…"
+                let targets = entries.filter { !$0.problems.isEmpty }.prefix(30).map { ($0.key, Self.searchTerms(for: $0)) }
+                let found = await Task.detached { () -> [String: [String]] in
+                    var out: [String: [String]] = [:]
+                    for (key, terms) in targets {
+                        for term in terms {
+                            let hits = SourceLocator.hints(for: term, in: root)
+                            if !hits.isEmpty { out[key] = hits; break }
+                        }
+                    }
+                    return out
+                }.value
+                entries = entries.map { ReportEntry(link: $0.link, problems: $0.problems, check: $0.check, hints: found[$0.key] ?? []) }
+            }
+            guard !Task.isCancelled else { return }
+            let snapshot = CrawlSnapshot(date: .now, entries: entries.map {
+                CrawlSnapshot.Entry(key: $0.key, text: $0.link.text, url: $0.link.url, problems: $0.problems)
+            })
+            let diff = CrawlHistory.load(site: site).map { CrawlHistory.diff(previous: $0, current: snapshot) }
+            CrawlHistory.save(snapshot, site: site)
+            let report = WebCrawlerReport.build(entries, pages: max(pages, 1), site: site, diff: diff, verified: verified)
+            self.lastReport = report.markdown
+            self.hasReport = true
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report.markdown, forType: .string)
+            try? FileManager.default.createDirectory(at: CrawlHistory.directory, withIntermediateDirectories: true)
+            let file = CrawlHistory.directory.appendingPathComponent("informe-\(CrawlHistory.slug(site)).html")
+            if (try? report.html.write(to: file, atomically: true, encoding: .utf8)) != nil {
+                self.lastReportURL = file
+                if openWhenDone { NSWorkspace.shared.open(file) }
+            }
+            var summary = "claudwler · \(records.count) enlaces · \(report.flagged) con problemas · \(report.broken) rotos"
+            if let diff, !diff.isEmpty { summary += " · +\(diff.newLinks.count) nuevos, \(diff.fixed.count) arreglados" }
+            self.status = summary + " · informe copiado"
+        }
+    }
+
+    private nonisolated static func site(for records: [CrawledLink]) -> String {
+        let hosts = records.compactMap { link -> String? in
+            guard let url = URL(string: link.url), let host = url.host else { return nil }
+            return url.port.map { "\(host):\($0)" } ?? host
+        }
+        return Dictionary(grouping: hosts, by: { $0 }).max { $0.value.count < $1.value.count }?.key ?? "página"
+    }
+
+    private nonisolated static func projectRoot(for records: [CrawledLink]) -> URL? {
+        let local = records.compactMap { URL(string: $0.url) }.first { WebCrawlerReport.isLocal($0.absoluteString) && $0.port != nil }
+        guard let port = local?.port else { return nil }
+        return SourceLocator.projectRoot(port: port)
+    }
+
+    private nonisolated static func searchTerms(for entry: ReportEntry) -> [String] {
+        var terms: [String] = []
+        let text = entry.link.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var path: String?
+        if let url = URL(string: entry.link.url), WebCrawlerReport.isLocal(entry.link.url), url.path.count > 1 { path = url.path }
+        else if !entry.link.url.isEmpty, !WebCrawlerReport.isLocal(entry.link.url) { path = entry.link.url }
+        if entry.broken, let path { terms.append(path) }
+        if text.count >= 3 { terms.append(text) }
+        if !entry.broken, let path { terms.append(path) }
+        return terms
+    }
+
+    func stopCrawler() {
+        let hadRecords = !crawlerRecords.isEmpty
+        let pages = crawlerPage
+        crawlerTask?.cancel()
+        crawlerTask = nil
+        crawlerLinks = []
+        crawlerVisited = []
+        crawlerIndex = 0
+        crawlerPage = 0
+        isCrawling = false
+        clearOverlayOnly()
+        if hadRecords { finishCrawl(pages: pages, openWhenDone: false) } else { status = "claudwler detenido" }
+    }
+
     func nextFinding() { navigate(1) }
     func previousFinding() { navigate(-1) }
 
     func clear() {
+        resetCurrentMode()
+        status = "marcas eliminadas"
+        clearOverlayOnly()
+    }
+
+    private func resetCurrentMode() {
         trackingTask?.cancel()
         trackingTask = nil
+        crawlerTask?.cancel()
+        crawlerTask = nil
         findings = []
         selectedElement = nil
         selectedRange = nil
+        crawlerLinks = []
+        crawlerVisited = []
+        crawlerIndex = 0
+        crawlerPage = 0
         issueCount = 0
         issueIndex = 0
-        status = "marcas eliminadas"
-        clearOverlayOnly()
+        isCrawling = false
     }
 
     private func navigate(_ offset: Int) {
@@ -197,6 +410,42 @@ final class NativeWebScoutController: ObservableObject {
         }
     }
 
+    private func startCrawlerLoop() {
+        crawlerTask?.cancel()
+        crawlerTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                let wait: Duration = self.reduceMotion ? .milliseconds(950) : .milliseconds(720)
+                try? await Task.sleep(for: wait)
+                guard !Task.isCancelled, self.isCrawling else { return }
+                self.crawlerVisited.insert(self.crawlerIndex)
+                if self.crawlerIndex + 1 < self.crawlerLinks.count {
+                    self.crawlerIndex += 1
+                    self.crawlerVisited.insert(self.crawlerIndex)
+                    self.refreshCrawler()
+                    continue
+                }
+                guard self.crawlerPage < 12, WebScoutAX.scrollDown(applicationPID: self.targetPID) else {
+                    self.finishCrawl(pages: self.crawlerPage, openWhenDone: true)
+                    return
+                }
+                self.crawlerPage += 1
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                let links = self.track(WebScoutAX.visibleLinks(applicationPID: self.targetPID))
+                guard !links.isEmpty else {
+                    self.finishCrawl(pages: self.crawlerPage - 1, openWhenDone: true)
+                    return
+                }
+                self.crawlerLinks = links
+                self.crawlerIndex = 0
+                self.crawlerVisited = [0]
+                self.status = "claudwler · página \(self.crawlerPage)"
+                self.refreshCrawler()
+            }
+        }
+    }
+
     private func refreshSelection() {
         guard let selectedElement, let selectedRange,
               let frame = WebScoutAX.bounds(element: selectedElement, range: selectedRange),
@@ -221,6 +470,51 @@ final class NativeWebScoutController: ObservableObject {
                                label: "\(issueIndex + 1)/\(findings.count) · \(current.label)"), on: display.screen)
     }
 
+    private func refreshCrawler() {
+        guard crawlerLinks.indices.contains(crawlerIndex),
+              let currentFrame = WebScoutAX.frame(crawlerLinks[crawlerIndex].element),
+              let display = WebScoutDisplay.locate(currentFrame) else { return }
+        visitedRecords.insert(crawlerLinks[crawlerIndex].record)
+        var targets: [WebCrawlerTarget] = []
+        var points: [CGPoint] = []
+        for (index, link) in crawlerLinks.enumerated() {
+            guard let frame = WebScoutAX.frame(link.element), let located = WebScoutDisplay.locate(frame),
+                  located.screen == display.screen else { continue }
+            let visited = crawlerVisited.contains(index)
+            let verdict = visited ? tone(for: link.record) : (CrawlerTone.pending, nil)
+            targets.append(WebCrawlerTarget(id: index, rect: located.localRect, visited: visited,
+                                            current: index == crawlerIndex, tone: verdict.0, badge: verdict.1))
+            points.append(CGPoint(x: located.localRect.midX, y: located.localRect.midY))
+        }
+        guard let current = targets.first(where: { $0.id == crawlerIndex }) else { return }
+        let tally = visitedRecords.reduce(into: (ok: 0, warn: 0, broken: 0)) { acc, link in
+            switch tone(for: link).0 {
+            case .ok: acc.ok += 1
+            case .warn: acc.warn += 1
+            case .broken: acc.broken += 1
+            case .pending: break
+            }
+        }
+        let nextID = min(crawlerIndex + 1, crawlerLinks.count - 1)
+        let next = targets.first(where: { $0.id == nextID }) ?? current
+        let origin = CGPoint(x: current.rect.midX, y: current.rect.midY)
+        let destination = CGPoint(x: next.rect.midX, y: next.rect.midY)
+        let contacts = points.sorted { distance($0, origin) < distance($1, origin) }.prefix(8)
+        let scene = WebCrawlerScene(agent: agent, targets: targets, from: origin, to: destination,
+                                    contacts: Array(contacts), step: crawlerIndex + 1, total: crawlerLinks.count,
+                                    startedAt: .now, duration: reduceMotion ? 1 : 0.7, reduceMotion: reduceMotion,
+                                    ok: tally.ok, warn: tally.warn, broken: tally.broken, verifying: verifyLinks && pendingChecks.count > crawlerChecks.count)
+        showCrawler(scene: scene, on: display.screen)
+    }
+
+    private var reduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || !PetStore.shared.animationsEnabled
+    }
+
+    private func distance(_ lhs: CGPoint, _ rhs: CGPoint) -> Double {
+        hypot(lhs.x - rhs.x, lhs.y - rhs.y)
+    }
+
     private func showMessage(_ message: String) {
         guard let screen = NSScreen.main else { return }
         let mark = ScoutMark(id: 0, rect: CGRect(x: screen.frame.width - 84, y: screen.frame.height - 84, width: 1, height: 1), tone: .info, active: true)
@@ -230,6 +524,13 @@ final class NativeWebScoutController: ObservableObject {
     private func show(scene: ScoutScene, on screen: NSScreen) {
         let panel = panel ?? makePanel()
         panel.contentView = NSHostingView(rootView: NativeWebScoutOverlay(scene: scene))
+        if panel.frame != screen.frame { panel.setFrame(screen.frame, display: false) }
+        if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+
+    private func showCrawler(scene: WebCrawlerScene, on screen: NSScreen) {
+        let panel = panel ?? makePanel()
+        panel.contentView = NSHostingView(rootView: WebCrawlerOverlay(scene: scene))
         if panel.frame != screen.frame { panel.setFrame(screen.frame, display: false) }
         if !panel.isVisible { panel.orderFrontRegardless() }
     }
@@ -305,6 +606,64 @@ private enum WebScoutAX {
             if lhs.finding.tone == rhs.finding.tone { return false }
             return lhs.finding.tone == .error
         }
+    }
+
+    static func crawledLink(_ element: AXUIElement) -> CrawledLink {
+        var text = copyString(kAXTitleAttribute as String, from: element) ?? ""
+        if text.isEmpty { text = copyString(kAXDescriptionAttribute as String, from: element) ?? "" }
+        if text.isEmpty, let children = copyValue(kAXChildrenAttribute as String, from: element) as? [AXUIElement] {
+            text = children.prefix(8).compactMap { copyString(kAXValueAttribute as String, from: $0) }.joined(separator: " ")
+        }
+        let url = (copyValue("AXURL", from: element) as? URL)?.absoluteString ?? ""
+        return CrawledLink(text: text.trimmingCharacters(in: .whitespacesAndNewlines), url: url)
+    }
+
+    static func visibleLinks(applicationPID: pid_t?) -> [AXUIElement] {
+        guard let application = focusedApplication(fallbackPID: applicationPID),
+              let window = copyElement(kAXFocusedWindowAttribute as String, from: application) else { return [] }
+        var queue: [(AXUIElement, Int)] = [(window, 0)]
+        var index = 0
+        var links: [(AXUIElement, CGRect)] = []
+        var frames = Set<String>()
+        while index < queue.count, index < 2200, links.count < 80 {
+            let (element, depth) = queue[index]
+            index += 1
+            if copyString(kAXRoleAttribute as String, from: element) == "AXLink",
+               let frame = frame(element), WebScoutDisplay.locate(frame) != nil {
+                let key = "\(Int(frame.minX)):\(Int(frame.minY)):\(Int(frame.width)):\(Int(frame.height))"
+                if frames.insert(key).inserted { links.append((element, frame)) }
+            }
+            if depth < 16, let children = copyValue(kAXChildrenAttribute as String, from: element) as? [AXUIElement] {
+                queue.append(contentsOf: children.prefix(400).map { ($0, depth + 1) })
+            }
+        }
+        return links.sorted {
+            abs($0.1.minY - $1.1.minY) < 8 ? $0.1.minX < $1.1.minX : $0.1.minY < $1.1.minY
+        }.map(\.0)
+    }
+
+    static func scrollDown(applicationPID: pid_t?) -> Bool {
+        guard let application = focusedApplication(fallbackPID: applicationPID),
+              let window = copyElement(kAXFocusedWindowAttribute as String, from: application) else { return false }
+        var queue: [(AXUIElement, Int)] = [(window, 0)]
+        var index = 0
+        var candidates: [(AXUIElement, Double, Double)] = []
+        while index < queue.count, index < 1800 {
+            let (element, depth) = queue[index]
+            index += 1
+            if copyString(kAXRoleAttribute as String, from: element) == kAXScrollBarRole as String,
+               copyString(kAXOrientationAttribute as String, from: element) == "AXVerticalOrientation",
+               let value = copyValue(kAXValueAttribute as String, from: element) as? NSNumber,
+               let frame = frame(element), frame.height > 180 {
+                candidates.append((element, value.doubleValue, frame.height))
+            }
+            if depth < 14, let children = copyValue(kAXChildrenAttribute as String, from: element) as? [AXUIElement] {
+                queue.append(contentsOf: children.prefix(350).map { ($0, depth + 1) })
+            }
+        }
+        guard let candidate = candidates.filter({ $0.1 < 0.995 }).max(by: { $0.2 < $1.2 }) else { return false }
+        let next = min(1, candidate.1 + 0.12)
+        return AXUIElementSetAttributeValue(candidate.0, kAXValueAttribute as CFString, NSNumber(value: next)) == .success
     }
 
     static func bounds(element: AXUIElement, range: AXValue) -> CGRect? {
