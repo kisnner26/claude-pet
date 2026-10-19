@@ -68,7 +68,7 @@ struct MissionDashboardView: View {
             withTransaction(instant) { dissolved = 0.6 }
             withAnimation(.easeOut(duration: 0.18)) { dissolved = 0 }
         }
-        .frame(width: 560, height: 700)
+        .frame(width: 560, height: 440)
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("tablero operativo de claude pet")
