@@ -41,7 +41,7 @@ en macos, ambas mascotas convierten señales reales de su propio proyecto y sesi
 
 ![sistemas visuales](docs/img/sistemas-visuales.png)
 
-`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida, elige claude o codex y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página; las marcas desaparecen al desplazarte o redimensionar.
+`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida, elige claude o codex y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página. las marcas siguen al contenido al desplazarte; usa los controles flotantes o las flechas para recorrer problemas y `esc` para cerrar.
 
 ## mission control
 
