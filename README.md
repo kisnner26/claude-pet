@@ -26,6 +26,23 @@ pagina: https://kisnner26.github.io/claude-pet/
 - un aro alrededor de claude estima cuánto contexto queda antes de la compactación: azul con margen, ámbar al acercarse y rojo en zona crítica. al pulsarlo abre el relevo de sesión.
 - hasta doce bloques rodean la mascota con los archivos que están cambiando. su tamaño refleja líneas tocadas; azul es modificado, verde staged, crema nuevo y coral conflicto. al pulsar abre el diff o el archivo nuevo.
 
+## ocho sistemas visuales
+
+en macos, la mascota convierte señales reales del proyecto y de la sesión en ocho capas compactas:
+
+1. **medidor de contexto**: aro azul, ámbar o rojo según los tokens que quedan antes del umbral de compactación; clic abre el relevo.
+2. **mapa vivo de archivos**: bloques por archivo, tamaño por líneas tocadas y estado por color.
+3. **patas de evidencia**: la extensión web conecta la mascota con el texto que seleccionaste en la página.
+4. **cazador visual**: la misma extensión marca controles sin nombre, imágenes sin `alt`, objetivos diminutos y contrastes probablemente bajos.
+5. **telaraña de ramas**: mission control dibuja los worktrees reales; línea gruesa significa cambios, coral significa conflicto y línea discontinua significa worktree bloqueado.
+6. **diff físico**: el primer clic sobre un archivo hace que la mascota tire de líneas reales del diff; el segundo abre el diff completo.
+7. **capullo de contexto**: al entrar en presión ámbar o roja, varios hilos rodean la mascota y el aro permite preparar el relevo existente.
+8. **radar entre aplicaciones**: una antena indica si una aprobación o error espera en claude o en la terminal; clic lleva a la aplicación correspondiente.
+
+![sistemas visuales](docs/img/sistemas-visuales.png)
+
+`web scout` funciona en chrome y edge sin servidor ni cuenta. desde el menú usa `mostrar web scout`, carga esa carpeta como extensión descomprimida y después pulsa `marcar selección` o `cazar problemas`. no guarda ni transmite el contenido de la página; las marcas desaparecen al desplazarte o redimensionar.
+
 ## mission control
 
 cinco funciones locales convierten la mascota en un tablero operativo:
@@ -82,6 +99,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - el medidor de contexto lee únicamente los contadores de tokens del transcript local activo. no conserva ni muestra el contenido y permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS`.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
+- web scout se ejecuta dentro de la pestaña activa únicamente cuando pulsas una acción. no usa red, almacenamiento ni permisos sobre el historial.
 - las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
 
 ## instalacion
@@ -107,6 +125,7 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-safety   # huella, monit
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-mission  # radar, git, timeline, presupuesto, recuperacion
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de solo lectura, prompt, revision con agentes simulados, worktree
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-relay    # cápsulas portables, prompt y permisos locales
+build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --trigger football   # greet | cheer | concern

@@ -116,6 +116,34 @@ enum SafetySelfTest {
         check("medidor cambia de presión por margen", context?.pressure == .caution
               && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
 
+        // 7. telaraña de worktrees: parseo sin consultar ni modificar repositorios.
+        let worktreeText = """
+        worktree /tmp/demo
+        HEAD 1111111111111111111111111111111111111111
+        branch refs/heads/main
+
+        worktree /tmp/demo-pet
+        HEAD 2222222222222222222222222222222222222222
+        branch refs/heads/pet/codex
+        locked ocupado
+        """
+        let worktrees = WorktreeMap.parse(worktreeText, currentPath: "/tmp/demo")
+        check("telaraña distingue rama actual, secundaria y bloqueo", worktrees.count == 2 && worktrees[0].current
+              && worktrees[0].branch == "main" && worktrees[1].branch == "pet/codex" && worktrees[1].locked)
+        let positions = WorktreeMap.positions(count: 4, size: CGSize(width: 300, height: 120))
+        check("nodos de ramas quedan dentro del lienzo", positions.count == 4
+              && positions.allSatisfy { $0.x >= 0 && $0.x <= 300 && $0.y >= 0 && $0.y <= 120 })
+
+        // 8. extracción visual: usa un diff local limitado y descarta rutas inseguras.
+        let pulled = DiffPullReader.read(workspace: repo,
+                                        file: ChangedFile(path: "big.txt", added: 1, deleted: 1, untracked: false,
+                                                          staged: true, conflict: false, modified: nil))
+        check("la mascota extrae líneas reales del diff", pulled?.lines.isEmpty == false)
+        let unsafe = DiffPullReader.read(workspace: repo,
+                                        file: ChangedFile(path: "../secret", added: 1, deleted: 0, untracked: true,
+                                                          staged: false, conflict: false, modified: nil))
+        check("la extracción rechaza rutas fuera del proyecto", unsafe == nil)
+
         print(failures == 0 ? "TODO OK" : "\(failures) FALLOS")
         return failures == 0
     }
