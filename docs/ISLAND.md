@@ -45,4 +45,12 @@ los atajos globales son opt-in, aceptan únicamente ctrl+option+a/d/i/s/p, ignor
 - falta validar el ciclo completo con una sesión real de claude code y codex.
 - las capturas son snapshots de `ImageRenderer`, no sustituyen una ejecución en pantalla real.
 
+## checklist manual
+
+- [ ] notch real: activa `isla en el notch`, mueve el cursor sobre el notch y confirma que asoma y se abre centrada, sin tapar la barra de menús.
+- [ ] clic traversante: con la isla oculta, haz clic fuera de su forma y confirma que la app bajo ella recibe el clic; repite dentro y confirma que abre el detalle.
+- [ ] permiso real: activa `responder permisos desde la isla`, ejecuta una herramienta que pida permiso y pulsa `permitir` y después `denegar`; claude code debe recibir cada decisión.
+- [ ] pregunta real: ejecuta una llamada a `AskUserQuestion`, responde una opción desde la tarjeta y confirma que la sesión continúa con esa respuesta.
+- [ ] voiceover: activa voiceover, enfoca la isla y confirma que anuncia agente, estado, porcentaje y alerta sin leer comandos completos.
+
 el detalle de capacidades y cambios pequeños está en [CHANGELOG-ISLAND.md](CHANGELOG-ISLAND.md).
