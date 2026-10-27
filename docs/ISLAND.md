@@ -96,3 +96,5 @@ formato verificado contra la documentación oficial de hooks de claude code: [ho
 prueba automática: `ClaudePet --selftest-question hooks/pet-question.sh` ejecuta el hook real con home temporal y cubre opción única, múltiple, cuatro preguntas, texto libre, muerte del hook, app cerrada, plazo, entradas inválidas, recorte, controles y límite de pendientes. falta probar el ciclo completo con una sesión real de claude code.
 
 prueba automática adicional: `ClaudePet --selftest-terminal` cubre coincidencia única, ambigüedad y aplicación no terminal. no se probó el foco de una ventana real.
+
+la tarjeta de permisos incluye `copiar detalle` y `copiar permiso completo`; este último conserva herramienta, proyecto y detalle en texto plano sin escribirlos en disco. `PermissionSelfTest` valida ambos formatos.

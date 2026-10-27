@@ -10,6 +10,11 @@ enum PermissionSelfTest {
         var failures = 0
         func check(_ name: String, _ ok: Bool) { print((ok ? "PASS " : "FAIL ") + name); if !ok { failures += 1 } }
 
+        let sampleAsk = PermissionAsk(id: "copy", session: "s", tool: "Bash", project: "demo", detail: "echo hola", canAlways: false, at: Date())
+        check("el permiso se puede copiar con herramienta, proyecto y detalle", sampleAsk.clipboardText == "permiso: Bash\nproyecto: demo\ndetalle: echo hola")
+        let bareAsk = PermissionAsk(id: "copy-bare", session: "s", tool: "Read", project: "", detail: "", canAlways: false, at: Date())
+        check("el texto copiado omite campos vacios", bareAsk.clipboardText == "permiso: Read")
+
         let home = NSTemporaryDirectory() + "claudepet-perm-\(getpid())"
         try? FileManager.default.createDirectory(atPath: home + "/.claude-pet", withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: home) }
