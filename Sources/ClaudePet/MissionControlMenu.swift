@@ -16,6 +16,7 @@ struct MissionControlMenu: View {
             Text(control.collision ? "posible colisión: claude y codex en el mismo proyecto" : "coordinación: sin colisiones")
             Text("git: \(control.git.label)")
             Text("sesión: \(control.focusLabel)")
+            Text("foco: \(control.brief.title.lowercased())")
             Button("actualizar salud git") { control.refreshGit() }
             Button("abrir carpeta del proyecto") { control.openWorkspace() }
             Button("copiar informe técnico") {
