@@ -72,7 +72,7 @@ final class IslandController {
         model.onPetClick = { [weak self] in self?.clicked = true }
         model.pokes = []; model.hopStart = nil
         model.greetUntil = ProcessInfo.processInfo.systemUptime + 1.4
-        SoundEngine.shared.enabled = store.soundsEnabled; SoundEngine.shared.volume = Float(store.soundVolume)
+        store.applySound(to: SoundEngine.shared)
         SoundEngine.shared.play(.greeting)
         relocate()
         p.orderFrontRegardless()
@@ -162,7 +162,7 @@ final class IslandController {
         let doneNow = (c == .done && lastClaude != .done) || (x == .done && lastCodex != .done)
         let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
         let sound = SoundEngine.shared
-        sound.enabled = store.soundsEnabled; sound.volume = Float(store.soundVolume)
+        store.applySound(to: sound)
         // modo foco: con el foco activo solo suenan las alertas
         let focusNow = store.focusMode.isActive(at: Date())
         sound.focus = focusNow

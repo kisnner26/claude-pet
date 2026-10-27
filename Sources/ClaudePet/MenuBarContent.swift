@@ -169,7 +169,7 @@ struct MenuBarContent: View {
                 Menu("sonido", systemImage: "speaker.wave.2") {
                     Toggle("sonidos de la isla", isOn: $store.soundsEnabled)
                     Picker("volumen", selection: $store.soundVolume) { ForEach([0.15, 0.3, 0.4, 0.6, 0.8, 1.0], id: \.self) { Text("\(Int($0 * 100)) %").tag($0) } }
-                    Button("probar sonido de terminado") { SoundEngine.shared.enabled = store.soundsEnabled; SoundEngine.shared.volume = Float(store.soundVolume); SoundEngine.shared.play(.done) }
+                    Button("probar sonido de terminado") { store.applySound(to: SoundEngine.shared); SoundEngine.shared.play(.done) }
                 }
                 Button("commitear este proyecto…", systemImage: "arrow.triangle.branch") {
                     if !CommiteroLauncher.launch(workspace: store.mission.workspace) { NSSound.beep() }

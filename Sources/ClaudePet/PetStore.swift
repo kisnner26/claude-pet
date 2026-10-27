@@ -163,6 +163,20 @@ final class PetStore: ObservableObject {
     @Published var islandCloseDelay: Double = {
         UserDefaults.standard.object(forKey: "islandCloseDelay") == nil ? 1.2 : min(10, max(0, UserDefaults.standard.double(forKey: "islandCloseDelay")))
     }() { didSet { UserDefaults.standard.set(islandCloseDelay, forKey: "islandCloseDelay") } }
+    /// Volumen propio de cada categoria de sonido (interfaz, alertas, mascota); sin valor = 100 %.
+    @Published var soundCategoryVolumes: [SoundCue.Category: Double] = SoundCategoryVolumes.decode(UserDefaults.standard.string(forKey: "soundCategoryVolumes") ?? "") {
+        didSet { UserDefaults.standard.set(SoundCategoryVolumes.encode(soundCategoryVolumes), forKey: "soundCategoryVolumes") }
+    }
+    func categoryVolume(_ c: SoundCue.Category) -> Double { soundCategoryVolumes[c] ?? 1 }
+    /// Lleva los ajustes de sonido al motor; un solo sitio para que isla, menu y ajustes no se desincronicen.
+    @MainActor func applySound(to engine: SoundEngine) {
+        engine.enabled = soundsEnabled; engine.volume = Float(soundVolume)
+        engine.categoryVolume = Dictionary(uniqueKeysWithValues: SoundCue.Category.allCases.map { ($0, Float(categoryVolume($0))) })
+    }
+    @Published var shortcutMap: ShortcutMap = ShortcutMap.decode(UserDefaults.standard.string(forKey: "shortcutKeys") ?? "") {
+        didSet { UserDefaults.standard.set(shortcutMap.encode(), forKey: "shortcutKeys"); onShortcutMapChanged?(shortcutMap) }
+    }
+    var onShortcutMapChanged: ((ShortcutMap) -> Void)?
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

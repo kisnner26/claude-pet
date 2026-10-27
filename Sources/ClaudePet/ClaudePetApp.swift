@@ -600,6 +600,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func configureShortcuts(_ enabled: Bool) {
+        shortcutMonitor.map = PetStore.shared.shortcutMap
+        PetStore.shared.onShortcutMapChanged = { [weak self] map in self?.shortcutMonitor.map = map }
         shortcutMonitor.onShortcut = { [weak self] shortcut in
             guard let self else { return }
             switch shortcut {
