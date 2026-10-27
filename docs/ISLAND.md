@@ -128,3 +128,5 @@ su menú contextual copia las cifras de cambios, staged y conflictos sin alterar
 los indicadores de contexto y git tienen ayudas contextuales al pasar el cursor, con la leyenda de colores y la acción disponible.
 
 la insignia de decisiones pendientes es interactiva: pulsarla activa la misma respuesta de la mascota y abre el detalle cuando la isla está compacta.
+
+los medidores compactos de contexto también son interactivos: tocar porcentaje o barra abre el detalle correspondiente.
