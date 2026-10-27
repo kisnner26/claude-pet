@@ -139,6 +139,8 @@ el ticker de pasos muestra antigüedad relativa (`ahora`, segundos o minutos) ca
 
 la vista abierta ofrece `copiar actividad reciente`, que reúne hasta tres líneas con objetivo, delta y antigüedad sin persistirlas.
 
+los títulos de estado de claude y codex tienen menú contextual para copiar solo agente, estado y duración.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
