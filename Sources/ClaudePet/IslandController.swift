@@ -418,6 +418,11 @@ struct IslandView: View {
                     NSWorkspace.shared.open(URL(fileURLWithPath: store.mission.workspace))
                 }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
             }
+            if store.mission.git.available {
+                Button("rama: \(store.mission.git.branch.isEmpty ? "sin rama" : store.mission.git.branch)", systemImage: "arrow.triangle.branch") {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.mission.git.branch, forType: .string)
+                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+            }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 HStack {
                     Button { store.openLatestDiff() } label: {
