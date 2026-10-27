@@ -135,6 +135,8 @@ el resumen abierto muestra el modelo detectado junto al anillo y permite copiar 
 
 la pestaña codex replica ese resumen solo cuando su adaptador publica una lectura propia: anillo, porcentaje, modelo y copia del nombre, sin inferir paridad.
 
+cuando existe esa lectura, codex también ofrece `copiar contexto codex` con el resumen completo de modelo, porcentaje y tokens restantes.
+
 el ticker de pasos muestra antigüedad relativa (`ahora`, segundos o minutos) calculada en memoria para distinguir actividad reciente de líneas antiguas.
 
 la vista abierta ofrece `copiar actividad reciente`, que reúne hasta tres líneas con objetivo, delta y antigüedad sin persistirlas.
