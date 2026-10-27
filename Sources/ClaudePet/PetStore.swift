@@ -254,7 +254,15 @@ final class PetStore: ObservableObject {
                                          codex: (codexPresent || pinSession) && !muteCodex), auto: autoVisibility, userHidden: userHidden)
     }
     var terminalProject: String { mission.workspace.isEmpty ? project : URL(fileURLWithPath: mission.workspace).lastPathComponent }
-    var terminalTargetAvailable: Bool { TerminalTargetResolver.current(project: terminalProject) != nil }
+    /// Buscar la terminal recorre las ventanas del sistema; las vistas lo preguntan en cada redibujo, asi que se recuerda 5 s.
+    private var terminalCache: (project: String, value: Bool, at: Date)?
+    var terminalTargetAvailable: Bool {
+        let now = Date(), project = terminalProject
+        if let c = terminalCache, c.project == project, now.timeIntervalSince(c.at) < 5 { return c.value }
+        let value = TerminalTargetResolver.current(project: project) != nil
+        terminalCache = (project, value, now)
+        return value
+    }
     var pendingAttentionCount: Int { permissionAsks.count + questionAsks.count }
     var attentionLabel: String {
         switch pendingAttentionCount {
@@ -625,10 +633,8 @@ final class PetStore: ObservableObject {
 
     /// Reduce movimiento del sistema (o forzado con CLAUDE_PET_REDUCE_MOTION=1 para pruebas).
     var gameStart: Date? { game.startedAt }
-    var reduceMotion: Bool {
-        ProcessInfo.processInfo.environment["CLAUDE_PET_REDUCE_MOTION"] == "1"
-            || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-    }
+    private static let reduceMotionFromEnvironment = ProcessInfo.processInfo.environment["CLAUDE_PET_REDUCE_MOTION"] == "1"
+    var reduceMotion: Bool { Self.reduceMotionFromEnvironment || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
     // MARK: disparadores manuales (menu y `ClaudePet --trigger <nombre>`)
 
@@ -864,7 +870,8 @@ final class PetStore: ObservableObject {
             nextContextScan = .distantPast
         }
         guard now >= nextContextScan, contextScanTask == nil else { return }
-        nextContextScan = now.addingTimeInterval(3)
+        // leer el transcript entero es lo mas caro del reposo: cada 5 s trabajando y cada 15 s sin actividad
+        nextContextScan = now.addingTimeInterval(state == .idle ? 15 : 5)
         let prefix = session
         contextScanTask = Task { [weak self] in
             guard let self else { return }

@@ -47,30 +47,26 @@ enum ContextMeter {
     }
 
     static func read(url: URL, compactAt: Int = compactAtTokens) -> ContextReading? {
-        var reading: ContextReading?
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        do {
-            let end = try handle.seekToEnd()
-            let start = end > 4 * 1024 * 1024 ? end - 4 * 1024 * 1024 : 0
-            try handle.seek(toOffset: start)
-            guard var data = try handle.readToEnd(), !data.isEmpty else { return nil }
+        guard let end = try? handle.seekToEnd(), end > 0 else { return nil }
+        // Solo importa el ultimo conteo: se lee una cola corta y, si ahi no hay ninguno, se amplia hasta 4 MB.
+        for window in [UInt64(192 * 1024), UInt64(4 * 1024 * 1024)] {
+            let start = end > window ? end - window : 0
+            guard (try? handle.seek(toOffset: start)) != nil, var data = try? handle.readToEnd(), !data.isEmpty else { return nil }
             if start > 0, let newline = data.firstIndex(of: 10) { data.removeSubrange(data.startIndex...newline) }
-            for line in data.split(separator: 10) {
-                guard let row = SessionJSONLines.object(Data(line)) else { continue }
-                guard let message = row["message"] as? [String: Any],
+            // de atras hacia adelante: la primera linea con tokens es la vigente
+            for line in data.split(separator: 10).reversed() {
+                guard let row = SessionJSONLines.object(Data(line)),
+                      let message = row["message"] as? [String: Any],
                       let usage = message["usage"] as? [String: Any] else { continue }
-                let input = integer(usage["input_tokens"])
-                let created = integer(usage["cache_creation_input_tokens"])
-                let cached = integer(usage["cache_read_input_tokens"])
-                let output = integer(usage["output_tokens"])
-                let used = input + created + cached + output
+                let used = integer(usage["input_tokens"]) + integer(usage["cache_creation_input_tokens"]) + integer(usage["cache_read_input_tokens"]) + integer(usage["output_tokens"])
                 guard used > 0 else { continue }
-                reading = ContextReading(usedTokens: used, compactAtTokens: compactAt,
-                                         model: message["model"] as? String ?? "claude")
+                return ContextReading(usedTokens: used, compactAtTokens: compactAt, model: message["model"] as? String ?? "claude")
             }
-        } catch { return nil }
-        return reading
+            if start == 0 { break }
+        }
+        return nil
     }
 
     /// Codex registra el conteo vigente y la ventana del modelo en eventos `token_count`.

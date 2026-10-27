@@ -23,7 +23,7 @@ final class IslandController {
     private var lastLoggedOver = false
     private var lastLoggedDrag = false
     /// Diagnostico opcional: con CLAUDE_PET_ISLAND_LOG=<archivo> anota los cambios de modo y del cursor sobre la zona.
-    private static var logPath: String? { ProcessInfo.processInfo.environment["CLAUDE_PET_ISLAND_LOG"] }
+    private static let logPath: String? = ProcessInfo.processInfo.environment["CLAUDE_PET_ISLAND_LOG"]      // se lee una vez: `environment` crea un diccionario en cada llamada
     static func log(_ line: String) {
         guard let path = logPath, let data = (line + "\n").data(using: .utf8) else { return }
         if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(data); try? h.close() } else { try? data.write(to: URL(fileURLWithPath: path)) }
@@ -245,7 +245,9 @@ final class IslandController {
         let f = NotchGeometry.islandFrame(mode, metrics: m, placement: placement, expandedHeight: eh)
         let cursorGaze = CGPoint(x: max(-1, min(1, (mouse.x - f.midX) / 400)), y: max(-1, min(1, (mouse.y - f.midY) / 300)))
         // la tarjeta aparece a la izquierda de la mascota en la vista abierta.
-        model.gaze = asking && mode == .expanded ? CGPoint(x: -0.8, y: 0) : cursorGaze
+        // asignar siempre publicaria 30 veces por segundo y redibujaria toda la isla: solo si cambia
+        let newGaze = asking && mode == .expanded ? CGPoint(x: -0.8, y: 0) : cursorGaze
+        if model.gaze != newGaze { model.gaze = newGaze }
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
         let interactive = (mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, placement: placement, expandedHeight: eh)) || (dragging && overZone)
