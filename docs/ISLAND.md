@@ -20,7 +20,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 3. aprobar o denegar permisos desde la mascota. **hecho: `PermissionServer` y `hooks/pet-permission.sh`** (ver abajo). es opt-in.
 4. responder preguntas de `AskUserQuestion` desde la isla. **hecho: `pet-question.sh`, `QuestionServer` y tarjeta de opciones** (incluye preguntas de selección única; la selección múltiple queda representada en el protocolo y sigue pendiente en la tarjeta).
 5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar. **hecho: `PetAnimator`** (falta el saludo al asomar). con movimiento reducido solo queda la mirada.
-6. pestaña por agente (claude y codex) con su línea de pasos recientes. **parcial: ticker local de claude con diff**.
+6. pestaña por agente (claude y codex) con su línea de pasos recientes. **hecho: selector claude/codex**; codex solo muestra el estado y la línea que ya publica su adaptador.
 7. saltar a la terminal de la sesión.
 8. vestuario y sonidos propios.
 

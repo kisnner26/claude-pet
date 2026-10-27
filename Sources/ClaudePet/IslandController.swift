@@ -164,6 +164,7 @@ struct IslandShape: Shape {
 struct IslandView: View {
     @ObservedObject var model: IslandModel
     @ObservedObject var store: PetStore
+    @State private var agentTab: IslandAgentTab = .claude
 
     private var open: Animation { .spring(response: 0.5, dampingFraction: 0.72) }
     private var close: Animation { .timingCurve(0.45, 0, 0.2, 1, duration: 0.34) }
@@ -268,13 +269,13 @@ struct IslandView: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("claude · \(store.state.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(.white)
-            if let a = store.claudeBubbleActivity {
-                Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1)
-                if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) }
-            }
-            if store.codexPresent {
-                Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 12, design: .monospaced)).foregroundColor(codexColor)
+            if store.codexPresent { Picker("agente", selection: $agentTab) { ForEach(IslandAgentTabs.available(codex: true), id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).onChange(of: store.codexPresent) { agentTab = IslandAgentTabs.keep(agentTab, codex: $0) } }
+            if agentTab == .claude {
+                Text("claude · \(store.state.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(.white)
+                if let a = store.claudeBubbleActivity { Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1); if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) } }
+            } else {
+                Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
+                Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
             }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 Button { store.openLatestDiff() } label: {
