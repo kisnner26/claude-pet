@@ -11,6 +11,8 @@
 - ticker filtrado por agente; codex no muestra pasos de claude.
 - tendencia de contexto en memoria, alerta de descenso rápido y copia de resumen sin transcript.
 - alerta compacta para sesiones bloqueadas, separada de decisiones pendientes.
+- extracción de `IslandModel`, `IslandPetViews` e `IslandCards` desde `IslandController.swift`, sin cambiar el protocolo ni el flujo de respuestas.
+- snapshots de modos y poses regenerados con `ImageRenderer` y revisados visualmente.
 
 ## capacidades existentes
 
