@@ -26,6 +26,9 @@ struct MenuBarContent: View {
             if store.reviewReady {
                 Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() }
             }
+            if store.pendingAttentionCount > 0 {
+                Label(store.attentionLabel, systemImage: "hand.raised.fill")
+            }
         }
 
         Section {

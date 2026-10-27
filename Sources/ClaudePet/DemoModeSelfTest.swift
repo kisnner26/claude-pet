@@ -6,6 +6,7 @@ enum DemoModeSelfTest {
         let store = PetStore()
         store.startDemo()
         let loaded = store.demoMode && store.permissionAsks.count == 1 && store.questionAsks.count == 1
+            && store.pendingAttentionCount == 2 && store.attentionLabel == "2 decisiones pendientes"
             && store.recentIslandSteps.count == 3 && store.contextReading?.pressure == .caution
         store.stopDemo()
         let clean = !store.demoMode && store.permissionAsks.isEmpty && store.questionAsks.isEmpty

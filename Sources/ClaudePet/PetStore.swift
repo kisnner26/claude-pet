@@ -151,6 +151,14 @@ final class PetStore: ObservableObject {
     }
     var terminalProject: String { mission.workspace.isEmpty ? project : URL(fileURLWithPath: mission.workspace).lastPathComponent }
     var terminalTargetAvailable: Bool { TerminalTargetResolver.current(project: terminalProject) != nil }
+    var pendingAttentionCount: Int { permissionAsks.count + questionAsks.count }
+    var attentionLabel: String {
+        switch pendingAttentionCount {
+        case 0: return "sin decisiones pendientes"
+        case 1: return "1 decisión pendiente"
+        default: return "\(pendingAttentionCount) decisiones pendientes"
+        }
+    }
     func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }
