@@ -97,6 +97,13 @@ final class PermissionServer: @unchecked Sendable {
         return true
     }
 
+    @discardableResult
+    func dismissPermission(id: String) -> Bool {
+        lock.lock(); guard let i = pending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }
+        let c = pending.remove(at: i); let rest = pending.map(\.ask); lock.unlock()
+        finish(c, reply: nil); onChange?(rest); return true
+    }
+
     // MARK: conexiones
 
     private func acceptPending() {

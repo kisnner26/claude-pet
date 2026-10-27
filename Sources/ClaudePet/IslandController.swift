@@ -243,6 +243,7 @@ struct IslandView: View {
                 Spacer(minLength: 0)
                 if ask.canAlways { permissionButton("siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
                 permissionButton("permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
+                permissionButton("responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

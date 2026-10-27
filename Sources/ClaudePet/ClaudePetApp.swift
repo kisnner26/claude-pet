@@ -193,6 +193,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         askServer.onChange = { asks in Task { @MainActor in PetStore.shared.permissionAsks = asks } }
         askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
         PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
+        PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }
         PetStore.shared.answerQuestion = { [weak self] id, answers in
             guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }
             Task { @MainActor in PetStore.shared.questionAsks.removeAll { $0.id == id } }
