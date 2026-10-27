@@ -217,6 +217,8 @@ struct MenuBarContent: View {
         Section {
             Menu("herramientas de prueba", systemImage: "wrench.and.screwdriver") { previewMenu }
             Divider()
+            Button("ajustes…", systemImage: "gearshape") { AppController.shared.showSettings() }
+                .keyboardShortcut(",")
             Button("salir", systemImage: "power") { NSApp.terminate(nil) }
         }
     }

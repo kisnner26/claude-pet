@@ -56,6 +56,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var stage: NSPanel!
     private var missionPanel: NSPanel!
     private var relayPanel: NSPanel!
+    private var settingsWindow: NSWindow?
     private var codexPanel: PetPanel!
     private var island: IslandController?
     private var presence: AppPresence?
@@ -162,6 +163,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-settings"), i + 1 < CommandLine.arguments.count {
+            SettingsSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-gallery"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.gallery(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -236,6 +240,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         setUpMissionPanel()
         setUpRelayPanel()
         if CommandLine.arguments.contains("--open-mission") { DispatchQueue.main.async { [weak self] in self?.showMissionDashboard() } }
+        if let i = CommandLine.arguments.firstIndex(of: "--open-settings") {
+            let named = i + 1 < CommandLine.arguments.count ? SettingsPage(rawValue: CommandLine.arguments[i + 1]) : nil
+            DispatchQueue.main.async { [weak self] in self?.showSettings(page: named) }
+        }
         if CommandLine.arguments.contains("--open-relay") { DispatchQueue.main.async { [weak self] in self?.showRelay() } }
         PetStore.shared.objectWillChange.sink { [weak self] in DispatchQueue.main.async { self?.applyVisibility() } }.store(in: &cancellables)
         let watcher = AppPresence { claude, codex in PetStore.shared.setApps(claude: claude, codex: codex) }
@@ -497,6 +505,30 @@ final class AppController: NSObject, NSApplicationDelegate {
         panel.hidesOnDeactivate = false
         panel.contentView = NSHostingView(rootView: SessionRelayView(store: PetStore.shared))
         relayPanel = panel
+    }
+
+    /// Ventana de ajustes. Con `page` se abre directamente en esa pagina.
+    func showSettings(page: SettingsPage? = nil) {
+        if settingsWindow == nil || page != nil {
+            let view = SettingsView(store: PetStore.shared, page: page ?? .resumen)
+            if let w = settingsWindow { w.contentView = NSHostingView(rootView: view) } else {
+                let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 700),
+                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+                w.title = "ajustes de claude-pet"
+                w.titlebarAppearsTransparent = true
+                w.titleVisibility = .hidden
+                w.appearance = NSAppearance(named: .darkAqua)
+                w.isReleasedWhenClosed = false
+                w.isMovableByWindowBackground = true
+                w.contentMinSize = NSSize(width: 940, height: 640)
+                w.contentView = NSHostingView(rootView: view)
+                w.setFrameAutosaveName("claude-pet-ajustes")
+                w.center()
+                settingsWindow = w
+            }
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func showRelay() {
