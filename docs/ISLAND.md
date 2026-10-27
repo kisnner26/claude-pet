@@ -114,3 +114,5 @@ la vista abierta permite copiar un resumen corto de sesión con proyecto, agente
 el botón `actualizar` fuerza una lectura inmediata de telemetría, contexto y cambios sin cerrar la isla.
 
 si existe un workspace publicado, la vista abierta ofrece `abrir carpeta del proyecto` y lo entrega a finder mediante `NSWorkspace`, sin copiar ni persistir rutas.
+
+cada paso reciente del ticker incluye una acción `copiar` que conserva solo su etiqueta y delta (`+N -M`) en el portapapeles.
