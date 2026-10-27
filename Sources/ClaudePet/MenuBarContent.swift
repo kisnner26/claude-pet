@@ -14,6 +14,9 @@ struct MenuBarContent: View {
         Section("en vivo") {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
             if store.state != .idle { Label("desde hace \(store.stateDurationLabel)", systemImage: "timer") }
+            if store.terminalTargetAvailable {
+                Button("saltar a terminal de claude", systemImage: "macwindow") { store.focusTerminal() }
+            }
             Label("codex: \(store.codexPresent ? store.codexState.label.lowercased() : "en reposo")", systemImage: "sparkles")
             if let warning = store.safetyAlert {
                 Label(warning.title, systemImage: "exclamationmark.triangle.fill")
