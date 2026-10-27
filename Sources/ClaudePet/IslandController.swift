@@ -241,6 +241,9 @@ struct IslandView: View {
                     NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string)
                 }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             }
+            Button("copiar permiso completo", systemImage: "doc.on.doc") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string)
+            }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             HStack(spacing: 8) {
                 permissionButton("denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
                 Spacer(minLength: 0)

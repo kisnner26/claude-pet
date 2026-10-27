@@ -12,6 +12,13 @@ struct PermissionAsk: Identifiable, Equatable {
     /// Claude Code envio una regla sugerida, asi que "siempre permitir" tiene sentido.
     let canAlways: Bool
     let at: Date
+
+    var clipboardText: String {
+        var lines = ["permiso: \(tool)"]
+        if !project.isEmpty { lines.append("proyecto: \(project)") }
+        if !detail.isEmpty { lines.append("detalle: \(detail)") }
+        return lines.joined(separator: "\n")
+    }
 }
 
 enum PermissionDecision: String { case allow, always, deny }
