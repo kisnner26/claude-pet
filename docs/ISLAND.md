@@ -142,3 +142,5 @@ el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valid
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
 
 la mascota de claude expone a voiceover su estado y duración, además de una indicación para pulsar y abrir el detalle.
+
+el avatar compacto de codex expone el mismo tipo de etiqueta, pero aclara que su estado proviene del adaptador.
