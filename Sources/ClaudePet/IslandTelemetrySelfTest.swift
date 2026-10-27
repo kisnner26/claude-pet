@@ -8,7 +8,7 @@ enum IslandTelemetrySelfTest {
         let store = PetStore(); store.refreshTelemetryNow()
         let ok = readings.map(\.pressure) == [.normal, .caution, .critical] && !PetOverlayLayout.orbitItems(files).isEmpty
         let demo = PetStore(); demo.startDemo()
-        let labelOK = demo.contextLabel.contains("30%")
+        let labelOK = demo.contextLabel.contains("30%") && demo.contextPressureLabel == "cuidado"
         demo.stopDemo()
         let final = ok && labelOK
         print(final ? "TELEMETRIA OK" : "TELEMETRIA FALLOS"); return final

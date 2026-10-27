@@ -169,6 +169,14 @@ final class PetStore: ObservableObject {
         guard let reading = contextReading else { return "contexto no disponible" }
         return "contexto: \(reading.remainingPercent)% restante"
     }
+    var contextPressureLabel: String {
+        guard let reading = contextReading else { return "sin lectura" }
+        switch reading.pressure {
+        case .normal: return "normal"
+        case .caution: return "cuidado"
+        case .critical: return "crítico"
+        }
+    }
     var sessionSummary: String {
         let projectName = project.isEmpty ? "sin proyecto" : project
         let toolName = tool.isEmpty ? "sin herramienta" : tool

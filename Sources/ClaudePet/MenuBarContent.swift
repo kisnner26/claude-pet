@@ -15,7 +15,7 @@ struct MenuBarContent: View {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
             if store.state != .idle { Label(store.sessionSummary, systemImage: "briefcase") }
             if store.state != .idle { Label("desde hace \(store.stateDurationLabel)", systemImage: "timer") }
-            if store.contextReading != nil { Label(store.contextLabel, systemImage: "circle.dotted") }
+            if store.contextReading != nil { Label("\(store.contextLabel) · \(store.contextPressureLabel)", systemImage: "circle.dotted") }
             if store.codexContextReading != nil { Label(store.codexContextLabel, systemImage: "circle.dotted") }
             if store.terminalTargetAvailable {
                 Button("saltar a terminal de claude", systemImage: "macwindow") { store.focusTerminal() }
