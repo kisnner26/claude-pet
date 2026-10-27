@@ -44,6 +44,7 @@ final class IslandController {
     private var lastCodex: PetState = .idle
     private var finishedAt: TimeInterval?
     private var observers: [NSObjectProtocol] = []
+    private var timerInterval: TimeInterval = IslandPollingPolicy.activeInterval
 
     init(store: PetStore) { self.store = store }
 
@@ -70,9 +71,7 @@ final class IslandController {
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.relocate() }
         })
-        let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
+        scheduleTimer(interval: IslandPollingPolicy.activeInterval)
     }
 
     func stop() {
@@ -124,6 +123,8 @@ final class IslandController {
                                 clickedPet: clicked)
         clicked = false
         let mode = machine.tick(input)
+        let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
+        if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 
         let size = NotchGeometry.islandSize(mode, metrics: m, expandedHeight: eh)
         if model.mode != mode {
@@ -141,6 +142,14 @@ final class IslandController {
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
         let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, expandedHeight: eh)
         if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
+    }
+
+    private func scheduleTimer(interval: TimeInterval) {
+        timer?.invalidate()
+        timerInterval = interval
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 }
 
