@@ -438,6 +438,9 @@ struct IslandView: View {
                             Button("copiar modelo") {
                                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
                             }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
+                            Button("copiar contexto codex") {
+                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string)
+                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
                         }
                     }
                     if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
