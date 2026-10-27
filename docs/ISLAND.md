@@ -24,6 +24,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 7. aro de contexto y mapa de archivos dentro de la isla. **hecho: reutiliza `ContextRingView` y `FileOrbitView`** con los mismos estados normal, caution y critical.
 8. mission control y relevo de sesión accesibles desde la isla. **hecho: botones directos en la vista abierta**.
 9. limpieza al recibir `SIGTERM` o `SIGINT`. **hecho: detiene sockets y borra la bandera opt-in**.
+10. atajos globales opcionales. **hecho: ctrl+option+a permite, ctrl+option+d deniega y ctrl+option+i abre la isla**; requieren activar el interruptor y el permiso de accesibilidad de macos.
 7. saltar a la terminal de la sesión.
 8. vestuario y sonidos propios.
 

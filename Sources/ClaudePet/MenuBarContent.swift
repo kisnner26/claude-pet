@@ -69,6 +69,7 @@ struct MenuBarContent: View {
                 }
                 if store.layout == .island {
                     Toggle("responder permisos desde la isla", isOn: $store.islandPermissions)
+                    Toggle("atajos globales de la isla", isOn: $store.globalShortcutsEnabled)
                 }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
                 Toggle("burbuja de actividad", isOn: $store.showBubble)

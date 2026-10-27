@@ -66,6 +66,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let askServer = PermissionServer()
     private var permissionFlagOn = false
     private var terminationSignals: [DispatchSourceSignal] = []
+    private let shortcutMonitor = GlobalShortcutMonitor()
 
     func applicationDidFinishLaunching(_ n: Notification) {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
@@ -94,6 +95,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-telemetry") { exit(IslandTelemetrySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-actions") { exit(IslandActionsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-cleanup") { exit(IslandCleanupSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-shortcuts") { exit(GlobalShortcutSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
@@ -191,6 +193,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
         syncPermissionFlag()
+        PetStore.shared.onGlobalShortcutsChanged = { [weak self] enabled in self?.configureShortcuts(enabled) }
+        configureShortcuts(PetStore.shared.globalShortcutsEnabled)
         installTerminationSignals()
 
         busServer.onLine = { line in Task { @MainActor in PetStore.shared.receive(line: line) } }
@@ -471,6 +475,18 @@ final class AppController: NSObject, NSApplicationDelegate {
             source.setEventHandler { [weak self] in self?.cleanupIsland(); NSApp.terminate(nil) }
             source.resume(); terminationSignals.append(source)
         }
+    }
+
+    private func configureShortcuts(_ enabled: Bool) {
+        shortcutMonitor.onShortcut = { [weak self] shortcut in
+            guard let self else { return }
+            switch shortcut {
+            case .allow: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .allow) }
+            case .deny: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .deny) }
+            case .island: PetStore.shared.layout = .island; PetStore.shared.userHidden = false
+            }
+        }
+        enabled ? shortcutMonitor.start() : shortcutMonitor.stop()
     }
 
     private func cleanupIsland() {

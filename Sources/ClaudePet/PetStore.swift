@@ -58,6 +58,10 @@ final class PetStore: ObservableObject {
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }
+    @Published var globalShortcutsEnabled: Bool = UserDefaults.standard.bool(forKey: "globalShortcutsEnabled") {
+        didSet { UserDefaults.standard.set(globalShortcutsEnabled, forKey: "globalShortcutsEnabled"); onGlobalShortcutsChanged?(globalShortcutsEnabled) }
+    }
+    var onGlobalShortcutsChanged: ((Bool) -> Void)?
     /// Permisos que esperan respuesta (solo en memoria). Los responde `AppController` por el socket.
     @Published var permissionAsks: [PermissionAsk] = []
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
