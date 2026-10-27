@@ -126,6 +126,10 @@ enum CompanionSelfTest {
         check("ocultar desde el menu oculta todo", vis(claudeApp: true, codexApp: true, hidden: true) == .init(claudeWindow: false, codexWindow: false))
         let pinned = PetStore(); pinned.setApps(claude: false, codex: false); pinned.pinSession = true
         check("fijar sesión mantiene ambas mascotas visibles", pinned.visibility == .init(claudeWindow: true, codexWindow: true))
+        pinned.muteClaude = true
+        check("silenciar claude solo oculta su ventana", pinned.visibility == .init(claudeWindow: false, codexWindow: true))
+        pinned.muteClaude = false; pinned.muteCodex = true
+        check("silenciar codex solo oculta su ventana", pinned.visibility == .init(claudeWindow: true, codexWindow: false))
 
         // 5c. modo duo: ambos trabajando cerca activan la capa de paquetes, sin afectar el futbol.
         let store = PetStore()

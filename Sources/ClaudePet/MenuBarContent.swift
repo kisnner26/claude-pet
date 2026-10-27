@@ -80,6 +80,8 @@ struct MenuBarContent: View {
                 }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
             Toggle("mantener mascotas visibles", isOn: $store.pinSession)
+            Toggle("mostrar claude", isOn: Binding(get: { !store.muteClaude }, set: { store.muteClaude = !$0 }))
+            Toggle("mostrar codex", isOn: Binding(get: { !store.muteCodex }, set: { store.muteCodex = !$0 }))
                 Toggle("burbuja de actividad", isOn: $store.showBubble)
                 Divider()
                 Menu("animaciones", systemImage: "figure.run") { animationMenu }
