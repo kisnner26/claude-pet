@@ -83,6 +83,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-approval-rules") { exit(ApprovalRulesSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-restore") { exit(RestorePointsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-loops") { exit(LoopDetectorSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-sound") { exit(SoundSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {
