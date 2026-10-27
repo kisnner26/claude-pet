@@ -1,9 +1,11 @@
 import AppKit
 
-enum GlobalShortcut: String { case allow, deny, island, snooze, pin }
+enum GlobalShortcut: String, CaseIterable { case allow, deny, island, snooze, pin }
 
 final class GlobalShortcutMonitor {
     var onShortcut: ((GlobalShortcut) -> Void)?
+    /// Las letras se pueden cambiar en ajustes; el monitor siempre lee el mapa vigente.
+    var map = ShortcutMap.standard
     private var token: Any?
     func start() {
         guard token == nil else { return }
@@ -11,7 +13,7 @@ final class GlobalShortcutMonitor {
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard flags == [.control, .option], !event.isARepeat,
                   let key = event.charactersIgnoringModifiers?.lowercased(), key.count == 1,
-                  let shortcut = ["a": GlobalShortcut.allow, "d": .deny, "i": .island, "s": .snooze, "p": .pin][key] else { return }
+                  let shortcut = self?.map.shortcut(for: key) else { return }
             self?.onShortcut?(shortcut)
         }
     }

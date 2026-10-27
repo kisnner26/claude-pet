@@ -144,6 +144,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-actions") { exit(IslandActionsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-cleanup") { exit(IslandCleanupSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-shortcuts") { exit(GlobalShortcutSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-settings") { exit(SettingsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-polling") { exit(IslandPollingSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-resistance") { exit(IslandResistanceSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-demo") { exit(DemoModeSelfTest.run() ? 0 : 1) }
