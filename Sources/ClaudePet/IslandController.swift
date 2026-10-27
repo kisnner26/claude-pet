@@ -237,6 +237,9 @@ struct IslandView: View {
                 Text(ask.detail).font(.system(size: 12, design: .monospaced)).foregroundColor(.white)
                     .lineLimit(3).padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                Button("copiar detalle", systemImage: "doc.on.clipboard") {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string)
+                }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             }
             HStack(spacing: 8) {
                 permissionButton("denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
