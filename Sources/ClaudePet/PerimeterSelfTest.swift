@@ -43,7 +43,7 @@ enum PerimeterSelfTest {
         // almacen
         let file = NSTemporaryDirectory() + "perimeters-\(UUID().uuidString).json"
         defer { try? FileManager.default.removeItem(atPath: file) }
-        let store = PerimeterStore()
+        let store = PerimeterStore(path: nil)
         let outer = Perimeter(root: root, allow: ["Sources/**"], mode: .block)
         let inner = Perimeter(root: root + "/Sources/Auth", allow: ["Login"], mode: .ask)
         check("upsert", store.upsert(outer) && store.upsert(inner) && !store.upsert(Perimeter(root: "nope")))
@@ -53,27 +53,27 @@ enum PerimeterSelfTest {
         store.save(path: file)
         let perms = (try? FileManager.default.attributesOfItem(atPath: file)[.posixPermissions] as? Int) ?? 0
         check("file-0600", perms == 0o600)
-        let reloaded = PerimeterStore(); reloaded.load(path: file)
+        let reloaded = PerimeterStore(path: nil); reloaded.load(path: file)
         check("roundtrip", reloaded.all() == store.all())
         try? Data("[{\"root\":\"relative\"}]".utf8).write(to: URL(fileURLWithPath: file))
-        let bad = PerimeterStore(); bad.load(path: file)
+        let bad = PerimeterStore(path: nil); bad.load(path: file)
         check("load-drops-invalid", bad.all().isEmpty)
         try? Data("basura".utf8).write(to: URL(fileURLWithPath: file))
-        let junk = PerimeterStore(); junk.load(path: file)
+        let junk = PerimeterStore(path: nil); junk.load(path: file)
         check("load-junk", junk.all().isEmpty)
         store.remove(root: inner.root)
         check("remove", store.all().count == 1)
-        var many = PerimeterStore().all(); many = []
-        let cap = PerimeterStore()
+        var many = PerimeterStore(path: nil).all(); many = []
+        let cap = PerimeterStore(path: nil)
         var accepted = 0
         for i in 0..<(PerimeterStore.maxPerimeters + 5) where cap.upsert(Perimeter(root: "/tmp/p\(i)")) { accepted += 1 }
         check("cap", accepted == PerimeterStore.maxPerimeters && many.isEmpty)
 
         // decision de la puerta
         func ask(_ id: String, _ tool: String, _ path: String) -> PermissionAsk { PermissionAsk(id: id, session: "s", tool: tool, project: "p", detail: path, canAlways: true, at: Date()) }
-        let gateStore = PerimeterStore()
+        let gateStore = PerimeterStore(path: nil)
         gateStore.upsert(Perimeter(root: root, allow: ["Sources/**"], mode: .block))
-        let soft = PerimeterStore()
+        let soft = PerimeterStore(path: nil)
         soft.upsert(Perimeter(root: root, allow: ["Sources/**"], mode: .ask))
         let badAsk = ask("bad", "Edit", root + "/Package.swift"), okAsk = ask("ok", "Edit", root + "/Sources/a.swift"), outsideProject = ask("out", "Edit", "/elsewhere/x")
         check("gate-block-denies", PermissionGate.decide(asks: [okAsk, badAsk], check: gateStore.check, ruleMatches: { _ in true }) == .deny(id: "bad", reason: "fuera del perímetro: Package.swift"))

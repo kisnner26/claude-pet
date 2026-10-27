@@ -100,13 +100,17 @@ struct Perimeter: Codable, Equatable, Identifiable {
 
 /// Perimetros guardados en ~/.claude-pet/perimeters.json (permisos 0600).
 final class PerimeterStore {
-    static let shared = PerimeterStore()
+    static let shared = PerimeterStore(path: PerimeterStore.path)
     static let maxPerimeters = 20
     static var path: String { ProcessInfo.processInfo.environment["CLAUDE_PET_PERIMETERS"] ?? (NSHomeDirectory() + "/.claude-pet/perimeters.json") }
 
     private(set) var perimeters: [Perimeter] = []
     private let lock = NSLock()
     var onChange: (() -> Void)?
+    /// Donde se guarda. nil = solo en memoria (las pruebas no deben tocar el archivo real del usuario).
+    var storagePath: String?
+
+    init(path: String? = PerimeterStore.path) { storagePath = path }
 
     func all() -> [Perimeter] { lock.lock(); defer { lock.unlock() }; return perimeters }
 
@@ -136,13 +140,14 @@ final class PerimeterStore {
         lock.lock(); perimeters.removeAll { $0.root == root }; lock.unlock(); save(); onChange?()
     }
 
-    func load(path: String = PerimeterStore.path) {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)), data.count < 256 * 1024,
+    func load(path: String? = nil) {
+        guard let path = path ?? storagePath, let data = try? Data(contentsOf: URL(fileURLWithPath: path)), data.count < 256 * 1024,
               let decoded = try? JSONDecoder().decode([Perimeter].self, from: data) else { return }
         lock.lock(); perimeters = Array(decoded.filter(\.isValid).prefix(Self.maxPerimeters)); lock.unlock()
     }
 
-    func save(path: String = PerimeterStore.path) {
+    func save(path: String? = nil) {
+        guard let path = path ?? storagePath else { return }
         lock.lock(); let snapshot = perimeters; lock.unlock()
         let url = URL(fileURLWithPath: path)
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

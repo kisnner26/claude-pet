@@ -157,7 +157,7 @@ enum PermissionSelfTest {
 
         // 12. perimetro de extremo a extremo: el hook real pide editar fuera de la zona y la puerta lo deniega sin preguntar
         let fenceRoot = "/tmp/claudepet-fence-\(getpid())"
-        let fence = PerimeterStore()
+        let fence = PerimeterStore(path: nil)
         fence.upsert(Perimeter(root: fenceRoot, allow: ["Sources/**"], mode: .block))
         let server3 = PermissionServer(path: sock)
         server3.onChange = { asks in
