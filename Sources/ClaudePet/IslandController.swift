@@ -167,6 +167,7 @@ struct IslandView: View {
     @State private var agentTab: IslandAgentTab = .claude
     @State private var questionSelections: [Int: Set<Int>] = [:]
     @State private var questionIndex = 0
+    @State private var questionFreeText = ""
 
     private var open: Animation { .spring(response: 0.5, dampingFraction: 0.72) }
     private var close: Animation { .timingCurve(0.45, 0, 0.2, 1, duration: 0.34) }
@@ -270,6 +271,7 @@ struct IslandView: View {
         let index = min(questionIndex, max(0, ask.questions.count - 1))
         let q = ask.questions[index]
         let multi = q.multiSelect
+        let hasOther = questionSelections[index, default: []].contains { q.options.indices.contains($0) && q.options[$0].label.lowercased().contains("otra") }
         return VStack(alignment: .leading, spacing: 8) {
             Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
             if ask.questions.count > 1 { Text("pregunta (index + 1) de (ask.questions.count)").font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
@@ -279,7 +281,8 @@ struct IslandView: View {
                     let optionIndex = q.options.firstIndex(where: { $0.label == option.label }) ?? -1
                     let selected = questionSelections[index, default: []].contains(optionIndex)
                     questionOptionButton(option.label, description: option.description, selected: selected) {
-                        if multi {
+                        let isOther = option.label.lowercased().contains("otra")
+                        if multi || isOther {
                             if selected { questionSelections[index, default: []].remove(optionIndex) }
                             else { questionSelections[index, default: []].insert(optionIndex) }
                         } else {
@@ -288,10 +291,15 @@ struct IslandView: View {
                     }
                 }
             }
-            if multi {
+            if q.options.indices.contains(where: { questionSelections[index, default: []].contains($0) && q.options[$0].label.lowercased().contains("otra") }) {
+                TextField("escribe tu respuesta", text: $questionFreeText)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12))
+            }
+            if multi || hasOther {
                 permissionButton(index + 1 < ask.questions.count ? "siguiente" : "confirmar selección", fill: Color(hex: 0xE0824F), ink: .black) {
                     commitQuestion(ask, index: index, selected: Array(questionSelections[index, default: []]).sorted())
-                }.disabled(questionSelections[index, default: []].isEmpty)
+                }.disabled(questionSelections[index, default: []].isEmpty || (questionSelections[index, default: []].contains(where: { q.options[$0].label.lowercased().contains("otra") }) && questionFreeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -300,11 +308,14 @@ struct IslandView: View {
         questionSelections[index] = Set(selected)
         guard index + 1 >= ask.questions.count else { questionIndex = index + 1; return }
         let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { i, item in
-            let labels = (questionSelections[i] ?? []).sorted().compactMap { item.options.indices.contains($0) ? item.options[$0].label : nil }.joined(separator: ", ")
+            let labels = (questionSelections[i] ?? []).sorted().compactMap { index -> String? in
+                guard item.options.indices.contains(index) else { return nil }
+                return item.options[index].label.lowercased().contains("otra") && !questionFreeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? questionFreeText.trimmingCharacters(in: .whitespacesAndNewlines) : item.options[index].label
+            }.joined(separator: ", ")
             return (item.question, labels)
         })
         store.answerQuestion(ask.id, answers)
-        questionSelections.removeAll(); questionIndex = 0
+        questionSelections.removeAll(); questionIndex = 0; questionFreeText = ""
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
