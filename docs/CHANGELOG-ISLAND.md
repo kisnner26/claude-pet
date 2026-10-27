@@ -31,4 +31,5 @@
 - clic con aplastamiento y gesto de molestia durante 0,6 s; se conserva el mareo de tres clics en 2 s.
 - autopruebas nuevas en `--selftest-island` para ambas reacciones.
 - clasificador local de riesgo en permisos: bajo, medio y alto con explicación visible y casos de evasión básicos.
+- detector local de posibles secretos en comandos y rutas, mostrando solo una etiqueta y cuatro caracteres de prefijo.
 

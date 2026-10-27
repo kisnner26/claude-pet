@@ -29,6 +29,10 @@ struct PermissionCardView: View {
             Label("riesgo \(reading.risk.rawValue)", systemImage: "shield.lefthalf.filled")
                 .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(reading.risk.color)
             Text(reading.reason).font(.system(size: 10)).foregroundColor(Color.white.opacity(0.65)).lineLimit(2)
+            if let secret = SecretDetector.find(in: ask.detail, path: ask.project) {
+                Label("posible secreto: \(secret.label) · \(secret.prefix)", systemImage: "exclamationmark.shield.fill")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C))
+            }
             if !ask.detail.isEmpty {
                 Text(ask.detail).font(.system(size: 12, design: .monospaced)).foregroundColor(.white).lineLimit(3).padding(8).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
                 Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
