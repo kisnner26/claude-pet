@@ -510,6 +510,14 @@ struct IslandView: View {
                     }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
                 }.font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
+            if !store.recentIslandSteps.isEmpty {
+                Button("copiar actividad reciente", systemImage: "doc.on.clipboard") {
+                    let lines = store.recentIslandSteps.prefix(3).map { step in
+                        "- \(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)") · \(step.ageLabel(now: Date()))"
+                    }
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+            }
             if store.terminalTargetAvailable {
                 Button("saltar a terminal") { store.focusTerminal() }
                     .buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
