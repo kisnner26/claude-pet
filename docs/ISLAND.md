@@ -165,6 +165,8 @@ la pestaña codex mantiene su propia serie independiente cuando el adaptador pub
 
 la gráfica ofrece `copiar tendencia`: solo copia agente, porcentaje, variación y número de lecturas, nunca el contenido del transcript.
 
+cuando el monitor de seguridad detecta una sesión bloqueada, la vista compacta muestra un triángulo rojo independiente de la insignia de decisiones. al pulsarlo se abre el detalle; su menú contextual copia únicamente el título y subtítulo de la alerta.
+
 cuando la presión es crítica, claude y codex muestran además un icono de advertencia; el estado accesible sigue anunciándose como `crítico`.
 
 el icono de advertencia es interactivo y abre el detalle de contexto al pulsarlo.
