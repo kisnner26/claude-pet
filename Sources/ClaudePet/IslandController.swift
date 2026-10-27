@@ -417,6 +417,17 @@ struct IslandView: View {
                 if store.state != .idle { Text("activo desde hace \(store.stateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5)) }
                 if let a = store.claudeBubbleActivity { Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1); if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) } }
             } else {
+                if let reading = store.codexContextReading {
+                    HStack(spacing: 8) {
+                        ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
+                            Button("copiar modelo") {
+                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
+                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
+                        }
+                    }
+                }
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
                 if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5)) }
                 Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
