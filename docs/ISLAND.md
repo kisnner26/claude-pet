@@ -17,7 +17,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 
 1. isla anclada al notch con cuatro modos: oculta, asoma, compacta y abierta. **hecho: `IslandMachine`** (reglas, tiempos y autoprueba `--selftest-island`).
 2. ventana sin bordes que se coloca en el notch real, o en una barra de 80 pt si no hay notch, con clics traversantes fuera de la forma. **hecho: `NotchGeometry` e `IslandController`**; el menú tiene el selector `modo` (flotante o isla en el notch) y la pantalla se recalcula al conectar o desconectar monitores.
-3. aprobar o denegar permisos desde la mascota. hoy el hook solo informa y sale con 0; hace falta un hook `PermissionRequest` que espere la respuesta de la app por el socket y devuelva allow, deny o siempre permitir.
+3. aprobar o denegar permisos desde la mascota. **hecho: `PermissionServer` y `hooks/pet-permission.sh`** (ver abajo). es opt-in.
 4. responder preguntas de `AskUserQuestion` desde la isla.
 5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar. **hecho: `PetAnimator`** (falta el saludo al asomar). con movimiento reducido solo queda la mirada.
 6. pestaña por agente (claude y codex) con su línea de pasos recientes.
@@ -29,14 +29,28 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 1. máquina de estados de la isla (hecho).
 2. ventana de la isla y geometría del notch, sin cambiar las mascotas flotantes: ajuste en el menú para elegir entre flotante e isla (hecho).
 3. animación de personaje en la isla (hecho).
-4. permisos bloqueantes con protocolo del socket documentado y prueba de que, si la app no responde, claude code sigue con su flujo normal.
+4. permisos bloqueantes con protocolo del socket documentado y prueba de que, si la app no responde, claude code sigue con su flujo normal (hecho).
 5. preguntas y saltar a la terminal.
 6. vistas de contexto, diff, mission control y relevo dentro de la isla.
 
+## permisos desde la isla
+
+activación (todo opt-in):
+
+1. `./install-hooks.sh` copia `pet-permission.sh` y añade un segundo hook de `PermissionRequest` con plazo de 120 s. pide confirmación antes de tocar `~/.claude/settings.json`.
+2. en el menú, modo `isla en el notch` y el interruptor `responder permisos desde la isla`.
+
+entonces, cuando claude code pide un permiso, la isla se abre sola con la herramienta, el proyecto y el comando o archivo, y tres botones: denegar, siempre (solo si claude code sugirió una regla) y permitir. si hay varios, se responden en orden de llegada.
+
+protocolo: el hook abre `~/.claude-pet/ask.sock`, envía una línea `perm<TAB>sesión<TAB>herramienta<TAB>proyecto<TAB>siempre<TAB>detalle` y espera una línea `allow`, `always` o `deny`. la app mantiene la conexión abierta; si el hook muere (por ejemplo porque respondiste en la terminal) la conexión se cierra y la tarjeta desaparece. el hook imprime la decisión en el formato de `PermissionRequest` de claude code.
+
+el comando que se va a aprobar se muestra en la isla; viaja solo por el socket local y no se guarda ni se publica en el pet bus.
+
 ## reglas de seguridad para los permisos
 
-- el hook bloqueante solo espera mientras la app responde; si el socket no existe o se agota el plazo, no devuelve decisión y claude code pregunta en la terminal como siempre.
-- la decisión solo se acepta de la sesión que la pidió; el socket sigue siendo 0600 y solo del mismo usuario.
+- el hook no hace nada si falta la bandera `~/.claude-pet/island-permissions` (la app la crea solo en modo isla con el interruptor y la borra al salir), el socket, `jq` o `perl`; si se agota el plazo o la app se cierra, no devuelve decisión y claude code pregunta en la terminal como siempre.
+- un máximo de 8 permisos pendientes; el noveno se rechaza y se pregunta en la terminal.
+- el socket es 0600 y solo acepta conexiones del mismo usuario; cada permiso se responde una sola vez.
 - «siempre permitir» solo se ofrece cuando claude code envía sugerencias de permiso.
 
 ## modos
@@ -48,8 +62,9 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 ## limites actuales
 
 - la isla muestra a claude y un punto para codex; codex todavía no tiene animación propia en la isla.
-- los permisos y preguntas aún no se responden desde la isla.
-- verificado: las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
+- las preguntas de `AskUserQuestion` aún no se responden desde la isla; los permisos sí.
+- no hay atajos de teclado para permitir o denegar: la ventana no toma el foco. solo botones.
+- verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
 
 ## animación del personaje
 
