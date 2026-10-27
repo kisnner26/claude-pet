@@ -165,8 +165,8 @@ struct IslandView: View {
     @ObservedObject var model: IslandModel
     @ObservedObject var store: PetStore
     @State private var agentTab: IslandAgentTab = .claude
-    @State private var selectedQuestionOptions: Set<Int> = []
-    @State private var selectedQuestionID = ""
+    @State private var questionSelections: [Int: Set<Int>] = [:]
+    @State private var questionIndex = 0
 
     private var open: Animation { .spring(response: 0.5, dampingFraction: 0.72) }
     private var close: Animation { .timingCurve(0.45, 0, 0.2, 1, duration: 0.34) }
@@ -257,38 +257,44 @@ struct IslandView: View {
     }
 
     private func questionCard(_ ask: QuestionAsk) -> some View {
-        let q = ask.questions[0]
+        let index = min(questionIndex, max(0, ask.questions.count - 1))
+        let q = ask.questions[index]
         let multi = q.multiSelect
         return VStack(alignment: .leading, spacing: 8) {
             Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
+            if ask.questions.count > 1 { Text("pregunta (index + 1) de (ask.questions.count)").font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
             Text(q.question).font(.system(size: 13)).foregroundColor(.white).lineLimit(2)
             HStack(spacing: 6) {
                 ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
-                    let selected = selectedQuestionOptions.contains(q.options.firstIndex(where: { $0.label == option.label }) ?? -1)
+                    let optionIndex = q.options.firstIndex(where: { $0.label == option.label }) ?? -1
+                    let selected = questionSelections[index, default: []].contains(optionIndex)
                     permissionButton(option.label, fill: selected ? Color(hex: 0x5270E8) : Color.white.opacity(0.1), ink: selected ? .black : .white) {
                         if multi {
-                            if selected { selectedQuestionOptions.remove(q.options.firstIndex(where: { $0.label == option.label }) ?? -1) }
-                            else { selectedQuestionOptions.insert(q.options.firstIndex(where: { $0.label == option.label }) ?? 0) }
+                            if selected { questionSelections[index, default: []].remove(optionIndex) }
+                            else { questionSelections[index, default: []].insert(optionIndex) }
                         } else {
-                            answerQuestion(ask, q, selected: [q.options.firstIndex(where: { $0.label == option.label }) ?? 0])
+                            commitQuestion(ask, index: index, selected: [optionIndex])
                         }
                     }
                 }
             }
             if multi {
-                permissionButton("confirmar selección", fill: Color(hex: 0xE0824F), ink: .black) {
-                    answerQuestion(ask, q, selected: Array(selectedQuestionOptions).sorted())
-                }.disabled(selectedQuestionOptions.isEmpty)
+                permissionButton(index + 1 < ask.questions.count ? "siguiente" : "confirmar selección", fill: Color(hex: 0xE0824F), ink: .black) {
+                    commitQuestion(ask, index: index, selected: Array(questionSelections[index, default: []]).sorted())
+                }.disabled(questionSelections[index, default: []].isEmpty)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func answerQuestion(_ ask: QuestionAsk, _ question: IslandQuestion, selected: [Int]) {
-        let labels = selected.compactMap { question.options.indices.contains($0) ? question.options[$0].label : nil }.joined(separator: ", ")
-        let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { index, item in (item.question, index == 0 ? labels : "") })
+    private func commitQuestion(_ ask: QuestionAsk, index: Int, selected: [Int]) {
+        questionSelections[index] = Set(selected)
+        guard index + 1 >= ask.questions.count else { questionIndex = index + 1; return }
+        let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { i, item in
+            let labels = (questionSelections[i] ?? []).sorted().compactMap { item.options.indices.contains($0) ? item.options[$0].label : nil }.joined(separator: ", ")
+            return (item.question, labels)
+        })
         store.answerQuestion(ask.id, answers)
-        selectedQuestionOptions.removeAll()
-        selectedQuestionID = ask.id
+        questionSelections.removeAll(); questionIndex = 0
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
