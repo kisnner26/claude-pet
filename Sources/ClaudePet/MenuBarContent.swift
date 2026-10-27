@@ -142,6 +142,9 @@ struct MenuBarContent: View {
     @ViewBuilder private var protectionMenu: some View {
         Toggle("ver detalle local de Claude", isOn: $store.showDetail)
         Toggle("avisar si parecen bloqueados", isOn: $store.stallWatch)
+        Picker("avisos visuales", selection: $store.alertDisplayMode) {
+            ForEach(AlertDisplayMode.allCases) { Text($0.rawValue).tag($0) }
+        }
         Toggle("bloquear herramientas si el proyecto cambia", isOn: $store.blockOnChange)
         Divider()
         Toggle("compartir nombre del proyecto", isOn: $store.shareProject)

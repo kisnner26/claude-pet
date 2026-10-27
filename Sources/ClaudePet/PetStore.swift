@@ -2,6 +2,14 @@ import Combine
 import Foundation
 import SwiftUI
 
+enum AlertDisplayMode: String, CaseIterable, Identifiable {
+    case all = "todos los avisos"
+    case critical = "solo críticos"
+    case none = "sin avisos visuales"
+    var id: String { rawValue }
+    func allows(critical: Bool) -> Bool { self == .all || (self == .critical && critical) }
+}
+
 @MainActor
 final class PetStore: ObservableObject {
     static let shared = PetStore()
@@ -109,6 +117,9 @@ final class PetStore: ObservableObject {
     }
     @Published var stallWatch: Bool = UserDefaults.standard.object(forKey: "stallWatch") as? Bool ?? true {
         didSet { UserDefaults.standard.set(stallWatch, forKey: "stallWatch"); updateSafetyAlert(Date()); refresh() }
+    }
+    @Published var alertDisplayMode: AlertDisplayMode = AlertDisplayMode(rawValue: UserDefaults.standard.string(forKey: "alertDisplayMode") ?? "") ?? .all {
+        didSet { UserDefaults.standard.set(alertDisplayMode.rawValue, forKey: "alertDisplayMode"); updateSafetyAlert(Date()); refresh() }
     }
     /// Por defecto el nombre del proyecto NO sale de la app.
     @Published var shareProject: Bool = UserDefaults.standard.bool(forKey: "shareProject") {
@@ -714,13 +725,14 @@ final class PetStore: ObservableObject {
     }
 
     private func updateSafetyAlert(_ now: Date) {
+        guard alertDisplayMode.allows(critical: true) else { safetyAlert = nil; return }
         let changed = monitor.changed.filter { sessions[$0] != nil }
         if !changed.isEmpty {
             safetyAlert = Activity(title: "El proyecto cambio mientras claude pensaba",
                                    subtitle: blockOnChange ? "herramientas detenidas hasta nuevo mensaje" : "revisa el diff antes de seguir", origin: "")
             return
         }
-        if stallWatch {
+        if stallWatch && alertDisplayMode.allows(critical: false) {
             if let s = sessions.values.first(where: { stalled($0.state, since: $0.at, now) }) {
                 safetyAlert = Activity(title: "claude parece bloqueado", subtitle: "sin actividad desde hace \(Int(now.timeIntervalSince(s.at) / 60)) min", origin: s.origin)
                 return
