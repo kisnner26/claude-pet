@@ -465,7 +465,7 @@ enum IslandSnapshot {
             }
         }
         let r = ImageRenderer(content: view)
-        r.scale = 2
+        r.scale = scale
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
@@ -510,5 +510,49 @@ extension IslandSnapshot {
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+extension IslandSnapshot {
+    /// Escala de las capturas: `CLAUDE_PET_SNAPSHOT_SCALE` (1 o 2), por defecto 2.
+    static var scale: CGFloat {
+        let v = Double(ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_SCALE"] ?? "") ?? 2
+        return v <= 1 ? 1 : 2
+    }
+
+    /// `ClaudePet --snapshot-gallery <carpeta>`: la isla en cada ubicacion y sobre barras clara, oscura y de color.
+    static func gallery(to dir: String) {
+        let store = PetStore.shared
+        let previousContext = store.contextReading, previousState = store.state
+        store.setSnapshotState(.thinking)
+        defer { store.setSnapshotContext(previousContext); store.setSnapshotState(previousState) }
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let cases: [(String, IslandPlacement, Bool, IslandMode, Color)] = [
+            ("sin-notch-barra-oscura", .top, false, .compact, Color(hex: 0x1F1F24)),
+            ("sin-notch-barra-clara", .top, false, .compact, Color(hex: 0xE9E9EE)),
+            ("sin-notch-fondo-color", .top, false, .compact, Color(hex: 0x3E6FB0)),
+            ("sin-notch-abierta", .top, false, .expanded, Color(hex: 0x6C7A89)),
+            ("con-notch", .top, true, .compact, Color(hex: 0x6C7A89)),
+            ("abajo", .bottom, false, .compact, Color(hex: 0x6C7A89)),
+            ("lateral", .side, false, .compact, Color(hex: 0x6C7A89)),
+            ("flotante", .floating, false, .compact, Color(hex: 0x6C7A89)),
+        ]
+        for (name, placement, notch, mode, bg) in cases {
+            var m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1440, height: 900), safeTop: notch ? 38 : 0, auxLeft: notch ? 628 : 0, auxRight: notch ? 628 : 0, menuBarHeight: notch ? 38 : 24)
+            m.visibleFrame = CGRect(x: 0, y: 70, width: 1440, height: 806)
+            let model = IslandModel()
+            model.mode = mode; model.placement = placement; model.hasNotch = notch && placement == .top
+            model.size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: 150, compactContentWidth: 150)
+            let size = CGSize(width: 440, height: 190)
+            let view = IslandView(model: model, store: store)
+                .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: .top)
+                .frame(width: size.width, height: size.height, alignment: placement == .bottom ? .bottom : (placement == .side ? .trailing : .top))
+                .clipped().background(bg)
+            let r = ImageRenderer(content: view)
+            r.scale = scale
+            guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+                  let png = rep.representation(using: .png, properties: [:]) else { continue }
+            try? png.write(to: URL(fileURLWithPath: dir + "/\(name)-\(Int(scale))x.png"))
+        }
     }
 }

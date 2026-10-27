@@ -229,6 +229,7 @@ final class PetStore: ObservableObject {
         nextCodexGitScan = .distantPast
         refresh()
     }
+    func setSnapshotState(_ s: PetState) { state = s }
     func setSnapshotContext(_ reading: ContextReading?) {
         contextReading = reading
         if let reading { contextHistory = ContextTrend.append(reading, to: contextHistory, at: Date()) }
