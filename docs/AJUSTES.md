@@ -1,6 +1,6 @@
 # ajustes
 
-Ventana propia de claude-pet, en el mismo estilo oscuro de cristal que la isla. Se abre desde el menú de la barra ("ajustes…", ⌘,) o con `ClaudePet --open-settings <página>` (`resumen`, `apariencia`, `comportamiento`, `agentes`, `permisos`, `privacidad`, `guardarropa`, `sonidos`, `foco`, `atajos`, `copia`, `acerca`).
+Ventana propia de claude-pet, en el mismo estilo oscuro de cristal que la isla. Se abre desde el menú de la barra ("ajustes…", ⌘,) o con `ClaudePet --open-settings <página>` (`resumen`, `apariencia`, `comportamiento`, `agentes`, `permisos`, `perimetro`, `privacidad`, `guardarropa`, `sonidos`, `musica`, `foco`, `atajos`, `copia`, `acerca`).
 
 La barra lateral agrupa las páginas en inicio, isla, agentes, seguridad, mascota y sistema, y el buscador filtra por título y por palabras clave sin distinguir acentos: escribir "restauracion" lleva a copia y restauración.
 
@@ -13,9 +13,11 @@ La barra lateral agrupa las páginas en inicio, isla, agentes, seguridad, mascot
 | comportamiento | ancho y retraso de la zona de activación, cuánto tarda en plegarse, aparición automática y fijar mascotas |
 | agentes | mostrar u ocultar claude y codex, gestos, detalle local, aviso de bloqueo y verificación de enlaces |
 | permisos | responder desde la isla, bloqueo si el proyecto cambia, puntos de restauración y reglas de aprobación (revocar una o todas) |
+| perímetro | por dónde puede moverse el agente en cada proyecto: carpetas permitidas, archivos protegidos y avisar o bloquear. ver [PERIMETRO.md](PERIMETRO.md) |
 | privacidad | nombre del proyecto al compartir, carpeta de datos, registro de decisiones y borrado de estadísticas |
 | guardarropa | atuendos por nivel y atuendos de temporada |
 | sonidos | volumen general y por categoría, prueba de cada sonido y sonidos propios |
+| música | reproductor de Spotify y Apple Music en la isla y reacciones de la mascota. ver [MUSICA.md](MUSICA.md) |
 | foco y pomodoro | foco manual o por horario y control del pomodoro |
 | atajos | letra de cada atajo global, con control de duplicados |
 | copia y restauración | exportar, importar y restablecer ajustes |

@@ -51,13 +51,33 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 
 ![ajustes](docs/img/ajustes-resumen.jpg)
 
-Menú de la barra → "ajustes…" (⌘,), o `ClaudePet --open-settings [página]`. Doce páginas con buscador:
+Menú de la barra → "ajustes…" (⌘,), o `ClaudePet --open-settings [página]`. Catorce páginas con buscador:
 
 - **vista previa de la isla** que se mueve al cambiar ubicación, zona de activación, contenido compacto o reloj.
 - **sonidos**: volumen general y por categoría, prueba de cada sonido y detección de los que has reemplazado con tus propios archivos.
 - **atajos configurables**: eliges la letra de cada acción; si ya está en uso te lo dice y no cambia nada.
 - **copia y restauración**: exporta los ajustes a un `.json`, impórtalos en otro Mac (cada valor se valida por tipo y rango) o restablece todo.
 - permisos, reglas de aprobación y puntos de restauración, agentes, privacidad, guardarropa, foco y pomodoro. detalle en [docs/AJUSTES.md](docs/AJUSTES.md).
+
+### perímetro
+
+![perímetro](docs/img/perimetro-permiso.jpg)
+
+Defines por dónde puede moverse el agente en un proyecto (carpetas permitidas y archivos protegidos) y claude-pet lo comprueba en el propio permiso, antes de que el archivo cambie. Lo que se sale sale en rojo, nunca se aprueba solo y, en modo bloquear, se deniega sin molestarte. Cubre Edit, Write, MultiEdit y NotebookEdit; los comandos de terminal no se pueden acotar por carpeta. Detalle en [docs/PERIMETRO.md](docs/PERIMETRO.md).
+
+### música
+
+![reproductor](docs/img/reproductor.jpg)
+
+Reproductor de Spotify y Apple Music en la isla (portada, progreso, anterior, pausa, siguiente y volumen). La mascota se pone auriculares, baila y suelta notas según el volumen, con un destello al cambiar de tema. No oye el audio: reacciona a lo que dicen las apps. Opt-in. Detalle en [docs/MUSICA.md](docs/MUSICA.md).
+
+### menú de la barra
+
+Ahora es corto: estado en vivo, cuatro acciones y cuatro submenús (proyecto, mascotas, web scout, más), más ajustes y salir. Todo lo que era una opción suelta vive en la ventana de ajustes.
+
+### versiones
+
+Historial completo en [CHANGELOG.md](CHANGELOG.md) y en [Releases](https://github.com/kisnner26/claude-pet/releases).
 
 ![escena y estados](docs/img/estilo-trabajando.png)
 
