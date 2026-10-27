@@ -270,6 +270,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         ActivityStats.shared.load()
+        PetStore.shared.refreshWeeklyRecap()
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
         PetStore.shared.approvalRules = ApprovalRules.shared.active()

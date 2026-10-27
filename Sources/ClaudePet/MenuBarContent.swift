@@ -135,14 +135,14 @@ struct MenuBarContent: View {
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
                 Menu("resumen semanal", systemImage: "chart.bar") {
-                    let recap = ActivityStats.shared.recap()
+                    let recap = store.weeklyRecap
                     Text("nivel \(recap.level) · racha \(recap.streak) · \(recap.sessions) sesiones")
                     Button("copiar resumen") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(recap.markdown(showProject: true), forType: .string) }
                     Button("guardar imagen para compartir…") {
                         let panel = NSSavePanel(); panel.allowedContentTypes = [.png]; panel.nameFieldStringValue = "mi-semana.png"
                         if panel.runModal() == .OK, let url = panel.url, let data = RecapCard.png(recap, showProject: false) { try? data.write(to: url) }
                     }
-                    Button("borrar estadísticas") { ActivityStats.shared.reset() }
+                    Button("borrar estadísticas") { ActivityStats.shared.reset(); store.refreshWeeklyRecap() }
                 }
                 Menu("foco y pomodoro", systemImage: "moon") {
                     Toggle("modo foco", isOn: $store.focusManual)
