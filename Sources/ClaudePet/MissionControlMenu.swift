@@ -24,6 +24,9 @@ struct MissionControlMenu: View {
             Text("foco: \(control.brief.title.lowercased())")
             if !control.topTools.isEmpty {
                 Text("herramientas: " + control.topTools.map { "\($0.name) ×\($0.count)" }.joined(separator: " · "))
+                Button("copiar patrón de herramientas") {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.topTools.map { "\($0.name): \($0.count)" }.joined(separator: "\n"), forType: .string)
+                }
             }
             Button("copiar foco operativo") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(control.brief.title)\n\(control.brief.detail)", forType: .string)
