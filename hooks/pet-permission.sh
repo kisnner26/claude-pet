@@ -32,7 +32,9 @@ tool=$(printf '%s' "$input" | jq -r '.tool_name // ""' 2>/dev/null | flat 40)
 [ -n "$tool" ] || exit 0
 cwd=$(printf '%s' "$input" | jq -r '.cwd // ""' 2>/dev/null)
 proj=$(printf '%s' "${cwd##*/}" | tr -cd 'A-Za-z0-9_.-' | cut -c1-40)
-detail=$(printf '%s' "$input" | jq -r '.tool_input | (.command // .file_path // .url // .pattern // .path // "")' 2>/dev/null | flat 400)
+# un plan (ExitPlanMode) trae su texto en .plan: se aplana a una linea y admite mas largo que un comando
+lim=400; [ "$tool" = "ExitPlanMode" ] && lim=1500
+detail=$(printf '%s' "$input" | jq -r '.tool_input | (.command // .file_path // .url // .pattern // .path // ((.plan // "") | gsub("[\r\n]+"; " ~ ")))' 2>/dev/null | flat "$lim")
 always=0
 printf '%s' "$input" | jq -e '[.permission_suggestions[]? | select(.type == "addRules" and .behavior == "allow")] | length > 0' >/dev/null 2>&1 && always=1
 

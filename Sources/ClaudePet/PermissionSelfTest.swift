@@ -67,6 +67,15 @@ enum PermissionSelfTest {
         check("responder permite y el hook devuelve allow", server.resolve(id: id1, .allow) && decision(finish(p, o))?["behavior"] as? String == "allow")
         check("resolver dos veces no hace nada", !server.resolve(id: id1, .allow) && server.asks.isEmpty)
 
+        // 2b. plan: el texto del plan llega aplanado y se aprueba o rechaza como un permiso
+        let plan = #"{"session_id":"plan1234","cwd":"/p/miproyecto","tool_name":"ExitPlanMode","tool_input":{"plan":"1. leer el codigo\n2. cambiar X\n3. probar"}}"#
+        (p, o) = spawn(plan)
+        check("un plan llega con su texto aplanado", waitAsk(1) && { let a = server.asks[0]; return a.tool == "ExitPlanMode" && a.detail == "1. leer el codigo ~ 2. cambiar X ~ 3. probar" }())
+        check("un plan es de riesgo medio y no se recuerda",
+              PermissionRiskClassifier.classify(tool: "ExitPlanMode", detail: "x", project: "p").risk == .medium && ApprovalRules.key(tool: "ExitPlanMode", detail: "x") == nil)
+        check("la vista previa del plan lista sus pasos", PermissionPreviewBuilder.make(tool: "ExitPlanMode", detail: "a ~ b ~ c", project: "p").lines == ["a", "b", "c"])
+        check("aprobar el plan devuelve allow", server.resolve(id: server.asks.first?.id ?? "", .allow) && decision(finish(p, o))?["behavior"] as? String == "allow")
+
         // 3. denegar
         (p, o) = spawn(payload); _ = waitAsk(1)
         server.resolve(id: server.asks[0].id, .deny)

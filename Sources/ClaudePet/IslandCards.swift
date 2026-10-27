@@ -49,7 +49,7 @@ struct PermissionCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("claude pide permiso").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
+                Text(ask.tool == "ExitPlanMode" ? "claude propone un plan" : "claude pide permiso").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
                 if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 11, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
             }
             Text(ask.project.isEmpty ? ask.tool : "\(ask.tool) · \(ask.project)").font(.system(size: 12)).foregroundColor(Color.white.opacity(0.6)).lineLimit(1)
@@ -70,10 +70,10 @@ struct PermissionCardView: View {
             }
             Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             HStack(spacing: 8) {
-                IslandActionButton(title: "denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
+                IslandActionButton(title: ask.tool == "ExitPlanMode" ? "rechazar" : "denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
                 Spacer(minLength: 0)
-                if ask.canAlways { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
-                IslandActionButton(title: "permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
+                if ask.canAlways && ask.tool != "ExitPlanMode" { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
+                IslandActionButton(title: ask.tool == "ExitPlanMode" ? "aprobar plan" : "permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
                 scopeMenu(for: ask, risk: reading.risk)
                 IslandActionButton(title: "responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
             }

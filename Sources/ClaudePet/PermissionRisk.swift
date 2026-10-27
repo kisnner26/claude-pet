@@ -25,6 +25,7 @@ enum PermissionRiskClassifier {
         if compact.contains("..") || compact.contains("~/") || compact.contains("/") && compact.contains("/users/") {
             return .init(risk: .high, reason: "la ruta puede salir del proyecto")
         }
+        if tool == "ExitPlanMode" { return .init(risk: .medium, reason: "aprobar el plan deja a claude empezar a editar y ejecutar") }
         let editTools = ["edit", "write", "multiedit", "bash", "shell", "python", "node"]
         if editTools.contains(where: { tool.lowercased().contains($0) }) { return .init(risk: .medium, reason: "modifica archivos o ejecuta un comando") }
         return .init(risk: .low, reason: "solo parece leer información")

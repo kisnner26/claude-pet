@@ -33,7 +33,8 @@ final class ApprovalRules {
     /// Lo que identifica una peticion para las reglas. nil = no se puede reglar (comando compuesto, sin objetivo).
     static func key(tool: String, detail: String) -> String? {
         let d = detail.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !d.isEmpty else { return nil }
+        // un plan se aprueba cada vez: nunca se recuerda
+        guard !d.isEmpty, tool != "ExitPlanMode" else { return nil }
         if tool.lowercased() == "bash" || tool.lowercased().contains("shell") {
             // un comando con operadores, sustitucion o redireccion puede esconder otro: no se regla
             let forbidden = [";", "&", "|", "`", "$(", ">", "<", "\n", "\\"]
