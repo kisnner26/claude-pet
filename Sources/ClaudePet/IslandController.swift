@@ -216,7 +216,7 @@ struct IslandView: View {
             }
             if compact, let reading = store.contextReading {
                 contextMeter(reading, label: "contexto")
-                if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true) }
+                if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() } }
             }
             if compact, let badge = store.attentionBadgeLabel {
                 Button { model.poke() } label: {
@@ -234,7 +234,7 @@ struct IslandView: View {
             if compact && store.codexPresent {
                 if let reading = store.codexContextReading {
                     contextMeter(reading, label: "contexto codex")
-                    if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true) }
+                    if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() } }
                 }
                 CodexMini(store: store, greet: false).frame(width: 22, height: 24)
                     .accessibilityLabel("codex: \(store.codexState.label.lowercased()), \(store.codexStateDurationLabel)")
