@@ -167,6 +167,12 @@ final class PetStore: ObservableObject {
         refresh()
     }
     func wakeAlerts() { alertsSnoozedUntil = .distantPast; updateSafetyAlert(Date()); refresh() }
+    func refreshTelemetryNow() {
+        nextContextScan = .distantPast
+        nextCodexVisualScan = .distantPast
+        nextCodexGitScan = .distantPast
+        refresh()
+    }
     func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }

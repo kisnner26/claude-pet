@@ -36,6 +36,7 @@ struct MenuBarContent: View {
             Button("copiar resumen local", systemImage: "doc.on.clipboard") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.mission.shareSummary, forType: .string)
             }
+            Button("actualizar contexto ahora", systemImage: "arrow.clockwise") { store.refreshTelemetryNow() }
             Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
                 store.demoMode ? store.stopDemo() : store.startDemo()
             }
