@@ -131,6 +131,15 @@ struct MenuBarContent: View {
                     Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
+                if !store.approvalRules.isEmpty {
+                    Menu("reglas de aprobación (\(store.approvalRules.count))") {
+                        ForEach(store.approvalRules) { rule in
+                            Button("revocar: \(rule.title) · \(rule.scope.rawValue)") { ApprovalRules.shared.revoke(id: rule.id) }
+                        }
+                        Divider()
+                        Button("revocar todas") { ApprovalRules.shared.revokeAll() }
+                    }
+                }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
             Toggle("mantener mascotas visibles", isOn: $store.pinSession)
             Toggle("mostrar claude", isOn: Binding(get: { !store.muteClaude }, set: { store.muteClaude = !$0 }))

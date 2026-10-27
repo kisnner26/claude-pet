@@ -32,6 +32,20 @@ struct PermissionCardView: View {
     @ObservedObject var store: PetStore
     let ask: PermissionAsk
     @State private var showMore = false
+
+    /// Permitir recordando la decision. Sin objetivo claro (comando compuesto) o con riesgo alto no hay alcance.
+    @ViewBuilder private func scopeMenu(for ask: PermissionAsk, risk: PermissionRisk) -> some View {
+        let canRemember = risk != .high && ApprovalRules.key(tool: ask.tool, detail: ask.detail) != nil
+        if canRemember {
+            Menu("permitir y recordar") {
+                ForEach(ApprovalScope.allCases.filter { $0 != .once && $0.isAllowed(for: risk) }, id: \.self) { scope in
+                    Button(scope == .project ? "este proyecto, 30 min" : scope == .session ? "esta sesión" : "siempre") { store.approveWithScope(ask.id, scope) }
+                }
+            }
+            .menuStyle(.borderlessButton).font(.system(size: 11, design: .monospaced)).fixedSize()
+            .accessibilityHint("permite esta petición y las iguales durante el tiempo elegido")
+        }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -60,6 +74,7 @@ struct PermissionCardView: View {
                 Spacer(minLength: 0)
                 if ask.canAlways { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
                 IslandActionButton(title: "permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
+                scopeMenu(for: ask, risk: reading.risk)
                 IslandActionButton(title: "responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)

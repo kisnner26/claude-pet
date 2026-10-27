@@ -101,6 +101,9 @@ final class PetStore: ObservableObject {
     /// Permisos que esperan respuesta (solo en memoria). Los responde `AppController` por el socket.
     @Published var permissionAsks: [PermissionAsk] = []
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
+    /// Permite y recuerda la decision segun el alcance elegido (esta sesion, este proyecto, siempre).
+    var approveWithScope: (String, ApprovalScope) -> Void = { _, _ in }
+    @Published var approvalRules: [ApprovalRule] = []
     var dismissPermission: (String) -> Void = { _ in }
     @Published var questionAsks: [QuestionAsk] = []
     var answerQuestion: (String, [String: String]) -> Void = { _, _ in }

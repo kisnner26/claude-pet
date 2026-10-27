@@ -231,7 +231,19 @@ final class AppController: NSObject, NSApplicationDelegate {
         catch { PetStore.shared.setBridge(false); NSLog("ClaudePet: no se pudo abrir el socket: \(error)") }
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
-        askServer.onChange = { asks in Task { @MainActor in PetStore.shared.permissionAsks = asks } }
+        ApprovalRules.shared.load()
+        ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
+        PetStore.shared.approvalRules = ApprovalRules.shared.active()
+        askServer.onChange = { [weak self] asks in
+            // una regla vigente responde sola; riesgo alto y comandos compuestos nunca coinciden
+            if let ask = asks.first(where: { ApprovalRules.shared.match($0) != nil }), self?.askServer.resolve(id: ask.id, .allow, source: "regla") == true { return }
+            Task { @MainActor in PetStore.shared.permissionAsks = asks }
+        }
+        PetStore.shared.approveWithScope = { [weak self] id, scope in
+            guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }
+            ApprovalRules.shared.add(scope: scope, ask: ask)
+            self?.askServer.resolve(id: id, .allow, source: scope == .once ? "isla" : "isla · \(scope.rawValue)")
+        }
         askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
         PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }

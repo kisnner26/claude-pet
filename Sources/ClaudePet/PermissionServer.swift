@@ -93,14 +93,14 @@ final class PermissionServer: @unchecked Sendable {
 
     /// Responde a un permiso. Devuelve false si ya no estaba pendiente (lo resolvio otro o la terminal).
     @discardableResult
-    func resolve(id: String, _ decision: PermissionDecision) -> Bool {
+    func resolve(id: String, _ decision: PermissionDecision, source: String = "isla") -> Bool {
         lock.lock()
         guard let i = pending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }
         let c = pending.remove(at: i)
         let rest = pending.map(\.ask)
         lock.unlock()
         finish(c, reply: decision.rawValue)
-        AuditLog.record(ask: c.ask, result: decision.rawValue)
+        AuditLog.record(ask: c.ask, result: decision.rawValue, source: source)
         onChange?(rest)
         return true
     }
