@@ -20,6 +20,7 @@ final class IslandModel: ObservableObject {
     var onPetClick: () -> Void = {}
 
     func poke() {
+        SoundEngine.shared.play(.click)
         pokes.append(ProcessInfo.processInfo.systemUptime)
         if pokes.count > 6 { pokes.removeFirst(pokes.count - 6) }
         onPetClick()

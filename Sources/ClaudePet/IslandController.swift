@@ -18,6 +18,9 @@ final class IslandController {
     private var observers: [NSObjectProtocol] = []
     private var timerInterval: TimeInterval = IslandPollingPolicy.activeInterval
     private var follower = ScreenFollower()
+    private var lastSoundMode: IslandMode = .hidden
+    private var lastAskCount = 0
+    private var lastQuestionCount = 0
     private var lastScreenPreference: IslandScreenPreference?
     private var lastFixedScreen = ""
 
@@ -42,6 +45,8 @@ final class IslandController {
         model.onPetClick = { [weak self] in self?.clicked = true }
         model.pokes = []; model.hopStart = nil
         model.greetUntil = ProcessInfo.processInfo.systemUptime + 1.4
+        SoundEngine.shared.enabled = store.soundsEnabled; SoundEngine.shared.volume = Float(store.soundVolume)
+        SoundEngine.shared.play(.greeting)
         relocate()
         p.orderFrontRegardless()
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -113,7 +118,14 @@ final class IslandController {
         // transiciones de estado: terminar de trabajar dispara la vista de fin
         let c = store.state, x = store.codexState
         let doneNow = (c == .done && lastClaude != .done) || (x == .done && lastCodex != .done)
-        if doneNow { finishedAt = now; model.hopStart = now }
+        let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
+        let sound = SoundEngine.shared
+        sound.enabled = store.soundsEnabled; sound.volume = Float(store.soundVolume)
+        if doneNow { finishedAt = now; model.hopStart = now; sound.play(.done) }
+        if errorNow { sound.play(.error) }
+        if store.permissionAsks.count > lastAskCount { sound.play(.permission) }
+        if store.questionAsks.count > lastQuestionCount { sound.play(.question) }
+        lastAskCount = store.permissionAsks.count; lastQuestionCount = store.questionAsks.count
         lastClaude = c; lastCodex = x
         let finishedPending = finishedAt.map { now - $0 < 0.1 } ?? false
 
@@ -138,6 +150,10 @@ final class IslandController {
                                             compactContentWidth: store.islandCompactMode.contentWidth(clock: store.islandShowClock))
         if model.mode != mode {
             if mode == .peek && model.mode == .hidden { model.greetUntil = now + 1.4 }
+            if mode == .peek && lastSoundMode == .hidden { sound.play(.peek) }
+            else if mode == .expanded && lastSoundMode != .expanded { sound.play(.open) }
+            else if lastSoundMode == .expanded && mode != .expanded { sound.play(.fold) }
+            lastSoundMode = mode
             model.mode = mode
         }
         if model.reason != machine.reason { model.reason = machine.reason }

@@ -261,6 +261,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
+            SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
             self?.askServer.resolve(id: id, decision)
         }
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }

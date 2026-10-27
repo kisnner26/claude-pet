@@ -106,6 +106,12 @@ final class PetStore: ObservableObject {
     @Published private(set) var loopAlert: LoopAlert?
     private var loopDetector = LoopDetector()
     func dismissLoopAlert() { loopAlert = nil }
+    @Published var soundsEnabled: Bool = UserDefaults.standard.object(forKey: "soundsEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "soundsEnabled") {
+        didSet { UserDefaults.standard.set(soundsEnabled, forKey: "soundsEnabled") }
+    }
+    @Published var soundVolume: Double = UserDefaults.standard.object(forKey: "soundVolume") == nil ? 0.4 : min(1, max(0, UserDefaults.standard.double(forKey: "soundVolume"))) {
+        didSet { UserDefaults.standard.set(soundVolume, forKey: "soundVolume") }
+    }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

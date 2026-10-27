@@ -131,6 +131,11 @@ struct MenuBarContent: View {
                     Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
+                Menu("sonido", systemImage: "speaker.wave.2") {
+                    Toggle("sonidos de la isla", isOn: $store.soundsEnabled)
+                    Picker("volumen", selection: $store.soundVolume) { ForEach([0.15, 0.3, 0.4, 0.6, 0.8, 1.0], id: \.self) { Text("\(Int($0 * 100)) %").tag($0) } }
+                    Button("probar sonido de terminado") { SoundEngine.shared.enabled = store.soundsEnabled; SoundEngine.shared.volume = Float(store.soundVolume); SoundEngine.shared.play(.done) }
+                }
                 Menu("puntos de restauración") {
                     Toggle("crear uno antes de permitir cambios", isOn: $store.autoRestorePoints)
                     Button("crear punto ahora") {
