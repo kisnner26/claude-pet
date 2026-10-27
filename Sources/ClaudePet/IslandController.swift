@@ -413,6 +413,11 @@ struct IslandView: View {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString("\(store.sessionSummary) · \(agentTab.rawValue) · \(agentTab == .claude ? store.state.label.lowercased() : store.codexState.label.lowercased())", forType: .string)
             }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+            if !store.mission.workspace.isEmpty {
+                Button("abrir carpeta del proyecto", systemImage: "folder") {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: store.mission.workspace))
+                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+            }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 Button { store.openLatestDiff() } label: {
                     HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
