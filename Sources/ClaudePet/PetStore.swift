@@ -49,6 +49,10 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(autoVisibility, forKey: "autoVisibility") }
     }
     /// Ocultar todo desde el menu (no se guarda: al reabrir la app vuelve a la presencia).
+    /// Flotante: dos mascotas arrastrables. Isla: una sola pieza pegada al notch o a la barra superior.
+    @Published var layout: PetLayout = PetLayout(rawValue: UserDefaults.standard.string(forKey: "layout") ?? "") ?? .floating {
+        didSet { UserDefaults.standard.set(layout.rawValue, forKey: "layout") }
+    }
     @Published var userHidden = false
     private var claudeAppOpen = false
     private var codexAppOpen = false
@@ -754,4 +758,10 @@ final class PetStore: ObservableObject {
         NSAccessibility.post(element: NSApplication.shared, notification: .announcementRequested,
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
+}
+
+
+enum PetLayout: String, CaseIterable {
+    case floating, island
+    var title: String { self == .floating ? "flotante" : "isla en el notch" }
 }

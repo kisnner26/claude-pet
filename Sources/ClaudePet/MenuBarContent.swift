@@ -64,6 +64,9 @@ struct MenuBarContent: View {
 
         Section {
             Menu("mascotas", systemImage: "pawprint") {
+                Picker("modo", selection: $store.layout) {
+                    ForEach(PetLayout.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
                 Toggle("burbuja de actividad", isOn: $store.showBubble)
                 Divider()

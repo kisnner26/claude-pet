@@ -57,6 +57,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var missionPanel: NSPanel!
     private var relayPanel: NSPanel!
     private var codexPanel: PetPanel!
+    private var island: IslandController?
     private var presence: AppPresence?
     private var foreground: ForegroundAppMonitor?
     private var cancellables = Set<AnyCancellable>()
@@ -86,6 +87,9 @@ final class AppController: NSObject, NSApplicationDelegate {
             exit(WebCrawlerSelfTest.run(htmlOut: out) ? 0 : 1)
         }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-football"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.footballSheet(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -378,6 +382,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func placeStage() {
         let store = PetStore.shared
+        guard store.layout == .floating else { stage.orderOut(nil); return }
         guard !store.userHidden, (store.gameActive || store.collaborationActive || store.hugActive || (store.animationsEnabled && store.mission.relay != nil)), let geo = store.gameGeometry else { stage.orderOut(nil); return }
         if stage.frame != geo.stageFrame { stage.setFrame(geo.stageFrame, display: false) }
         if !stage.isVisible { stage.orderFrontRegardless() }
@@ -385,6 +390,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func placeBubbles() {
         let store = PetStore.shared
+        guard store.layout == .floating else { claudeBubble.orderOut(nil); codexBubble.orderOut(nil); return }
         let claude = bubbleRect(for: panel, above: true)
         var codex = bubbleRect(for: codexPanel, above: true)
         // Si ambas mascotas están cerca, la segunda burbuja prueba abajo para que las dos sigan legibles.
@@ -435,6 +441,14 @@ final class AppController: NSObject, NSApplicationDelegate {
     /// Cada mascota se muestra u oculta por su cuenta segun la presencia de su herramienta (y lo que se oculto desde el menu).
     private func applyVisibility() {
         guard panel != nil, codexPanel != nil else { return }
+        if PetStore.shared.layout == .island {
+            // modo isla: una sola pieza en el notch; las ventanas flotantes, sus burbujas y el escenario se ocultan
+            if island == nil { island = IslandController(store: PetStore.shared) }
+            if !(island?.isRunning ?? false) { island?.start() }
+            [panel, codexPanel, claudeBubble, codexBubble, stage].forEach { $0?.orderOut(nil) }
+            return
+        }
+        if island?.isRunning ?? false { island?.stop() }
         let v = PetStore.shared.visibility
         if v.claudeWindow != panel.isVisible { v.claudeWindow ? panel.orderFrontRegardless() : panel.orderOut(nil) }
         if v.codexWindow != codexPanel.isVisible { v.codexWindow ? codexPanel.orderFrontRegardless() : codexPanel.orderOut(nil) }
