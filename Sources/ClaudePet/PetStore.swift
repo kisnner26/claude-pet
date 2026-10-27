@@ -87,6 +87,10 @@ final class PetStore: ObservableObject {
     @Published var islandShowClock: Bool = UserDefaults.standard.bool(forKey: "islandShowClock") {
         didSet { UserDefaults.standard.set(islandShowClock, forKey: "islandShowClock") }
     }
+    /// Pantalla elegida a mano para el modo "pantalla fija".
+    @Published var islandFixedScreenID: String = UserDefaults.standard.string(forKey: "islandFixedScreenID") ?? "" {
+        didSet { UserDefaults.standard.set(islandFixedScreenID, forKey: "islandFixedScreenID") }
+    }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

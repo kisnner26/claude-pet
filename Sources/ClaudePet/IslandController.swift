@@ -17,6 +17,9 @@ final class IslandController {
     private var finishedAt: TimeInterval?
     private var observers: [NSObjectProtocol] = []
     private var timerInterval: TimeInterval = IslandPollingPolicy.activeInterval
+    private var follower = ScreenFollower()
+    private var lastScreenPreference: IslandScreenPreference?
+    private var lastFixedScreen = ""
 
     init(store: PetStore) { self.store = store }
 
@@ -54,17 +57,23 @@ final class IslandController {
         machine = IslandMachine()
     }
 
+    static func screenID(_ s: NSScreen) -> String {
+        (s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { String($0.uint32Value) } ?? s.localizedName
+    }
+
     private static func metrics(of s: NSScreen) -> ScreenMetrics {
         ScreenMetrics(frame: s.frame, safeTop: s.safeAreaInsets.top,
                       auxLeft: s.auxiliaryTopLeftArea?.width ?? 0, auxRight: s.auxiliaryTopRightArea?.width ?? 0,
                       menuBarHeight: NSStatusBar.system.thickness,
                       visibleFrame: s.visibleFrame,
-                      menuBarHidden: s.safeAreaInsets.top == 0 && s.visibleFrame.maxY >= s.frame.maxY - 1)
+                      menuBarHidden: s.safeAreaInsets.top == 0 && s.visibleFrame.maxY >= s.frame.maxY - 1,
+                      id: screenID(s), name: s.localizedName)
     }
 
     /// Recalcula la pantalla elegida cada vez que se conecta, desconecta o cambia una pantalla.
     private func relocate() {
-        guard let m = NotchGeometry.pick(NSScreen.screens.map(Self.metrics), preference: store.islandScreenPreference, mouse: NSEvent.mouseLocation) else { return }
+        guard let m = NotchGeometry.pick(NSScreen.screens.map(Self.metrics), preference: store.islandScreenPreference, mouse: NSEvent.mouseLocation,
+                                         fixedID: store.islandFixedScreenID, followedID: follower.current) else { return }
         metrics = m
         let placement = store.islandPlacement
         model.hasNotch = placement == .top && NotchGeometry.hasNotch(m)
@@ -85,7 +94,18 @@ final class IslandController {
             if hidden != m.menuBarHidden || screen.visibleFrame != m.visibleFrame { m.menuBarHidden = hidden; m.visibleFrame = screen.visibleFrame; metrics = m }
         }
         let placement = store.islandPlacement
-        if model.placement != placement { relocate(); m = metrics ?? m }
+        // seguir al raton con histeresis, o cambio de preferencia / pantalla fija desde el menu
+        var moved = false
+        if store.islandScreenPreference == .mouse {
+            let under = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }).map(Self.screenID)
+            let before = follower.current
+            follower.update(now: ProcessInfo.processInfo.systemUptime, under: under)
+            moved = follower.current != before
+        }
+        if lastScreenPreference != store.islandScreenPreference || lastFixedScreen != store.islandFixedScreenID {
+            lastScreenPreference = store.islandScreenPreference; lastFixedScreen = store.islandFixedScreenID; moved = true
+        }
+        if model.placement != placement || moved { relocate(); m = metrics ?? m }
         machine.activationDelay = store.islandActivationDelay
         let now = ProcessInfo.processInfo.systemUptime
         let mouse = NSEvent.mouseLocation

@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 
 /// Medidas de una pantalla, en coordenadas de AppKit (origen abajo a la izquierda).
@@ -18,6 +19,9 @@ struct ScreenMetrics: Equatable {
     var menuBarHidden = false
     /// Desplazamiento horizontal de la isla flotante, en puntos desde el centro.
     var floatingOffsetX: CGFloat = 0
+    /// Identificador estable y nombre legible de la pantalla (para elegirla a mano).
+    var id = ""
+    var name = ""
 }
 
 /// Donde se ancla la isla en la pantalla.
@@ -25,7 +29,26 @@ enum IslandPlacement: String, CaseIterable {
     case top = "arriba", bottom = "abajo", side = "lateral", floating = "flotante"
 }
 
-enum IslandScreenPreference: String, CaseIterable { case notch = "pantalla del notch"; case mouse = "seguir al ratón" }
+enum IslandScreenPreference: String, CaseIterable { case notch = "pantalla del notch"; case mouse = "seguir al ratón"; case fixed = "pantalla fija" }
+
+/// Decide cuando la isla salta a otra pantalla en el modo "seguir al raton": el cursor debe quedarse
+/// en la nueva pantalla `hysteresis` segundos seguidos, para que no rebote al cruzar el borde.
+struct ScreenFollower {
+    static let hysteresis: TimeInterval = 0.6
+    private(set) var current: String?
+    private var candidate: String?
+    private var since: TimeInterval = 0
+
+    @discardableResult
+    mutating func update(now: TimeInterval, under: String?) -> String? {
+        guard let under else { candidate = nil; return current }
+        if current == nil { current = under; candidate = nil; return current }
+        if under == current { candidate = nil; return current }
+        if candidate != under { candidate = under; since = now }
+        if now - since >= Self.hysteresis { current = under; candidate = nil }
+        return current
+    }
+}
 
 /// Geometria de la isla: tamano por modo y posicion pegada al borde superior.
 /// Los valores salen de las reglas de la isla (doc/ISLAND.md); las medidas del notch son las reales de la pantalla.
@@ -132,7 +155,9 @@ enum NotchGeometry {
     }
 
     /// Eleccion de pantalla: la que tiene notch; si no, la primera (la de la barra de menus).
-    static func pick(_ screens: [ScreenMetrics], preference: IslandScreenPreference = .notch, mouse: CGPoint? = nil) -> ScreenMetrics? {
+    static func pick(_ screens: [ScreenMetrics], preference: IslandScreenPreference = .notch, mouse: CGPoint? = nil, fixedID: String? = nil, followedID: String? = nil) -> ScreenMetrics? {
+        if preference == .fixed, let fixedID, let screen = screens.first(where: { $0.id == fixedID }) { return screen }
+        if preference == .mouse, let followedID, let screen = screens.first(where: { $0.id == followedID }) { return screen }
         if preference == .mouse, let mouse, let screen = screens.first(where: { $0.frame.contains(mouse) }) { return screen }
         return screens.first(where: hasNotch) ?? screens.first
     }

@@ -69,6 +69,18 @@ enum IslandPlacementSelfTest {
         check("dos pantallas no se mezclan", NotchGeometry.panelFrame(notched).midX == notched.frame.midX && NotchGeometry.panelFrame(external).midX == external.frame.midX)
         check("la abierta nunca desborda una pantalla estrecha", NotchGeometry.islandSize(.expanded, metrics: ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 500, height: 400), safeTop: 0, auxLeft: 0, auxRight: 0)).width <= 476)
 
+        // seleccion de pantalla e histeresis
+        var a = matrix[0].1; a.id = "A"; var b = matrix[4].1; b.id = "B"
+        check("pantalla fija elige la pantalla por id", NotchGeometry.pick([a, b], preference: .fixed, fixedID: "B")?.id == "B")
+        check("pantalla fija con id desconocido cae a la del notch o la primera", NotchGeometry.pick([a, b], preference: .fixed, fixedID: "Z")?.id == "A")
+        check("seguir al raton usa la pantalla ya elegida por la histeresis", NotchGeometry.pick([a, b], preference: .mouse, mouse: CGPoint(x: b.frame.midX, y: 50), followedID: "A")?.id == "A")
+        var follower = ScreenFollower()
+        check("la primera pantalla bajo el cursor se adopta de inmediato", follower.update(now: 0, under: "A") == "A")
+        check("cruzar el borde no salta de inmediato", follower.update(now: 1, under: "B") == "A" && follower.update(now: 1.3, under: "B") == "A")
+        check("a los 0,6 s seguidos salta", follower.update(now: 1.65, under: "B") == "B")
+        check("rebotar entre pantallas reinicia la espera", { var f = ScreenFollower(); f.update(now: 0, under: "A"); f.update(now: 1, under: "B"); f.update(now: 1.4, under: "A"); return f.update(now: 1.8, under: "B") == "A" }())
+        check("fuera de toda pantalla se conserva la actual", follower.update(now: 5, under: nil) == "B")
+
         // contenido compacto
         check("el modo minimo solo muestra el estado", IslandCompactMode.minimal.items == .init())
         check("el modo normal añade contexto y avisos", IslandCompactMode.normal.items.context && IslandCompactMode.normal.items.badge && !IslandCompactMode.normal.items.branch)

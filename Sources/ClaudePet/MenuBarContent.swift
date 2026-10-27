@@ -118,6 +118,13 @@ struct MenuBarContent: View {
                     Toggle("responder permisos desde la isla", isOn: $store.islandPermissions)
                     Toggle("atajos globales de la isla", isOn: $store.globalShortcutsEnabled)
                     Picker("pantalla de la isla", selection: $store.islandScreenPreference) { ForEach(IslandScreenPreference.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                    if store.islandScreenPreference == .fixed {
+                        Picker("elegir pantalla", selection: $store.islandFixedScreenID) {
+                            ForEach(NSScreen.screens, id: \.self) { screen in
+                                Text(screen.localizedName + (screen.safeAreaInsets.top > 0 ? " (con notch)" : "")).tag(IslandController.screenID(screen))
+                            }
+                        }
+                    }
                     Picker("contenido compacto", selection: $store.islandCompactMode) { ForEach(IslandCompactMode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                     Toggle("reloj en la isla", isOn: $store.islandShowClock)
                     Picker("ubicación", selection: $store.islandPlacement) { ForEach(IslandPlacement.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
