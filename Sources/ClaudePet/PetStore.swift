@@ -39,6 +39,7 @@ final class PetStore: ObservableObject {
     @Published private(set) var diffPull: DiffPull?
     @Published private(set) var radarTarget: String?
     @Published private(set) var codexContextReading: ContextReading?
+    @Published private(set) var codexContextHistory: [ContextSample] = []
     @Published private(set) var codexChanges: [ChangedFile] = []
     @Published private(set) var codexWorktrees: [WorktreeNode] = []
     @Published private(set) var codexDiffPull: DiffPull?
@@ -714,10 +715,11 @@ final class PetStore: ObservableObject {
                 return
             }
             let workspaceChanged = snapshot.workspace != codexWorkspace
-            if workspaceChanged { codexDiffPull = nil }
+            if workspaceChanged { codexDiffPull = nil; codexContextHistory = [] }
             codexWorkspace = snapshot.workspace
             codexTask = snapshot.task
             codexContextReading = snapshot.context
+            if let reading = snapshot.context { codexContextHistory = ContextTrend.append(reading, to: codexContextHistory, at: Date()) }
             let project = URL(fileURLWithPath: snapshot.workspace).lastPathComponent
             if peer != nil, peer?.project != project {
                 peer?.project = project
@@ -739,7 +741,7 @@ final class PetStore: ObservableObject {
     }
 
     private func clearCodexVisuals() {
-        if codexContextReading != nil { codexContextReading = nil }
+        if codexContextReading != nil { codexContextReading = nil; codexContextHistory = [] }
         if !codexChanges.isEmpty { codexChanges = [] }
         if !codexWorktrees.isEmpty { codexWorktrees = [] }
         if codexDiffPull != nil { codexDiffPull = nil }

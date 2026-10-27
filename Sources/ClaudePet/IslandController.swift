@@ -449,7 +449,7 @@ struct IslandView: View {
                             Button("copiar modelo") {
                                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
                             }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-                            Button("copiar contexto codex") {
+                            Button("copiar contexto") {
                                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string)
                             }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
                         }
@@ -492,6 +492,10 @@ struct IslandView: View {
                                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
                             }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
                         }
+                    }
+                    if !store.codexContextHistory.isEmpty {
+                        ContextTrendView(samples: store.codexContextHistory)
+                            .frame(height: 30)
                     }
                 }
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
