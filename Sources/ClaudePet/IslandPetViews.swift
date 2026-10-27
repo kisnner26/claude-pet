@@ -38,7 +38,7 @@ struct PetFace: View {
 
     /// Momentos que cambian la pose: la entrada al abrir, tu decision sobre un permiso y la espera de uno pendiente.
     static func makeScene(model: IslandModel, store: PetStore) -> PetScene {
-        var scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing && store.danceToMusic)
+        var scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing)
         addMoments(to: &scene, model: model, store: store, now: 0)
         return scene
     }

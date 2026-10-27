@@ -29,14 +29,15 @@ enum MusicScript {
     static let separator = "\u{1F}"
 
     static func query(_ app: MusicApp) -> String {
-        let artwork = app == .spotify ? "(artwork url of t)" : "\"\""
+        let artwork = app == .spotify ? "(artwork url of trk)" : "\"\""
+        // ojo con los nombres: en el diccionario de Music una variable llamada `st` no compila
         return """
         tell application id "\(app.bundle)"
-        set st to player state as string
-        if st is "stopped" then return "stopped"
-        set sep to character id 31
-        set t to current track
-        return st & sep & (name of t) & sep & (artist of t) & sep & (album of t) & sep & (player position as string) & sep & ((duration of t) as string) & sep & (sound volume as string) & sep & \(artwork)
+        set stateText to player state as string
+        if stateText is "stopped" then return "stopped"
+        set sepChar to character id 31
+        set trk to current track
+        return stateText & sepChar & (name of trk) & sepChar & (artist of trk) & sepChar & (album of trk) & sepChar & (player position as string) & sepChar & ((duration of trk) as string) & sepChar & (sound volume as string) & sepChar & \(artwork)
         end tell
         """
     }

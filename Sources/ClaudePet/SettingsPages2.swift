@@ -130,8 +130,6 @@ struct SonidosPage: View {
                 SToggle(title: "sonidos de la isla", isOn: $store.soundsEnabled)
                 SDivider()
                 SSlider(title: "volumen general", value: $store.soundVolume, range: 0...1, step: 0.05) { "\(Int($0 * 100)) %" }
-                SDivider()
-                SToggle(title: "bailar con la música", detail: "la mascota baila mientras suena algo en tu Mac.", isOn: $store.danceToMusic)
             }
             SCard(title: "por categoría", footer: "el volumen de cada categoría se multiplica por el general. en modo foco solo suenan las alertas.") {
                 ForEach(Array(SoundCue.Category.allCases.enumerated()), id: \.element) { index, category in
@@ -182,6 +180,45 @@ struct SonidosPage: View {
     }
 
     private func refresh() { replaced = Set(SoundCue.allCases.filter { SoundOverrides.file(for: $0) != nil }) }
+}
+
+// MARK: musica
+
+struct MusicaPage: View {
+    @ObservedObject var store: PetStore
+    @ObservedObject private var music: MusicController
+
+    init(store: PetStore) {
+        self.store = store
+        _music = ObservedObject(wrappedValue: store.music)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            SCard(title: "reproductor", footer: "lee el título, el artista y la portada de lo que suena en Spotify o Apple Music, solo en este Mac. la primera vez macOS te pide permiso para controlar cada app. la portada de Spotify se descarga de su servidor. nunca se abre una app que no esté ya abierta.") {
+                SToggle(title: "reproductor en la isla", detail: "botón de música en la isla abierta, con portada, barra de progreso, anterior, pausa, siguiente y volumen.", isOn: $store.musicPlayer)
+                SDivider()
+                SRow(title: "ahora suena", detail: status) {
+                    if let n = music.nowPlaying { SBadge(text: n.app.title, color: n.isPlaying ? SettingsTheme.green : SettingsTheme.mute) }
+                }
+            }
+            SCard(title: "la mascota reacciona", footer: "no oye el audio: reacciona a lo que dicen las apps (suena o no, qué volumen, cuándo cambia el tema). más volumen, más notas.") {
+                if store.musicPlayer {
+                    SToggle(title: "reaccionar a la música", detail: "se pone auriculares, baila y suelta notas; al cambiar de tema hay un destello.", isOn: $store.musicReacts)
+                } else {
+                    SToggle(title: "bailar cuando suena algo", detail: "solo detecta si Spotify o Apple Music están reproduciendo. no lee títulos ni portadas.", isOn: $store.danceToMusic)
+                }
+            }
+        }
+        .onAppear { music.watching = store.musicPlayer }
+        .onDisappear { music.watching = false }
+    }
+
+    private var status: String {
+        guard store.musicPlayer else { return "activa el reproductor para verlo aquí" }
+        guard let n = music.nowPlaying else { return "nada ahora mismo, o la app no está abierta" }
+        return "\(n.title) · \(n.artist)"
+    }
 }
 
 // MARK: foco

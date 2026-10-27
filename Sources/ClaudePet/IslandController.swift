@@ -223,7 +223,7 @@ final class IslandController {
         let dizzyLeft = PetAnimator.dizzyRemaining(pokes: model.pokes, at: now).map { Int($0.rounded(.up)) }
         if model.dizzyLeft != dizzyLeft { model.dizzyLeft = dizzyLeft }
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
-        model.dancing = store.danceToMusic && music.isPlaying(enabled: true, now: now)
+        model.dancing = store.musicPlayer ? store.musicReacting : (store.danceToMusic && music.isPlaying(enabled: true, now: now))
         let mode = machine.tick(input)
         if Self.logPath != nil, mode != lastLoggedMode || input.overNotch != lastLoggedOver {
             lastLoggedMode = mode; lastLoggedOver = input.overNotch

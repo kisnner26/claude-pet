@@ -40,6 +40,7 @@ struct IslandStage: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             if animated { StageSceneView(state: state, idleSeconds: model.idleSeconds).frame(width: 104, height: 100) }      // el clima y los detalles del estado
+            if animated, store.musicPlayer, store.musicReacts { MusicNotesLayer(music: store.music).frame(width: 104, height: 100) }   // notas al ritmo del volumen
             EvolutionView(level: store.weeklyRecap.level).frame(width: 104, height: 100)       // halo y estrellitas por nivel
             // suelo: un disco de luz tenue bajo los pies
             Ellipse()

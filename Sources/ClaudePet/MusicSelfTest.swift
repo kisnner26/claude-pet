@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 enum MusicSelfTest {
     static func run() -> Bool {
@@ -47,6 +47,14 @@ enum MusicSelfTest {
         check("burst-window", MusicFx.notes(at: 1, level: 0.5, trackAge: 0.4).count > MusicFx.notes(at: 1, level: 0.5, trackAge: 5).count && MusicFx.notes(at: 1, level: 0.5, trackAge: -1).count == MusicFx.notes(at: 1, level: 0.5, trackAge: 5).count)
         check("notes-deterministic", MusicFx.notes(at: 2.2, level: 0.7, trackAge: 0.2) == MusicFx.notes(at: 2.2, level: 0.7, trackAge: 0.2))
 
+        // los scripts tienen que compilar contra el diccionario real de cada app instalada (compilar no abre la app)
+        for app in MusicApp.allCases where NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle) != nil {
+            for (label, source) in [("query", MusicScript.query(app)), ("playpause", MusicScript.command(.playPause, app: app)), ("seek", MusicScript.command(.seek(30), app: app)), ("volume", MusicScript.command(.volume(40), app: app))] {
+                var error: NSDictionary?
+                let ok = NSAppleScript(source: source)?.compileAndReturnError(&error) ?? false
+                check("compila-\(app.rawValue)-\(label)", ok)
+            }
+        }
         print(failures == 0 ? "MUSICA OK" : "MUSICA \(failures) FALLOS")
         return failures == 0
     }

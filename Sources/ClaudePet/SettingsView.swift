@@ -12,6 +12,7 @@ extension SettingsPage {
         case .privacidad: return "todo se queda en tu Mac. aquí decides qué se comparte y qué se borra."
         case .guardarropa: return "atuendos que se desbloquean al subir de nivel."
         case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
+        case .musica: return "reproductor de Spotify y Apple Music en la isla, y cómo reacciona la mascota."
         case .foco: return "silencia lo que no importa y trabaja por ciclos."
         case .atajos: return "combinaciones globales. siempre con control y opción más la letra que elijas."
         case .copia: return "exporta tus ajustes, impórtalos en otro Mac o vuelve a empezar."
@@ -141,6 +142,7 @@ struct SettingsView: View {
         case .privacidad: PrivacidadPage(store: store)
         case .guardarropa: GuardarropaPage(store: store)
         case .sonidos: SonidosPage(store: store)
+        case .musica: MusicaPage(store: store)
         case .foco: FocoPage(store: store)
         case .atajos: AtajosPage(store: store)
         case .copia: CopiaPage(store: store)

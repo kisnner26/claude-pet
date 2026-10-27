@@ -121,10 +121,22 @@ final class PetStore: ObservableObject {
     /// Lo que lleva puesto la mascota: lo elegido mas, si esta activado, el atuendo de temporada.
     func outfitsNow(at date: Date = Date()) -> Set<Outfit> {
         let chosen = seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe
-        return chosen.filter { Evolution.isUnlocked($0, level: weeklyRecap.level) || Wardrobe.seasonal(on: date).contains($0) }
+        var worn = chosen.filter { Evolution.isUnlocked($0, level: weeklyRecap.level) || Wardrobe.seasonal(on: date).contains($0) }
+        if musicReacting { worn.insert(.headphones) }   // los auriculares no dependen del nivel: son parte de la reaccion
+        return worn
     }
     func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
     /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
+    /// Reproductor de Spotify y Apple Music en la isla. Lee titulo, artista y portada de lo que suena: por eso es opt-in.
+    @Published var musicPlayer: Bool = UserDefaults.standard.bool(forKey: "musicPlayer") {
+        didSet { UserDefaults.standard.set(musicPlayer, forKey: "musicPlayer"); music.enabled = musicPlayer }
+    }
+    /// La mascota reacciona a la musica: se pone auriculares, baila y suelta notas segun el volumen.
+    @Published var musicReacts: Bool = UserDefaults.standard.object(forKey: "musicReacts") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(musicReacts, forKey: "musicReacts") }
+    }
+    lazy var music = MusicController(enabled: UserDefaults.standard.bool(forKey: "musicPlayer"))
+    var musicReacting: Bool { musicPlayer && musicReacts && music.isPlaying }
     @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {
         didSet { UserDefaults.standard.set(danceToMusic, forKey: "danceToMusic") }
     }

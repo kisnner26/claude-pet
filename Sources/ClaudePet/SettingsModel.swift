@@ -8,7 +8,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 }
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case resumen, apariencia, comportamiento, agentes, permisos, privacidad, guardarropa, sonidos, foco, atajos, copia, acerca
+    case resumen, apariencia, comportamiento, agentes, permisos, privacidad, guardarropa, sonidos, musica, foco, atajos, copia, acerca
     var id: String { rawValue }
 
     var title: String {
@@ -21,6 +21,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .privacidad: return "privacidad"
         case .guardarropa: return "guardarropa"
         case .sonidos: return "sonidos"
+        case .musica: return "música"
         case .foco: return "foco y pomodoro"
         case .atajos: return "atajos"
         case .copia: return "copia y restauración"
@@ -38,6 +39,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .privacidad: return "lock"
         case .guardarropa: return "tshirt"
         case .sonidos: return "speaker.wave.2"
+        case .musica: return "music.note"
         case .foco: return "timer"
         case .atajos: return "command"
         case .copia: return "arrow.up.arrow.down.circle"
@@ -51,7 +53,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .apariencia, .comportamiento: return .isla
         case .agentes: return .agentes
         case .permisos, .privacidad: return .seguridad
-        case .guardarropa, .sonidos, .foco: return .mascota
+        case .guardarropa, .sonidos, .musica, .foco: return .mascota
         case .atajos, .copia, .acerca: return .sistema
         }
     }
@@ -66,7 +68,8 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .permisos: return ["permitir", "denegar", "reglas", "puntos de restauracion", "riesgo", "bloquear", "aprobar", "siempre"]
         case .privacidad: return ["proyecto", "compartir", "secretos", "telemetria", "datos", "local"]
         case .guardarropa: return ["atuendo", "gorro", "corona", "gafas", "bufanda", "temporada", "nivel", "ropa"]
-        case .sonidos: return ["volumen", "audio", "silencio", "carpeta", "personalizado", "alertas", "interfaz", "probar", "musica", "bailar"]
+        case .sonidos: return ["volumen", "audio", "silencio", "carpeta", "personalizado", "alertas", "interfaz", "probar"]
+        case .musica: return ["spotify", "apple music", "reproductor", "cancion", "auriculares", "bailar", "notas", "portada", "reaccion", "player"]
         case .foco: return ["pomodoro", "concentracion", "horario", "descanso", "no molestar"]
         case .atajos: return ["teclado", "teclas", "combinacion", "global", "control", "opcion"]
         case .copia: return ["exportar", "importar", "respaldo", "restablecer", "reiniciar", "configuracion", "json"]
@@ -173,7 +176,7 @@ enum SettingsBackup {
         Entry(key: "autoRestorePoints", kind: .bool), Entry(key: "blockOnChange", kind: .bool),
         Entry(key: "soundsEnabled", kind: .bool), Entry(key: "soundVolume", kind: .number(0, 1)),
         Entry(key: "soundCategoryVolumes", kind: .text(80)), Entry(key: "shortcutKeys", kind: .text(80)),
-        Entry(key: "wardrobe", kind: .text(120)), Entry(key: "seasonalOutfits", kind: .bool), Entry(key: "danceToMusic", kind: .bool),
+        Entry(key: "wardrobe", kind: .text(120)), Entry(key: "seasonalOutfits", kind: .bool), Entry(key: "danceToMusic", kind: .bool), Entry(key: "musicPlayer", kind: .bool), Entry(key: "musicReacts", kind: .bool),
         Entry(key: "focusManual", kind: .bool), Entry(key: "focusStart", kind: .integer(-1, 23)), Entry(key: "focusEnd", kind: .integer(-1, 23)),
         Entry(key: "pinSession", kind: .bool), Entry(key: "muteClaude", kind: .bool), Entry(key: "muteCodex", kind: .bool),
         Entry(key: "animationsEnabled", kind: .bool), Entry(key: "footballEnabled", kind: .bool),

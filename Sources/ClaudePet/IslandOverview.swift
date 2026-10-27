@@ -7,7 +7,16 @@ struct IslandOverviewView: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
     @Binding var agentTab: IslandAgentTab
+    @ObservedObject private var music: MusicController
     @State private var shown = false
+    @State private var showMusic = false
+
+    init(store: PetStore, model: IslandModel, agentTab: Binding<IslandAgentTab>) {
+        self.store = store
+        self.model = model
+        _agentTab = agentTab
+        _music = ObservedObject(wrappedValue: store.music)
+    }
 
     private var isClaude: Bool { agentTab == .claude }
     private var state: PetState { isClaude ? store.state : store.codexState }
@@ -30,17 +39,25 @@ struct IslandOverviewView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if let loop = store.loopAlert { loopBanner(loop).reveal(0, shown, animated: animated) }
                 header.reveal(1, shown, animated: animated)
-                speech.reveal(2, shown, animated: animated)
-                stepList.reveal(3, shown, animated: animated)
-                Spacer(minLength: 0)
-                actions.reveal(4, shown, animated: animated)
-                chips.reveal(5, shown, animated: animated)
+                if showMusic && music.nowPlaying != nil {
+                    Spacer(minLength: 0)
+                    MusicPanelView(music: music).transition(.opacity)
+                    Spacer(minLength: 0)
+                } else {
+                    speech.reveal(2, shown, animated: animated)
+                    stepList.reveal(3, shown, animated: animated)
+                    Spacer(minLength: 0)
+                    actions.reveal(4, shown, animated: animated)
+                    chips.reveal(5, shown, animated: animated)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { shown = true }
-        .onDisappear { shown = false }
+        .onDisappear { shown = false; showMusic = false; music.watching = false }
+        .onChange(of: showMusic) { music.watching = $0 }
+        .onChange(of: music.nowPlaying == nil) { gone in if gone { showMusic = false } }
     }
 
     // MARK: encabezado y frase
@@ -52,9 +69,20 @@ struct IslandOverviewView: View {
                 Text(isClaude ? "claude code" : "codex").font(.system(size: 11)).foregroundColor(.white.opacity(0.45))
             }
             Spacer(minLength: 8)
+            if store.musicPlayer, music.nowPlaying != nil { musicButton }
             if store.codexPresent { agentSwitch.fixedSize() }
             moreMenu.layoutPriority(2)
         }
+    }
+
+    private var musicButton: some View {
+        Button { if animated { withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) { showMusic.toggle() } } else { showMusic.toggle() } } label: {
+            Image(systemName: music.isPlaying ? "music.note" : "pause.fill").font(.system(size: 11, weight: .semibold))
+                .foregroundColor(showMusic ? .black : .white.opacity(0.85))
+                .frame(width: 26, height: 26).background(Circle().fill(showMusic ? Color.white : Color.white.opacity(0.1)))
+        }
+        .buttonStyle(.plain).help(showMusic ? "volver a la actividad" : "reproductor")
+        .accessibilityLabel("reproductor de música")
     }
 
     private var agentSwitch: some View {

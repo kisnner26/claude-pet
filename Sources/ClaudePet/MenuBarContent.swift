@@ -4,10 +4,12 @@ import AppKit
 struct MenuBarContent: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var webScout: NativeWebScoutController
+    @ObservedObject private var music: MusicController
 
     init(store: PetStore) {
         self.store = store
         _webScout = ObservedObject(wrappedValue: store.webScout)
+        _music = ObservedObject(wrappedValue: store.music)
     }
 
     var body: some View {
@@ -21,6 +23,14 @@ struct MenuBarContent: View {
                 store.alertsAreSnoozed ? store.wakeAlerts() : store.snoozeAlerts()
             }
             pomodoroItem
+            if store.musicPlayer, let n = music.nowPlaying {
+                Menu(n.title, systemImage: "music.note") {
+                    Text(n.artist.isEmpty ? n.app.title : "\(n.artist) · \(n.app.title)")
+                    Button(n.isPlaying ? "pausar" : "reproducir", systemImage: n.isPlaying ? "pause.fill" : "play.fill") { music.send(.playPause) }
+                    Button("siguiente", systemImage: "forward.fill") { music.send(.next) }
+                    Button("anterior", systemImage: "backward.fill") { music.send(.previous) }
+                }
+            }
         }
         Section {
             Menu("proyecto", systemImage: "folder") { projectMenu }
