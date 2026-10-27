@@ -125,10 +125,10 @@ struct AgentAvatarTab: View {
                         }
                     }
                 }.frame(width: 22, height: 22)
-                Text(tab.rawValue).font(.system(size: 11, weight: .medium))
+                if selected { Text(tab.rawValue).font(.system(size: 11, weight: .medium)) }
             }
             .foregroundColor(selected ? .black : .white.opacity(0.8))
-            .padding(.leading, 6).padding(.trailing, 12).padding(.vertical, 4)
+            .padding(.leading, 6).padding(.trailing, selected ? 12 : 6).padding(.vertical, 4)
             .background(Capsule().fill(selected ? Color.white : Color.white.opacity(hover ? 0.16 : 0.08)))
         }
         .buttonStyle(.plain)

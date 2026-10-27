@@ -50,8 +50,8 @@ struct IslandOverviewView: View {
                 Text(isClaude ? "claude code" : "codex").font(.system(size: 11)).foregroundColor(.white.opacity(0.45))
             }
             Spacer(minLength: 8)
-            if store.codexPresent { agentSwitch }
-            moreMenu
+            if store.codexPresent { agentSwitch.fixedSize() }
+            moreMenu.layoutPriority(2)
         }
     }
 
@@ -104,7 +104,10 @@ struct IslandOverviewView: View {
             stat("\(t.sessions)", "tareas hoy")
             stat("\(t.tools)", "herramientas")
             stat("\(t.permissions)", "permisos")
-            stat(r.streak == 1 ? "1 día" : "\(r.streak) días", "de racha")
+            HStack(spacing: 4) {
+                stat(r.streak == 1 ? "1 día" : "\(r.streak) días", "de racha")
+                if animated { StreakFireView(streak: r.streak) }
+            }
         }
         .padding(.top, 2)
     }
