@@ -17,6 +17,10 @@ struct MissionControlMenu: View {
             Text("git: \(control.git.label)")
             Text("sesión: \(control.focusLabel)")
             Button("actualizar salud git") { control.refreshGit() }
+            Button("abrir carpeta del proyecto") { control.openWorkspace() }
+            Button("copiar informe técnico") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.diagnosticReport, forType: .string)
+            }
             Divider()
             Menu("panel operativo") {
                 ForEach(control.insights) { insight in

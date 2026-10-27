@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AppKit
 
 final class GitScanCoordinator: @unchecked Sendable {
     typealias Scanner = @Sendable (String) -> GitHealth
@@ -119,6 +120,17 @@ final class MissionControl: ObservableObject {
         let projectName = localProject.isEmpty ? "sin proyecto" : URL(fileURLWithPath: localProject).lastPathComponent
         let agent = localState.isActive ? "claude" : (peerState.isActive ? "codex" : "ninguno")
         return "claude-pet · \(projectName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
+    }
+
+    /// Informe local sin comandos, prompts ni rutas completas para pegar en un issue.
+    var diagnosticReport: String {
+        let recent = timeline.prefix(6).map { "\($0.agent):\($0.state.rawValue)" }.joined(separator: ", ")
+        return [shareSummary, "eventos recientes: \(recent.isEmpty ? "ninguno" : recent)", "colisión: \(collision ? "sí" : "no")"].joined(separator: "\n")
+    }
+
+    func openWorkspace() {
+        guard !localWorkspace.isEmpty else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: localWorkspace))
     }
 
     /// Doce lecturas locales de la sesión. Son deliberadamente derivadas de estado, tiempos y
