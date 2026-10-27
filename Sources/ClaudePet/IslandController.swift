@@ -89,7 +89,7 @@ final class IslandController {
 
     /// Recalcula la pantalla elegida cada vez que se conecta, desconecta o cambia una pantalla.
     private func relocate() {
-        guard let m = NotchGeometry.pick(NSScreen.screens.map(Self.metrics)) else { return }
+        guard let m = NotchGeometry.pick(NSScreen.screens.map(Self.metrics), preference: store.islandScreenPreference, mouse: NSEvent.mouseLocation) else { return }
         metrics = m
         model.hasNotch = NotchGeometry.hasNotch(m)
         panel?.setFrame(NotchGeometry.panelFrame(m), display: false)

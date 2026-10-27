@@ -70,6 +70,7 @@ struct MenuBarContent: View {
                 if store.layout == .island {
                     Toggle("responder permisos desde la isla", isOn: $store.islandPermissions)
                     Toggle("atajos globales de la isla", isOn: $store.globalShortcutsEnabled)
+                    Picker("pantalla de la isla", selection: $store.islandScreenPreference) { ForEach(IslandScreenPreference.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                 }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
                 Toggle("burbuja de actividad", isOn: $store.showBubble)

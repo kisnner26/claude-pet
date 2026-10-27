@@ -80,6 +80,8 @@ enum IslandSelfTest {
         check("la ventana queda centrada arriba de su pantalla", pf.midX == plainMac.frame.midX && pf.maxY == plainMac.frame.maxY && pf.width == 720)
         check("elige la pantalla con notch aunque no sea la primera", NotchGeometry.pick([plainMac, notchMac]) == notchMac)
         check("sin notch usa la primera pantalla", NotchGeometry.pick([plainMac]) == plainMac)
+        let right = ScreenMetrics(frame: CGRect(x: 3432, y: 0, width: 1512, height: 982), safeTop: 0, auxLeft: 0, auxRight: 0)
+        check("seguir al ratón elige la pantalla bajo el cursor", NotchGeometry.pick([plainMac, right], preference: .mouse, mouse: CGPoint(x: 3600, y: 200)) == right)
         check("sobre el notch (con margen de 6 pt) cuenta como encima",
               NotchGeometry.overNotch(CGPoint(x: 756, y: 975), metrics: notchMac) && NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 5, y: 975), metrics: notchMac)
               && !NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 8, y: 975), metrics: notchMac) && !NotchGeometry.overNotch(CGPoint(x: 756, y: 900), metrics: notchMac))

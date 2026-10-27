@@ -10,6 +10,8 @@ struct ScreenMetrics: Equatable {
     var auxRight: CGFloat
 }
 
+enum IslandScreenPreference: String, CaseIterable { case notch = "pantalla del notch"; case mouse = "seguir al ratón" }
+
 /// Geometria de la isla: tamano por modo y posicion pegada al borde superior.
 /// Los valores salen de las reglas de la isla (doc/ISLAND.md); las medidas del notch son las reales de la pantalla.
 enum NotchGeometry {
@@ -65,7 +67,8 @@ enum NotchGeometry {
     }
 
     /// Eleccion de pantalla: la que tiene notch; si no, la primera (la de la barra de menus).
-    static func pick(_ screens: [ScreenMetrics]) -> ScreenMetrics? {
-        screens.first(where: hasNotch) ?? screens.first
+    static func pick(_ screens: [ScreenMetrics], preference: IslandScreenPreference = .notch, mouse: CGPoint? = nil) -> ScreenMetrics? {
+        if preference == .mouse, let mouse, let screen = screens.first(where: { $0.frame.contains(mouse) }) { return screen }
+        return screens.first(where: hasNotch) ?? screens.first
     }
 }

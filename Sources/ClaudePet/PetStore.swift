@@ -54,6 +54,9 @@ final class PetStore: ObservableObject {
     @Published var layout: PetLayout = PetLayout(rawValue: UserDefaults.standard.string(forKey: "layout") ?? "") ?? .floating {
         didSet { UserDefaults.standard.set(layout.rawValue, forKey: "layout") }
     }
+    @Published var islandScreenPreference: IslandScreenPreference = IslandScreenPreference(rawValue: UserDefaults.standard.string(forKey: "islandScreenPreference") ?? "") ?? .notch {
+        didSet { UserDefaults.standard.set(islandScreenPreference.rawValue, forKey: "islandScreenPreference") }
+    }
     /// Opt-in: con la isla activa, los permisos de Claude Code se responden desde la isla en vez de la terminal.
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
