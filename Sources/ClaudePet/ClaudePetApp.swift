@@ -183,6 +183,9 @@ final class AppController: NSObject, NSApplicationDelegate {
             for cue in SoundCue.allCases { try? SoundBank.wav(SoundBank.samples(for: cue)).write(to: URL(fileURLWithPath: dir + "/\(cue.rawValue).wav")) }
             print("sonidos exportados en \(dir)"); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-life"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.life(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)
         }

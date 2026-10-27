@@ -773,3 +773,37 @@ extension IslandSnapshot {
         }
     }
 }
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-life <ruta.png>`: la mascota en reposo, mirando a un lado, con el tic de orejas, estirandose y bostezando.
+    static func life(to path: String) {
+        func find(_ match: (PetAnimator.IdleLife) -> Bool) -> TimeInterval {
+            (0..<20_000).map { Double($0) / 10 }.first { match(PetAnimator.idleLife(at: $0 + 0.3)) } ?? 0
+        }
+        let scene = PetScene(idleSeconds: 5, state: .idle)
+        let frames: [(String, TimeInterval)] = [
+            ("en reposo", 1.0),
+            ("mira alrededor", find { $0.look != nil } + 0.3),
+            ("tic de orejas", find { $0.earLift && $0.stretch == nil } + 0.3),
+            ("se estira", find { $0.stretch != nil } + 0.3 + 0.35),
+            ("bosteza", find { $0.yawn } + 0.3),
+        ]
+        let view = HStack(spacing: 18) {
+            ForEach(Array(frames.enumerated()), id: \.offset) { _, f in
+                VStack(spacing: 8) {
+                    Canvas { gc, size in
+                        let pose = PetAnimator.pose(at: f.1, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: scene)
+                        let px = PetAnimator.apply(Sprite.block(.idle, tick: 3), pose: pose)
+                        PetFace.draw(&gc, size: size, pixels: px, pose: pose)
+                    }.frame(width: 110, height: 110)
+                    Text(f.0).font(.system(size: 11)).foregroundColor(.white.opacity(0.75))
+                }
+            }
+        }.padding(18).background(Color.black)
+        let r = ImageRenderer(content: view)
+        r.scale = scale
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
