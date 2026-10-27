@@ -114,6 +114,13 @@ final class MissionControl: ObservableObject {
     /// Ultimo proyecto conocido de Claude (persiste aunque la sesion este en reposo).
     var project: String { localProject }
 
+    /// Resumen breve para pegar en un issue o en otro agente; nunca incluye prompts ni rutas completas.
+    var shareSummary: String {
+        let projectName = localProject.isEmpty ? "sin proyecto" : URL(fileURLWithPath: localProject).lastPathComponent
+        let agent = localState.isActive ? "claude" : (peerState.isActive ? "codex" : "ninguno")
+        return "claude-pet · \(projectName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
+    }
+
     /// Doce lecturas locales de la sesión. Son deliberadamente derivadas de estado, tiempos y
     /// `git status`: no añaden contenido de prompts, comandos ni archivos al pet bus.
     var insights: [MissionInsight] {
