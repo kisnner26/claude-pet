@@ -171,6 +171,11 @@ struct MenuBarContent: View {
                     Picker("volumen", selection: $store.soundVolume) { ForEach([0.15, 0.3, 0.4, 0.6, 0.8, 1.0], id: \.self) { Text("\(Int($0 * 100)) %").tag($0) } }
                     Button("probar sonido de terminado") { SoundEngine.shared.enabled = store.soundsEnabled; SoundEngine.shared.volume = Float(store.soundVolume); SoundEngine.shared.play(.done) }
                 }
+                Button("commitear este proyecto…", systemImage: "arrow.triangle.branch") {
+                    if !CommiteroLauncher.launch(workspace: store.mission.workspace) { NSSound.beep() }
+                }
+                .disabled(!CommiteroLauncher.available() || store.mission.workspace.isEmpty)
+                .help(CommiteroLauncher.available() ? "abre commitero con los cambios del proyecto" : "commitero no está instalado: en su carpeta ejecuta npm link")
                 Menu("puntos de restauración") {
                     Toggle("crear uno antes de permitir cambios", isOn: $store.autoRestorePoints)
                     Button("crear punto ahora") {

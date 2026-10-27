@@ -68,6 +68,9 @@ struct IslandFinishedCard: View {
             Text(step.map { $0.label } ?? "tarea completada").font(.system(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
             HStack(spacing: 8) {
                 IslandActionButton(title: "abrir terminal", fill: .white, ink: .black) { store.focusTerminal(); onDismiss() }
+                if CommiteroLauncher.available(), !store.mission.workspace.isEmpty {
+                    IslandActionButton(title: "commitear", fill: Color(hex: 0x2966ED), ink: .white) { CommiteroLauncher.launch(workspace: store.mission.workspace); onDismiss() }
+                }
                 IslandActionButton(title: "ok", fill: Color.white.opacity(0.12), ink: .white) { onDismiss() }
             }
         }
