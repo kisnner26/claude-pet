@@ -20,7 +20,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 3. aprobar o denegar permisos desde la mascota. **hecho: `PermissionServer` y `hooks/pet-permission.sh`** (ver abajo). es opt-in.
 4. responder preguntas de `AskUserQuestion` desde la isla. **hecho: `pet-question.sh`, `QuestionServer` y tarjeta de opciones** (incluye preguntas de selección única; la selección múltiple queda representada en el protocolo y sigue pendiente en la tarjeta).
 5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar. **hecho: `PetAnimator`** (falta el saludo al asomar). con movimiento reducido solo queda la mirada.
-6. pestaña por agente (claude y codex) con su línea de pasos recientes.
+6. pestaña por agente (claude y codex) con su línea de pasos recientes. **parcial: ticker local de claude con diff**.
 7. saltar a la terminal de la sesión.
 8. vestuario y sonidos propios.
 
@@ -64,6 +64,7 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 - la isla muestra a claude y un codex pixel-art animado por estado; claude saluda durante 1,4 s al asomar. con reducir movimiento no se animan ni codex ni el saludo.
 - `AskUserQuestion` ya llega por `ask.sock` y se puede responder desde la tarjeta; selección múltiple, varias preguntas visibles a la vez y verificación con una sesión real de Claude Code quedan pendientes.
 - el salto a terminal solo se activa cuando hay una única ventana visible de terminal, iterm, ghostty, warp o vs code cuyo título contiene el proyecto; con ambigüedad muestra `terminal no identificada` y no enfoca nada.
+- la vista abierta conserva hasta ocho pasos recientes de claude en memoria; muestra herramienta, objetivo recortado y `+N -M` cuando el objetivo coincide con un archivo cambiado. pulsar un paso reutiliza `GitPulse`/`DiffPullReader`; no se escriben comandos ni rutas completas.
 - verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
 
 ## animación del personaje

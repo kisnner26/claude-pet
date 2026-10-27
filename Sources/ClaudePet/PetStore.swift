@@ -37,6 +37,7 @@ final class PetStore: ObservableObject {
     @Published private(set) var codexTask = ""
     /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
     @Published private(set) var codexSide = -1
+    @Published private(set) var recentIslandSteps: [IslandStep] = []
     /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
     @Published private(set) var gameGeometry: GameGeometry?
     // Presencia: cada mascota aparece solo si su herramienta esta en uso.
@@ -182,6 +183,11 @@ final class PetStore: ObservableObject {
         }
     }
 
+    func openLatestDiff() {
+        guard let file = mission.changes.first else { return }
+        pullDiff(file)
+    }
+
     func activateRadarTarget() {
         guard let target = radarTarget else { return }
         let apps = NSWorkspace.shared.runningApplications.filter { !$0.isTerminated }
@@ -303,7 +309,12 @@ final class PetStore: ObservableObject {
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
         refresh()
-        if let toolEvent { mission.recordToolEvent(toolEvent) }
+        if let toolEvent {
+            mission.recordToolEvent(toolEvent)
+            let target = e.detail.isEmpty ? e.project : e.detail
+            let delta = (e.tool == "Edit" || e.tool == "Write") ? (mission.changes.first { $0.name == URL(fileURLWithPath: target).lastPathComponent }.map { ($0.added, $0.deleted) } ?? (0, 0)) : (0, 0)
+            recentIslandSteps = IslandSteps.append(IslandStep(agent: "claude", tool: toolEvent, target: String(target.prefix(80)), added: delta.0, deleted: delta.1, workspace: e.workspace, at: Date()), to: recentIslandSteps)
+        }
     }
 
     /// Olvida una sesion por completo: estado, vigilancia del proyecto y marca del bloqueo.

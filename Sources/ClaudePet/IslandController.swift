@@ -276,6 +276,11 @@ struct IslandView: View {
             if store.codexPresent {
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 12, design: .monospaced)).foregroundColor(codexColor)
             }
+            ForEach(store.recentIslandSteps.prefix(3)) { step in
+                Button { store.openLatestDiff() } label: {
+                    HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
+                }.buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
+            }
             if store.terminalTargetAvailable {
                 Button("saltar a terminal") { store.focusTerminal() }
                     .buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))

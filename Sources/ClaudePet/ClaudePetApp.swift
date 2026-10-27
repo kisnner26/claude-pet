@@ -88,6 +88,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--selftest-question") { exit(QuestionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-terminal") { exit(TerminalTargetSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-steps") { exit(IslandStepsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
