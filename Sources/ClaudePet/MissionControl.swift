@@ -128,6 +128,25 @@ final class MissionControl: ObservableObject {
         return [shareSummary, "eventos recientes: \(recent.isEmpty ? "ninguno" : recent)", "colisión: \(collision ? "sí" : "no")"].joined(separator: "\n")
     }
 
+    var activeAgents: [String] {
+        var result: [String] = []
+        if localState.isActive { result.append("claude") }
+        if peerState.isActive { result.append("codex") }
+        return result
+    }
+
+    var timelineSummary: String {
+        guard !timeline.isEmpty else { return "sin eventos recientes" }
+        return timeline.prefix(8).map { "\($0.agent): \($0.state.label.lowercased())" }.joined(separator: " · ")
+    }
+
+    var timelineExport: String {
+        timeline.prefix(16).map { event in
+            let time = event.at.formatted(date: .omitted, time: .shortened)
+            return "\(time)\t\(event.agent)\t\(event.state.rawValue)\t\(event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent)"
+        }.joined(separator: "\n")
+    }
+
     func openWorkspace() {
         guard !localWorkspace.isEmpty else { return }
         NSWorkspace.shared.open(URL(fileURLWithPath: localWorkspace))

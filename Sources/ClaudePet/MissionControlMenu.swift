@@ -21,6 +21,9 @@ struct MissionControlMenu: View {
             Button("copiar informe técnico") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.diagnosticReport, forType: .string)
             }
+            Button("copiar actividad reciente") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.timelineExport, forType: .string)
+            }
             Divider()
             Menu("panel operativo") {
                 ForEach(control.insights) { insight in
