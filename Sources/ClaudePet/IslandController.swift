@@ -135,6 +135,14 @@ final class IslandController {
         let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
         let sound = SoundEngine.shared
         sound.enabled = store.soundsEnabled; sound.volume = Float(store.soundVolume)
+        // modo foco: con el foco activo solo suenan las alertas
+        let focusNow = store.focusMode.isActive(at: Date())
+        sound.focus = focusNow
+        if model.focusActive != focusNow { model.focusActive = focusNow }
+        // pomodoro: al cambiar de fase suena; en el descanso la mascota se duerme
+        if let phase = store.tickPomodoro(now: now) { sound.play(phase == .work ? .greeting : .rest) }
+        let timerLabel = store.pomodoroLabel(now: now)
+        if model.pomodoroLabel != timerLabel { model.pomodoroLabel = timerLabel }
         // una tarea larga que termina se celebra con confeti
         if tasksRunning() { if taskStartedAt == nil { taskStartedAt = now } }
         if doneNow {
@@ -144,6 +152,7 @@ final class IslandController {
             if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
             if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
             ActivityStats.shared.save()
+            store.refreshWeeklyRecap()
         }
         if errorNow { sound.play(.error); ActivityStats.shared.recordError() }
         if store.permissionAsks.count > lastAskCount { sound.play(.permission) }

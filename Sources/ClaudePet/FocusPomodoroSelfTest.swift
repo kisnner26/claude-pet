@@ -1,8 +1,9 @@
 import Foundation
+import Combine
 
 /// `ClaudePet --selftest-focus`: modo foco con horario y temporizador pomodoro.
 enum FocusPomodoroSelfTest {
-    static func run() -> Bool {
+    @MainActor static func run() -> Bool {
         var failures = 0
         func check(_ name: String, _ ok: Bool) { print((ok ? "PASS " : "FAIL ") + name); if !ok { failures += 1 } }
         var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
@@ -45,6 +46,19 @@ enum FocusPomodoroSelfTest {
         check("parar lo deja todo a cero", z.phase == .idle && z.completed == 0)
         var w = Pomodoro(); w.start(now: 0); w.pause(now: 10); w.pause(now: 20)
         check("pausar dos veces no pierde el instante de la primera", abs(w.remaining(now: 30) - (Pomodoro.work - 10)) < 0.01)
+
+        // la tienda: parado no publica nada y en marcha avanza de fase
+        let store = PetStore.shared
+        let before = store.pomodoro
+        store.pomodoro = Pomodoro()
+        var publications = 0
+        let token = store.objectWillChange.sink { _ in publications += 1 }
+        _ = store.tickPomodoro(now: 10); _ = store.tickPomodoro(now: 11)
+        check("con el pomodoro parado, tickear no avisa a la interfaz", publications == 0 && store.pomodoroLabel(now: 10) == nil)
+        store.pomodoro.start(now: 100)
+        check("en marcha muestra el tiempo y el modo", store.pomodoroLabel(now: 100) == "foco 25:00")
+        check("al agotarse avanza a descanso y cambia el texto", store.tickPomodoro(now: 100 + 1500) == .shortBreak && store.pomodoroLabel(now: 100 + 1500) == "descanso 05:00")
+        token.cancel(); store.pomodoro = before
 
         print(failures == 0 ? "FOCO OK" : "FOCO FALLOS: \(failures)")
         return failures == 0

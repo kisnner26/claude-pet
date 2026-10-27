@@ -137,7 +137,20 @@ final class PetStore: ObservableObject {
     }
     var focusMode: FocusMode { FocusMode(manual: focusManual, scheduleStart: focusStart >= 0 ? focusStart : nil, scheduleEnd: focusEnd >= 0 ? focusEnd : nil) }
     /// Pomodoro opcional de la isla.
+    /// Resumen semanal ya calculado: el menu lo lee sin recalcularlo cada vez que se redibuja.
+    @Published private(set) var weeklyRecap = WeeklyRecap()
+    func refreshWeeklyRecap() { weeklyRecap = ActivityStats.shared.recap() }
     @Published var pomodoro = Pomodoro()
+    /// Avanza el pomodoro. Con el temporizador parado no toca la propiedad: un metodo mutante sobre un @Published
+    /// avisa a toda la interfaz aunque no cambie nada, y la isla llama a esto en cada tick.
+    func tickPomodoro(now: TimeInterval) -> Pomodoro.Phase? {
+        guard pomodoro.phase != .idle else { return nil }
+        return pomodoro.tick(now: now)
+    }
+    /// Texto del temporizador para la isla compacta, o nil si esta parado.
+    func pomodoroLabel(now: TimeInterval) -> String? {
+        pomodoro.phase == .idle ? nil : "\(pomodoro.onBreak ? "descanso" : "foco") \(pomodoro.label(now: now))"
+    }
     /// Segundos que la isla espera con el cursor fuera antes de plegarse (0 = solo a los 60 s).
     @Published var islandCloseDelay: Double = {
         UserDefaults.standard.object(forKey: "islandCloseDelay") == nil ? 1.2 : min(10, max(0, UserDefaults.standard.double(forKey: "islandCloseDelay")))
