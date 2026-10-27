@@ -95,3 +95,4 @@
 - efectos visuales: pulso de alerta con cuenta atrás, reloj de arena del pomodoro, contexto como líquido, aurora con MeshGradient, escenarios pixel-art por estado (lluvia, sol, chispas, estrellas), lluvia de líneas al editar, halo y estrellas por nivel, tráiler de 3 s al terminar, choque de manos entre claude y codex y gotas de metal líquido al abrir la isla.
 - los atuendos se desbloquean por nivel real de actividad.
 - rendimiento: el transcript se lee desde la cola, la mirada se publica solo si cambia, la búsqueda de terminal se recuerda 5 s y el contexto se escanea cada 5 s (15 s en reposo).
+- la mascota se inclina hacia el cursor con todo el cuerpo; cada herramienta del agente lanza una onda desde ella; al cambiar de agente la escena entra con un resorte y las cifras del resumen ruedan; la mascota de codex respira, se estira, bosteza, saluda con la mano y salta al terminar, igual que la de claude.

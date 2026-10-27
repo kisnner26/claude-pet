@@ -68,7 +68,10 @@ struct CodexMini: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
-            CodexMiniFrame(face: face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: greet && motion)
+            // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza y saluda con la mano
+            let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: [], hopStart: model.codexDoneAt, motion: true,
+                                                 scene: PetScene(idleSeconds: model.idleSeconds, state: store.codexState)) : PetPose()
+            CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose)
             }
         }
     }
@@ -80,11 +83,17 @@ struct CodexMiniFrame: View {
     let tick: Int
     let skin: CodexSkin
     let wave: Bool
+    var pose = PetPose()
     var body: some View {
         Canvas { gc, size in
             let u = min(size.width / 18, size.height / 21)
             let ox = (size.width - 18 * u) / 2
             let oy = (size.height - 21 * u) / 2
+            // la pose mueve el cuerpo entero desde los pies, igual que con claude
+            gc.translateBy(x: size.width / 2 + pose.dx * u, y: oy + 21 * u + pose.dy * u)
+            gc.rotate(by: .degrees(pose.rotation))
+            gc.scaleBy(x: pose.scaleX, y: pose.scaleY)
+            gc.translateBy(x: -size.width / 2, y: -(oy + 21 * u))
             for c in CodexAvatar.cells(legs: legs, face: face, skin: skin) {
                 gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.4, height: u + 0.4)), with: .color(c.c))
             }
