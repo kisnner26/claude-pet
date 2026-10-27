@@ -169,6 +169,10 @@ final class PetStore: ObservableObject {
         guard let reading = contextReading else { return "contexto no disponible" }
         return "contexto: \(reading.remainingPercent)% restante"
     }
+    var codexContextLabel: String {
+        guard let reading = codexContextReading else { return "contexto codex no disponible" }
+        return "contexto codex: \(reading.remainingPercent)% restante"
+    }
     var alertsAreSnoozed: Bool { Date() < alertsSnoozedUntil }
     func snoozeAlerts(minutes: Int = 15) {
         alertsSnoozedUntil = Date().addingTimeInterval(TimeInterval(max(1, minutes) * 60))
@@ -417,6 +421,7 @@ final class PetStore: ObservableObject {
         project = "claude-pet"
         tool = "Edit"
         contextReading = ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude-sonnet")
+        codexContextReading = ContextReading(usedTokens: 48_000, compactAtTokens: 128_000, model: "codex")
         recentIslandSteps = [
             IslandStep(agent: "claude", tool: "Edit", target: "Sources/ClaudePet/IslandController.swift", added: 42, deleted: 9, workspace: "claude-pet", at: Date()),
             IslandStep(agent: "claude", tool: "Bash", target: "swift test", added: 0, deleted: 0, workspace: "claude-pet", at: Date().addingTimeInterval(-18)),
@@ -436,7 +441,7 @@ final class PetStore: ObservableObject {
         demoTimer?.invalidate(); demoTimer = nil
         guard demoMode else { return }
         demoMode = false; permissionAsks = []; questionAsks = []; recentIslandSteps = []
-        contextReading = nil; manual = nil; codexManual = nil; claudePresent = false; codexPresent = false
+        contextReading = nil; codexContextReading = nil; manual = nil; codexManual = nil; claudePresent = false; codexPresent = false
         updatePresence(); objectWillChange.send()
     }
 
