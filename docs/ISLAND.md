@@ -124,3 +124,5 @@ debajo de la rama se resumen cambios, staged y conflictos; los conflictos se col
 el resumen de salud git es interactivo: al pulsarlo abre mission control para revisar el detalle completo.
 
 los indicadores de contexto y git tienen ayudas contextuales al pasar el cursor, con la leyenda de colores y la acción disponible.
+
+la insignia de decisiones pendientes es interactiva: pulsarla activa la misma respuesta de la mascota y abre el detalle cuando la isla está compacta.
