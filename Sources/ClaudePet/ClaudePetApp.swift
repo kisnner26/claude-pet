@@ -97,6 +97,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-cleanup") { exit(IslandCleanupSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-shortcuts") { exit(GlobalShortcutSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-resistance") { exit(IslandResistanceSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-demo") { exit(DemoModeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
