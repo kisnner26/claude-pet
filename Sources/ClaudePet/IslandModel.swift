@@ -22,6 +22,8 @@ final class IslandModel: ObservableObject {
     /// Hay archivos arrastrados sobre la isla: la mascota se vuelve caja abierta.
     @Published var dropHover = false
     var swallowStart: TimeInterval?
+    /// Archivos soltados sobre la isla (los pone el controlador).
+    var onFiles: ([URL]) -> Void = { _ in }
     @Published var pomodoroLabel: String?
     /// Segundos de mareo que quedan (para el aviso), o nil.
     @Published var dizzyLeft: Int?

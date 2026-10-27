@@ -220,6 +220,12 @@ enum IslandSelfTest {
         check("mirar a la derecha mueve los ojos del sprite", moved)
         check("parpadear deja una linea en los ojos", blinkLine)
 
+        // sondeo: oculta duerme, pero el cursor cerca de la zona la despierta
+        let zone = NotchGeometry.activationZone(metrics: plainMac)
+        check("el cursor cerca de la zona de activacion despierta el sondeo", IslandPollingPolicy.isNearZone(CGPoint(x: zone.midX, y: zone.minY - 20), zone: zone) && !IslandPollingPolicy.isNearZone(CGPoint(x: zone.midX, y: zone.minY - 300), zone: zone))
+        check("oculta y sin cursor cerca el sondeo es lento", IslandPollingPolicy.interval(hidden: true, tasksRunning: false, attention: false, cursorNearZone: false) == IslandPollingPolicy.idleInterval)
+        check("con el cursor cerca el sondeo es rapido aunque este oculta", IslandPollingPolicy.interval(hidden: true, tasksRunning: false, attention: false, cursorNearZone: true) == IslandPollingPolicy.activeInterval)
+
         print(failures == 0 ? "ISLAND OK" : "ISLAND FALLOS: \(failures)")
         return failures == 0
     }

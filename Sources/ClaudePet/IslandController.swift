@@ -18,6 +18,17 @@ final class IslandController {
     private var observers: [NSObjectProtocol] = []
     private var timerInterval: TimeInterval = IslandPollingPolicy.activeInterval
     private var follower = ScreenFollower()
+    private var mouseMonitor: Any?
+    private var lastLoggedMode: IslandMode = .hidden
+    private var lastLoggedOver = false
+    private var lastLoggedDrag = false
+    /// Diagnostico opcional: con CLAUDE_PET_ISLAND_LOG=<archivo> anota los cambios de modo y del cursor sobre la zona.
+    private static var logPath: String? { ProcessInfo.processInfo.environment["CLAUDE_PET_ISLAND_LOG"] }
+    static func log(_ line: String) {
+        guard let path = logPath, let data = (line + "\n").data(using: .utf8) else { return }
+        if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(data); try? h.close() } else { try? data.write(to: URL(fileURLWithPath: path)) }
+    }
+    private var cursorNearZone = false
     private var lastSoundMode: IslandMode = .hidden
     private var taskStartedAt: TimeInterval?
     private let music = MusicMonitor()
@@ -34,18 +45,20 @@ final class IslandController {
         guard timer == nil else { return }
         let p = PetPanel(contentRect: NSRect(origin: .zero, size: NotchGeometry.panelSize),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        let host = DropHostingView(rootView: IslandView(model: model, store: store))
-        host.onHover = { [weak self] over in self?.model.dropHover = over }
-        host.onFiles = { [weak self] urls in
-            guard let self, let text = FileDrop.text(for: urls) else { return }
-            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
-            let now = ProcessInfo.processInfo.systemUptime
-            self.model.swallowStart = now
+        model.onFiles = { [weak self] urls in
+            guard let self, FileDrop.deliver(urls) != nil else { return }
+            self.model.swallowStart = ProcessInfo.processInfo.systemUptime
             // despues de tragar, un saltito de alegria
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { self.model.hopStart = ProcessInfo.processInfo.systemUptime }
             SoundEngine.shared.play(.allowed)
         }
-        p.contentView = host
+        let host = FirstMouseHostingView(rootView: IslandView(model: model, store: store))
+        let container = DropContainerView(frame: NSRect(origin: .zero, size: NotchGeometry.panelSize))
+        host.frame = container.bounds; host.autoresizingMask = [.width, .height]
+        container.addSubview(host)
+        container.onHover = { [weak self] over in self?.model.dropHover = over }
+        container.onFiles = { [weak self] urls in self?.model.onFiles(urls) }
+        p.contentView = container
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = false
@@ -66,10 +79,24 @@ final class IslandController {
             Task { @MainActor in self?.relocate() }
         })
         scheduleTimer(interval: IslandPollingPolicy.activeInterval)
+        // despierta el sondeo cuando el cursor se acerca a la zona de activacion (no necesita permisos de accesibilidad)
+        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
+            Task { @MainActor in self?.cursorMoved() }
+        }
+    }
+
+    private func cursorMoved() {
+        guard let m = metrics else { return }
+        let zone = NotchGeometry.activationZone(metrics: m, placement: store.islandPlacement, activationWidth: store.islandActivationWidth)
+        let near = IslandPollingPolicy.isNearZone(NSEvent.mouseLocation, zone: zone)
+        guard near != cursorNearZone else { return }
+        cursorNearZone = near
+        if near && timerInterval != IslandPollingPolicy.activeInterval { scheduleTimer(interval: IslandPollingPolicy.activeInterval); tick() }
     }
 
     func stop() {
         timer?.invalidate(); timer = nil
+        if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }; mouseMonitor = nil
         observers.forEach { NotificationCenter.default.removeObserver($0) }; observers = []
         panel?.orderOut(nil); panel = nil
         machine = IslandMachine()
@@ -166,6 +193,7 @@ final class IslandController {
         let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
         // arrastrando archivos: la isla asoma y deja de ser transparente a los clics para poder recibirlos
         let dragging = NSEvent.pressedMouseButtons & 1 != 0 && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+        if Self.logPath != nil, dragging != lastLoggedDrag { lastLoggedDrag = dragging; Self.log("arrastre=\(dragging) botones=\(NSEvent.pressedMouseButtons) cursor=(\(Int(mouse.x)),\(Int(mouse.y)))") }
         let overZone = NotchGeometry.overNotch(mouse, metrics: m, placement: placement, activationWidth: store.islandActivationWidth)
         let input = IslandInput(now: now,
                                 overNotch: overZone,
@@ -182,8 +210,12 @@ final class IslandController {
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.danceToMusic && music.isPlaying(enabled: true, now: now)
         let mode = machine.tick(input)
+        if Self.logPath != nil, mode != lastLoggedMode || input.overNotch != lastLoggedOver {
+            lastLoggedMode = mode; lastLoggedOver = input.overNotch
+            Self.log("modo=\(mode) razon=\(machine.reason) cursor=(\(Int(mouse.x)),\(Int(mouse.y))) sobreZona=\(input.overNotch) sobreIsla=\(input.overIsland) intervalo=\(String(format: "%.3f", timerInterval)) pantalla=\(Int(m.frame.width))x\(Int(m.frame.height)) zona=\(NotchGeometry.activationZone(metrics: m, placement: placement, activationWidth: store.islandActivationWidth))")
+        }
         if model.hover != input.overIsland { model.hover = input.overIsland }
-        let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
+        let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking, cursorNearZone: cursorNearZone)
         if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 
         let size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: eh,
@@ -207,7 +239,7 @@ final class IslandController {
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
         let interactive = (mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, placement: placement, expandedHeight: eh)) || (dragging && overZone)
-        if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
+        if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive; if Self.logPath != nil { Self.log("interactiva=\(interactive) arrastre=\(dragging)") } }
     }
 
     private func scheduleTimer(interval: TimeInterval) {
@@ -238,6 +270,7 @@ struct IslandView: View {
         .animation(transition, value: model.size)
         .animation(transition, value: model.mode)
     }
+
 
     private var anchor: Alignment {
         switch model.placement { case .top, .floating: return .top; case .bottom: return .bottom; case .side: return .trailing }
