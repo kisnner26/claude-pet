@@ -222,7 +222,15 @@ struct IslandView: View {
             }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
-            if compact && store.codexPresent { CodexMini(store: store, greet: false).frame(width: 22, height: 24) }
+            if compact && store.codexPresent {
+                if let reading = store.codexContextReading {
+                    Text("\(reading.remainingPercent)%")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(contextColor(reading.pressure))
+                        .accessibilityLabel("contexto codex: \(reading.remainingPercent) por ciento restante")
+                }
+                CodexMini(store: store, greet: false).frame(width: 22, height: 24)
+            }
         }
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
