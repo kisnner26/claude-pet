@@ -27,6 +27,46 @@
 - atajos opcionales, demo, telemetría, limpieza y prueba de resistencia.
 # cambios recientes
 
+- prueba de cpu en reposo.
+
+- seguimiento de pantalla seleccionado.
+
+- margen conservador de la barra.
+
+- geometría sin notch a 2x.
+
+- geometría sin notch a 1x.
+
+- validación de uid del socket.
+
+- límite de línea de 4096 bytes.
+
+- límite de ocho pendientes.
+
+- fallback abierto del socket.
+
+- bloqueo de escrituras concurrentes.
+
+- botón de apertura del registro.
+
+- exportador markdown sin contenido sensible.
+
+- retención local de noventa días.
+
+- directorio de auditoría con permisos 0700.
+
+- registro con permisos 0600.
+
+- vista previa limitada a cuarenta líneas.
+
+- siempre bloqueado para riesgo alto.
+
+- alcance por proyecto con ventana de treinta minutos.
+
+- alcance por sesión con ventana de ocho horas.
+
+- alcance una vez y su caducidad.
+
 - registro local de decisiones de permisos, con riesgo, resultado y origen; retención de 90 días y permisos 0600.
 - acceso directo desde el menú al registro local de decisiones.
 
