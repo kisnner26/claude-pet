@@ -412,3 +412,106 @@ struct AcercaPage: View {
         }
     }
 }
+
+// MARK: perimetro
+
+/// Un campo de texto con su lista de patrones: se anade con intro o con el boton y se quita uno a uno.
+struct GlobListEditor: View {
+    let title: String
+    let detail: String
+    let placeholder: String
+    @Binding var globs: [String]
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SRow(title: title, detail: detail) { EmptyView() }
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(globs.enumerated()), id: \.offset) { index, glob in
+                    HStack(spacing: 8) {
+                        Text(glob).font(.system(size: 12, design: .monospaced))
+                        Spacer()
+                        Button { globs.remove(at: index) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(SettingsTheme.mute) }.buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.06)))
+                }
+                HStack(spacing: 8) {
+                    TextField(placeholder, text: $draft).textFieldStyle(.plain).font(.system(size: 12, design: .monospaced))
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(SettingsTheme.line, lineWidth: 1))
+                        .onSubmit(add)
+                    SButton(title: "añadir", symbol: "plus", action: add)
+                }
+            }
+            .padding(.horizontal, 20).padding(.bottom, 14)
+        }
+    }
+
+    private func add() {
+        let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, t.count <= Perimeter.maxGlobLength, globs.count < Perimeter.maxGlobs, !globs.contains(t) else { return }
+        globs.append(t); draft = ""
+    }
+}
+
+struct PerimetroPage: View {
+    @ObservedObject var store: PetStore
+
+    private var workspace: String { store.mission.workspace }
+    private var current: Perimeter? { store.perimeters.first { $0.root == workspace } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            SCard(title: "cómo funciona", footer: "cubre Edit, Write, MultiEdit y NotebookEdit, que son los que traen la ruta del archivo. los comandos de terminal no se pueden acotar por carpeta.") {
+                SRow(title: "el agente no puede salirse de su zona", detail: "cuando pide editar un archivo, claude-pet comprueba la ruta contra tu perímetro. si se sale, el permiso sale en rojo y nunca se aprueba solo; en modo bloquear ni siquiera te molesta: se deniega.") { EmptyView() }
+            }
+            if workspace.isEmpty {
+                SCard(title: "proyecto actual") { SRow(title: "no hay un proyecto activo", detail: "abre una sesión de claude en un proyecto para fijarle un perímetro.") { EmptyView() } }
+            } else if let p = current {
+                editor(p)
+            } else {
+                SCard(title: "proyecto actual") {
+                    SRow(title: workspace.replacingOccurrences(of: NSHomeDirectory(), with: "~"), detail: "sin perímetro. empieza protegiendo lo delicado (.env, claves, .git) y, si quieres, acota las carpetas permitidas.") {
+                        SButton(title: "crear perímetro", symbol: "plus", prominent: true) { _ = PerimeterStore.shared.upsert(Perimeter(root: workspace)) }
+                    }
+                }
+            }
+            others
+        }
+    }
+
+    @ViewBuilder private func editor(_ p: Perimeter) -> some View {
+        let allow = Binding(get: { p.allow }, set: { var q = p; q.allow = $0; PerimeterStore.shared.upsert(q) })
+        let protect = Binding(get: { p.protect }, set: { var q = p; q.protect = $0; PerimeterStore.shared.upsert(q) })
+        let mode = Binding(get: { p.mode }, set: { var q = p; q.mode = $0; PerimeterStore.shared.upsert(q) })
+        SCard(title: "proyecto actual") {
+            SRow(title: p.root.replacingOccurrences(of: NSHomeDirectory(), with: "~")) {
+                SButton(title: "quitar", symbol: "trash", destructive: true) { PerimeterStore.shared.remove(root: p.root) }
+            }
+            SDivider()
+            SSegmented(title: "si se sale", detail: "avisar: el permiso sale en rojo y decides tú. bloquear: se deniega sin preguntar.", selection: mode, options: Perimeter.Mode.allCases.map { ($0, $0.rawValue) })
+        }
+        SCard(title: "dónde puede editar", footer: "rutas o patrones relativos al proyecto, por ejemplo Sources/Auth o Tests/**. vacío significa todo el proyecto.") {
+            GlobListEditor(title: "carpetas permitidas", detail: allow.wrappedValue.isEmpty ? "todo el proyecto" : "solo estas", placeholder: "Sources/Auth", globs: allow)
+        }
+        SCard(title: "qué nunca debe tocar", footer: "gana sobre las carpetas permitidas. sin barra, el patrón vale en cualquier carpeta: .env* protege app/.env.local.") {
+            GlobListEditor(title: "archivos protegidos", detail: "siempre cuentan como violación", placeholder: "**/secrets/**", globs: protect)
+        }
+    }
+
+    @ViewBuilder private var others: some View {
+        let rest = store.perimeters.filter { $0.root != workspace }
+        if !rest.isEmpty {
+            SCard(title: "otros perímetros") {
+                ForEach(Array(rest.enumerated()), id: \.element.id) { index, p in
+                    if index > 0 { SDivider() }
+                    SRow(title: p.root.replacingOccurrences(of: NSHomeDirectory(), with: "~"), detail: "\(p.mode.rawValue) · \(p.allow.isEmpty ? "todo el proyecto" : "\(p.allow.count) carpetas") · \(p.protect.count) protegidos") {
+                        SButton(title: "quitar", destructive: true) { PerimeterStore.shared.remove(root: p.root) }
+                    }
+                }
+            }
+        }
+    }
+}

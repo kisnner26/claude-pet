@@ -147,6 +147,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-shortcuts") { exit(GlobalShortcutSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-settings") { exit(SettingsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-music") { exit(MusicSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-polling") { exit(IslandPollingSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-resistance") { exit(IslandResistanceSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-demo") { exit(DemoModeSelfTest.run() ? 0 : 1) }
@@ -296,9 +297,22 @@ final class AppController: NSObject, NSApplicationDelegate {
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
         PetStore.shared.approvalRules = ApprovalRules.shared.active()
+        PerimeterStore.shared.load()
+        PerimeterStore.shared.onChange = { Task { @MainActor in PetStore.shared.perimeters = PerimeterStore.shared.all() } }
+        PetStore.shared.perimeters = PerimeterStore.shared.all()
         askServer.onChange = { [weak self] asks in
+            // el perimetro manda sobre las reglas: lo que lo rompe nunca se aprueba solo, y en modo bloquear se deniega sin preguntar.
             // una regla vigente responde sola; riesgo alto y comandos compuestos nunca coinciden
-            if let ask = asks.first(where: { ApprovalRules.shared.match($0) != nil }), self?.askServer.resolve(id: ask.id, .allow, source: "regla") == true { return }
+            switch PermissionGate.decide(asks: asks, check: { PerimeterStore.shared.check($0) }, ruleMatches: { ApprovalRules.shared.match($0) != nil }) {
+            case .deny(let id, _):
+                if self?.askServer.resolve(id: id, .deny, source: "perímetro") == true {
+                    Task { @MainActor in PetStore.shared.lastDecision = (false, ProcessInfo.processInfo.systemUptime); SoundEngine.shared.play(.denied) }
+                    return
+                }
+            case .allowByRule(let id):
+                if self?.askServer.resolve(id: id, .allow, source: "regla") == true { return }
+            case .none: break
+            }
             Task { @MainActor in PetStore.shared.permissionAsks = asks }
         }
         PetStore.shared.approveWithScope = { [weak self] id, scope in

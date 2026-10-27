@@ -8,7 +8,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 }
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case resumen, apariencia, comportamiento, agentes, permisos, privacidad, guardarropa, sonidos, musica, foco, atajos, copia, acerca
+    case resumen, apariencia, comportamiento, agentes, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, atajos, copia, acerca
     var id: String { rawValue }
 
     var title: String {
@@ -18,6 +18,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .comportamiento: return "comportamiento"
         case .agentes: return "agentes"
         case .permisos: return "permisos"
+        case .perimetro: return "perímetro"
         case .privacidad: return "privacidad"
         case .guardarropa: return "guardarropa"
         case .sonidos: return "sonidos"
@@ -36,6 +37,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .comportamiento: return "cursorarrow.motionlines"
         case .agentes: return "person.2"
         case .permisos: return "checkmark.shield"
+        case .perimetro: return "scope"
         case .privacidad: return "lock"
         case .guardarropa: return "tshirt"
         case .sonidos: return "speaker.wave.2"
@@ -52,7 +54,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .resumen: return .inicio
         case .apariencia, .comportamiento: return .isla
         case .agentes: return .agentes
-        case .permisos, .privacidad: return .seguridad
+        case .permisos, .perimetro, .privacidad: return .seguridad
         case .guardarropa, .sonidos, .musica, .foco: return .mascota
         case .atajos, .copia, .acerca: return .sistema
         }
@@ -66,6 +68,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .comportamiento: return ["activacion", "zona", "retraso", "plegar", "cerrar", "visibilidad", "asomar", "cursor", "raton"]
         case .agentes: return ["claude", "codex", "contexto", "bloqueo", "avisos", "mostrar", "ocultar", "terminal"]
         case .permisos: return ["permitir", "denegar", "reglas", "puntos de restauracion", "riesgo", "bloquear", "aprobar", "siempre"]
+        case .perimetro: return ["cerca", "limite", "carpeta", "archivos", "proteger", "proteccion", "env", "bloquear", "alcance", "glob", "zona"]
         case .privacidad: return ["proyecto", "compartir", "secretos", "telemetria", "datos", "local"]
         case .guardarropa: return ["atuendo", "gorro", "corona", "gafas", "bufanda", "temporada", "nivel", "ropa"]
         case .sonidos: return ["volumen", "audio", "silencio", "carpeta", "personalizado", "alertas", "interfaz", "probar"]

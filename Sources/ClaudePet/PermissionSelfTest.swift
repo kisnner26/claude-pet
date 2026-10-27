@@ -155,6 +155,27 @@ enum PermissionSelfTest {
         check("si nadie responde, el hook se rinde tras su plazo y no decide", out.isEmpty && Date().timeIntervalSince(t0) < 5)
         server2.stop()
 
+        // 12. perimetro de extremo a extremo: el hook real pide editar fuera de la zona y la puerta lo deniega sin preguntar
+        let fenceRoot = "/tmp/claudepet-fence-\(getpid())"
+        let fence = PerimeterStore()
+        fence.upsert(Perimeter(root: fenceRoot, allow: ["Sources/**"], mode: .block))
+        let server3 = PermissionServer(path: sock)
+        server3.onChange = { asks in
+            if case .deny(let id, _) = PermissionGate.decide(asks: asks, check: { fence.check($0) }, ruleMatches: { _ in false }) { _ = server3.resolve(id: id, .deny, source: "perímetro") }
+        }
+        try? server3.start()
+        let edit = { (path: String) in #"{"session_id":"fence1","cwd":"\#(fenceRoot)","tool_name":"Edit","tool_input":{"file_path":"\#(path)","old_string":"a","new_string":"b"}}"# }
+        (p, o) = spawn(edit(fenceRoot + "/Package.swift"))
+        out = finish(p, o)
+        let denied = decision(out)
+        check("el perimetro deniega una edicion fuera de la zona sin que nadie responda", denied?["behavior"] as? String == "deny" && server3.asks.isEmpty)
+        (p, o) = spawn(edit(fenceRoot + "/Sources/ok.swift"))
+        let pending = { () -> Bool in let end = Date().addingTimeInterval(5); while Date() < end { if server3.asks.count == 1 { return true }; usleep(20_000) }; return false }()
+        check("dentro del perimetro el permiso llega a la isla para decidir", pending)
+        _ = server3.resolve(id: server3.asks.first?.id ?? "", .allow)
+        check("y se puede permitir con normalidad", decision(finish(p, o))?["behavior"] as? String == "allow")
+        server3.stop()
+
         print(failures == 0 ? "PERMISOS OK" : "PERMISOS FALLOS: \(failures)")
         return failures == 0
     }

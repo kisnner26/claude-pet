@@ -69,6 +69,15 @@ struct MenuBarContent: View {
     @ViewBuilder private var projectMenu: some View {
         if store.terminalTargetAvailable { Button("saltar a la terminal de claude", systemImage: "macwindow") { store.focusTerminal() } }
         if !store.mission.changes.isEmpty { Button("abrir cambios del proyecto", systemImage: "doc.text.magnifyingglass") { store.openLatestDiff() } }
+        if !store.mission.workspace.isEmpty {
+            if store.perimeters.contains(where: { $0.root == store.mission.workspace }) {
+                Button("perímetro de este proyecto…", systemImage: "scope") { AppController.shared.showSettings(page: .perimetro) }
+            } else {
+                Button("fijar perímetro a este proyecto", systemImage: "scope") {
+                    _ = PerimeterStore.shared.upsert(Perimeter(root: store.mission.workspace)); AppController.shared.showSettings(page: .perimetro)
+                }
+            }
+        }
         Button("commitear este proyecto…", systemImage: "arrow.triangle.branch") {
             if !CommiteroLauncher.launch(workspace: store.mission.workspace) { NSSound.beep() }
         }

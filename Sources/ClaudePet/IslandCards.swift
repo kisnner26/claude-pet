@@ -69,6 +69,11 @@ struct PermissionCardView: View {
                     .accessibilityLabel("riesgo \(reading.risk.rawValue). \(reading.reason)")
             }
             if reading.risk != .low { Text(reading.reason).font(.system(size: 10)).foregroundColor(.white.opacity(0.6)).lineLimit(1) }
+            if let fence = PerimeterStore.shared.check(ask), fence.verdict.isViolation {
+                Label(fence.verdict.reason, systemImage: "scope")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
+                    .help("tu perímetro no deja que el agente toque este archivo; este permiso nunca se aprueba solo")
+            }
             if let secret = SecretDetector.find(in: ask.detail, path: ask.project) {
                 Label("posible secreto: \(secret.label) · \(secret.prefix)", systemImage: "exclamationmark.shield.fill")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)

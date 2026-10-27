@@ -9,6 +9,7 @@ extension SettingsPage {
         case .comportamiento: return "cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola."
         case .agentes: return "qué agentes vigila claude-pet y qué detalle enseña de cada uno."
         case .permisos: return "responder desde la isla, reglas de aprobación y puntos de restauración."
+        case .perimetro: return "por dónde puede moverse el agente en cada proyecto, comprobado en el permiso antes de que algo cambie."
         case .privacidad: return "todo se queda en tu Mac. aquí decides qué se comparte y qué se borra."
         case .guardarropa: return "atuendos que se desbloquean al subir de nivel."
         case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
@@ -139,6 +140,7 @@ struct SettingsView: View {
         case .comportamiento: ComportamientoPage(store: store)
         case .agentes: AgentesPage(store: store)
         case .permisos: PermisosPage(store: store)
+        case .perimetro: PerimetroPage(store: store)
         case .privacidad: PrivacidadPage(store: store)
         case .guardarropa: GuardarropaPage(store: store)
         case .sonidos: SonidosPage(store: store)
