@@ -131,7 +131,7 @@ enum IslandSelfTest {
         let three: [TimeInterval] = [10, 10.4, 10.8]
         check("tres toques seguidos marean", pose(11.2, pokes: three).dizzy && pose(11.2, pokes: three).rotation != 0)
         check("tres toques en menos de 2 s activan mareo antes del tercer segundo", pose(11.9, pokes: [10, 10.6, 11.1]).dizzy)
-        check("el mareo pasa a los 1,8 s", !pose(12.7, pokes: three).dizzy)
+        check("el mareo dura 3 s y luego pasa", pose(12.5, pokes: three).dizzy && !pose(13.9, pokes: three).dizzy)
         check("dos toques espaciados no marean", !pose(11, pokes: [5, 10.5]).dizzy)
         check("el salto: se agacha, sube a media altura, cae y rebota", {
             let crouch = pose(20.1, hop: 20), top = pose(20.42, hop: 20).dy, bounce = pose(20.88, hop: 20).dy
@@ -161,6 +161,21 @@ enum IslandSelfTest {
         check("el confeti es determinista", PetAnimator.particles(at: 101, pose: PetPose(), scene: conf).map { "\($0.x),\($0.y)" } == c1.map { "\($0.x),\($0.y)" })
         check("preocupada muestra una gota de sudor", PetAnimator.particles(at: 2, pose: emote(2, scene(0, .error)), scene: scene(0, .error)).count == 2)
         check("la musica solo cuenta si el estado es exactamente playing", MusicMonitor.parse("playing\n") && !MusicMonitor.parse("paused") && !MusicMonitor.parse("stopped") && !MusicMonitor.parse("") && !MusicMonitor.parse("not playing"))
+        // brillo de color del fondo
+        func glow(_ st: PetState = .idle, codex: PetState = .idle, reason: IslandReason = .none, asking: Bool = false, dizzy: Bool = false) -> IslandGlow.Glow? { IslandGlow.glow(state: st, codex: codex, reason: reason, asking: asking, dizzy: dizzy) }
+        check("en reposo no hay brillo", glow() == nil)
+        check("pedir permiso enciende el ambar", glow(asking: true)?.hex == 0xE7B45B && glow(.waiting)?.hex == 0xE7B45B)
+        check("terminar enciende el verde", glow(.done, reason: .finished)?.hex == 0x6CCB8A)
+        check("trabajando brilla azul y mas suave que un aviso", glow(.thinking)?.hex == 0x5270E8 && (glow(.thinking)?.strength ?? 1) < (glow(asking: true)?.strength ?? 0))
+        check("un error brilla rojo", glow(.error)?.hex == 0xD85C5C)
+        check("el mareo manda sobre todo lo demas", glow(.error, asking: true, dizzy: true)?.hex == 0xC25AA0)
+        check("un permiso manda sobre trabajar", glow(.thinking, asking: true)?.hex == 0xE7B45B)
+        check("el brillo de codex tambien cuenta", glow(.idle, codex: .tool)?.hex == 0x5270E8)
+        check("el aviso de mareo cuenta atras desde 3 s", PetAnimator.dizzyRemaining(pokes: three, at: 10.9).map { Int($0.rounded(.up)) } == 3 && PetAnimator.dizzyRemaining(pokes: three, at: 12.0).map { Int($0.rounded(.up)) } == 2 && PetAnimator.dizzyRemaining(pokes: three, at: 13.5).map { Int($0.rounded(.up)) } == 1 && PetAnimator.dizzyRemaining(pokes: three, at: 14.0) == nil)
+        check("sin tres toques no hay aviso de mareo", PetAnimator.dizzyRemaining(pokes: [10, 10.5], at: 10.6) == nil)
+        m = IslandMachine(); _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, finished: true))
+        var dismiss = input(2, tasks: true); dismiss.dismissFinished = true
+        check("pulsar ok cierra la tarjeta de terminado sin esperar", m.reason == .finished && m.tick(dismiss) == .compact)
         check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo

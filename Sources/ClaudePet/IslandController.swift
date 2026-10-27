@@ -164,8 +164,11 @@ final class IslandController {
                                 alertPending: asking || c == .waiting || c == .error || x == .waiting || x == .error,
                                 finishedPending: finishedPending,
                                 idleSeconds: idle,
-                                clickedPet: clicked)
-        clicked = false
+                                clickedPet: clicked || (dragging && overZone),
+                                dismissFinished: model.dismissRequested)
+        clicked = false; model.dismissRequested = false
+        let dizzyLeft = PetAnimator.dizzyRemaining(pokes: model.pokes, at: now).map { Int($0.rounded(.up)) }
+        if model.dizzyLeft != dizzyLeft { model.dizzyLeft = dizzyLeft }
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.danceToMusic && music.isPlaying(enabled: true, now: now)
         let mode = machine.tick(input)
@@ -241,6 +244,10 @@ struct IslandView: View {
         return ZStack(alignment: .topLeading) {
             shape
                 .fill(Color.black)
+                // el brillo va como superposicion: no puede cambiar el tamaño de la isla
+                .overlay(alignment: .topLeading) {
+                    IslandGlowView(glow: glow).animation(store.reduceMotion ? nil : .easeInOut(duration: 0.45), value: glow)
+                }
                 .opacity(model.mode == .hidden && (model.hasNotch || model.menuBarHidden) ? 0 : 1)
             if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden) {
                 // el recorte deja visible solo la mitad interior del trazo
@@ -260,10 +267,16 @@ struct IslandView: View {
         let compact = model.mode != .expanded
         let items = store.islandCompactMode.items
         let side: CGFloat = compact ? 20 : 56
-        HStack(alignment: .center, spacing: compact ? 6 : 16) {
+        HStack(alignment: compact ? .center : .top, spacing: compact ? 6 : 16) {
             PetFace(store: store, model: model)
                 .frame(width: side, height: side)
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
+                .overlay(alignment: .topLeading) {
+                    // punto de estado en la esquina de la mascota, solo con la isla abierta
+                    if !compact, let dot = dotColor {
+                        Circle().fill(dot).frame(width: 9, height: 9).overlay(Circle().stroke(Color.black, lineWidth: 1.5)).offset(x: -3, y: -3)
+                    }
+                }
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
                 .accessibilityLabel("claude: \(store.state.label.lowercased()), \(store.stateDurationLabel)")
@@ -313,7 +326,7 @@ struct IslandView: View {
                     }
                 }
             }
-            if !compact { if let ask = store.permissionAsks.first { PermissionCardView(store: store, ask: ask) } else if let ask = store.questionAsks.first { QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion) } else { details } }
+            if !compact { expandedBody }
             Spacer(minLength: 0)
             if compact, items.duration, store.state != .idle {
                 Text(store.stateDurationLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(durationColor(store.stateDurationSeconds))
@@ -360,6 +373,29 @@ struct IslandView: View {
         .transition(.opacity)
     }
 
+    @ViewBuilder private var expandedBody: some View {
+        if model.dropHover || model.swallowStart.map({ ProcessInfo.processInfo.systemUptime - $0 < 0.8 }) == true {
+            IslandDropZone(model: model)
+        } else if let left = model.dizzyLeft {
+            IslandDizzyNotice(seconds: left)
+        } else if let ask = store.permissionAsks.first {
+            PermissionCardView(store: store, ask: ask)
+        } else if let ask = store.questionAsks.first {
+            QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion)
+        } else if model.reason == .finished {
+            IslandFinishedCard(store: store) { model.dismissRequested = true }
+        } else {
+            details
+        }
+    }
+
+    private var glow: IslandGlow.Glow? {
+        // solo con la isla abierta: el desenfoque cuesta y en compacta no se ve
+        guard model.mode == .expanded else { return nil }
+        return IslandGlow.glow(state: store.state, codex: store.codexState, reason: model.reason,
+                               asking: !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty, dizzy: model.dizzyLeft != nil)
+    }
+
     private func commitQuestion(_ ask: QuestionAsk, index: Int, selected: [Int]) {
         questionSelections[index] = Set(selected)
         guard index + 1 >= ask.questions.count else { questionIndex = index + 1; return }
@@ -372,6 +408,12 @@ struct IslandView: View {
         })
         store.answerQuestion(ask.id, answers)
         questionSelections.removeAll(); questionIndex = 0; questionFreeText = ""
+    }
+
+    private var dotColor: Color? {
+        if !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty { return Color(hex: 0xE7B45B) }
+        if model.reason == .finished { return Color(hex: 0x6CCB8A) }
+        return store.state == .idle ? nil : statusColor
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
@@ -753,5 +795,39 @@ extension IslandSnapshot {
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-style <ruta.png>`: permiso, terminado, mareo y zona de archivos con el brillo de cada estado.
+    static func style(to path: String) {
+        let store = PetStore.shared
+        let previousState = store.state
+        defer { store.permissionAsks = []; store.setSnapshotState(previousState) }
+        let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1440, height: 900), safeTop: 0, auxLeft: 0, auxRight: 0)
+        let ask = PermissionAsk(id: "d", session: "s", tool: "Bash", project: "korus", detail: "git push origin main", canAlways: true, at: Date())
+        let scenes: [(String, (IslandModel, PetStore) -> Void)] = [
+            ("trabajando", { _, s in s.permissionAsks = []; s.setSnapshotState(.tool) }),
+            ("permiso", { _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }),
+            ("terminado", { mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }),
+            ("mareo", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dizzyLeft = 3 }),
+            ("archivos", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dropHover = true }),
+        ]
+        // una imagen por escena: todas comparten el PetStore, asi que se dibujan de una en una
+        for (name, apply) in scenes {
+            let model = IslandModel()
+            model.mode = .expanded; model.placement = .top; model.hasNotch = false
+            apply(model, store)
+            model.size = NotchGeometry.islandSize(.expanded, metrics: m, placement: .top, expandedHeight: name == "permiso" ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight)
+            let view = IslandView(model: model, store: store)
+                .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: .top)
+                .background(Color(hex: 0x1B2A4A))
+            let r = ImageRenderer(content: view)
+            r.scale = scale
+            guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+                  let png = rep.representation(using: .png, properties: [:]) else { continue }
+            let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
+            try? png.write(to: URL(fileURLWithPath: "\(base)-\(name).png"))
+        }
     }
 }

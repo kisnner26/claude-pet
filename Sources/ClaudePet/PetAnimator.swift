@@ -38,7 +38,7 @@ enum PetAnimator {
     static let pokeShake: TimeInterval = 0.35
     static let dizzyWindow: TimeInterval = 2
     static let dizzyPokes = 3
-    static let dizzyLength: TimeInterval = 1.8
+    static let dizzyLength: TimeInterval = 3
     static let pokeAnnoyed: TimeInterval = 0.6
     static let hopLength: TimeInterval = 0.6
     static let hopHeight: CGFloat = 3
@@ -54,6 +54,20 @@ enum PetAnimator {
         var x = UInt64(bitPattern: Int64(n)) &* 0x9E3779B97F4A7C15
         x ^= x >> 29; x = x &* 0xBF58476D1CE4E5B9; x ^= x >> 32
         return Double(x % 10_000) / 10_000
+    }
+
+    /// El toque que la mareo: el ultimo con otros dos en los 2 s anteriores, mientras el mareo dure.
+    static func dizzyTrigger(pokes: [TimeInterval], at t: TimeInterval) -> TimeInterval? {
+        let past = pokes.filter { $0 <= t }.sorted()
+        for p in past.reversed() where t - p < dizzyLength {
+            if past.filter({ p - $0 >= 0 && p - $0 < dizzyWindow }).count >= dizzyPokes { return p }
+        }
+        return nil
+    }
+
+    /// Segundos que le quedan de mareo, o nil si no esta mareada: tres toques en menos de 2 s.
+    static func dizzyRemaining(pokes: [TimeInterval], at t: TimeInterval) -> TimeInterval? {
+        dizzyTrigger(pokes: pokes, at: t).map { dizzyLength - (t - $0) }
     }
 
     /// Parpadeo cada 2 a 5 s, con un parpadeo doble de vez en cuando.
@@ -90,8 +104,7 @@ enum PetAnimator {
         p.blink = isBlinking(at: t)
 
         // toque: sacudida corta; tres toques seguidos marean
-        let recent = pokes.filter { t - $0 >= 0 && t - $0 < dizzyWindow }
-        if recent.count >= dizzyPokes, let third = recent.sorted().dropFirst(dizzyPokes - 1).first, t - third < dizzyLength {
+        if let third = dizzyTrigger(pokes: pokes, at: t) {
             p.dizzy = true
             p.rotation = 8 * sin((t - third) * 14) * (1 - (t - third) / dizzyLength)
             p.blink = false

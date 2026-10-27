@@ -5,11 +5,16 @@ struct IslandActionButton: View {
     let title: String
     let fill: Color
     let ink: Color
+    var hint: String? = nil
     let action: () -> Void
     @State private var hovering = false
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(ink)
+            HStack(spacing: 6) {
+                Text(title).font(.system(size: 12.5, weight: .medium))
+                if let hint { IslandKeyHint(text: hint) }
+            }
+                .foregroundColor(ink)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(Capsule().fill(fill))
         }
@@ -47,40 +52,54 @@ struct PermissionCardView: View {
         }
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(ask.tool == "ExitPlanMode" ? "claude propone un plan" : "claude pide permiso").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
-                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 11, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
+        let reading = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project)
+        let isPlan = ask.tool == "ExitPlanMode"
+        let preview = PermissionPreviewBuilder.make(tool: ask.tool, detail: ask.detail, project: ask.project)
+        let collapsed = 3
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text(ask.project.isEmpty ? "claude" : ask.project).font(.system(size: 11, weight: .bold)).foregroundColor(.white).lineLimit(1)
+                Text(isPlan ? "propone un plan" : "necesita permiso").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))
+                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)) }
+                Spacer(minLength: 0)
+                Label(reading.risk.rawValue, systemImage: "shield.lefthalf.filled")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundColor(reading.risk.color)
+                    .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(reading.risk.color.opacity(0.14)))
+                    .help("riesgo \(reading.risk.rawValue): \(reading.reason)")
+                    .accessibilityLabel("riesgo \(reading.risk.rawValue). \(reading.reason)")
             }
-            Text(ask.project.isEmpty ? ask.tool : "\(ask.tool) · \(ask.project)").font(.system(size: 12)).foregroundColor(Color.white.opacity(0.6)).lineLimit(1)
-            let reading = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project)
-            Label("riesgo \(reading.risk.rawValue)", systemImage: "shield.lefthalf.filled")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(reading.risk.color)
-            Text(reading.reason).font(.system(size: 10)).foregroundColor(Color.white.opacity(0.65)).lineLimit(2)
+            if reading.risk != .low { Text(reading.reason).font(.system(size: 10)).foregroundColor(.white.opacity(0.6)).lineLimit(1) }
             if let secret = SecretDetector.find(in: ask.detail, path: ask.project) {
                 Label("posible secreto: \(secret.label) · \(secret.prefix)", systemImage: "exclamationmark.shield.fill")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C))
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
             }
             if !ask.detail.isEmpty {
-                let preview = PermissionPreviewBuilder.make(tool: ask.tool, detail: ask.detail, project: ask.project)
-                Text(preview.lines.prefix(showMore ? preview.lines.count : min(8, preview.lines.count)).joined(separator: "\n"))
-                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : 8).padding(8).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
-                if preview.truncated { Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.7)) }
-                Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
+                let shown = showMore ? preview.lines : Array(preview.lines.prefix(collapsed))
+                Text(shown.joined(separator: "\n"))
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : collapsed)
+                    .padding(8).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                    .contextMenu {
+                        Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }
+                        Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }
+                    }
+                if preview.lines.count > collapsed {
+                    Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.7))
+                }
             }
-            Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
-            HStack(spacing: 8) {
-                IslandActionButton(title: ask.tool == "ExitPlanMode" ? "rechazar" : "denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
+            HStack(spacing: 6) {
+                IslandActionButton(title: isPlan ? "rechazar" : "denegar", fill: Color.white.opacity(0.1), ink: .white, hint: store.globalShortcutsEnabled ? "⌃⌥D" : nil) { store.answerPermission(ask.id, .deny) }
+                IslandActionButton(title: "terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.65)) { store.dismissPermission(ask.id) }
+                    .help("responder en la terminal en vez de aquí")
                 Spacer(minLength: 0)
-                if ask.canAlways && ask.tool != "ExitPlanMode" { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
-                IslandActionButton(title: ask.tool == "ExitPlanMode" ? "aprobar plan" : "permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
-                scopeMenu(for: ask, risk: reading.risk)
                 let batch = ApprovalBatch.group(store.permissionAsks)
                 if batch.first?.id == ask.id, batch.count >= ApprovalBatch.minimum {
-                    IslandActionButton(title: "permitir las \(batch.count) lecturas", fill: Color(hex: 0xE0824F).opacity(0.85), ink: .black) { store.answerBatch(batch.map(\.id)) }
+                    IslandActionButton(title: "las \(batch.count) lecturas", fill: Color(hex: 0xE0824F).opacity(0.85), ink: .black) { store.answerBatch(batch.map(\.id)) }
                         .help(batch.map(\.detail).joined(separator: "\n"))
                 }
-                IslandActionButton(title: "responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
+                scopeMenu(for: ask, risk: reading.risk)
+                if ask.canAlways && !isPlan { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
+                IslandActionButton(title: isPlan ? "aprobar plan" : "permitir", fill: .white, ink: .black, hint: store.globalShortcutsEnabled ? "⌃⌥A" : nil) { store.answerPermission(ask.id, .allow) }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }

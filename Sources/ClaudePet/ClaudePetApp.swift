@@ -172,6 +172,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-emotes"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.emotes(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-style"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.style(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)
         }

@@ -28,6 +28,8 @@ struct IslandInput: Equatable {
     /// Segundos desde el ultimo movimiento del raton, clic o tecla del usuario.
     var idleSeconds: TimeInterval
     var clickedPet: Bool = false
+    /// El usuario pulso "ok" en la tarjeta de terminado.
+    var dismissFinished: Bool = false
 }
 
 /// Reglas de comportamiento de la isla. Pura y sin reloj propio: la app le pasa `now`.
@@ -87,7 +89,7 @@ struct IslandMachine {
             return mode
         }
         if mode == .expanded && reason == .finished {
-            if now - enteredAt >= Self.finishedHold { go(resting(i), .none, now) }
+            if now - enteredAt >= Self.finishedHold || i.dismissFinished { go(resting(i), .none, now) }
             return mode
         }
 

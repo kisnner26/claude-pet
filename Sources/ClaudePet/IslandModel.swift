@@ -23,6 +23,9 @@ final class IslandModel: ObservableObject {
     @Published var dropHover = false
     var swallowStart: TimeInterval?
     @Published var pomodoroLabel: String?
+    /// Segundos de mareo que quedan (para el aviso), o nil.
+    @Published var dizzyLeft: Int?
+    var dismissRequested = false
     @Published var focusActive = false
     /// Hay musica sonando y el usuario activo el baile.
     var dancing = false
