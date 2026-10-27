@@ -153,7 +153,8 @@ final class MissionControl: ObservableObject {
         guard timelineFilter != .all else { return timeline }
         return timeline.filter { $0.agent == timelineFilter.rawValue }
     }
-    var filteredTimelineLabel: String { "(filteredTimeline.count) eventos" }
+    var filteredTimelineLabel: String { "\(filteredTimeline.count) eventos" }
+    func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
 
     var timelineExport: String {
         filteredTimeline.prefix(16).map { event in
