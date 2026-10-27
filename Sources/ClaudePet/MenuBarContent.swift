@@ -33,6 +33,9 @@ struct MenuBarContent: View {
             if store.reviewReady {
                 Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() }
             }
+            if !store.mission.changes.isEmpty {
+                Button("abrir cambios del proyecto", systemImage: "doc.text.magnifyingglass") { store.openLatestDiff() }
+            }
             if store.pendingAttentionCount > 0 {
                 Label(store.attentionLabel, systemImage: "hand.raised.fill")
             }
