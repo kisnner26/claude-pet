@@ -37,6 +37,16 @@ enum AuditLog {
         } catch { return nil }
     }
 
+    static func entries() -> [AuditEntry] {
+        guard let url = ensureFile(), let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").compactMap { try? JSONDecoder().decode(AuditEntry.self, from: Data($0.utf8)) }
+    }
+
+    static func markdown() -> String {
+        let rows = entries().map { "| \($0.at.formatted(date: .numeric, time: .shortened)) | \($0.tool) | \($0.risk) | \($0.result) | \($0.source) |" }
+        return "# decisiones locales\n\n| fecha | herramienta | riesgo | resultado | origen |\n| --- | --- | --- | --- | --- |\n" + rows.joined(separator: "\n") + "\n"
+    }
+
     private static func prune(url: URL) {
         guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else { return }
         let cutoff = Date().addingTimeInterval(-90 * 24 * 3600)

@@ -65,6 +65,9 @@ struct MenuBarContent: View {
             Button("abrir registro de decisiones", systemImage: "list.bullet.rectangle") {
                 if let url = AuditLog.ensureFile() { NSWorkspace.shared.open(url) }
             }
+            Button("copiar auditoría en markdown", systemImage: "doc.on.clipboard") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(AuditLog.markdown(), forType: .string)
+            }
             Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
                 store.demoMode ? store.stopDemo() : store.startDemo()
             }

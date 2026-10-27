@@ -13,7 +13,7 @@ enum AuditSelfTest {
         let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
         let entries = text.split(separator: "\n").compactMap { try? JSONDecoder().decode(AuditEntry.self, from: Data($0.utf8)) }
         let retained = !entries.isEmpty && entries.allSatisfy { $0.tool == "Read" }
-        let final = ok && retained
+        let final = ok && retained && AuditLog.markdown().contains("| herramienta |")
         print(final ? "AUDITORIA OK" : "AUDITORIA FALLOS")
         return final
     }
