@@ -52,7 +52,7 @@ struct IslandStage: View {
             }
             .frame(width: 92, height: 92)
             .contentShape(Rectangle())
-            .onTapGesture { model.poke() }
+            .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
             .accessibilityLabel("\(agent.rawValue): toca para saludar")
             if animated, let ping = model.pingAt { ActivityPingView(since: ping).frame(width: 110, height: 110) }
             if animated, agent == .claude, let rain = model.lineRain {

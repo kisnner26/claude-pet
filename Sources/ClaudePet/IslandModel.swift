@@ -15,6 +15,8 @@ final class IslandModel: ObservableObject {
     @Published var gaze = CGPoint.zero
     @Published var hover = false
     var pokes: [TimeInterval] = []
+    /// Toques sobre la mascota de codex (llevan su propio mareo).
+    var codexPokes: [TimeInterval] = []
     var hopStart: TimeInterval?
     /// Segundos sin actividad del usuario, para dormirse.
     var idleSeconds: TimeInterval = 0
@@ -44,6 +46,12 @@ final class IslandModel: ObservableObject {
     var dancing = false
     var greetUntil: TimeInterval = 0
     var onPetClick: () -> Void = {}
+
+    func pokeCodex() {
+        SoundEngine.shared.play(.click)
+        codexPokes.append(ProcessInfo.processInfo.systemUptime)
+        if codexPokes.count > 6 { codexPokes.removeFirst(codexPokes.count - 6) }
+    }
 
     func poke() {
         SoundEngine.shared.play(.click)

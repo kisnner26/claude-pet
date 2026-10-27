@@ -12,7 +12,7 @@ struct PetFace: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
-            let scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing && store.danceToMusic)
+            let scene = Self.makeScene(model: model, store: store)
             let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion, hover: model.hover, scene: scene)
             Canvas { gc, size in
                 var cue = store.cue(at: ctx.date)
@@ -34,6 +34,19 @@ struct PetFace: View {
             }
             }
         }
+    }
+
+    /// Momentos que cambian la pose: la entrada al abrir, tu decision sobre un permiso y la espera de uno pendiente.
+    static func makeScene(model: IslandModel, store: PetStore) -> PetScene {
+        var scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing && store.danceToMusic)
+        addMoments(to: &scene, model: model, store: store, now: 0)
+        return scene
+    }
+
+    static func addMoments(to scene: inout PetScene, model: IslandModel, store: PetStore, now: TimeInterval) {
+        scene.openedAt = model.expandStart
+        if let d = store.lastDecision { scene.decisionAllow = d.allow; scene.decisionAt = d.at }
+        if let ask = store.permissionAsks.first { scene.waitingFor = Date().timeIntervalSince(ask.at) }
     }
 
     static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose) {
@@ -69,8 +82,8 @@ struct CodexMini: View {
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
             // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza y saluda con la mano
-            let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: [], hopStart: model.codexDoneAt, motion: true,
-                                                 scene: PetScene(idleSeconds: model.idleSeconds, state: store.codexState)) : PetPose()
+            let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true,
+                                                 scene: { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()) : PetPose()
             CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose)
             }
         }
