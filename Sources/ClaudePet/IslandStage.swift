@@ -26,15 +26,21 @@ struct TypewriterText: View {
     }
 }
 
-/// Escena de la mascota en la vista abierta: grande, con su suelo y el punto de estado.
+/// Escena de la mascota en la vista abierta: grande, con su suelo, su mundo y sus extras.
 struct IslandStage: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
     let agent: IslandAgentTab
     var statusColor: Color
 
+    private var state: PetState { agent == .claude ? store.state : store.codexState }
+    private var animated: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
+    private var width: CGFloat { store.codexPresent ? 150 : 104 }
+
     var body: some View {
         ZStack(alignment: .bottom) {
+            if animated { StageSceneView(state: state).frame(width: 104, height: 100) }      // el clima y los detalles del estado
+            EvolutionView(level: store.weeklyRecap.level).frame(width: 104, height: 100)       // halo y estrellitas por nivel
             // suelo: un disco de luz tenue bajo los pies
             Ellipse()
                 .fill(RadialGradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0)], center: .center, startRadius: 0, endRadius: 46))
@@ -48,6 +54,9 @@ struct IslandStage: View {
             .contentShape(Rectangle())
             .onTapGesture { model.poke() }
             .accessibilityLabel("\(agent.rawValue): toca para saludar")
+            if animated, agent == .claude, let rain = model.lineRain {
+                LineRainView(since: rain.since, added: rain.added, deleted: rain.deleted).frame(width: 104, height: 100)
+            }
         }
         .frame(width: 104, height: 100)
         .overlay(alignment: .topLeading) {
@@ -55,6 +64,43 @@ struct IslandStage: View {
                 .overlay(Circle().stroke(Color.black, lineWidth: 1.5)).offset(x: 2, y: 2)
                 .opacity(statusColor == .clear ? 0 : 1)
         }
+        .overlay(alignment: .topTrailing) {
+            if let top = model.hourglassTop { HourglassView(top: top).offset(x: 10, y: -2) }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if store.codexPresent { DuoMate(store: store, model: model, active: agent).offset(x: 44, y: 2) }
+        }
+        .frame(width: width, alignment: .leading)
+    }
+}
+
+/// El otro agente, pequeno al lado: cuando los dos terminan casi a la vez, chocan los cinco.
+struct DuoMate: View {
+    @ObservedObject var store: PetStore
+    @ObservedObject var model: IslandModel
+    let active: IslandAgentTab
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+            let now = ProcessInfo.processInfo.systemUptime
+            let p = DuoScene.highFive(claudeDoneAt: model.claudeDoneAt, codexDoneAt: model.codexDoneAt, now: now)
+            ZStack {
+                Group {
+                    if active == .claude { CodexMini(store: store, model: model, greet: false) }
+                    else { PetFace(store: store, model: model) }
+                }
+                .frame(width: 38, height: 40)
+                .offset(y: p.map { CGFloat(-sin($0 * .pi) * 10) } ?? 0)
+                if let p {
+                    // chispas entre los dos en el momento del choque
+                    FxCanvas(pixels: (0..<10).map { i in
+                        let a = Double(i) / 10 * 2 * .pi, r = 0.08 + p * 0.3
+                        return FxPixel(x: 0.1 + cos(a) * r, y: 0.5 + sin(a) * r, size: 1.5, color: i % 2 == 0 ? 0xFFE9A8 : 0xFF9F43, alpha: 1 - p)
+                    }, unit: 3).frame(width: 60, height: 50).offset(x: -34)
+                }
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 

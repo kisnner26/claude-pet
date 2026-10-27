@@ -160,7 +160,7 @@ enum LineRain {
         let greens = Int((Double(added) / Double(added + deleted) * Double(count)).rounded())
         var out: [FxPixel] = []
         for i in 0..<count {
-            let y = age * 0.9 - VisualFx.rnd(i + 5) * 0.5
+            let y = age * 0.5 - VisualFx.rnd(i + 5) * 0.4          // la ultima gota llega abajo justo al acabar la ventana
             guard y >= 0, y < 0.92 else { continue }
             out.append(FxPixel(x: 0.05 + VisualFx.rnd(i + 11) * 0.9, y: y, size: 1.5, color: i < greens ? 0x6CCB8A : 0xD85C5C, alpha: min(1, (0.92 - y) * 4)))
         }
@@ -243,5 +243,27 @@ enum DuoScene {
         let start = max(a, b), age = now - start
         guard age >= 0, age < length else { return nil }
         return age / length
+    }
+}
+
+// MARK: isla liquida
+
+enum Gooey {
+    static let duration: TimeInterval = 0.9
+    static let delay: TimeInterval = 0.12
+    struct Blob: Equatable { var x: Double; var drop: Double; var radius: Double }
+
+    /// Gotas que cuelgan del borde inferior de la isla al abrirse y se reabsorben: con desenfoque y umbral se funden con ella.
+    /// `age` en segundos desde que empezo a abrirse. Vacio fuera de la ventana de tiempo.
+    static func blobs(age: TimeInterval, count: Int = 4) -> [Blob] {
+        let p = (age - delay) / (duration - delay)
+        guard p >= 0, p < 1 else { return [] }
+        let swing = sin(p * .pi)
+        return (0..<count).map { i in
+            let jitter = VisualFx.rnd(i + 700)
+            return Blob(x: 0.14 + 0.72 * (Double(i) + 0.5 * jitter) / Double(count),
+                        drop: (9 + 16 * VisualFx.rnd(i + 710)) * swing,
+                        radius: (5 + 4 * VisualFx.rnd(i + 720)) * (0.55 + 0.45 * swing))
+        }
     }
 }

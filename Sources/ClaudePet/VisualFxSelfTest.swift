@@ -84,6 +84,12 @@ enum VisualFxSelfTest {
         check("el choque dura 1,4 s y no se repite", DuoScene.highFive(claudeDoneAt: 10, codexDoneAt: 13, now: 15) == nil && DuoScene.highFive(claudeDoneAt: 10, codexDoneAt: 13, now: 12) == nil)
         check("si uno termina mucho despues no hay choque", DuoScene.highFive(claudeDoneAt: 10, codexDoneAt: 30, now: 30.5) == nil && DuoScene.highFive(claudeDoneAt: nil, codexDoneAt: 30, now: 30.5) == nil)
 
+        // isla liquida
+        check("antes de empezar y despues de acabar no hay gotas", Gooey.blobs(age: 0).isEmpty && Gooey.blobs(age: Gooey.duration).isEmpty && Gooey.blobs(age: 5).isEmpty)
+        let mid = Gooey.blobs(age: (Gooey.delay + Gooey.duration) / 2), early = Gooey.blobs(age: Gooey.delay + 0.02)
+        check("a mitad de camino las gotas cuelgan mas que al principio", mid.count == 4 && (mid.map(\.drop).max() ?? 0) > (early.map(\.drop).max() ?? 0) && mid.allSatisfy { $0.drop >= 0 && $0.drop <= 26 && $0.radius > 2 && $0.radius < 10 && (0...1).contains($0.x) })
+        check("las gotas son deterministas y se reparten a lo ancho", Gooey.blobs(age: 0.5) == Gooey.blobs(age: 0.5) && Set(mid.map { Int($0.x * 10) }).count >= 3)
+
         print(failures == 0 ? "EFECTOS OK" : "EFECTOS FALLOS: \(failures)")
         return failures == 0
     }
