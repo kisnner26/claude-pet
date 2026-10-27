@@ -55,6 +55,10 @@ enum IslandSelfTest {
         check("una alerta abre la isla estando ausente", m.tick(input(0, tasks: true, alert: true, idle: 999)) == .expanded)
         check("a los 5 min sigue abierta", m.tick(input(300, tasks: true, alert: true, idle: 999)) == .expanded && m.reason == .alert)
         check("al responder vuelve al reposo", m.tick(input(301, tasks: true, idle: 0)) == .compact)
+        m = IslandMachine(); _ = m.tick(input(0, notch: true))
+        check("una alerta que llega durante asoma abre de inmediato", m.tick(input(0.2, notch: true, alert: true)) == .expanded && m.reason == .alert)
+        check("una alerta durante ausencia conserva la isla abierta", m.tick(input(180, tasks: true, alert: true, idle: 180)) == .expanded && m.reason == .alert)
+        check("el fin de tarea no pisa una alerta activa", m.tick(input(181, tasks: true, alert: true, finished: true, idle: 180)) == .expanded && m.reason == .alert)
 
         // 8. terminado: se abre 5,2 s y se pliega
         m = IslandMachine(); _ = m.tick(input(0, tasks: true))
@@ -80,6 +84,7 @@ enum IslandSelfTest {
         check("la ventana queda centrada arriba de su pantalla", pf.midX == plainMac.frame.midX && pf.maxY == plainMac.frame.maxY && pf.width == 720)
         check("elige la pantalla con notch aunque no sea la primera", NotchGeometry.pick([plainMac, notchMac]) == notchMac)
         check("sin notch usa la primera pantalla", NotchGeometry.pick([plainMac]) == plainMac)
+        check("dos monitores conservan geometría independiente", NotchGeometry.panelFrame(notchMac).midX == 756 && NotchGeometry.panelFrame(plainMac).midX == 2472)
         let right = ScreenMetrics(frame: CGRect(x: 3432, y: 0, width: 1512, height: 982), safeTop: 0, auxLeft: 0, auxRight: 0)
         check("seguir al ratón elige la pantalla bajo el cursor", NotchGeometry.pick([plainMac, right], preference: .mouse, mouse: CGPoint(x: 3600, y: 200)) == right)
         check("sobre el notch (con margen de 6 pt) cuenta como encima",
@@ -100,6 +105,7 @@ enum IslandSelfTest {
         check("en 60 s parpadea entre 12 y 45 veces", (12...45).contains(blinkStarts))
         check("cada parpadeo dura poco: menos del 8 % del tiempo con los ojos cerrados", blinkFrames < 480)
         check("con movimiento reducido no respira ni parpadea", { let q = pose(1.2, motion: false); return q.scaleY == 1 && !q.blink && q.dy == 0 }())
+        check("reduce-motion mantiene la mirada pero anula reacciones", { let q = pose(1.2, gaze: CGPoint(x: 1, y: 0), pokes: [1.2], motion: false); return q.eyeDX == 1 && q.dx == 0 && !q.dizzy }())
         check("la mirada sigue al cursor: derecha, izquierda, arriba y abajo",
               PetAnimator.eyes(gaze: CGPoint(x: 1, y: 0)) == (1, 0) && PetAnimator.eyes(gaze: CGPoint(x: -1, y: 0)) == (-1, 0)
               && PetAnimator.eyes(gaze: CGPoint(x: 0, y: 1)) == (0, -1) && PetAnimator.eyes(gaze: CGPoint(x: 0, y: -1)) == (0, 1))
@@ -109,6 +115,7 @@ enum IslandSelfTest {
         check("la sacudida termina a los 0,35 s", pose(10.5, pokes: [10]).dx == 0)
         let three: [TimeInterval] = [10, 10.4, 10.8]
         check("tres toques seguidos marean", pose(11.2, pokes: three).dizzy && pose(11.2, pokes: three).rotation != 0)
+        check("tres toques en menos de 2 s activan mareo antes del tercer segundo", pose(11.9, pokes: [10, 10.6, 11.1]).dizzy)
         check("el mareo pasa a los 1,8 s", !pose(12.7, pokes: three).dizzy)
         check("dos toques espaciados no marean", !pose(11, pokes: [5, 10.5]).dizzy)
         check("el salto sube a media altura y vuelve al suelo", { let top = pose(20.3, hop: 20).dy; return top < -2.9 && pose(20.7, hop: 20).dy == 0 && pose(19.9, hop: 20).dy == 0 }())
