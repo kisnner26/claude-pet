@@ -26,6 +26,14 @@ enum FileDrop {
         return out.isEmpty ? nil : out.joined(separator: " ")
     }
 
+    /// Copia las referencias al portapapeles y devuelve el texto copiado. nil si no habia archivos validos.
+    @discardableResult
+    static func deliver(_ urls: [URL], to pasteboard: NSPasteboard = .general) -> String? {
+        guard let text = text(for: urls) else { return nil }
+        pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
+        return text
+    }
+
     /// La mascota convertida en caja de carton, abierta mientras espera el archivo.
     static func boxPixels(open: Bool) -> [Px] {
         let card = Color(hex: 0xC9A06B), dark = Color(hex: 0x9C7A4A), tape = Color(hex: 0xE8D9B5)
@@ -45,27 +53,34 @@ enum FileDrop {
     }
 }
 
-/// Vista que recibe los archivos soltados. Solo acepta archivos locales y avisa del arrastre.
-final class DropHostingView<Content: View>: NSHostingView<Content> {
+/// Contenedor plano (NSView) que recibe los archivos soltados y deja que SwiftUI dibuje dentro.
+/// SwiftUI administra el registro de arrastre de su propia vista, asi que el destino va fuera de ella.
+final class DropContainerView: NSView {
     var onHover: (Bool) -> Void = { _ in }
     var onFiles: ([URL]) -> Void = { _ in }
-    private static var fileOptions: [NSPasteboard.ReadingOptionKey: Any] { [.urlReadingFileURLsOnly: true] }
 
-    required init(rootView: Content) {
-        super.init(rootView: rootView)
-        self.registerForDraggedTypes([.fileURL])
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        registerForDraggedTypes([.fileURL, NSPasteboard.PasteboardType("NSFilenamesPboardType")])
     }
-    @MainActor required dynamic init?(coder: NSCoder) { fatalError("init(coder:) no se usa") }
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    required init?(coder: NSCoder) { fatalError("init(coder:) no se usa") }
 
     private func files(_ info: NSDraggingInfo) -> [URL] {
-        (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: Self.fileOptions) as? [URL]) ?? []
+        (info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
     }
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { files(sender).isEmpty ? [] : (onHover(true), .copy).1 }
-    override func draggingExited(_ sender: NSDraggingInfo?) { onHover(false) }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let n = files(sender).count
+        IslandController.log("draggingEntered archivos=\(n)")
+        guard n > 0 else { return [] }
+        onHover(true)
+        return .copy
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { files(sender).isEmpty ? [] : .copy }
+    override func draggingExited(_ sender: NSDraggingInfo?) { IslandController.log("draggingExited"); onHover(false) }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        onHover(false)
         let urls = files(sender)
+        IslandController.log("performDragOperation archivos=\(urls.count)")
+        onHover(false)
         guard !urls.isEmpty else { return false }
         onFiles(urls)
         return true
