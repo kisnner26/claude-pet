@@ -10,10 +10,14 @@ enum SoundSelfTest {
         check("hay un sonido por cada uso previsto", SoundCue.allCases.count == 13)
         for cue in SoundCue.allCases {
             let limit = cue == .done ? SoundCue.doneMaxDuration : SoundCue.maxDuration
-            check("\(cue.rawValue): dura \(Int(cue.duration * 1000)) ms, dentro del limite", cue.duration <= limit && cue.duration > 0.03)
-            check("\(cue.rawValue): todas sus notas estan en la escala", cue.notes.allSatisfy { n in SoundCue.scale.contains { abs($0 - n.frequency) < 0.01 } })
+            check("\(cue.rawValue): dura \(Int(cue.duration * 1000)) ms, dentro del limite", cue.duration <= limit && cue.duration > 0.015)
+            check("\(cue.rawValue): sus notas tonales estan en la escala", cue.notes.filter { $0.voice != .tick }.allSatisfy { n in SoundCue.scale.contains { abs($0 - n.frequency) < 0.01 } })
             let s = SoundBank.samples(for: cue)
             check("\(cue.rawValue): sin saturar ni NaN", !s.isEmpty && s.allSatisfy { $0.isFinite && abs($0) <= 0.95 } && (s.map { abs($0) }.max() ?? 0) > 0.05)
+            let peak = s.map { abs($0) }.max() ?? 0
+            check("\(cue.rawValue): el nivel de pico es el de su categoria", abs(peak - cue.targetPeak) < 0.06)
+            check("\(cue.rawValue): empieza y termina en silencio, sin clics", abs(s.first ?? 1) < 0.05 && abs(s.last ?? 1) < 0.01)
+            check("\(cue.rawValue): la cola no pasa de \(Int(SoundCue.maxTail * 1000)) ms", Double(s.count) / SoundBank.sampleRate <= cue.duration + SoundCue.maxTail + 0.001)
             check("\(cue.rawValue): es determinista", s == SoundBank.samples(for: cue))
         }
         func rising(_ cue: SoundCue) -> Bool { let f = cue.notes.map(\.frequency); return zip(f, f.dropFirst()).allSatisfy { $0 < $1 } }
@@ -22,6 +26,11 @@ enum SoundSelfTest {
         check("los de error y negativa bajan", falling(.denied) && falling(.error) && falling(.fold))
         check("la subida de tono cambia las muestras pero no la duracion", SoundBank.samples(for: .permission, semitones: 3) != SoundBank.samples(for: .permission) && SoundBank.samples(for: .permission, semitones: 3).count == SoundBank.samples(for: .permission).count)
         check("la escalada se acota a 4 semitonos", SoundBank.escalation(previousCount: 99) == 4 && SoundBank.escalation(previousCount: -2) == 0)
+        func rms(_ s: [Float]) -> Float { sqrt(s.reduce(0) { $0 + $1 * $1 } / Float(max(1, s.count))) }
+        check("las alertas suenan mas fuerte que la interfaz", rms(SoundBank.samples(for: .permission)) > rms(SoundBank.samples(for: .open)) && rms(SoundBank.samples(for: .error)) > rms(SoundBank.samples(for: .hover)))
+        check("el clic es corto y seco: casi toda su energia esta en los primeros 40 ms", { let s = SoundBank.samples(for: .click); let head = s.prefix(1764).reduce(0) { $0 + $1 * $1 }; let all = s.reduce(0) { $0 + $1 * $1 }; return head / max(1e-9, all) > 0.95 }())
+        check("la campana tiene mas brillo que el golpe grave", { func zc(_ s: [Float]) -> Int { zip(s, s.dropFirst()).filter { ($0 < 0) != ($1 < 0) }.count }; return Double(zc(SoundBank.samples(for: .done))) / Double(SoundBank.samples(for: .done).count) > Double(zc(SoundBank.samples(for: .error))) / Double(SoundBank.samples(for: .error).count) }())
+        check("el wav exportado tiene cabecera y el tamaño esperado", { let w = SoundBank.wav(SoundBank.samples(for: .done)); return w.prefix(4) == Data("RIFF".utf8) && w.count == 44 + SoundBank.samples(for: .done).count * 2 }())
         check("hay tres categorias", Set(SoundCue.allCases.map(\.category)).count == 3)
 
         // limites de repeticion y volumen

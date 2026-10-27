@@ -91,3 +91,4 @@
 - banco de 13 sonidos sintetizados en escala pentatónica, motor con límite por categoría y reemplazo por archivo validado.
 - guardarropa de seis atuendos pixel-art con temporada automática.
 - resumen semanal local con racha y nivel, e imagen compartible sin nombres de proyecto.
+- sonidos con timbre propio: campana FM, marimba, clic de papel, pad suave y golpe grave, con reverberación corta, nivel de pico por categoría y sin clics al empezar ni al terminar; WAVs de muestra en `docs/sonidos/` (`ClaudePet --export-sounds <carpeta>`).

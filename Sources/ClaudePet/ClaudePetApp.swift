@@ -175,6 +175,12 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-style"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.style(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--export-sounds"), i + 1 < CommandLine.arguments.count {
+            let dir = CommandLine.arguments[i + 1]
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            for cue in SoundCue.allCases { try? SoundBank.wav(SoundBank.samples(for: cue)).write(to: URL(fileURLWithPath: dir + "/\(cue.rawValue).wav")) }
+            print("sonidos exportados en \(dir)"); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)
         }
