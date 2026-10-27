@@ -139,7 +139,12 @@ final class PetStore: ObservableObject {
     /// Pomodoro opcional de la isla.
     /// Resumen semanal ya calculado: el menu lo lee sin recalcularlo cada vez que se redibuja.
     @Published private(set) var weeklyRecap = WeeklyRecap()
-    func refreshWeeklyRecap() { weeklyRecap = ActivityStats.shared.recap() }
+    /// Lo de hoy, para la vista abierta cuando no hay actividad.
+    @Published private(set) var today = DayStats()
+    func refreshWeeklyRecap() {
+        weeklyRecap = ActivityStats.shared.recap()
+        today = ActivityStats.shared.days[ActivityStats.shared.key(Date())] ?? DayStats()
+    }
     @Published var pomodoro = Pomodoro()
     /// Avanza el pomodoro. Con el temporizador parado no toca la propiedad: un metodo mutante sobre un @Published
     /// avisa a toda la interfaz aunque no cambie nada, y la isla llama a esto en cada tick.

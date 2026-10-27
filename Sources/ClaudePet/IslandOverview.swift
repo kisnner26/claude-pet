@@ -19,6 +19,7 @@ struct IslandOverviewView: View {
             header
             stepList
             Spacer(minLength: 0)
+            actions
             chips
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,10 +60,7 @@ struct IslandOverviewView: View {
 
     private var stepList: some View {
         VStack(alignment: .leading, spacing: 3) {
-            if steps.isEmpty {
-                Text(isClaude ? (store.claudeBubbleActivity?.title ?? "sin actividad reciente") : "línea publicada por codex")
-                    .font(.system(size: 12)).foregroundColor(.white.opacity(0.55)).lineLimit(1)
-            }
+            if steps.isEmpty { emptyState }
             ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
                 let latest = index == steps.count - 1
                 HStack(spacing: 6) {
@@ -75,6 +73,57 @@ struct IslandOverviewView: View {
                 .contextMenu { Button("copiar paso", systemImage: "doc.on.clipboard") { copy(step.label) } }
                 .onTapGesture { if latest { store.openLatestDiff() } }
             }
+        }
+    }
+
+    // MARK: acciones visibles
+
+    /// Las acciones de uso diario, con nombre y a la vista; lo demas esta en el menu "mas".
+    private var actions: some View {
+        HStack(spacing: 6) {
+            if CommiteroLauncher.available(), !store.mission.workspace.isEmpty, store.mission.git.affected > 0 {
+                actionButton("commitear", symbol: "arrow.triangle.branch", prominent: true) { CommiteroLauncher.launch(workspace: store.mission.workspace) }
+            }
+            if store.terminalTargetAvailable { actionButton("terminal", symbol: "terminal") { store.focusTerminal() } }
+            if !store.mission.changes.isEmpty { actionButton("cambios", symbol: "plus.forwardslash.minus") { store.openLatestDiff() } }
+            actionButton("resumen", symbol: "doc.on.clipboard") { copy("\(store.sessionSummary) · \(agentTab.rawValue) · \(state.label.lowercased())") }
+            actionButton("mission control", symbol: "square.grid.2x2") { AppController.shared.showMissionDashboard() }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func actionButton(_ title: String, symbol: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).font(.system(size: 10, weight: .semibold))
+                Text(title).font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(prominent ? .white : .white.opacity(0.85))
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Capsule().fill(prominent ? Color(hex: 0x2966ED) : Color.white.opacity(0.09)))
+        }
+        .buttonStyle(.plain).help(title).accessibilityLabel(title)
+    }
+
+    /// Sin actividad reciente: lo de hoy en vez de un espacio en blanco.
+    private var emptyState: some View {
+        let t = store.today, r = store.weeklyRecap
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(isClaude ? (store.claudeBubbleActivity?.title ?? "sin actividad reciente") : "línea publicada por codex")
+                .font(.system(size: 12)).foregroundColor(.white.opacity(0.55)).lineLimit(1)
+            HStack(spacing: 14) {
+                stat("\(t.sessions)", "tareas hoy")
+                stat("\(t.tools)", "herramientas")
+                stat("\(t.permissions)", "permisos")
+                stat(r.streak == 1 ? "1 día" : "\(r.streak) días", "de racha")
+            }
+        }
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+            Text(label).font(.system(size: 10)).foregroundColor(.white.opacity(0.45))
         }
     }
 

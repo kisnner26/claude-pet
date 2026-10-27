@@ -737,6 +737,7 @@ extension IslandSnapshot {
                                     IslandStep(agent: "claude", tool: "Edit", target: "src/billing.ts", added: 3, deleted: 1, workspace: "", at: now.addingTimeInterval(-18)),
                                     IslandStep(agent: "claude", tool: "Bash", target: "npm test", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-3))])
             }),
+            ("reposo", { _, s in s.permissionAsks = []; s.setSnapshotState(.idle); s.setSnapshotSteps([]) }),
             ("permiso", { _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }),
             ("terminado", { mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }),
             ("mareo", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dizzyLeft = 3 }),
