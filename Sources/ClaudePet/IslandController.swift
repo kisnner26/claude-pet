@@ -386,7 +386,15 @@ struct IslandView: View {
         VStack(alignment: .leading, spacing: 6) {
             if store.contextReading != nil || !store.mission.changes.isEmpty {
                 HStack(spacing: 8) {
-                    if let reading = store.contextReading { ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48) }
+                    if let reading = store.contextReading {
+                        ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
+                            Button("copiar modelo") {
+                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
+                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
+                        }
+                    }
                     if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
                 }
                 HStack(spacing: 8) {
