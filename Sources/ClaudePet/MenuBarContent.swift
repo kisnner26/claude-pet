@@ -22,6 +22,11 @@ struct MenuBarContent: View {
                 }
             }
             if store.codexContextReading != nil { Label(store.codexContextLabel, systemImage: "circle.dotted") }
+            if store.codexContextReading != nil {
+                Button("copiar estado de contexto de codex", systemImage: "doc.on.clipboard") {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(store.codexContextLabel)", forType: .string)
+                }
+            }
             if store.terminalTargetAvailable {
                 Button("saltar a terminal de claude", systemImage: "macwindow") { store.focusTerminal() }
             }
