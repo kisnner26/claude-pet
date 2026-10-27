@@ -207,6 +207,12 @@ struct IslandView: View {
                 .onTapGesture { model.poke() }
                 .accessibilityLabel("claude: \(store.state.label.lowercased()), \(store.stateDurationLabel)")
                 .accessibilityHint("pulsa para abrir el detalle")
+            if compact && store.state != .idle {
+                Image(systemName: statusSymbol)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(statusColor)
+                    .accessibilityHidden(true)
+            }
             if compact, let reading = store.contextReading {
                 contextMeter(reading, label: "contexto")
             }
@@ -357,6 +363,17 @@ struct IslandView: View {
         case .done: return Color(hex: 0x6CCB8A)
         case .tool, .thinking, .starting: return Color(hex: 0x5270E8)
         case .idle: return .clear
+        }
+    }
+
+    private var statusSymbol: String {
+        switch store.state {
+        case .thinking: return "ellipsis"
+        case .tool, .starting: return "hammer"
+        case .waiting: return "hand.raised"
+        case .error: return "exclamationmark.triangle"
+        case .done: return "checkmark"
+        case .idle: return "circle"
         }
     }
 
