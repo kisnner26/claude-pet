@@ -15,6 +15,7 @@ final class IslandModel: ObservableObject {
     /// Instantes (systemUptime) de los ultimos toques a la mascota y del ultimo fin de tarea.
     var pokes: [TimeInterval] = []
     var hopStart: TimeInterval?
+    var greetUntil: TimeInterval = 0
     var onPetClick: () -> Void = {}
 
     func poke() {
@@ -125,7 +126,10 @@ final class IslandController {
         let mode = machine.tick(input)
 
         let size = NotchGeometry.islandSize(mode, metrics: m, expandedHeight: eh)
-        if model.mode != mode { model.mode = mode }
+        if model.mode != mode {
+            if mode == .peek && model.mode == .hidden { model.greetUntil = now + 1.4 }
+            model.mode = mode
+        }
         if model.reason != machine.reason { model.reason = machine.reason }
         if model.countdown != machine.countdown { model.countdown = machine.countdown }
         if model.size != size { model.size = size }
@@ -198,7 +202,7 @@ struct IslandView: View {
                 .onTapGesture { model.poke() }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
-            if compact && store.codexPresent { Circle().fill(codexColor).frame(width: 8, height: 8) }
+            if compact && store.codexPresent { CodexMini(store: store, greet: false).frame(width: 22, height: 24) }
         }
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
@@ -294,7 +298,9 @@ struct PetFace: View {
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion)
             Canvas { gc, size in
-                var px = Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date))
+                var cue = store.cue(at: ctx.date)
+                if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }
+                var px = Sprite.pixels(store.state, tick: tick, cue: cue)
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
                 PetFace.draw(&gc, size: size, pixels: px, pose: pose)
             }
@@ -310,6 +316,49 @@ struct PetFace: View {
         gc.translateBy(x: -size.width / 2, y: -size.height)
         for p in pixels {
             gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(p.c))   // +0,5 evita costuras al escalar o girar
+        }
+    }
+}
+
+struct CodexMini: View {
+    @ObservedObject var store: PetStore
+    let greet: Bool
+    private func face(_ tick: Int) -> CodexAvatar.Face {
+        switch store.codexState {
+        case .waiting: return .alert(on: tick % 2 == 0)
+        case .error: return .cross
+        case .done: return .happy
+        case .thinking, .starting: return .dots(tick % 4)
+        case .tool: return .typing(tick)
+        default: return .prompt(cursor: tick % 2 == 0)
+        }
+    }
+    var body: some View {
+        TimelineView(.periodic(from: Date(), by: 1.0 / 12.0)) { ctx in
+            let motion = store.animationsEnabled && !store.reduceMotion
+            let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
+            let face = self.face(tick)
+            let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
+            CodexMiniFrame(face: face, legs: legs, tick: tick, skin: store.codexSkin, wave: greet && motion)
+        }
+    }
+}
+
+private struct CodexMiniFrame: View {
+    let face: CodexAvatar.Face
+    let legs: CodexAvatar.Legs
+    let tick: Int
+    let skin: CodexSkin
+    let wave: Bool
+    var body: some View {
+        Canvas { gc, size in
+                let u = min(size.width / 18, size.height / 21)
+                let ox = (size.width - 18 * u) / 2
+                let oy = (size.height - 21 * u) / 2
+                for c in CodexAvatar.cells(legs: legs, face: face, skin: skin) {
+                    gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.4, height: u + 0.4)), with: .color(c.c))
+                }
+                if wave { for c in CodexAvatar.armCells(.wave(tick % 8 < 4), skin: skin) { gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.4, height: u + 0.4)), with: .color(c.c)) } }
         }
     }
 }
@@ -366,6 +415,17 @@ extension IslandSnapshot {
                         PetFace.draw(&gc, size: size, pixels: px, pose: c.1)
                     }.frame(width: 96, height: 96).background(Color.black)
                     Text(c.0).font(.system(size: 11, design: .monospaced)).foregroundColor(.white)
+                }
+            }
+            ForEach(Array([(CodexAvatar.Face.dots(2), "codex pensando"), (CodexAvatar.Face.happy, "codex saludo")].enumerated()), id: \.offset) { _, item in
+                VStack(spacing: 4) {
+                    Canvas { gc, size in
+                        let u = min(size.width / 18, size.height / 21)
+                        let ox = (size.width - 18 * u) / 2; let oy = (size.height - 21 * u) / 2
+                        for c in CodexAvatar.cells(legs: .stand, face: item.0) { gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(c.c)) }
+                        if item.1 == "codex saludo" { for c in CodexAvatar.armCells(.wave(true), skin: .cloud) { gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(c.c)) } }
+                    }.frame(width: 108, height: 126).background(Color.black)
+                    Text(item.1).font(.system(size: 11, design: .monospaced)).foregroundColor(.white)
                 }
             }
         }.padding(12).background(Color(hex: 0x2A2A2E))

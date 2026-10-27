@@ -61,7 +61,7 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 
 ## limites actuales
 
-- la isla muestra a claude y un punto para codex; codex todavía no tiene animación propia en la isla.
+- la isla muestra a claude y un codex pixel-art animado por estado; claude saluda durante 1,4 s al asomar. con reducir movimiento no se animan ni codex ni el saludo.
 - `AskUserQuestion` ya llega por `ask.sock` y se puede responder desde la tarjeta; selección múltiple, varias preguntas visibles a la vez y verificación con una sesión real de Claude Code quedan pendientes.
 - el salto a terminal solo se activa cuando hay una única ventana visible de terminal, iterm, ghostty, warp o vs code cuyo título contiene el proyecto; con ambigüedad muestra `terminal no identificada` y no enfoca nada.
 - verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
