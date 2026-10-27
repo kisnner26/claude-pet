@@ -118,3 +118,5 @@ si existe un workspace publicado, la vista abierta ofrece `abrir carpeta del pro
 cada paso reciente del ticker incluye una acción `copiar` que conserva solo su etiqueta y delta (`+N -M`) en el portapapeles.
 
 cuando git está disponible, la vista abierta muestra la rama activa y permite copiarla con un clic; si no hay repositorio, no aparece ninguna rama inventada.
+
+debajo de la rama se resumen cambios, staged y conflictos; los conflictos se colorean en rojo para detectarlos antes de continuar.
