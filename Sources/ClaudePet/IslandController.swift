@@ -152,7 +152,7 @@ final class IslandController {
                                 idleSeconds: idle,
                                 clickedPet: clicked)
         clicked = false
-        model.idleSeconds = idle
+        model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.danceToMusic && music.isPlaying(enabled: true, now: now)
         let mode = machine.tick(input)
         if model.hover != input.overIsland { model.hover = input.overIsland }
@@ -313,6 +313,13 @@ struct IslandView: View {
             if compact, let loop = store.loopAlert {
                 Button { model.poke() } label: { Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10, weight: .bold)).foregroundColor(Color(hex: 0xE7B45B)) }
                     .buttonStyle(.plain).help("\(loop.title) · pulsa para abrir").accessibilityLabel(loop.title)
+            }
+            if compact, let timer = model.pomodoroLabel {
+                Text(timer).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(store.pomodoro.onBreak ? Color(hex: 0x6CCB8A) : Color(hex: 0xE0824F))
+                    .accessibilityLabel("temporizador: \(timer)")
+            }
+            if compact, model.focusActive {
+                Image(systemName: "moon.fill").font(.system(size: 9)).foregroundColor(.white.opacity(0.5)).help("modo foco activo").accessibilityLabel("modo foco activo")
             }
             if compact, store.islandShowClock { IslandClock() }
             if compact && store.codexPresent {

@@ -31,12 +31,14 @@ final class SoundEngine {
     private var lastPlayed: [SoundCue.Category: TimeInterval] = [:]
     private var repeats: [SoundCue: (count: Int, at: TimeInterval)] = [:]
     var enabled = true
+    /// Con el modo foco activo solo suenan las alertas.
+    var focus = false
     var volume: Float = 0.5
     var categoryVolume: [SoundCue.Category: Float] = [:]
 
     /// Decide si un sonido suena ahora y con cuanta subida de tono. Pura respecto al reloj que recibe.
     func plan(_ cue: SoundCue, now: TimeInterval) -> Int? {
-        guard enabled, volume > 0, (categoryVolume[cue.category] ?? 1) > 0 else { return nil }
+        guard enabled, volume > 0, (categoryVolume[cue.category] ?? 1) > 0, FocusMode().allows(cue, active: focus) else { return nil }
         if let last = lastPlayed[cue.category], now - last < Self.minimumGap { return nil }
         lastPlayed[cue.category] = now
         guard cue.category == .alert else { return 0 }

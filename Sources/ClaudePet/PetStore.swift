@@ -125,6 +125,19 @@ final class PetStore: ObservableObject {
     @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {
         didSet { UserDefaults.standard.set(danceToMusic, forKey: "danceToMusic") }
     }
+    /// Modo foco: manual o por horario. Con foco solo suenan permisos, preguntas y errores.
+    @Published var focusManual: Bool = UserDefaults.standard.bool(forKey: "focusManual") {
+        didSet { UserDefaults.standard.set(focusManual, forKey: "focusManual") }
+    }
+    @Published var focusStart: Int = UserDefaults.standard.object(forKey: "focusStart") as? Int ?? -1 {
+        didSet { UserDefaults.standard.set(focusStart, forKey: "focusStart") }
+    }
+    @Published var focusEnd: Int = UserDefaults.standard.object(forKey: "focusEnd") as? Int ?? -1 {
+        didSet { UserDefaults.standard.set(focusEnd, forKey: "focusEnd") }
+    }
+    var focusMode: FocusMode { FocusMode(manual: focusManual, scheduleStart: focusStart >= 0 ? focusStart : nil, scheduleEnd: focusEnd >= 0 ? focusEnd : nil) }
+    /// Pomodoro opcional de la isla.
+    @Published var pomodoro = Pomodoro()
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

@@ -87,6 +87,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-wardrobe") { exit(WardrobeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-stats") { exit(ActivityStatsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-batch") { exit(ApprovalBatchSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-focus") { exit(FocusPomodoroSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {

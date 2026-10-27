@@ -141,6 +141,20 @@ struct MenuBarContent: View {
                     }
                     Button("borrar estadísticas") { ActivityStats.shared.reset() }
                 }
+                Menu("foco y pomodoro", systemImage: "moon") {
+                    Toggle("modo foco", isOn: $store.focusManual)
+                    Picker("foco desde las", selection: $store.focusStart) { Text("sin horario").tag(-1); ForEach(0..<24, id: \.self) { Text(String(format: "%02d:00", $0)).tag($0) } }
+                    Picker("foco hasta las", selection: $store.focusEnd) { Text("sin horario").tag(-1); ForEach(0..<24, id: \.self) { Text(String(format: "%02d:00", $0)).tag($0) } }
+                    Divider()
+                    if store.pomodoro.phase == .idle {
+                        Button("empezar pomodoro (25 min)") { store.pomodoro.start(now: ProcessInfo.processInfo.systemUptime) }
+                    } else {
+                        if store.pomodoro.isPaused { Button("reanudar") { store.pomodoro.resume(now: ProcessInfo.processInfo.systemUptime) } }
+                        else { Button("pausar") { store.pomodoro.pause(now: ProcessInfo.processInfo.systemUptime) } }
+                        Button("parar pomodoro") { store.pomodoro.stop() }
+                        Text("ciclos completados: \(store.pomodoro.completed)")
+                    }
+                }
                 Toggle("bailar con la música", isOn: $store.danceToMusic)
                 Menu("guardarropa", systemImage: "tshirt") {
                     ForEach(Outfit.allCases) { outfit in
