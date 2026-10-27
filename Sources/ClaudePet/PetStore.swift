@@ -181,6 +181,8 @@ final class PetStore: ObservableObject {
         case .critical: return "crítico"
         }
     }
+    var contextModelLabel: String { contextReading?.model ?? "modelo no disponible" }
+    var codexContextModelLabel: String { codexContextReading?.model ?? "modelo codex no disponible" }
     var sessionSummary: String {
         let projectName = project.isEmpty ? "sin proyecto" : project
         let toolName = tool.isEmpty ? "sin herramienta" : tool
