@@ -108,3 +108,5 @@ el porcentaje compacto incluye una barra horizontal proporcional al contexto res
 la vista abierta añade acciones directas para copiar el resumen de contexto y abrir el diff más reciente desde el mapa de archivos.
 
 la pestaña abierta de cada agente muestra cuánto tiempo lleva activa la actividad actual, usando el mismo contador que el menú de la aplicación.
+
+la vista abierta permite copiar un resumen corto de sesión con proyecto, agente y estado; no incluye rutas completas ni comandos.
