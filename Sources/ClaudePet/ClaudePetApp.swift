@@ -84,6 +84,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-restore") { exit(RestorePointsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-loops") { exit(LoopDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-sound") { exit(SoundSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-wardrobe") { exit(WardrobeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {
@@ -155,6 +156,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-gallery"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.gallery(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-wardrobe"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.wardrobe(to: CommandLine.arguments[i + 1]); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)

@@ -241,6 +241,13 @@ struct IslandView: View {
                 .onTapGesture { model.poke() }
                 .accessibilityLabel("claude: \(store.state.label.lowercased()), \(store.stateDurationLabel)")
                 .accessibilityHint("pulsa para abrir el detalle")
+                .contextMenu {
+                    ForEach(Outfit.allCases) { outfit in
+                        Toggle(outfit.title, isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))
+                    }
+                    Divider()
+                    Toggle("atuendos de temporada", isOn: $store.seasonalOutfits)
+                }
             if compact && store.state != .idle {
                 Image(systemName: statusSymbol)
                     .font(.system(size: 9, weight: .bold))
@@ -617,5 +624,29 @@ extension IslandSnapshot {
                   let png = rep.representation(using: .png, properties: [:]) else { continue }
             try? png.write(to: URL(fileURLWithPath: dir + "/\(name)-\(Int(scale))x.png"))
         }
+    }
+}
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-wardrobe <ruta.png>`: la mascota con cada atuendo y con todos a la vez.
+    static func wardrobe(to path: String) {
+        let sets: [(String, Set<Outfit>)] = [("sin nada", [])] + Outfit.allCases.map { ($0.title, [$0]) } + [("todos", Set(Outfit.allCases))]
+        let view = HStack(spacing: 12) {
+            ForEach(Array(sets.enumerated()), id: \.offset) { _, entry in
+                VStack(spacing: 6) {
+                    Canvas { gc, size in
+                        var px = Sprite.block(.idle, tick: 3)
+                        px = Wardrobe.compose(px, outfits: entry.1, state: .idle, tick: 3)
+                        PetFace.draw(&gc, size: size, pixels: px, pose: PetPose())
+                    }.frame(width: 96, height: 96)
+                    Text(entry.0).font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.8))
+                }
+            }
+        }.padding(16).background(Color.black)
+        let r = ImageRenderer(content: view)
+        r.scale = scale
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
     }
 }

@@ -17,6 +17,7 @@ struct PetFace: View {
                 var cue = store.cue(at: ctx.date)
                 if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
+                if Sprite.skin == .block { px = Wardrobe.compose(px, outfits: store.outfitsNow(at: ctx.date), state: store.state, tick: tick) }
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
                 PetFace.draw(&gc, size: size, pixels: px, pose: pose)
             }

@@ -112,6 +112,15 @@ final class PetStore: ObservableObject {
     @Published var soundVolume: Double = UserDefaults.standard.object(forKey: "soundVolume") == nil ? 0.4 : min(1, max(0, UserDefaults.standard.double(forKey: "soundVolume"))) {
         didSet { UserDefaults.standard.set(soundVolume, forKey: "soundVolume") }
     }
+    @Published var wardrobe: Set<Outfit> = Wardrobe.decode(UserDefaults.standard.string(forKey: "wardrobe") ?? "") {
+        didSet { UserDefaults.standard.set(Wardrobe.encode(wardrobe), forKey: "wardrobe") }
+    }
+    @Published var seasonalOutfits: Bool = UserDefaults.standard.object(forKey: "seasonalOutfits") == nil ? true : UserDefaults.standard.bool(forKey: "seasonalOutfits") {
+        didSet { UserDefaults.standard.set(seasonalOutfits, forKey: "seasonalOutfits") }
+    }
+    /// Lo que lleva puesto la mascota: lo elegido mas, si esta activado, el atuendo de temporada.
+    func outfitsNow(at date: Date = Date()) -> Set<Outfit> { seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe }
+    func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }
