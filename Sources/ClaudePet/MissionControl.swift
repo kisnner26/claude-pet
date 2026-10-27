@@ -79,6 +79,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var activeSince: Date?
     @Published var timelineFilter: MissionAgentFilter = .all
     @Published var timelineOrder: MissionTimelineOrder = .newest
+    @Published var timelineProject = ""
 
     private struct PendingError: Equatable {
         let session: String
@@ -157,8 +158,15 @@ final class MissionControl: ObservableObject {
     }
 
     var filteredTimeline: [MissionEvent] {
-        let selected = timelineFilter == .all ? timeline : timeline.filter { $0.agent == timelineFilter.rawValue }
+        let byAgent = timelineFilter == .all ? timeline : timeline.filter { $0.agent == timelineFilter.rawValue }
+        let selected = timelineProject.isEmpty ? byAgent : byAgent.filter { event in
+            let name = event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent
+            return name == timelineProject
+        }
         return timelineOrder == .newest ? selected : Array(selected.reversed())
+    }
+    var timelineProjects: [String] {
+        ["todos"] + Set(timeline.map { $0.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: $0.project).lastPathComponent }).sorted()
     }
     var filteredTimelineLabel: String { "\(filteredTimeline.count) eventos" }
     var timelineAgentCounts: String {

@@ -19,9 +19,11 @@ enum MissionFilterSelfTest {
         let newest = mission.filteredTimeline.first?.agent == "codex"
         mission.timelineOrder = .oldest
         let oldest = mission.filteredTimeline.first?.agent == "claude"
+        mission.timelineProject = "demo"
+        let projectOnly = mission.filteredTimeline.count == 2 && mission.timelineProjects.contains("demo")
         mission.clearTimeline()
         let cleared = mission.filteredTimeline.isEmpty
-        let ok = claudeOnly && codexOnly && all && label && markdown && json && newest && oldest && cleared
+        let ok = claudeOnly && codexOnly && all && label && markdown && json && newest && oldest && projectOnly && cleared
         print(ok ? "FILTRO OK" : "FILTRO FALLOS")
         return ok
     }

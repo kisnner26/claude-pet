@@ -51,6 +51,9 @@ struct MissionControlMenu: View {
             Picker("ordenar actividad", selection: $control.timelineOrder) {
                 ForEach(MissionTimelineOrder.allCases) { Text($0.rawValue).tag($0) }
             }
+            Picker("filtrar proyecto", selection: Binding(get: { control.timelineProject.isEmpty ? "todos" : control.timelineProject }, set: { control.timelineProject = $0 == "todos" ? "" : $0 })) {
+                ForEach(control.timelineProjects, id: \.self) { Text($0).tag($0) }
+            }
             Text(control.filteredTimelineLabel)
             Text(control.timelineAgentCounts)
             Text("último evento: \(control.lastActivityLabel)")
