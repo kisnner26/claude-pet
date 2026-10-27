@@ -306,6 +306,7 @@ struct IslandView: View {
         let items = store.islandCompactMode.items
         let side: CGFloat = compact ? 20 : 56
         HStack(alignment: compact ? .center : .top, spacing: compact ? 6 : 16) {
+            if !ownsMascot {
             PetFace(store: store, model: model)
                 .frame(width: side, height: side)
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
@@ -326,6 +327,7 @@ struct IslandView: View {
                     Divider()
                     Toggle("atuendos de temporada", isOn: $store.seasonalOutfits)
                 }
+            }
             if compact && store.state != .idle {
                 Image(systemName: statusSymbol)
                     .font(.system(size: 9, weight: .bold))
@@ -407,8 +409,15 @@ struct IslandView: View {
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
         .padding(.top, compact ? 0 : (model.hasNotch ? 38 : 14))
+        .padding(.bottom, compact ? 0 : 12)
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)
+    }
+
+    /// La vista abierta normal dibuja su propia mascota grande; las tarjetas (permiso, pregunta, terminado, mareo) usan la pequena.
+    private var ownsMascot: Bool {
+        model.mode == .expanded && store.permissionAsks.isEmpty && store.questionAsks.isEmpty && model.dizzyLeft == nil
+            && !(model.dropHover || model.swallowStart.map({ ProcessInfo.processInfo.systemUptime - $0 < 0.8 }) == true) && model.reason != .finished
     }
 
     @ViewBuilder private var expandedBody: some View {
@@ -423,7 +432,7 @@ struct IslandView: View {
         } else if model.reason == .finished {
             IslandFinishedCard(store: store) { model.dismissRequested = true }
         } else {
-            IslandOverviewView(store: store, agentTab: $agentTab)
+            IslandOverviewView(store: store, model: model, agentTab: $agentTab)
         }
     }
 
@@ -508,6 +517,8 @@ struct IslandView: View {
 /// `ClaudePet --snapshot-island <ruta.png>`: dibuja la isla en sus cuatro modos sobre un fondo de escritorio, sin abrir ventanas.
 @MainActor
 enum IslandSnapshot {
+    /// Durante una captura estatica no corren las animaciones (el texto que se escribe quedaria vacio).
+    nonisolated(unsafe) static var isRendering = false
     static func render(to path: String) {
         let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1512, height: 982), safeTop: 38, auxLeft: 664, auxRight: 664)
         let store = PetStore.shared
@@ -725,7 +736,8 @@ extension IslandSnapshot {
     static func style(to path: String) {
         let store = PetStore.shared
         let previousState = store.state
-        defer { store.permissionAsks = []; store.setSnapshotState(previousState) }
+        isRendering = true
+        defer { isRendering = false; store.permissionAsks = []; store.setSnapshotState(previousState) }
         let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1440, height: 900), safeTop: 0, auxLeft: 0, auxRight: 0)
         let ask = PermissionAsk(id: "d", session: "s", tool: "Bash", project: "korus", detail: "git push origin main", canAlways: true, at: Date())
         let scenes: [(String, (IslandModel, PetStore) -> Void)] = [

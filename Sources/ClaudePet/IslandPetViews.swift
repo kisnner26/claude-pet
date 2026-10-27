@@ -74,7 +74,7 @@ struct CodexMini: View {
     }
 }
 
-private struct CodexMiniFrame: View {
+struct CodexMiniFrame: View {
     let face: CodexAvatar.Face
     let legs: CodexAvatar.Legs
     let tick: Int
