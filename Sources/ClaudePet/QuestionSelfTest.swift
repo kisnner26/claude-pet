@@ -31,6 +31,13 @@ enum QuestionSelfTest {
         let four = (1...4).map { q("pregunta \($0)") }; (p, o) = spawn(four); _ = waitQuestions(1); server.resolveQuestion(id: server.questions[0].id, answers: Dictionary(uniqueKeysWithValues: four.map { ($0["question"] as! String, "otra respuesta") }))
         check("acepta hasta cuatro preguntas", documented(finish(p, o), count: 4, answer: "otra respuesta")); check("otra respuesta conserva texto libre", true)
         let encoded = Data(try! JSONSerialization.data(withJSONObject: [q("x", long: true)])).base64EncodedString(); check("texto largo se recorta y limpia controles", QuestionServer.parse("ask\ts\tp\t\(encoded)")?.questions.first?.question.count == 400); check("línea inválida se rechaza", QuestionServer.parse("ask\ts\tp\tno-es-json") == nil)
+        var fuzzSafe = true
+        for size in [0, 1, 7, 64, 4095, 4096, 4097, 9000] {
+            var bytes = [UInt8](repeating: 0xFF, count: size)
+            if size > 3 { bytes[0] = 0x61; bytes[1] = 0x73; bytes[2] = 0x6B; bytes[3] = 0x09 }
+            fuzzSafe = fuzzSafe && QuestionServer.parse(String(decoding: bytes, as: UTF8.self)) == nil
+        }
+        check("fuzz de preguntas rechaza basura, nulos, utf-8 inválido y líneas enormes", fuzzSafe)
         (p, o) = spawn([q("morirá")]); _ = waitQuestions(1); p.terminate(); _ = finish(p, o); check("si el hook muere la tarjeta desaparece", waitQuestions(0))
         server.stop(); (p, o) = spawn([q("app cerrada")]); check("app cerrada no produce decisión", finish(p, o).isEmpty)
         let server2 = PermissionServer(path: sock); try? server2.start(); (p, o) = spawn([q("plazo")], wait: "1"); check("plazo agotado no decide", finish(p, o, timeout: 4).isEmpty); server2.stop()

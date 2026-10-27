@@ -114,6 +114,12 @@ enum PermissionSelfTest {
         raw("perm\ts\tBa\u{1B}sh\tp\t0\tcmd\u{7}\n")
         check("se quitan los caracteres de control", server.asks.first.map { $0.tool == "Bash" && $0.detail == "cmd" } ?? false)
         if let a = server.asks.first { server.resolve(id: a.id, .deny) }
+        var fuzzSafe = true
+        for size in [0, 1, 5, 128, PermissionServer.maxLine, PermissionServer.maxLine + 1, 9000] {
+            let bytes = [UInt8](repeating: 0xFF, count: size)
+            fuzzSafe = fuzzSafe && PermissionServer.parse(String(decoding: bytes, as: UTF8.self)) == nil
+        }
+        check("fuzz de permisos rechaza basura, utf-8 inválido y líneas enormes", fuzzSafe)
 
         // 9. limite de pendientes
         var many: [(Process, Pipe)] = []
