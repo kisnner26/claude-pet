@@ -39,6 +39,9 @@ struct MissionControlMenu: View {
             Picker("filtrar actividad", selection: $control.timelineFilter) {
                 ForEach(MissionAgentFilter.allCases) { Text($0.rawValue).tag($0) }
             }
+            Picker("ordenar actividad", selection: $control.timelineOrder) {
+                ForEach(MissionTimelineOrder.allCases) { Text($0.rawValue).tag($0) }
+            }
             Text(control.filteredTimelineLabel)
             Button("limpiar actividad reciente", systemImage: "trash") { control.clearTimeline() }
             if let capsule = control.recovery {

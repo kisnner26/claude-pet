@@ -9,6 +9,12 @@ enum MissionAgentFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum MissionTimelineOrder: String, CaseIterable, Identifiable {
+    case newest = "más recientes primero"
+    case oldest = "más antiguos primero"
+    var id: String { rawValue }
+}
+
 final class GitScanCoordinator: @unchecked Sendable {
     typealias Scanner = @Sendable (String) -> GitHealth
     private struct Request { let workspace: String; let completion: @Sendable (String, GitHealth) -> Void }
@@ -72,6 +78,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var toolCalls = 0
     @Published private(set) var activeSince: Date?
     @Published var timelineFilter: MissionAgentFilter = .all
+    @Published var timelineOrder: MissionTimelineOrder = .newest
 
     private struct PendingError: Equatable {
         let session: String
@@ -150,8 +157,8 @@ final class MissionControl: ObservableObject {
     }
 
     var filteredTimeline: [MissionEvent] {
-        guard timelineFilter != .all else { return timeline }
-        return timeline.filter { $0.agent == timelineFilter.rawValue }
+        let selected = timelineFilter == .all ? timeline : timeline.filter { $0.agent == timelineFilter.rawValue }
+        return timelineOrder == .newest ? selected : Array(selected.reversed())
     }
     var filteredTimelineLabel: String { "\(filteredTimeline.count) eventos" }
     func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
