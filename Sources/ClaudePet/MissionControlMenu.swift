@@ -15,6 +15,7 @@ struct MissionControlMenu: View {
         Group {
             Text(control.collision ? "posible colisión: claude y codex en el mismo proyecto" : "coordinación: sin colisiones")
             Text("git: \(control.git.label)")
+            if !control.git.branch.isEmpty { Text("rama: \(control.git.branch)") }
             Text("sesión: \(control.focusLabel)")
             Text("foco: \(control.brief.title.lowercased())")
             if !control.topTools.isEmpty {
