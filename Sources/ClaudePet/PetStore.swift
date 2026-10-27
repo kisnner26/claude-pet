@@ -178,6 +178,8 @@ final class PetStore: ObservableObject {
     /// Permite y recuerda la decision segun el alcance elegido (esta sesion, este proyecto, siempre).
     var approveWithScope: (String, ApprovalScope) -> Void = { _, _ in }
     @Published var approvalRules: [ApprovalRule] = []
+    /// Tu ultima decision sobre un permiso, para que la mascota asienta o niegue.
+    @Published var lastDecision: (allow: Bool, at: TimeInterval)?
     var dismissPermission: (String) -> Void = { _ in }
     @Published var questionAsks: [QuestionAsk] = []
     var answerQuestion: (String, [String: String]) -> Void = { _, _ in }

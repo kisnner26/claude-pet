@@ -291,6 +291,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.approveWithScope = { [weak self] id, scope in
             guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }
             Self.checkpoint(before: ask)
+            PetStore.shared.lastDecision = (true, ProcessInfo.processInfo.systemUptime)
             ApprovalRules.shared.add(scope: scope, ask: ask)
             self?.askServer.resolve(id: id, .allow, source: scope == .once ? "isla" : "isla · \(scope.rawValue)")
         }
@@ -298,6 +299,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
+            PetStore.shared.lastDecision = (decision != .deny, ProcessInfo.processInfo.systemUptime)
             ActivityStats.shared.recordPermission()
             self?.askServer.resolve(id: id, decision)
         }

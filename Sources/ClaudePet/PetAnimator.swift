@@ -21,6 +21,7 @@ struct PetPose: Equatable {
     /// Las orejas se levantan un instante (tic o estiramiento).
     var earLift = false
     var yawn = false
+    var impatient = false
 }
 
 /// Lo que la mascota sabe de su entorno para elegir una emocion. Todo llega ya calculado por el controlador.
@@ -31,6 +32,13 @@ struct PetScene: Equatable {
     /// Inicio de la fiesta de confeti tras una tarea larga.
     var confettiStart: TimeInterval?
     var dancing = false
+    /// Cuando empezo a abrirse la isla: la mascota entra con un rebote.
+    var openedAt: TimeInterval?
+    /// Tu ultima decision sobre un permiso (para asentir o negar con la cabeza).
+    var decisionAllow: Bool?
+    var decisionAt: TimeInterval?
+    /// Segundos que lleva esperando tu respuesta a un permiso.
+    var waitingFor: TimeInterval = 0
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -49,6 +57,10 @@ enum PetAnimator {
     static let crouchLength: TimeInterval = 0.12
     static let bounceLength: TimeInterval = 0.28
     static let sleepAfter: TimeInterval = 300
+    static let entranceLength: TimeInterval = 0.55
+    static let decisionLength: TimeInterval = 0.8
+    static let impatientAfter: TimeInterval = 15
+    static let alarmedAfter: TimeInterval = 40
     static let confettiLength: TimeInterval = 2.6
     static let longTask: TimeInterval = 300
 
@@ -184,6 +196,26 @@ enum PetAnimator {
             }
         }
 
+        // entrada: al abrirse la isla la mascota aparece pequeña y rebota hasta su tamaño
+        if let o = scene.openedAt, t >= o, t - o < entranceLength {
+            let k = (t - o) / entranceLength, c = 1.70158, e = 1 + (c + 1) * pow(k - 1, 3) + c * pow(k - 1, 2)   // easeOutBack
+            let size = CGFloat(0.55 + 0.45 * e)
+            p.scaleX *= size; p.scaleY *= size
+            p.dy -= CGFloat(1.4 * sin(k * .pi) * (1 - k))
+        }
+        // decision: asiente al permitir y niega al denegar
+        if let at = scene.decisionAt, let allow = scene.decisionAllow, t >= at, t - at < decisionLength {
+            let k = (t - at) / decisionLength
+            if allow { p.dy += CGFloat(0.9 * sin(k * 4 * .pi) * (1 - k)); p.scaleY *= 1 - 0.05 * CGFloat(abs(sin(k * 4 * .pi))) }
+            else { p.dx += CGFloat(1.0 * sin(k * 6 * .pi) * (1 - k)); p.blink = true }
+        }
+        // impaciencia: si el permiso lleva rato esperando, golpetea el suelo y se balancea
+        if scene.waitingFor >= impatientAfter, scene.decisionAt == nil || t - (scene.decisionAt ?? 0) > decisionLength {
+            p.dy -= CGFloat(0.35 * abs(sin(t * 9)))
+            p.rotation += 2.2 * sin(t * 4.5)
+            p.impatient = true
+        }
+
         // emociones de fondo: solo cuando nada mas reclama a la mascota
         let busy = p.dizzy || p.annoyed || hopStart.map { t >= $0 && t - $0 < crouchLength + hopLength + bounceLength } == true
         if !busy {
@@ -237,6 +269,9 @@ enum PetAnimator {
             for (i, spot) in spots.enumerated() where Int((t * 5).rounded(.down) + Double(i)) % 3 != 0 {
                 for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
             }
+        }
+        if scene.waitingFor >= alarmedAfter, Int(t * 3) % 2 == 0 {
+            for (x, y) in [(7, 0), (8, 0), (7, 1), (8, 1), (7, 2), (8, 2), (7, 4), (8, 4)] { out.append(Px(x: x, y: y, c: Color(hex: 0xE7B45B))) }
         }
         if let start = scene.confettiStart, t >= start, t - start < confettiLength {
             let k = (t - start) / confettiLength

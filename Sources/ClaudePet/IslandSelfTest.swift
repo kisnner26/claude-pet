@@ -236,6 +236,22 @@ enum IslandSelfTest {
         check("la inclinacion tiene un tope", lean(50).rotation <= 3.6 && lean(-50).rotation >= -3.6)
         check("sin movimiento no se inclina", PetAnimator.pose(at: 5, gaze: CGPoint(x: 1, y: 0), pokes: [], hopStart: nil, motion: false).rotation == 0)
         check("el mareo manda sobre la inclinacion", abs(PetAnimator.pose(at: 11.2, gaze: CGPoint(x: 1, y: 0), pokes: [10, 10.4, 10.8], hopStart: nil, motion: true).rotation) != 3.5)
+        // entrada, decision e impaciencia
+        func moment(_ t: TimeInterval, _ scene: PetScene) -> PetPose { PetAnimator.pose(at: t, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: scene) }
+        var opened = PetScene(state: .idle); opened.openedAt = 100
+        check("al abrirse entra pequeña y llega a su tamaño", moment(100.02, opened).scaleY < 0.8 && abs(moment(100.7, opened).scaleY - moment(100.7, PetScene(state: .idle)).scaleY) < 1e-9)
+        check("la entrada rebota: se pasa un poco de su tamaño antes de asentarse", (1..<55).contains { moment(100 + Double($0) / 100, opened).scaleY > moment(100 + Double($0) / 100, PetScene(state: .idle)).scaleY * 1.01 })
+        var nod = PetScene(state: .idle); nod.decisionAllow = true; nod.decisionAt = 50
+        var shake = PetScene(state: .idle); shake.decisionAllow = false; shake.decisionAt = 50
+        check("al permitir asiente: sube y baja", (1..<80).contains { moment(50 + Double($0) / 100, nod).dy > 0.3 } && !(1..<80).contains { abs(moment(50 + Double($0) / 100, nod).dx) > 0.3 })
+        check("al denegar niega: se sacude de lado y cierra los ojos", (1..<80).contains { abs(moment(50 + Double($0) / 100, shake).dx) > 0.3 } && moment(50.1, shake).blink)
+        check("la decision dura 0,8 s", moment(50.9, nod).dy == moment(50.9, PetScene(state: .idle)).dy)
+        var patient = PetScene(state: .waiting); patient.waitingFor = 5
+        var impatient = PetScene(state: .waiting); impatient.waitingFor = 20
+        check("con poco tiempo esperando no se impacienta", !moment(3.3, patient).impatient && !(0..<50).contains { abs(moment(Double($0) / 10, patient).rotation) > 3 })
+        check("tras 15 s esperando golpetea y se balancea", moment(3.3, impatient).impatient && (0..<50).contains { abs(moment(Double($0) / 10, impatient).rotation) > 1.5 } && (0..<50).contains { moment(Double($0) / 10, impatient).dy < -0.2 })
+        var alarmed = PetScene(state: .waiting); alarmed.waitingFor = 50
+        check("tras 40 s aparece una exclamacion que parpadea", (0..<20).contains { !PetAnimator.particles(at: Double($0) / 5, pose: PetPose(), scene: alarmed).isEmpty } && PetAnimator.particles(at: 1, pose: PetPose(), scene: impatient).isEmpty)
         check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo
