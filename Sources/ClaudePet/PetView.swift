@@ -23,20 +23,20 @@ struct PetView: View {
     }
 
     var body: some View {
-        ZStack {
-            if let pressure = store.contextReading?.pressure, pressure != .normal {
-                ContextCocoonView(pressure: pressure)
+        Group {
+            if store.layout == .island {
+                Color.clear
+            } else {
+                ZStack {
+                    if let pressure = store.contextReading?.pressure, pressure != .normal { ContextCocoonView(pressure: pressure) }
+                    if !mission.changes.isEmpty { FileOrbitView(files: mission.changes) }
+                    if let reading = store.contextReading { ContextRingView(reading: reading) }
+                    AuraView(state: store.state, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
+                    petCanvas
+                    if let pull = store.diffPull { DiffPullView(pull: pull) }
+                    if let target = store.radarTarget { AppRadarView(label: target) }
+                }
             }
-            if !mission.changes.isEmpty {
-                FileOrbitView(files: mission.changes)
-            }
-            if let reading = store.contextReading {
-                ContextRingView(reading: reading)
-            }
-            AuraView(state: store.state, collision: mission.collision, animate: store.animationsEnabled && !store.reduceMotion)
-            petCanvas
-            if let pull = store.diffPull { DiffPullView(pull: pull) }
-            if let target = store.radarTarget { AppRadarView(label: target) }
         }
         .padding(8)
         .frame(width: 128, height: 128)

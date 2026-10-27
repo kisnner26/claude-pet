@@ -73,6 +73,10 @@ final class AppController: NSObject, NSApplicationDelegate {
             PetStore.shared.layout = .island
             PetStore.shared.userHidden = true
         }
+        if CommandLine.arguments.contains("--cpu-island-compact") {
+            PetStore.shared.layout = .island
+            PetStore.shared.userHidden = false
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.run(into: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -132,6 +136,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot"), i + 1 < CommandLine.arguments.count {
             snapshot(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        // el modo de medición no crea ventanas ni icono de barra: mide el proceso en reposo real.
+        if CommandLine.arguments.contains("--cpu-island-hidden") {
+            NSApp.setActivationPolicy(.prohibited)
+            return
+        }
         NSApp.setActivationPolicy(.accessory)
 
         let host = DragHostingView(rootView: PetView(store: PetStore.shared))
@@ -166,6 +175,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         foreground = foregroundWatcher
         foregroundWatcher.start()
         applyVisibility()
+        if CommandLine.arguments.contains("--cpu-island-compact") {
+            PetStore.shared.startDemo()
+            PetStore.shared.permissionAsks = []
+            PetStore.shared.questionAsks = []
+        }
 
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.claudepet.trigger"), object: nil, queue: .main) { n in
             guard let name = n.userInfo?["name"] as? String else { return }
@@ -539,6 +553,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         if permissionFlagOn != (PetStore.shared.layout == .island && PetStore.shared.islandPermissions) { syncPermissionFlag() }
         if PetStore.shared.layout == .island {
             // modo isla: una sola pieza en el notch; las ventanas flotantes, sus burbujas y el escenario se ocultan
+            if PetStore.shared.userHidden {
+                if island?.isRunning ?? false { island?.stop() }
+                [panel, codexPanel, claudeBubble, codexBubble, stage].forEach { $0?.orderOut(nil) }
+                return
+            }
             if island == nil { island = IslandController(store: PetStore.shared) }
             if !(island?.isRunning ?? false) { island?.start() }
             [panel, codexPanel, claudeBubble, codexBubble, stage].forEach { $0?.orderOut(nil) }
@@ -618,6 +637,9 @@ enum MenuIcon {
 @main
 struct ClaudePetApp: App {
     init() {
+        if CommandLine.arguments.contains("--cpu-island-hidden") {
+            NSApplication.shared.setActivationPolicy(.prohibited)
+        }
         // `ClaudePet --trigger football|greet|cheer|concern`: avisa a la app abierta y sale, sin abrir otra mascota
         let a = CommandLine.arguments
         if let i = a.firstIndex(of: "--trigger"), i + 1 < a.count {
@@ -646,7 +668,11 @@ struct ClaudePetApp: App {
         MenuBarExtra {
             MenuBarContent(store: store)
         } label: {
-            Image(nsImage: MenuIcon.image(claude: store.claudePresent, codex: store.codexPresent))
+            if CommandLine.arguments.contains("--cpu-island-hidden") {
+                Text("")
+            } else {
+                Image(nsImage: MenuIcon.image(claude: store.claudePresent, codex: store.codexPresent))
+            }
         }
         .commands {
             CommandGroup(after: .newItem) {

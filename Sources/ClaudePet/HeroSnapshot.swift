@@ -110,7 +110,7 @@ enum HeroSnapshot {
 
     static var hero: some View {
         VStack(spacing: 6) {
-            BubbleCard(activity: Activity(title: "Editando PetStore.swift", subtitle: "mostrar la tarea exacta  desktop", origin: ""), state: .tool, flat: true)
+            BubbleCard(activity: Activity(title: "Editando PetStore.swift", subtitle: "mostrar la tarea exacta  desktop", origin: ""), state: .tool, layout: .floating, flat: true)
                 .scaleEffect(1.25).frame(width: 440, height: 90)
             sprite(.tool, tick: 3, skin: .block, unit: 14)
         }

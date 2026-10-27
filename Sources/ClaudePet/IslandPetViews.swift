@@ -4,8 +4,11 @@ struct PetFace: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
 
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 30.0)) { ctx in
+    @ViewBuilder var body: some View {
+        if model.mode == .hidden {
+            Color.clear
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { ctx in
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
@@ -16,6 +19,7 @@ struct PetFace: View {
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
                 PetFace.draw(&gc, size: size, pixels: px, pose: pose)
+            }
             }
         }
     }
@@ -32,6 +36,7 @@ struct PetFace: View {
 
 struct CodexMini: View {
     @ObservedObject var store: PetStore
+    @ObservedObject var model: IslandModel
     let greet: Bool
     private func face(_ tick: Int) -> CodexAvatar.Face {
         switch store.codexState {
@@ -43,12 +48,16 @@ struct CodexMini: View {
         default: return .prompt(cursor: tick % 2 == 0)
         }
     }
-    var body: some View {
-        TimelineView(.periodic(from: Date(), by: 1.0 / 12.0)) { ctx in
+    @ViewBuilder var body: some View {
+        if model.mode == .hidden {
+            Color.clear
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 8.0)) { ctx in
             let motion = store.animationsEnabled && !store.reduceMotion
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
             CodexMiniFrame(face: face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: greet && motion)
+            }
         }
     }
 }

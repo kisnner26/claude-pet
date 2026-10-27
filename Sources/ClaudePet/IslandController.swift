@@ -216,7 +216,7 @@ struct IslandView: View {
                     IslandContextMeter(reading: reading, label: "contexto codex", onOpen: { model.poke() })
                     if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() }.contextMenu { Button("copiar contexto codex", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string) } } }
                 }
-                CodexMini(store: store, greet: false).frame(width: 22, height: 24)
+                CodexMini(store: store, model: model, greet: false).frame(width: 22, height: 24)
                     .accessibilityLabel("codex: \(store.codexState.label.lowercased()), \(store.codexStateDurationLabel)")
                     .accessibilityHint("adaptador de codex; pulsa para abrir el detalle")
                 if store.codexState != .idle {

@@ -34,7 +34,10 @@ struct CodexPetView: View {
     }
 
     var body: some View {
-        ZStack {
+        Group {
+        if store.layout == .island {
+            Color.clear
+        } else { ZStack {
             if let pressure = store.codexContextReading?.pressure, pressure != .normal {
                 ContextCocoonView(pressure: pressure).offset(y: 12)
             }
@@ -49,6 +52,7 @@ struct CodexPetView: View {
             codexCanvas
             if let pull = store.codexDiffPull { DiffPullView(pull: pull).offset(y: 12) }
             if let target = store.codexRadarTarget { AppRadarView(label: target).offset(y: 12) }
+        } }
         }
         .frame(width: StageMetrics.codexSize.width, height: StageMetrics.codexSize.height)
         .background(Color.black.opacity(0.001))     // mantiene el arrastre sin dibujar ningun panel
@@ -132,18 +136,24 @@ struct StageView: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
-            Canvas { gc, _ in
-                guard let geo = store.gameGeometry else { return }
-                if let start = store.gameStart {
-                    GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
-                } else if store.animationsEnabled, let relay = mission.relay {
-                    RelayRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(relay.at), reduceMotion: store.reduceMotion, geo: geo, relay: relay)
-                } else if store.collaborationActive, let start = store.collaborationStartedAt {
-                    CollaborationRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
-                } else if store.hugActive {
-                    HugRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSinceReferenceDate, reduceMotion: store.reduceMotion,
-                                     geo: geo, claudeSkin: store.skin, codexSkin: store.codexSkin)
+        Group {
+            if store.layout == .island {
+                Color.clear
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
+                    Canvas { gc, _ in
+                        guard let geo = store.gameGeometry else { return }
+                        if let start = store.gameStart {
+                            GameRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                        } else if store.animationsEnabled, let relay = mission.relay {
+                            RelayRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(relay.at), reduceMotion: store.reduceMotion, geo: geo, relay: relay)
+                        } else if store.collaborationActive, let start = store.collaborationStartedAt {
+                            CollaborationRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSince(start), reduceMotion: store.reduceMotion, geo: geo)
+                        } else if store.hugActive {
+                            HugRenderer.draw(&gc, elapsed: ctx.date.timeIntervalSinceReferenceDate, reduceMotion: store.reduceMotion,
+                                             geo: geo, claudeSkin: store.skin, codexSkin: store.codexSkin)
+                        }
+                    }
                 }
             }
         }

@@ -80,8 +80,11 @@ struct SessionTrailView: View {
     private let codex = Color(hex: 0x96EBFF)
     private let glow = Color(hex: 0x7DB4FF)
 
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+    @ViewBuilder var body: some View {
+        if events.isEmpty {
+            Color.clear.frame(height: 64)
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
             let now = ctx.date
             let segs = SessionTrail.segments(events: events, now: now)
             let span = SessionTrail.window(events: events, now: now)
@@ -97,6 +100,7 @@ struct SessionTrailView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilitySummary(SessionTrail.summary(segs)))
+            }
         }
     }
 

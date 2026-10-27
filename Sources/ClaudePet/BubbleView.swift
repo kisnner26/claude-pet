@@ -29,7 +29,7 @@ struct BubbleView: View {
 
     var body: some View {
         if let a = activity, store.showBubble {
-            BubbleCard(activity: a, state: state, flat: false)
+            BubbleCard(activity: a, state: state, layout: store.layout, flat: false)
                 .modifier(Condense(progress: dissolved, reduceMotion: store.reduceMotion))
                 .frame(width: 360, height: 76)
                 .onReceive(NotificationCenter.default.publisher(for: .bubbleRevealed(owner))) { _ in
@@ -50,6 +50,7 @@ struct BubbleView: View {
 struct BubbleCard: View {
     let activity: Activity
     let state: PetState
+    let layout: PetLayout
     var flat = false
 
     var body: some View {
@@ -66,7 +67,7 @@ struct BubbleCard: View {
             }
             .lineLimit(1)
             Spacer(minLength: 6)
-            Indicator(state: state)
+            Indicator(state: state, layout: layout)
         }
         .padding(.horizontal, 16).padding(.vertical, 11)
         .frame(width: 340)
@@ -89,30 +90,41 @@ struct BubbleCard: View {
 
 struct Indicator: View {
     let state: PetState
+    let layout: PetLayout
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
-            let t = ctx.date.timeIntervalSinceReferenceDate
-            ZStack {
-                switch state {
-                case .starting, .thinking, .tool:
-                    Circle().trim(from: 0, to: 0.28)
-                        .stroke(Pal.body, style: StrokeStyle(lineWidth: 2.5, lineCap: .butt))
-                        .rotationEffect(.degrees(t * 360 / 0.9))
-                case .waiting:
-                    Circle().fill(Pal.body).frame(width: 9, height: 9)
-                        .opacity(0.45 + 0.55 * (0.5 + 0.5 * sin(t * 5)))
-                case .done:
-                    Path { p in p.move(to: CGPoint(x: 2, y: 9)); p.addLine(to: CGPoint(x: 7, y: 14)); p.addLine(to: CGPoint(x: 16, y: 3)) }
-                        .stroke(Pal.cream, style: StrokeStyle(lineWidth: 2.5, lineCap: .square))
-                case .error:
-                    Path { p in p.move(to: CGPoint(x: 3, y: 3)); p.addLine(to: CGPoint(x: 15, y: 15)); p.move(to: CGPoint(x: 15, y: 3)); p.addLine(to: CGPoint(x: 3, y: 15)) }
-                        .stroke(Pal.dark, style: StrokeStyle(lineWidth: 2.5, lineCap: .square))
-                case .idle:
-                    EmptyView()
+        let animated = layout != .island && (state == .starting || state == .thinking || state == .tool || state == .waiting)
+        Group {
+            if animated {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+                    indicator(time: ctx.date.timeIntervalSinceReferenceDate)
                 }
+            } else {
+                indicator(time: 0)
             }
-            .frame(width: state == .done || state == .error ? 18 : 18, height: 18)
         }
         .frame(width: 22, height: 22)
+    }
+
+    @ViewBuilder private func indicator(time t: Double) -> some View {
+        ZStack {
+            switch state {
+            case .starting, .thinking, .tool:
+                Circle().trim(from: 0, to: 0.28)
+                    .stroke(Pal.body, style: StrokeStyle(lineWidth: 2.5, lineCap: .butt))
+                    .rotationEffect(.degrees(t * 360 / 0.9))
+            case .waiting:
+                Circle().fill(Pal.body).frame(width: 9, height: 9)
+                    .opacity(0.45 + 0.55 * (0.5 + 0.5 * sin(t * 5)))
+            case .done:
+                Path { p in p.move(to: CGPoint(x: 2, y: 9)); p.addLine(to: CGPoint(x: 7, y: 14)); p.addLine(to: CGPoint(x: 16, y: 3)) }
+                    .stroke(Pal.cream, style: StrokeStyle(lineWidth: 2.5, lineCap: .square))
+            case .error:
+                Path { p in p.move(to: CGPoint(x: 3, y: 3)); p.addLine(to: CGPoint(x: 15, y: 15)); p.move(to: CGPoint(x: 15, y: 3)); p.addLine(to: CGPoint(x: 3, y: 15)) }
+                    .stroke(Pal.dark, style: StrokeStyle(lineWidth: 2.5, lineCap: .square))
+            case .idle:
+                EmptyView()
+            }
+        }
+        .frame(width: 18, height: 18)
     }
 }
