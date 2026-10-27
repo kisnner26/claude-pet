@@ -113,6 +113,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-secrets") { exit(SecretDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-permission-preview") { exit(PermissionPreviewSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-audit") { exit(AuditSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-approval-scope") { exit(ApprovalScopeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-terminal") { exit(TerminalTargetSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-steps") { exit(IslandStepsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-tabs") { exit(IslandAgentTabsSelfTest.run() ? 0 : 1) }
