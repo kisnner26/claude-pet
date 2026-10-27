@@ -85,6 +85,51 @@ enum IslandSelfTest {
               && !NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 8, y: 975), metrics: notchMac) && !NotchGeometry.overNotch(CGPoint(x: 756, y: 900), metrics: notchMac))
         check("la zona transparente de la ventana no cuenta como isla", !NotchGeometry.contains(CGPoint(x: 756, y: 800), mode: .compact, metrics: notchMac))
 
+        // 10. animacion de personaje
+        let calm = CGPoint.zero
+        func pose(_ t: TimeInterval, gaze: CGPoint = calm, pokes: [TimeInterval] = [], hop: TimeInterval? = nil, motion: Bool = true) -> PetPose {
+            PetAnimator.pose(at: t, gaze: gaze, pokes: pokes, hopStart: hop, motion: motion)
+        }
+        let scales = stride(from: 0.0, to: 8.0, by: 0.05).map { pose($0).scaleY }
+        check("respira entre 1,00 y 1,04 y sube y baja", scales.min()! >= 1 && scales.max()! <= 1.0401 && scales.max()! - scales.min()! > 0.03)
+        check("la respiracion se repite cada 4 s", abs(pose(1).scaleY - pose(5).scaleY) < 1e-9)
+        var blinkFrames = 0, blinkStarts = 0, wasBlinking = false
+        for k in 0..<6000 { let b = PetAnimator.isBlinking(at: Double(k) / 100); if b { blinkFrames += 1 }; if b && !wasBlinking { blinkStarts += 1 }; wasBlinking = b }
+        check("en 60 s parpadea entre 12 y 45 veces", (12...45).contains(blinkStarts))
+        check("cada parpadeo dura poco: menos del 8 % del tiempo con los ojos cerrados", blinkFrames < 480)
+        check("con movimiento reducido no respira ni parpadea", { let q = pose(1.2, motion: false); return q.scaleY == 1 && !q.blink && q.dy == 0 }())
+        check("la mirada sigue al cursor: derecha, izquierda, arriba y abajo",
+              PetAnimator.eyes(gaze: CGPoint(x: 1, y: 0)) == (1, 0) && PetAnimator.eyes(gaze: CGPoint(x: -1, y: 0)) == (-1, 0)
+              && PetAnimator.eyes(gaze: CGPoint(x: 0, y: 1)) == (0, -1) && PetAnimator.eyes(gaze: CGPoint(x: 0, y: -1)) == (0, 1))
+        check("con el cursor cerca del centro mira al frente", PetAnimator.eyes(gaze: CGPoint(x: 0.1, y: -0.2)) == (0, 0))
+        check("la mirada sigue funcionando con movimiento reducido", pose(1, gaze: CGPoint(x: 1, y: 0), motion: false).eyeDX == 1)
+        check("un toque sacude el cuerpo", (1..<10).contains { abs(pose(10 + Double($0) * 0.03, pokes: [10]).dx) > 0.2 })
+        check("la sacudida termina a los 0,35 s", pose(10.5, pokes: [10]).dx == 0)
+        let three: [TimeInterval] = [10, 10.4, 10.8]
+        check("tres toques seguidos marean", pose(11.2, pokes: three).dizzy && pose(11.2, pokes: three).rotation != 0)
+        check("el mareo pasa a los 1,8 s", !pose(12.7, pokes: three).dizzy)
+        check("dos toques espaciados no marean", !pose(11, pokes: [5, 10.5]).dizzy)
+        check("el salto sube a media altura y vuelve al suelo", { let top = pose(20.3, hop: 20).dy; return top < -2.9 && pose(20.7, hop: 20).dy == 0 && pose(19.9, hop: 20).dy == 0 }())
+
+        // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo
+        var eyesOK = true, moved = false, blinkLine = false
+        for st in PetState.allCases where st != .error {
+            let base = Sprite.block(st, tick: 5)
+            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1), (1, 1), (-1, -1)] {
+                var q = PetPose(); q.eyeDX = dx; q.eyeDY = dy
+                let out = PetAnimator.apply(base, pose: q)
+                if out.contains(where: { $0.c == Pal.charcoal && $0.y >= 5 && $0.y <= 11 && ($0.x < 3 || $0.x > 12) }) { eyesOK = false }
+                if out.count != base.count && st != .starting { eyesOK = eyesOK && false }
+                if st == .idle && (dx, dy) == (1, 0) { moved = out.map { "\($0.x),\($0.y)" }.sorted() != base.map { "\($0.x),\($0.y)" }.sorted() }
+            }
+            var b = PetPose(); b.blink = true
+            let closed = PetAnimator.apply(base, pose: b)
+            if st == .idle { blinkLine = closed.filter { $0.c == Pal.charcoal && $0.y == 8 }.count >= 6 }
+        }
+        check("los ojos del sprite quedan dentro del cuerpo en todos los estados", eyesOK)
+        check("mirar a la derecha mueve los ojos del sprite", moved)
+        check("parpadear deja una linea en los ojos", blinkLine)
+
         print(failures == 0 ? "ISLAND OK" : "ISLAND FALLOS: \(failures)")
         return failures == 0
     }

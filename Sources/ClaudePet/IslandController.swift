@@ -12,7 +12,16 @@ final class IslandModel: ObservableObject {
     @Published var countdown: Double?
     /// Posicion del cursor respecto al centro de la isla, de -1 a 1; los ojos de la mascota lo siguen.
     @Published var gaze = CGPoint.zero
+    /// Instantes (systemUptime) de los ultimos toques a la mascota y del ultimo fin de tarea.
+    var pokes: [TimeInterval] = []
+    var hopStart: TimeInterval?
     var onPetClick: () -> Void = {}
+
+    func poke() {
+        pokes.append(ProcessInfo.processInfo.systemUptime)
+        if pokes.count > 6 { pokes.removeFirst(pokes.count - 6) }
+        onPetClick()
+    }
 }
 
 /// Isla pegada al notch (o a una barra arriba si no hay notch). Reemplaza a las mascotas flotantes.
@@ -49,6 +58,7 @@ final class IslandController {
         p.ignoresMouseEvents = true
         panel = p
         model.onPetClick = { [weak self] in self?.clicked = true }
+        model.pokes = []; model.hopStart = nil
         relocate()
         p.orderFrontRegardless()
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -91,7 +101,7 @@ final class IslandController {
         // transiciones de estado: terminar de trabajar dispara la vista de fin
         let c = store.state, x = store.codexState
         let doneNow = (c == .done && lastClaude != .done) || (x == .done && lastCodex != .done)
-        if doneNow { finishedAt = now }
+        if doneNow { finishedAt = now; model.hopStart = now }
         lastClaude = c; lastCodex = x
         let finishedPending = finishedAt.map { now - $0 < 0.1 } ?? false
 
@@ -175,10 +185,10 @@ struct IslandView: View {
         let compact = model.mode != .expanded
         let side: CGFloat = compact ? 20 : 56
         HStack(alignment: .center, spacing: compact ? 6 : 16) {
-            PetFace(store: store, gaze: model.gaze)
+            PetFace(store: store, model: model)
                 .frame(width: side, height: side)
                 .contentShape(Rectangle())
-                .onTapGesture { model.onPetClick() }
+                .onTapGesture { model.poke() }
             if !compact { details }
             Spacer(minLength: 0)
             if compact && store.codexPresent { Circle().fill(codexColor).frame(width: 8, height: 8) }
@@ -206,20 +216,34 @@ struct IslandView: View {
     }
 }
 
-/// La mascota de Claude en miniatura. `gaze` queda disponible para que las pupilas sigan al cursor (siguiente paso).
+/// La mascota de Claude en miniatura, con respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
 struct PetFace: View {
     @ObservedObject var store: PetStore
-    var gaze: CGPoint
+    @ObservedObject var model: IslandModel
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.125)) { ctx in
-            let tick = store.animationsEnabled && !store.reduceMotion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
+        TimelineView(.periodic(from: .now, by: 1.0 / 30.0)) { ctx in
+            let motion = store.animationsEnabled && !store.reduceMotion
+            let now = ProcessInfo.processInfo.systemUptime
+            let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
+            let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion)
             Canvas { gc, size in
-                let u = size.width / 16
-                for p in Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date)) {
-                    gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u, height: u)), with: .color(p.c))
-                }
+                var px = Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date))
+                if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
+                PetFace.draw(&gc, size: size, pixels: px, pose: pose)
             }
+        }
+    }
+
+    /// Dibuja el sprite con su pose: el cuerpo se mueve y se estira desde los pies.
+    static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose) {
+        let u = size.width / 16
+        gc.translateBy(x: size.width / 2 + pose.dx * u, y: size.height + pose.dy * u)
+        gc.rotate(by: .degrees(pose.rotation))
+        gc.scaleBy(x: pose.scaleX, y: pose.scaleY)
+        gc.translateBy(x: -size.width / 2, y: -size.height)
+        for p in pixels {
+            gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(p.c))   // +0,5 evita costuras al escalar o girar
         }
     }
 }
@@ -242,6 +266,36 @@ enum IslandSnapshot {
                     .background(Color(hex: 0x6C7A89))
             }
         }
+        let r = ImageRenderer(content: view)
+        r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-poses <ruta.png>`: la mascota en reposo, mirando, parpadeando, molesta, mareada y saltando.
+    static func poses(to path: String) {
+        func look(_ dx: Int, _ dy: Int) -> PetPose { var q = PetPose(); q.eyeDX = dx; q.eyeDY = dy; return q }
+        var blink = PetPose(); blink.blink = true; blink.scaleY = 1.04
+        var annoyed = PetPose(); annoyed.blink = true; annoyed.dx = 1
+        var dizzy = PetPose(); dizzy.dizzy = true; dizzy.rotation = 8
+        var hop = PetPose(); hop.dy = -3
+        var land = PetPose(); land.scaleY = 0.93; land.scaleX = 1.04
+        let cells: [(String, PetPose)] = [("reposo", PetPose()), ("derecha", look(1, 0)), ("arriba", look(0, -1)), ("parpadeo", blink),
+                                          ("molesta", annoyed), ("mareada", dizzy), ("salto", hop), ("caida", land)]
+        let view = HStack(spacing: 8) {
+            ForEach(Array(cells.enumerated()), id: \.offset) { _, c in
+                VStack(spacing: 4) {
+                    Canvas { gc, size in
+                        let px = PetAnimator.apply(Sprite.block(.idle, tick: 0), pose: c.1)
+                        PetFace.draw(&gc, size: size, pixels: px, pose: c.1)
+                    }.frame(width: 96, height: 96).background(Color.black)
+                    Text(c.0).font(.system(size: 11, design: .monospaced)).foregroundColor(.white)
+                }
+            }
+        }.padding(12).background(Color(hex: 0x2A2A2E))
         let r = ImageRenderer(content: view)
         r.scale = 2
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
