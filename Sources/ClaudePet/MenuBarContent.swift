@@ -26,6 +26,7 @@ struct MenuBarContent: View {
                 Button("saltar a terminal de claude", systemImage: "macwindow") { store.focusTerminal() }
             }
             Label("codex: \(store.codexPresent ? store.codexState.label.lowercased() : "en reposo")", systemImage: "sparkles")
+            if store.codexPresent && store.codexState != .idle { Label("codex desde hace \(store.codexStateDurationLabel)", systemImage: "timer") }
             if let warning = store.safetyAlert {
                 Label(warning.title, systemImage: "exclamationmark.triangle.fill")
             }
