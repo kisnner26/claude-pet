@@ -162,3 +162,5 @@ el avatar compacto de codex expone el mismo tipo de etiqueta, pero aclara que su
 el modo compacto añade un icono semántico para el estado de claude: puntos al pensar, herramienta, mano de aprobación, alerta, check al terminar.
 
 codex muestra su propio icono con la misma semántica, usando únicamente el estado recibido de su adaptador.
+
+ambos iconos compactos tienen ayuda contextual con el estado textual actual.
