@@ -31,6 +31,7 @@ private struct IslandPressStyle: ButtonStyle {
 struct PermissionCardView: View {
     @ObservedObject var store: PetStore
     let ask: PermissionAsk
+    @State private var showMore = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -47,7 +48,10 @@ struct PermissionCardView: View {
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C))
             }
             if !ask.detail.isEmpty {
-                Text(ask.detail).font(.system(size: 12, design: .monospaced)).foregroundColor(.white).lineLimit(3).padding(8).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                let preview = PermissionPreviewBuilder.make(tool: ask.tool, detail: ask.detail, project: ask.project)
+                Text(preview.lines.prefix(showMore ? preview.lines.count : min(8, preview.lines.count)).joined(separator: "\n"))
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : 8).padding(8).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                if preview.truncated { Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.7)) }
                 Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             }
             Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
