@@ -57,15 +57,20 @@ final class IslandController {
     private static func metrics(of s: NSScreen) -> ScreenMetrics {
         ScreenMetrics(frame: s.frame, safeTop: s.safeAreaInsets.top,
                       auxLeft: s.auxiliaryTopLeftArea?.width ?? 0, auxRight: s.auxiliaryTopRightArea?.width ?? 0,
-                      menuBarHeight: NSStatusBar.system.thickness)
+                      menuBarHeight: NSStatusBar.system.thickness,
+                      visibleFrame: s.visibleFrame,
+                      menuBarHidden: s.safeAreaInsets.top == 0 && s.visibleFrame.maxY >= s.frame.maxY - 1)
     }
 
     /// Recalcula la pantalla elegida cada vez que se conecta, desconecta o cambia una pantalla.
     private func relocate() {
         guard let m = NotchGeometry.pick(NSScreen.screens.map(Self.metrics), preference: store.islandScreenPreference, mouse: NSEvent.mouseLocation) else { return }
         metrics = m
-        model.hasNotch = NotchGeometry.hasNotch(m)
-        panel?.setFrame(NotchGeometry.panelFrame(m), display: false)
+        let placement = store.islandPlacement
+        model.hasNotch = placement == .top && NotchGeometry.hasNotch(m)
+        model.placement = placement
+        model.menuBarHidden = placement == .top && m.menuBarHidden
+        panel?.setFrame(NotchGeometry.panelFrame(m, placement: placement), display: false)
     }
 
     private func tasksRunning() -> Bool {
@@ -73,7 +78,15 @@ final class IslandController {
     }
 
     private func tick() {
-        guard let m = metrics, let panel else { return }
+        guard var m = metrics, let panel else { return }
+        // la barra de menus se oculta y aparece sin avisar: se relee en cada tick, barato
+        if let screen = NSScreen.screens.first(where: { $0.frame == m.frame }) {
+            let hidden = screen.safeAreaInsets.top == 0 && screen.visibleFrame.maxY >= screen.frame.maxY - 1
+            if hidden != m.menuBarHidden || screen.visibleFrame != m.visibleFrame { m.menuBarHidden = hidden; m.visibleFrame = screen.visibleFrame; metrics = m }
+        }
+        let placement = store.islandPlacement
+        if model.placement != placement { relocate(); m = metrics ?? m }
+        machine.activationDelay = store.islandActivationDelay
         let now = ProcessInfo.processInfo.systemUptime
         let mouse = NSEvent.mouseLocation
 
@@ -88,8 +101,8 @@ final class IslandController {
         let asking = !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty
         let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
         let input = IslandInput(now: now,
-                                overNotch: NotchGeometry.overNotch(mouse, metrics: m),
-                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, expandedHeight: eh),
+                                overNotch: NotchGeometry.overNotch(mouse, metrics: m, placement: placement, activationWidth: store.islandActivationWidth),
+                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, placement: placement, expandedHeight: eh),
                                 tasksRunning: tasksRunning(),
                                 alertPending: asking || c == .waiting || c == .error || x == .waiting || x == .error,
                                 finishedPending: finishedPending,
@@ -101,7 +114,7 @@ final class IslandController {
         let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
         if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 
-        let size = NotchGeometry.islandSize(mode, metrics: m, expandedHeight: eh)
+        let size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: eh)
         if model.mode != mode {
             if mode == .peek && model.mode == .hidden { model.greetUntil = now + 1.4 }
             model.mode = mode
@@ -111,13 +124,13 @@ final class IslandController {
         if model.size != size { model.size = size }
 
         // los ojos siguen al cursor por toda la pantalla
-        let f = NotchGeometry.islandFrame(mode, metrics: m, expandedHeight: eh)
+        let f = NotchGeometry.islandFrame(mode, metrics: m, placement: placement, expandedHeight: eh)
         let cursorGaze = CGPoint(x: max(-1, min(1, (mouse.x - f.midX) / 400)), y: max(-1, min(1, (mouse.y - f.midY) / 300)))
         // la tarjeta aparece a la izquierda de la mascota en la vista abierta.
         model.gaze = asking && mode == .expanded ? CGPoint(x: -0.8, y: 0) : cursorGaze
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
-        let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, expandedHeight: eh)
+        let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, placement: placement, expandedHeight: eh)
         if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
     }
 
@@ -141,27 +154,42 @@ struct IslandView: View {
     private var transition: Animation { store.reduceMotion ? IslandMotion.reduced : IslandMotion.spring }
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: anchor) {
             Color.clear
             island.frame(width: model.size.width, height: model.size.height)
         }
-        .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: .top)
+        .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: anchor)
         .animation(transition, value: model.size)
         .animation(transition, value: model.mode)
     }
 
+    private var anchor: Alignment {
+        switch model.placement { case .top, .floating: return .top; case .bottom: return .bottom; case .side: return .trailing }
+    }
+
+    /// Sin notch no hay silueta que se funda con el borde: borde interior fino y sombra suave hacia dentro de la pantalla.
+    private var drawsOwnEdge: Bool { !model.hasNotch }
+    private var highContrast: Bool { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast }
+    private var shadowY: CGFloat { model.placement == .bottom ? -3 : 3 }
+
     private var island: some View {
-        ZStack(alignment: .topLeading) {
-            IslandShape(radius: NotchGeometry.cornerRadius(model.mode))
+        let shape = IslandShape(radius: NotchGeometry.cornerRadius(model.mode), corners: model.placement.corners)
+        return ZStack(alignment: .topLeading) {
+            shape
                 .fill(Color.black)
-                .opacity(model.mode == .hidden && model.hasNotch ? 0 : 1)
+                .opacity(model.mode == .hidden && (model.hasNotch || model.menuBarHidden) ? 0 : 1)
+            if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden) {
+                // el recorte deja visible solo la mitad interior del trazo
+                shape.stroke(Color.white.opacity(highContrast ? 0.7 : 0.14), lineWidth: highContrast ? 2 : 1)
+            }
             if model.mode != .hidden { content }
             if let c = model.countdown {
                 Capsule().fill(Color.white.opacity(0.35)).frame(width: 160 * c, height: 2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom).padding(.bottom, 4)
             }
         }
-        .clipShape(IslandShape(radius: NotchGeometry.cornerRadius(model.mode)))
+        .clipShape(shape)
+        .shadow(color: .black.opacity(drawsOwnEdge && model.mode != .hidden ? 0.35 : 0), radius: 6, x: 0, y: shadowY)
     }
 
     @ViewBuilder private var content: some View {
@@ -234,7 +262,7 @@ struct IslandView: View {
         }
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
-        .padding(.top, compact ? 0 : 38)
+        .padding(.top, compact ? 0 : (model.hasNotch ? 38 : 14))
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)
     }

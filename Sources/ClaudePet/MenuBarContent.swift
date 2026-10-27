@@ -118,6 +118,9 @@ struct MenuBarContent: View {
                     Toggle("responder permisos desde la isla", isOn: $store.islandPermissions)
                     Toggle("atajos globales de la isla", isOn: $store.globalShortcutsEnabled)
                     Picker("pantalla de la isla", selection: $store.islandScreenPreference) { ForEach(IslandScreenPreference.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                    Picker("ubicación", selection: $store.islandPlacement) { ForEach(IslandPlacement.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                    Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
+                    Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
             Toggle("mantener mascotas visibles", isOn: $store.pinSession)

@@ -70,6 +70,17 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(islandScreenPreference.rawValue, forKey: "islandScreenPreference") }
     }
     /// Opt-in: con la isla activa, los permisos de Claude Code se responden desde la isla en vez de la terminal.
+    @Published var islandPlacement: IslandPlacement = IslandPlacement(rawValue: UserDefaults.standard.string(forKey: "islandPlacement") ?? "") ?? .top {
+        didSet { UserDefaults.standard.set(islandPlacement.rawValue, forKey: "islandPlacement") }
+    }
+    /// Ancho de la zona que hace asomar a la mascota en pantallas sin notch (120 a 400 pt).
+    @Published var islandActivationWidth: Double = {
+        let v = UserDefaults.standard.double(forKey: "islandActivationWidth"); return v == 0 ? 240 : min(400, max(120, v))
+    }() { didSet { UserDefaults.standard.set(islandActivationWidth, forKey: "islandActivationWidth") } }
+    /// Segundos que el cursor debe permanecer en la zona antes de asomar.
+    @Published var islandActivationDelay: Double = {
+        UserDefaults.standard.object(forKey: "islandActivationDelay") == nil ? 0.15 : min(1, max(0, UserDefaults.standard.double(forKey: "islandActivationDelay")))
+    }() { didSet { UserDefaults.standard.set(islandActivationDelay, forKey: "islandActivationDelay") } }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

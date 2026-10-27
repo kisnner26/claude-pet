@@ -51,6 +51,9 @@ struct IslandMachine {
 
     /// Con `away` ajustable por el usuario (por defecto 180 s).
     var awayAfter: TimeInterval = IslandMachine.away
+    /// Tiempo que el cursor debe permanecer sobre la zona de activacion antes de asomar (0 = de inmediato).
+    var activationDelay: TimeInterval = 0
+    private var approachSince: TimeInterval?
 
     private mutating func go(_ m: IslandMode, _ r: IslandReason, _ now: TimeInterval) {
         mode = m; reason = r; enteredAt = now; lastActivity = now
@@ -91,11 +94,16 @@ struct IslandMachine {
         switch mode {
         case .hidden:
             if i.overNotch {
-                // 2. el cursor sobre el notch asoma a la mascota
-                go(.peek, .hover, now)
-                hoverSince = now
-            } else if resting(i) == .compact {
-                go(.compact, .none, now)
+                // 2. el cursor sobre el notch asoma a la mascota, tras el retraso de activacion
+                if approachSince == nil { approachSince = now }
+                if now - (approachSince ?? now) >= activationDelay {
+                    go(.peek, .hover, now)
+                    hoverSince = now
+                    approachSince = nil
+                }
+            } else {
+                approachSince = nil
+                if resting(i) == .compact { go(.compact, .none, now) }
             }
 
         case .peek:

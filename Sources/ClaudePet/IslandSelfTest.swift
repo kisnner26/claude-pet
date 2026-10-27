@@ -60,6 +60,14 @@ enum IslandSelfTest {
         check("una alerta durante ausencia conserva la isla abierta", m.tick(input(180, tasks: true, alert: true, idle: 180)) == .expanded && m.reason == .alert)
         check("el fin de tarea no pisa una alerta activa", m.tick(input(181, tasks: true, alert: true, finished: true, idle: 180)) == .expanded && m.reason == .alert)
 
+        // 7b. retraso de activacion: el cursor debe quedarse sobre la zona antes de asomar
+        m = IslandMachine(); m.activationDelay = 0.3
+        check("con retraso, un roce rapido no asoma", m.tick(input(0, notch: true)) == .hidden && m.tick(input(0.1, notch: true)) == .hidden && m.tick(input(0.15)) == .hidden)
+        check("el retraso se reinicia al salir de la zona", m.tick(input(0.2, notch: true)) == .hidden && m.tick(input(0.4, notch: true)) == .hidden)
+        check("tras el retraso asoma", m.tick(input(0.55, notch: true)) == .peek)
+        m = IslandMachine(); m.activationDelay = 0
+        check("sin retraso asoma de inmediato", m.tick(input(0, notch: true)) == .peek)
+
         // 8. terminado: se abre 5,2 s y se pliega
         m = IslandMachine(); _ = m.tick(input(0, tasks: true))
         check("terminar abre la vista de fin", m.tick(input(1, tasks: true, finished: true)) == .expanded && m.reason == .finished)
