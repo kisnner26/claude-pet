@@ -103,6 +103,9 @@ final class PetStore: ObservableObject {
             DispatchQueue.main.async { [weak self] in self?.restorePoints = list }
         }
     }
+    @Published private(set) var loopAlert: LoopAlert?
+    private var loopDetector = LoopDetector()
+    func dismissLoopAlert() { loopAlert = nil }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }
@@ -446,6 +449,8 @@ final class PetStore: ObservableObject {
             if s == .thinking, prior?.state != .thinking, !e.workspace.isEmpty { monitor.arm(session: e.session, workspace: e.workspace) }
             if s == .tool && e.tool == "test" { testSessions.insert(e.session) }
             if s == .error { bugBattleLevel = min(3, bugBattleLevel + 1); lastBugChange = Date() }
+            if s == .tool || s == .error, !e.tool.isEmpty,
+               let found = loopDetector.record(tool: e.tool, target: e.detail.isEmpty ? e.project : e.detail, failed: s == .error, at: ProcessInfo.processInfo.systemUptime) { loopAlert = found }
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
         refresh()

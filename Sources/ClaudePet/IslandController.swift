@@ -274,6 +274,10 @@ struct IslandView: View {
                     .font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55)).lineLimit(1)
                     .accessibilityLabel("rama \(store.mission.git.branch)")
             }
+            if compact, let loop = store.loopAlert {
+                Button { model.poke() } label: { Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10, weight: .bold)).foregroundColor(Color(hex: 0xE7B45B)) }
+                    .buttonStyle(.plain).help("\(loop.title) · pulsa para abrir").accessibilityLabel(loop.title)
+            }
             if compact, store.islandShowClock { IslandClock() }
             if compact && store.codexPresent {
                 if items.context, let reading = store.codexContextReading {
@@ -364,6 +368,17 @@ struct IslandView: View {
     private var details: some View {
         let agentSteps = IslandSteps.forAgent(agentTab, in: store.recentIslandSteps)
         return VStack(alignment: .leading, spacing: 6) {
+            if let loop = store.loopAlert {
+                HStack(spacing: 8) {
+                    Label(loop.title, systemImage: "arrow.triangle.2.circlepath").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xE7B45B))
+                    Text(loop.summary).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Button("copiar") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(loop.title)\n\(loop.summary)", forType: .string) }
+                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+                    Button("descartar") { store.dismissLoopAlert() }
+                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+                }
+            }
             if store.contextReading != nil || !store.mission.changes.isEmpty {
                 HStack(spacing: 8) {
                     if let reading = store.contextReading {
