@@ -38,6 +38,7 @@ final class IslandController {
         panel = p
         model.onPetClick = { [weak self] in self?.clicked = true }
         model.pokes = []; model.hopStart = nil
+        model.greetUntil = ProcessInfo.processInfo.systemUptime + 1.4
         relocate()
         p.orderFrontRegardless()
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -110,7 +111,9 @@ final class IslandController {
 
         // los ojos siguen al cursor por toda la pantalla
         let f = NotchGeometry.islandFrame(mode, metrics: m, expandedHeight: eh)
-        model.gaze = CGPoint(x: max(-1, min(1, (mouse.x - f.midX) / 400)), y: max(-1, min(1, (mouse.y - f.midY) / 300)))
+        let cursorGaze = CGPoint(x: max(-1, min(1, (mouse.x - f.midX) / 400)), y: max(-1, min(1, (mouse.y - f.midY) / 300)))
+        // la tarjeta aparece a la izquierda de la mascota en la vista abierta.
+        model.gaze = asking && mode == .expanded ? CGPoint(x: -0.8, y: 0) : cursorGaze
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
         let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, expandedHeight: eh)
