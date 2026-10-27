@@ -206,10 +206,7 @@ struct IslandView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
             if compact, let reading = store.contextReading {
-                Text("\(reading.remainingPercent)%")
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundColor(contextColor(reading.pressure))
-                    .accessibilityLabel("contexto: \(reading.remainingPercent) por ciento restante")
+                contextMeter(reading, label: "contexto")
             }
             if compact, let badge = store.attentionBadgeLabel {
                 Text(badge)
@@ -224,10 +221,7 @@ struct IslandView: View {
             Spacer(minLength: 0)
             if compact && store.codexPresent {
                 if let reading = store.codexContextReading {
-                    Text("\(reading.remainingPercent)%")
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                        .foregroundColor(contextColor(reading.pressure))
-                        .accessibilityLabel("contexto codex: \(reading.remainingPercent) por ciento restante")
+                    contextMeter(reading, label: "contexto codex")
                 }
                 CodexMini(store: store, greet: false).frame(width: 22, height: 24)
             }
@@ -367,6 +361,21 @@ struct IslandView: View {
         case .caution: return Color(hex: 0xE7B45B)
         case .critical: return Color(hex: 0xD85C5C)
         }
+    }
+
+    private func contextMeter(_ reading: ContextReading, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("\(reading.remainingPercent)%")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundColor(contextColor(reading.pressure))
+            GeometryReader { proxy in
+                Capsule().fill(contextColor(reading.pressure))
+                    .frame(width: max(2, proxy.size.width * CGFloat(reading.remainingPercent) / 100), height: 2)
+            }
+            .frame(width: 24, height: 2)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(reading.remainingPercent) por ciento restante")
     }
 
     private var details: some View {
