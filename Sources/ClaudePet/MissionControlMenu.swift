@@ -38,6 +38,7 @@ struct MissionControlMenu: View {
             Picker("filtrar actividad", selection: $control.timelineFilter) {
                 ForEach(MissionAgentFilter.allCases) { Text($0.rawValue).tag($0) }
             }
+            Text(control.filteredTimelineLabel)
             if let capsule = control.recovery {
                 Divider()
                 Text("cápsula de recuperación: \(capsule.project.isEmpty ? "proyecto" : capsule.project)")
