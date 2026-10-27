@@ -225,6 +225,7 @@ struct IslandView: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Color(hex: 0xF0A24B)))
                 }.buttonStyle(.plain).accessibilityLabel(store.attentionLabel)
+                    .help("\(store.attentionLabel) · pulsa para abrir")
             }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
