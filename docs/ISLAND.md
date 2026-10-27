@@ -112,3 +112,5 @@ la pestaña abierta de cada agente muestra cuánto tiempo lleva activa la activi
 la vista abierta permite copiar un resumen corto de sesión con proyecto, agente y estado; no incluye rutas completas ni comandos.
 
 el botón `actualizar` fuerza una lectura inmediata de telemetría, contexto y cambios sin cerrar la isla.
+
+si existe un workspace publicado, la vista abierta ofrece `abrir carpeta del proyecto` y lo entrega a finder mediante `NSWorkspace`, sin copiar ni persistir rutas.
