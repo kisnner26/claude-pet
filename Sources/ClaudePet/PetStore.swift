@@ -169,6 +169,11 @@ final class PetStore: ObservableObject {
         guard let reading = contextReading else { return "contexto no disponible" }
         return "contexto: \(reading.remainingPercent)% restante"
     }
+    var sessionSummary: String {
+        let projectName = project.isEmpty ? "sin proyecto" : project
+        let toolName = tool.isEmpty ? "sin herramienta" : tool
+        return "\(projectName) · \(toolName)"
+    }
     var codexContextLabel: String {
         guard let reading = codexContextReading else { return "contexto codex no disponible" }
         return "contexto codex: \(reading.remainingPercent)% restante"

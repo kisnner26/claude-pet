@@ -13,6 +13,7 @@ struct MenuBarContent: View {
     var body: some View {
         Section("en vivo") {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
+            if store.state != .idle { Label(store.sessionSummary, systemImage: "briefcase") }
             if store.state != .idle { Label("desde hace \(store.stateDurationLabel)", systemImage: "timer") }
             if store.contextReading != nil { Label(store.contextLabel, systemImage: "circle.dotted") }
             if store.codexContextReading != nil { Label(store.codexContextLabel, systemImage: "circle.dotted") }

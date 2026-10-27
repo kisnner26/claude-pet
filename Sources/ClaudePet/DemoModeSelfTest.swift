@@ -8,7 +8,7 @@ enum DemoModeSelfTest {
         let loaded = store.demoMode && store.permissionAsks.count == 1 && store.questionAsks.count == 1
             && store.pendingAttentionCount == 2 && store.attentionLabel == "2 decisiones pendientes"
             && store.recentIslandSteps.count == 3 && store.contextReading?.pressure == .caution
-            && store.codexContextLabel.contains("63%")
+            && store.codexContextLabel.contains("63%") && store.sessionSummary == "claude-pet · Edit"
         store.stopDemo()
         let clean = !store.demoMode && store.permissionAsks.isEmpty && store.questionAsks.isEmpty
             && store.recentIslandSteps.isEmpty && store.contextReading == nil && store.codexContextReading == nil
