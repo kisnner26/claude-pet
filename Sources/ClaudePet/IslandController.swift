@@ -34,7 +34,18 @@ final class IslandController {
         guard timer == nil else { return }
         let p = PetPanel(contentRect: NSRect(origin: .zero, size: NotchGeometry.panelSize),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.contentView = FirstMouseHostingView(rootView: IslandView(model: model, store: store))
+        let host = DropHostingView(rootView: IslandView(model: model, store: store))
+        host.onHover = { [weak self] over in self?.model.dropHover = over }
+        host.onFiles = { [weak self] urls in
+            guard let self, let text = FileDrop.text(for: urls) else { return }
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+            let now = ProcessInfo.processInfo.systemUptime
+            self.model.swallowStart = now
+            // despues de tragar, un saltito de alegria
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { self.model.hopStart = ProcessInfo.processInfo.systemUptime }
+            SoundEngine.shared.play(.allowed)
+        }
+        p.contentView = host
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = false
@@ -143,8 +154,11 @@ final class IslandController {
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
         let asking = !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty
         let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
+        // arrastrando archivos: la isla asoma y deja de ser transparente a los clics para poder recibirlos
+        let dragging = NSEvent.pressedMouseButtons & 1 != 0 && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+        let overZone = NotchGeometry.overNotch(mouse, metrics: m, placement: placement, activationWidth: store.islandActivationWidth)
         let input = IslandInput(now: now,
-                                overNotch: NotchGeometry.overNotch(mouse, metrics: m, placement: placement, activationWidth: store.islandActivationWidth),
+                                overNotch: overZone,
                                 overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, placement: placement, expandedHeight: eh),
                                 tasksRunning: tasksRunning(),
                                 alertPending: asking || c == .waiting || c == .error || x == .waiting || x == .error,
@@ -180,7 +194,7 @@ final class IslandController {
         model.gaze = asking && mode == .expanded ? CGPoint(x: -0.8, y: 0) : cursorGaze
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
-        let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, placement: placement, expandedHeight: eh)
+        let interactive = (mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, placement: placement, expandedHeight: eh)) || (dragging && overZone)
         if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
     }
 

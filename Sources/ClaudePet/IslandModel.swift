@@ -19,6 +19,9 @@ final class IslandModel: ObservableObject {
     /// Segundos sin actividad del usuario, para dormirse.
     var idleSeconds: TimeInterval = 0
     var confettiStart: TimeInterval?
+    /// Hay archivos arrastrados sobre la isla: la mascota se vuelve caja abierta.
+    @Published var dropHover = false
+    var swallowStart: TimeInterval?
     @Published var pomodoroLabel: String?
     @Published var focusActive = false
     /// Hay musica sonando y el usuario activo el baile.

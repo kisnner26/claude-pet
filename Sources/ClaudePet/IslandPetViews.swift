@@ -17,6 +17,13 @@ struct PetFace: View {
             Canvas { gc, size in
                 var cue = store.cue(at: ctx.date)
                 if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }
+                // un archivo encima o recien soltado: la mascota es una caja
+                if model.dropHover || model.swallowStart.map({ now - $0 < 0.7 }) == true {
+                    var box = PetPose()
+                    if let s = model.swallowStart, now - s < 0.7 { box.dx = CGFloat(sin((now - s) * 40)) * 0.5; box.scaleY = 0.96 }
+                    PetFace.draw(&gc, size: size, pixels: FileDrop.boxPixels(open: model.dropHover), pose: box)
+                    return
+                }
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
                 if Sprite.skin == .block { px = Wardrobe.compose(px, outfits: store.outfitsNow(at: ctx.date), state: store.state, tick: tick) }
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
