@@ -494,7 +494,7 @@ struct IslandView: View {
                         }
                     }
                     if !store.codexContextHistory.isEmpty {
-                        ContextTrendView(samples: store.codexContextHistory)
+                        ContextTrendView(samples: store.codexContextHistory, agent: "codex")
                             .frame(height: 30)
                     }
                 }
