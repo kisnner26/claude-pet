@@ -166,3 +166,5 @@ codex muestra su propio icono con la misma semántica, usando únicamente el est
 ambos iconos compactos tienen ayuda contextual con el estado textual actual.
 
 los medidores compactos admiten clic secundario para copiar el resumen de contexto; el clic principal conserva la apertura del detalle.
+
+los anillos abiertos muestran el mismo resumen completo como ayuda contextual al pasar el cursor.
