@@ -9,9 +9,11 @@ struct AuditEntry: Codable, Equatable {
 }
 
 enum AuditLog {
+    private static let lock = NSLock()
     static var path: String { (ProcessInfo.processInfo.environment["CLAUDE_PET_AUDIT"] ?? (NSHomeDirectory() + "/.claude-pet/audit")) + "/decisions.jsonl" }
 
     static func record(ask: PermissionAsk, result: String, source: String = "isla") {
+        lock.lock(); defer { lock.unlock() }
         let entry = AuditEntry(at: Date(), tool: ask.tool, risk: PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk.rawValue, result: result, source: source)
         guard let data = try? JSONEncoder().encode(entry), let line = String(data: data, encoding: .utf8) else { return }
         let url = URL(fileURLWithPath: path)
@@ -25,6 +27,7 @@ enum AuditLog {
     }
 
     static func ensureFile() -> URL? {
+        lock.lock(); defer { lock.unlock() }
         let url = URL(fileURLWithPath: path)
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
