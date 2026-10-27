@@ -459,7 +459,7 @@ struct IslandView: View {
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 HStack {
                     Button { store.openLatestDiff() } label: {
-                        HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
+                        HStack { Text(step.label).lineLimit(1); Spacer(); Text(stepAge(step.at)).foregroundColor(.white.opacity(0.4)); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
                     }.buttonStyle(.plain)
                     Button("copiar", systemImage: "doc.on.clipboard") {
                         NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)")", forType: .string)
@@ -477,6 +477,13 @@ struct IslandView: View {
                 Button("relevo") { AppController.shared.showRelay() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
             }
         }
+    }
+
+    private func stepAge(_ date: Date) -> String {
+        let seconds = max(0, Int(Date().timeIntervalSince(date)))
+        if seconds < 5 { return "ahora" }
+        if seconds < 60 { return "hace \(seconds)s" }
+        return "hace \(seconds / 60)m"
     }
 }
 
