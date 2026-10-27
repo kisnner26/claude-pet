@@ -827,6 +827,7 @@ extension IslandSnapshot {
         var shaking = base; shaking.decisionAllow = false; shaking.decisionAt = 30
         var impatient = PetScene(state: .waiting); impatient.waitingFor = 20
         var alarmed = PetScene(state: .waiting); alarmed.waitingFor = 50
+        var petted = base; petted.pettingFor = 1.5
         let frames: [(String, TimeInterval, PetScene)] = [
             ("en reposo", 1.0, base),
             ("mira alrededor", find { $0.look != nil } + 0.3, base),
@@ -838,6 +839,7 @@ extension IslandSnapshot {
             ("niega", 30.1, shaking),
             ("impaciente", 3.3, impatient),
             ("alarmada", 1.0, alarmed),
+            ("caricia", 5.0, petted),
         ]
         let view = HStack(spacing: 18) {
             ForEach(Array(frames.enumerated()), id: \.offset) { _, f in

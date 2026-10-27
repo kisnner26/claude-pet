@@ -97,3 +97,4 @@
 - rendimiento: el transcript se lee desde la cola, la mirada se publica solo si cambia, la búsqueda de terminal se recuerda 5 s y el contexto se escanea cada 5 s (15 s en reposo).
 - la mascota se inclina hacia el cursor con todo el cuerpo; cada herramienta del agente lanza una onda desde ella; al cambiar de agente la escena entra con un resorte y las cifras del resumen ruedan; la mascota de codex respira, se estira, bosteza, saluda con la mano y salta al terminar, igual que la de claude.
 - la mascota entra con un rebote al abrirse la isla, asiente al permitir un permiso y niega al denegarlo, se impacienta (golpetea y se balancea) si un permiso lleva 15 s esperando y muestra una exclamación a los 40 s; la de codex reacciona a sus propios toques.
+- caricia: si dejas el cursor sobre la mascota más de 0,8 s se pone contenta (ojos ^ ^, ronroneo y corazones); de día y tranquila, una mariposa revolotea sobre ella y la sigue con los ojos.
