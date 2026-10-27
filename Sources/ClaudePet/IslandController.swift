@@ -205,6 +205,8 @@ struct IslandView: View {
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
+                .accessibilityLabel("claude: \(store.state.label.lowercased()), \(store.stateDurationLabel)")
+                .accessibilityHint("pulsa para abrir el detalle")
             if compact, let reading = store.contextReading {
                 contextMeter(reading, label: "contexto")
             }
