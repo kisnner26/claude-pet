@@ -489,6 +489,8 @@ final class AppController: NSObject, NSApplicationDelegate {
             case .allow: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .allow) }
             case .deny: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .deny) }
             case .island: PetStore.shared.layout = .island; PetStore.shared.userHidden = false
+            case .snooze: PetStore.shared.snoozeAlerts()
+            case .pin: PetStore.shared.pinSession.toggle()
             }
         }
         enabled ? shortcutMonitor.start() : shortcutMonitor.stop()
