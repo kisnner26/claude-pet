@@ -100,3 +100,5 @@ prueba automática adicional: `ClaudePet --selftest-terminal` cubre coincidencia
 la tarjeta de permisos incluye `copiar detalle` y `copiar permiso completo`; este último conserva herramienta, proyecto y detalle en texto plano sin escribirlos en disco. `PermissionSelfTest` valida ambos formatos.
 
 en modo compacto, la isla muestra una insignia ámbar con el número de permisos o preguntas pendientes (hasta `9+`) y una etiqueta accesible con el texto completo. `DemoModeSelfTest` comprueba que aparece y desaparece al entrar y salir del demo.
+
+cuando el adaptador de codex publica contexto, el modo compacto muestra también su porcentaje y reutiliza los mismos colores de presión; si no hay lectura, no se inventa ningún valor.
