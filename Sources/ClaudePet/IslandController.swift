@@ -415,7 +415,9 @@ enum IslandSnapshot {
                                            detail: "rm -rf build && swift build -c release", canAlways: true, at: Date())
         let demoQuestion = QuestionAsk(id: "question-demo", session: "abc", project: "claude-pet", questions: [
             IslandQuestion(id: "q", header: "modo", question: "como quieres continuar?", options: [("rápido", "menos pasos"), ("seguro", "más revisión")], multiSelect: false)])
-        defer { store.permissionAsks = []; store.questionAsks = [] }
+        let previousContext = store.contextReading
+        store.setSnapshotContext(ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude"))
+        defer { store.permissionAsks = []; store.questionAsks = []; store.setSnapshotContext(previousContext) }
         let cell = NotchGeometry.panelSize
         let view = VStack(spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { i, row in

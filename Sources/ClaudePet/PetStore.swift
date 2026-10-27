@@ -203,6 +203,7 @@ final class PetStore: ObservableObject {
         nextCodexGitScan = .distantPast
         refresh()
     }
+    func setSnapshotContext(_ reading: ContextReading?) { contextReading = reading }
     func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }
