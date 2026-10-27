@@ -98,3 +98,5 @@ prueba automática: `ClaudePet --selftest-question hooks/pet-question.sh` ejecut
 prueba automática adicional: `ClaudePet --selftest-terminal` cubre coincidencia única, ambigüedad y aplicación no terminal. no se probó el foco de una ventana real.
 
 la tarjeta de permisos incluye `copiar detalle` y `copiar permiso completo`; este último conserva herramienta, proyecto y detalle en texto plano sin escribirlos en disco. `PermissionSelfTest` valida ambos formatos.
+
+en modo compacto, la isla muestra una insignia ámbar con el número de permisos o preguntas pendientes (hasta `9+`) y una etiqueta accesible con el texto completo. `DemoModeSelfTest` comprueba que aparece y desaparece al entrar y salir del demo.
