@@ -364,6 +364,12 @@ struct IslandView: View {
         }
     }
 
+    private func durationColor(_ seconds: Int) -> Color {
+        if seconds >= 300 { return Color(hex: 0xD85C5C) }
+        if seconds >= 60 { return Color(hex: 0xE7B45B) }
+        return .white.opacity(0.5)
+    }
+
     private func contextMeter(_ reading: ContextReading, label: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text("\(reading.remainingPercent)%")
@@ -414,7 +420,7 @@ struct IslandView: View {
             if store.codexPresent { Picker("agente", selection: $agentTab) { ForEach(IslandAgentTabs.available(codex: true), id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).onChange(of: store.codexPresent) { agentTab = IslandAgentTabs.keep(agentTab, codex: $0) } }
             if agentTab == .claude {
                 Text("claude · \(store.state.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(.white)
-                if store.state != .idle { Text("activo desde hace \(store.stateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5)) }
+                if store.state != .idle { Text("activo desde hace \(store.stateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.stateDurationSeconds)) }
                 if let a = store.claudeBubbleActivity { Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1); if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) } }
             } else {
                 if let reading = store.codexContextReading {
@@ -429,7 +435,7 @@ struct IslandView: View {
                     }
                 }
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
-                if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5)) }
+                if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.codexStateDurationSeconds)) }
                 Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
             }
             Button("copiar resumen de sesión", systemImage: "doc.on.clipboard") {
