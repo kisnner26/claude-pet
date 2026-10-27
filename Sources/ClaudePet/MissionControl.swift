@@ -181,6 +181,10 @@ final class MissionControl: ObservableObject {
         let seconds = max(0, Int(now().timeIntervalSince(event.at)))
         return seconds < 60 ? "hace (seconds) s" : "hace (seconds / 60) min"
     }
+    var gitBreakdown: String {
+        guard git.available else { return "git no disponible" }
+        return "(git.affected) afectados · (git.staged) staged · (git.untracked) nuevos · (git.conflicts) conflictos"
+    }
     func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
 
     var timelineExport: String {
