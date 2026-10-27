@@ -65,6 +65,26 @@ enum IslandSelfTest {
         _ = m.tick(input(0, finished: true))
         check("sin tareas, tras terminar queda oculta", m.tick(input(6)) == .hidden)
 
+        // 9. geometria del notch
+        let notchMac = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1512, height: 982), safeTop: 38, auxLeft: 664, auxRight: 664)
+        let plainMac = ScreenMetrics(frame: CGRect(x: 1512, y: 0, width: 1920, height: 1080), safeTop: 0, auxLeft: 0, auxRight: 0)
+        check("detecta el notch y mide su ancho real", NotchGeometry.hasNotch(notchMac) && NotchGeometry.notchSize(notchMac) == CGSize(width: 184, height: 38))
+        check("sin notch hay una barra de 80 x 32", !NotchGeometry.hasNotch(plainMac) && NotchGeometry.notchSize(plainMac) == CGSize(width: 80, height: 32))
+        check("oculta mide como el notch; asoma +64; compacta +104",
+              NotchGeometry.islandSize(.hidden, metrics: notchMac).width == 184 && NotchGeometry.islandSize(.peek, metrics: notchMac).width == 248
+              && NotchGeometry.islandSize(.compact, metrics: notchMac).width == 288)
+        check("abierta mide 640 de ancho", NotchGeometry.islandSize(.expanded, metrics: notchMac).width == 640)
+        let f = NotchGeometry.islandFrame(.compact, metrics: notchMac)
+        check("la isla queda pegada al borde superior y centrada", f.maxY == 982 && f.midX == 756)
+        let pf = NotchGeometry.panelFrame(plainMac)
+        check("la ventana queda centrada arriba de su pantalla", pf.midX == plainMac.frame.midX && pf.maxY == plainMac.frame.maxY && pf.width == 720)
+        check("elige la pantalla con notch aunque no sea la primera", NotchGeometry.pick([plainMac, notchMac]) == notchMac)
+        check("sin notch usa la primera pantalla", NotchGeometry.pick([plainMac]) == plainMac)
+        check("sobre el notch (con margen de 6 pt) cuenta como encima",
+              NotchGeometry.overNotch(CGPoint(x: 756, y: 975), metrics: notchMac) && NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 5, y: 975), metrics: notchMac)
+              && !NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 8, y: 975), metrics: notchMac) && !NotchGeometry.overNotch(CGPoint(x: 756, y: 900), metrics: notchMac))
+        check("la zona transparente de la ventana no cuenta como isla", !NotchGeometry.contains(CGPoint(x: 756, y: 800), mode: .compact, metrics: notchMac))
+
         print(failures == 0 ? "ISLAND OK" : "ISLAND FALLOS: \(failures)")
         return failures == 0
     }
