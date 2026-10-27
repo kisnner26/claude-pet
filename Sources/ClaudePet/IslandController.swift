@@ -407,6 +407,10 @@ struct IslandView: View {
                 if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5)) }
                 Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
             }
+            Button("copiar resumen de sesión", systemImage: "doc.on.clipboard") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString("\(store.sessionSummary) · \(agentTab.rawValue) · \(agentTab == .claude ? store.state.label.lowercased() : store.codexState.label.lowercased())", forType: .string)
+            }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 Button { store.openLatestDiff() } label: {
                     HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
