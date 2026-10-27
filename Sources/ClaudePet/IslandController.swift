@@ -378,6 +378,8 @@ struct IslandView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(reading.remainingPercent) por ciento restante")
         .help("\(label): \(reading.remainingPercent)% restante · azul normal · ámbar cuidado · rojo crítico")
+        .contentShape(Rectangle())
+        .onTapGesture { model.poke() }
     }
 
     private var details: some View {
