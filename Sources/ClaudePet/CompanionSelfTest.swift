@@ -124,7 +124,7 @@ enum CompanionSelfTest {
         check("sin modo automatico: Claude siempre, Codex si esta", vis(codexApp: true, auto: false) == .init(claudeWindow: true, codexWindow: true)
               && vis(auto: false) == .init(claudeWindow: true, codexWindow: false))
         check("ocultar desde el menu oculta todo", vis(claudeApp: true, codexApp: true, hidden: true) == .init(claudeWindow: false, codexWindow: false))
-        let pinned = PetStore(); pinned.setApps(claude: false, codex: false); pinned.pinSession = true
+        let pinned = PetStore(); pinned.setApps(claude: false, codex: false); pinned.muteClaude = false; pinned.muteCodex = false; pinned.pinSession = true
         check("fijar sesión mantiene ambas mascotas visibles", pinned.visibility == .init(claudeWindow: true, codexWindow: true))
         pinned.muteClaude = true
         check("silenciar claude solo oculta su ventana", pinned.visibility == .init(claudeWindow: false, codexWindow: true))
