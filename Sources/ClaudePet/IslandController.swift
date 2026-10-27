@@ -294,6 +294,10 @@ struct IslandView: View {
             } else if store.state == .waiting || store.state == .error {
                 Text("terminal no identificada").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45))
             }
+            HStack(spacing: 8) {
+                Button("mission control") { AppController.shared.showMissionDashboard() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+                Button("relevo") { AppController.shared.showRelay() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+            }
         }
     }
 }
