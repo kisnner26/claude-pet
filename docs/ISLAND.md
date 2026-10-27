@@ -155,6 +155,8 @@ la etiqueta sale de `ContextReading.pressureLabel`, compartida por ambos agentes
 
 el texto copiado conserva también esa presión textual, así el diagnóstico sigue siendo legible aunque se comparta fuera de la interfaz.
 
+la etiqueta accesible del medidor compacto anuncia porcentaje y presión textual en una sola lectura.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
