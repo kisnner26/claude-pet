@@ -2,6 +2,13 @@ import Foundation
 import SwiftUI
 import AppKit
 
+enum MissionAgentFilter: String, CaseIterable, Identifiable {
+    case all = "todos"
+    case claude = "claude"
+    case codex = "codex"
+    var id: String { rawValue }
+}
+
 final class GitScanCoordinator: @unchecked Sendable {
     typealias Scanner = @Sendable (String) -> GitHealth
     private struct Request { let workspace: String; let completion: @Sendable (String, GitHealth) -> Void }
@@ -64,6 +71,7 @@ final class MissionControl: ObservableObject {
     @Published private(set) var recovery: RecoveryCapsule?
     @Published private(set) var toolCalls = 0
     @Published private(set) var activeSince: Date?
+    @Published var timelineFilter: MissionAgentFilter = .all
 
     private struct PendingError: Equatable {
         let session: String
@@ -136,12 +144,18 @@ final class MissionControl: ObservableObject {
     }
 
     var timelineSummary: String {
-        guard !timeline.isEmpty else { return "sin eventos recientes" }
-        return timeline.prefix(8).map { "\($0.agent): \($0.state.label.lowercased())" }.joined(separator: " · ")
+        let events = filteredTimeline
+        guard !events.isEmpty else { return "sin eventos recientes" }
+        return events.prefix(8).map { "\($0.agent): \($0.state.label.lowercased())" }.joined(separator: " · ")
+    }
+
+    var filteredTimeline: [MissionEvent] {
+        guard timelineFilter != .all else { return timeline }
+        return timeline.filter { $0.agent == timelineFilter.rawValue }
     }
 
     var timelineExport: String {
-        timeline.prefix(16).map { event in
+        filteredTimeline.prefix(16).map { event in
             let time = event.at.formatted(date: .omitted, time: .shortened)
             return "\(time)\t\(event.agent)\t\(event.state.rawValue)\t\(event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent)"
         }.joined(separator: "\n")

@@ -35,6 +35,9 @@ struct MissionControlMenu: View {
                     }
                 }
             }
+            Picker("filtrar actividad", selection: $control.timelineFilter) {
+                ForEach(MissionAgentFilter.allCases) { Text($0.rawValue).tag($0) }
+            }
             if let capsule = control.recovery {
                 Divider()
                 Text("cápsula de recuperación: \(capsule.project.isEmpty ? "proyecto" : capsule.project)")
@@ -45,7 +48,7 @@ struct MissionControlMenu: View {
             }
             if !control.timeline.isEmpty {
                 Divider()
-                ForEach(control.timeline.prefix(6)) { item in
+                ForEach(control.filteredTimeline.prefix(6)) { item in
                     HStack {
                         Text(item.at, format: .dateTime.hour().minute())
                         Text("\(item.agent): \(item.state.label.lowercased())\(item.project.isEmpty ? "" : " · \(item.project)")")
