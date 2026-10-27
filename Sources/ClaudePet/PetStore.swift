@@ -80,6 +80,7 @@ final class PetStore: ObservableObject {
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     @Published var questionAsks: [QuestionAsk] = []
     var answerQuestion: (String, [String: String]) -> Void = { _, _ in }
+    var dismissQuestion: (String) -> Void = { _ in }
     @Published var userHidden = false
     /// Mantiene las mascotas visibles aunque el agente esté en reposo, sin alterar el puente.
     @Published var pinSession: Bool = UserDefaults.standard.bool(forKey: "pinSession") {

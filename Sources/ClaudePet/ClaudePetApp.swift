@@ -197,6 +197,10 @@ final class AppController: NSObject, NSApplicationDelegate {
             guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }
             Task { @MainActor in PetStore.shared.questionAsks.removeAll { $0.id == id } }
         }
+        PetStore.shared.dismissQuestion = { [weak self] id in
+            guard self?.askServer.dismissQuestion(id: id) == true else { return }
+            Task { @MainActor in PetStore.shared.questionAsks.removeAll { $0.id == id } }
+        }
         do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
         syncPermissionFlag()
         PetStore.shared.onGlobalShortcutsChanged = { [weak self] enabled in self?.configureShortcuts(enabled) }

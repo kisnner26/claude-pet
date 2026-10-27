@@ -301,6 +301,9 @@ struct IslandView: View {
                     commitQuestion(ask, index: index, selected: Array(questionSelections[index, default: []]).sorted())
                 }.disabled(questionSelections[index, default: []].isEmpty || (questionSelections[index, default: []].contains(where: { q.options[$0].label.lowercased().contains("otra") }) && questionFreeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
             }
+            permissionButton("responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) {
+                store.dismissQuestion(ask.id); questionSelections.removeAll(); questionIndex = 0; questionFreeText = ""
+            }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 

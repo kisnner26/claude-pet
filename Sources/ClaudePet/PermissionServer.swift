@@ -167,6 +167,14 @@ final class PermissionServer: @unchecked Sendable {
         lock.lock(); let rest = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(rest); return true
     }
 
+    @discardableResult
+    func dismissQuestion(id: String) -> Bool {
+        lock.lock(); guard let i = questionPending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }; let q = questionPending.remove(at: i); lock.unlock()
+        q.closed = true; q.source?.cancel(); close(q.fd)
+        lock.lock(); let rest = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(rest)
+        return true
+    }
+
     private func dropQuestion(_ q: QuestionConn) {
         lock.lock(); questionPending.removeAll { $0 === q }; lock.unlock()
         q.closed = true; q.source?.cancel(); close(q.fd)
