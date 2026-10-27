@@ -38,6 +38,7 @@ final class PetStore: ObservableObject {
     /// De que lado esta la ventana de Codex respecto a la de Claude (-1 izquierda, +1 derecha). Lo fija el controlador de ventanas.
     @Published private(set) var codexSide = -1
     @Published private(set) var recentIslandSteps: [IslandStep] = []
+    @Published private(set) var demoMode = false
     /// Geometria del partido; `nil` si las dos mascotas no estan visibles o estan demasiado lejos.
     @Published private(set) var gameGeometry: GameGeometry?
     // Presencia: cada mascota aparece solo si su herramienta esta en uso.
@@ -121,6 +122,7 @@ final class PetStore: ObservableObject {
     private var cheerUntil = Date.distantPast
     private var concernUntil = Date.distantPast
     private var codexGestureUntil = Date.distantPast
+    private var demoTimer: Timer?
     private var collaborationSince: Date?
     var visibility: PresenceLogic.Visibility {
         PresenceLogic.visibility(Presence(claude: claudePresent, codex: codexPresent), auto: autoVisibility, userHidden: userHidden)
@@ -350,6 +352,39 @@ final class PetStore: ObservableObject {
     func previewCodex(_ s: PetState) {
         codexManual = (s, Date())
         objectWillChange.send()
+    }
+
+    /// Recorrido local para enseñar la isla sin hooks, sesiones ni escritura en disco.
+    func startDemo() {
+        demoTimer?.invalidate()
+        demoMode = true
+        claudePresent = true; codexPresent = true
+        manual = (.tool, Date())
+        codexManual = (.thinking, Date())
+        project = "claude-pet"
+        tool = "Edit"
+        contextReading = ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude-sonnet")
+        recentIslandSteps = [
+            IslandStep(agent: "claude", tool: "Edit", target: "Sources/ClaudePet/IslandController.swift", added: 42, deleted: 9, workspace: "claude-pet", at: Date()),
+            IslandStep(agent: "claude", tool: "Bash", target: "swift test", added: 0, deleted: 0, workspace: "claude-pet", at: Date().addingTimeInterval(-18)),
+            IslandStep(agent: "codex", tool: "Apply", target: "docs/ISLAND.md", added: 8, deleted: 2, workspace: "claude-pet", at: Date().addingTimeInterval(-33)
+            )
+        ]
+        permissionAsks = [PermissionAsk(id: "demo-permission", session: "demo", tool: "Bash", project: "claude-pet", detail: "swift build", canAlways: true, at: Date())]
+        questionAsks = [QuestionAsk(id: "demo-question", session: "demo", project: "claude-pet", questions: [IslandQuestion(id: "demo-q", header: "siguiente paso", question: "como quieres continuar?", options: [("rápido", "menos pasos"), ("revisar", "ver el diff")], multiSelect: false)])]
+        greetUntil = Date().addingTimeInterval(3)
+        objectWillChange.send()
+        demoTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.stopDemo() }
+        }
+    }
+
+    func stopDemo() {
+        demoTimer?.invalidate(); demoTimer = nil
+        guard demoMode else { return }
+        demoMode = false; permissionAsks = []; questionAsks = []; recentIslandSteps = []
+        contextReading = nil; manual = nil; codexManual = nil; claudePresent = false; codexPresent = false
+        updatePresence(); objectWillChange.send()
     }
 
     // MARK: pet bus

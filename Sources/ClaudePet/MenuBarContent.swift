@@ -30,6 +30,9 @@ struct MenuBarContent: View {
 
         Section {
             Button("abrir tablero", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
+            Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
+                store.demoMode ? store.stopDemo() : store.startDemo()
+            }
             Menu("web scout nativo", systemImage: "scope") {
                 Picker("mascota", selection: $webScout.agent) {
                     ForEach(WebScoutAgent.allCases, id: \.self) { Text($0.rawValue).tag($0) }

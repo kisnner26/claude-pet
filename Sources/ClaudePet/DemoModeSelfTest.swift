@@ -1,0 +1,16 @@
+import Foundation
+
+@MainActor
+enum DemoModeSelfTest {
+    static func run() -> Bool {
+        let store = PetStore()
+        store.startDemo()
+        let loaded = store.demoMode && store.permissionAsks.count == 1 && store.questionAsks.count == 1
+            && store.recentIslandSteps.count == 3 && store.contextReading?.pressure == .caution
+        store.stopDemo()
+        let clean = !store.demoMode && store.permissionAsks.isEmpty && store.questionAsks.isEmpty
+            && store.recentIslandSteps.isEmpty && store.contextReading == nil
+        print(loaded && clean ? "DEMO OK" : "DEMO FALLOS")
+        return loaded && clean
+    }
+}
