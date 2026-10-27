@@ -157,6 +157,8 @@ el texto copiado conserva también esa presión textual, así el diagnóstico si
 
 la etiqueta accesible del medidor compacto anuncia porcentaje y presión textual en una sola lectura.
 
+la ayuda contextual del medidor incluye también el estado actual, además de la leyenda de colores.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
