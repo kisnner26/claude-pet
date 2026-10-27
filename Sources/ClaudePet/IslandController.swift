@@ -114,7 +114,8 @@ final class IslandController {
         let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
         if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 
-        let size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: eh)
+        let size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: eh,
+                                            compactContentWidth: store.islandCompactMode.contentWidth(clock: store.islandShowClock))
         if model.mode != mode {
             if mode == .peek && model.mode == .hidden { model.greetUntil = now + 1.4 }
             model.mode = mode
@@ -194,6 +195,7 @@ struct IslandView: View {
 
     @ViewBuilder private var content: some View {
         let compact = model.mode != .expanded
+        let items = store.islandCompactMode.items
         let side: CGFloat = compact ? 20 : 56
         HStack(alignment: .center, spacing: compact ? 6 : 16) {
             PetFace(store: store, model: model)
@@ -210,11 +212,11 @@ struct IslandView: View {
                     .accessibilityHidden(true)
                     .help("estado claude: \(store.state.label.lowercased())")
             }
-            if compact, let reading = store.contextReading {
+            if compact, items.context, let reading = store.contextReading {
                 IslandContextMeter(reading: reading, label: "contexto", onOpen: { model.poke() })
                 if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() }.contextMenu { Button("copiar contexto", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string) } } }
             }
-            if compact, let badge = store.attentionBadgeLabel {
+            if compact, items.badge, let badge = store.attentionBadgeLabel {
                 Button { model.poke() } label: {
                     Text(badge)
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -243,8 +245,18 @@ struct IslandView: View {
             }
             if !compact { if let ask = store.permissionAsks.first { PermissionCardView(store: store, ask: ask) } else if let ask = store.questionAsks.first { QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion) } else { details } }
             Spacer(minLength: 0)
+            if compact, items.duration, store.state != .idle {
+                Text(store.stateDurationLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(durationColor(store.stateDurationSeconds))
+                    .accessibilityLabel("activo desde hace \(store.stateDurationLabel)")
+            }
+            if compact, items.branch, !store.mission.git.branch.isEmpty {
+                Label(store.mission.git.branch, systemImage: "arrow.triangle.branch").labelStyle(.titleAndIcon)
+                    .font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55)).lineLimit(1)
+                    .accessibilityLabel("rama \(store.mission.git.branch)")
+            }
+            if compact, store.islandShowClock { IslandClock() }
             if compact && store.codexPresent {
-                if let reading = store.codexContextReading {
+                if items.context, let reading = store.codexContextReading {
                     IslandContextMeter(reading: reading, label: "contexto codex", onOpen: { model.poke() })
                     if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() }.contextMenu { Button("copiar contexto codex", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string) } } }
                 }

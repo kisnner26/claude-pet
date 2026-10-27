@@ -81,6 +81,12 @@ final class PetStore: ObservableObject {
     @Published var islandActivationDelay: Double = {
         UserDefaults.standard.object(forKey: "islandActivationDelay") == nil ? 0.15 : min(1, max(0, UserDefaults.standard.double(forKey: "islandActivationDelay")))
     }() { didSet { UserDefaults.standard.set(islandActivationDelay, forKey: "islandActivationDelay") } }
+    @Published var islandCompactMode: IslandCompactMode = IslandCompactMode(rawValue: UserDefaults.standard.string(forKey: "islandCompactMode") ?? "") ?? .normal {
+        didSet { UserDefaults.standard.set(islandCompactMode.rawValue, forKey: "islandCompactMode") }
+    }
+    @Published var islandShowClock: Bool = UserDefaults.standard.bool(forKey: "islandShowClock") {
+        didSet { UserDefaults.standard.set(islandShowClock, forKey: "islandShowClock") }
+    }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

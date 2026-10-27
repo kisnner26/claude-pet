@@ -69,6 +69,17 @@ enum IslandPlacementSelfTest {
         check("dos pantallas no se mezclan", NotchGeometry.panelFrame(notched).midX == notched.frame.midX && NotchGeometry.panelFrame(external).midX == external.frame.midX)
         check("la abierta nunca desborda una pantalla estrecha", NotchGeometry.islandSize(.expanded, metrics: ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 500, height: 400), safeTop: 0, auxLeft: 0, auxRight: 0)).width <= 476)
 
+        // contenido compacto
+        check("el modo minimo solo muestra el estado", IslandCompactMode.minimal.items == .init())
+        check("el modo normal añade contexto y avisos", IslandCompactMode.normal.items.context && IslandCompactMode.normal.items.badge && !IslandCompactMode.normal.items.branch)
+        check("el modo completo añade duracion y rama", IslandCompactMode.full.items.duration && IslandCompactMode.full.items.branch)
+        check("el ancho crece con el modo y con el reloj", IslandCompactMode.minimal.contentWidth(clock: false) < IslandCompactMode.normal.contentWidth(clock: false)
+              && IslandCompactMode.normal.contentWidth(clock: false) < IslandCompactMode.full.contentWidth(clock: false)
+              && IslandCompactMode.normal.contentWidth(clock: true) > IslandCompactMode.normal.contentWidth(clock: false))
+        let narrow = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 800, height: 600), safeTop: 0, auxLeft: 0, auxRight: 0, centerLeftInset: 300, centerRightInset: 300)
+        let compactW = NotchGeometry.islandSize(.compact, metrics: narrow, compactContentWidth: IslandCompactMode.full.contentWidth(clock: true)).width
+        check("el modo completo se acota al espacio libre de la barra", compactW <= 200 && compactW >= 120)
+
         print(failures == 0 ? "UBICACION OK" : "UBICACION FALLOS: \(failures)")
         return failures == 0
     }
