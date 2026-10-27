@@ -92,3 +92,6 @@
 - guardarropa de seis atuendos pixel-art con temporada automática.
 - resumen semanal local con racha y nivel, e imagen compartible sin nombres de proyecto.
 - sonidos con timbre propio: campana FM, marimba, clic de papel, pad suave y golpe grave, con reverberación corta, nivel de pico por categoría y sin clics al empezar ni al terminar; WAVs de muestra en `docs/sonidos/` (`ClaudePet --export-sounds <carpeta>`).
+- efectos visuales: pulso de alerta con cuenta atrás, reloj de arena del pomodoro, contexto como líquido, aurora con MeshGradient, escenarios pixel-art por estado (lluvia, sol, chispas, estrellas), lluvia de líneas al editar, halo y estrellas por nivel, tráiler de 3 s al terminar, choque de manos entre claude y codex y gotas de metal líquido al abrir la isla.
+- los atuendos se desbloquean por nivel real de actividad.
+- rendimiento: el transcript se lee desde la cola, la mirada se publica solo si cambia, la búsqueda de terminal se recuerda 5 s y el contexto se escanea cada 5 s (15 s en reposo).
