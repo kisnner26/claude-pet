@@ -2,7 +2,7 @@
 set -u
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BIN="$ROOT/.build/debug/ClaudePet"
+BIN=${1:-"$ROOT/.build/debug/ClaudePet"}
 TMP_HOME=$(mktemp -d "${TMPDIR:-/tmp}/claudepet-cpu.XXXXXX") || exit 1
 PID=""
 cleanup() {
@@ -25,8 +25,9 @@ for _ in $(jot 30 2>/dev/null || seq 30); do
 done
 
 if [ "$count" -gt 0 ]; then
-  awk -v sum="$sum" -v count="$count" 'BEGIN { printf "cpu medio durante %d s: %.2f%%\n", count, sum/count }'
+  awk -v sum="$sum" -v count="$count" 'BEGIN { avg=sum/count; printf "cpu medio durante %d s: %.2f%%\n", count, avg; exit(avg > 5 ? 1 : 0) }'
+  exit $?
 else
   echo "cpu medio: sin muestras"
+  exit 1
 fi
-exit 0
