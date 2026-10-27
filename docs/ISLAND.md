@@ -143,6 +143,8 @@ los títulos de estado de claude y codex tienen menú contextual para copiar sol
 
 la insignia de pendientes muestra una ayuda contextual con el total y recuerda que al pulsarla se abre el detalle.
 
+`copiar contexto` usa un resumen completo con modelo, porcentaje restante y tokens disponibles; `SafetySelfTest` valida el formato sin guardar el transcript.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
