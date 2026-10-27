@@ -53,6 +53,20 @@ medición local con `tests/cpu.sh` (30 s, `ps`, después del arranque):
 
 los atajos globales son opt-in, aceptan únicamente ctrl+option+a/d/i/s/p, ignoran repeticiones y se desregistran al cerrar. requieren permiso de accesibilidad de macos.
 
+## sin notch
+
+las macs sin notch (macbook pro m1 2020, macbook air, imac, mac mini, monitores externos) usan una pastilla propia en vez del recorte del notch. decisiones de geometría, todas en `NotchGeometry` y cubiertas por `--selftest-placement` (matriz de 7 pantallas sintéticas por 4 ubicaciones por 4 modos):
+
+- **altura**: la de la barra de menús real de esa pantalla (`NSStatusBar.system.thickness`), no un valor fijo.
+- **ancho**: depende del contenido (`mínimo`, `normal`, `completo`, más reloj opcional) y se acota al espacio central libre de la barra; los items reales de la barra no se pueden leer de forma pública, así que se usa un margen conservador.
+- **forma**: fondo negro, borde interior de 0,5 pt, sombra solo hacia dentro de la pantalla y esquinas redondeadas según el borde del que sale. con alto contraste el borde sube a 1 pt.
+- **zona de activación**: franja centrada de 120 a 400 pt (por defecto 240) con retraso configurable (por defecto 0,15 s). con la barra de menús oculta se reduce a una línea de 4 pt en el borde, para no robar clics a las apps.
+- **ubicaciones**: arriba, abajo (encima del dock), lateral (borde derecho, centrada) y flotante (separada 8 pt, con desplazamiento recordado).
+- **pantallas**: `pantalla del notch`, `seguir al ratón` (salta tras 0,6 s seguidos en la otra pantalla) y `pantalla fija` por nombre.
+- **espacios**: se muestra en todos los escritorios y sobre apps a pantalla completa solo con hover en el borde o con alerta.
+
+capturas por entorno y escala (1x y 2x) en `docs/img/sin-notch/`; se regeneran con `tests/snapshots-sin-notch.sh`.
+
 ## límites conocidos
 
 ### sin notch
@@ -84,3 +98,16 @@ el detalle de capacidades y cambios pequeños está en [CHANGELOG-ISLAND.md](CHA
 las decisiones de permisos se guardan localmente en `~/.claude-pet/audit/decisions.jsonl`, con permisos 0600, solo durante 90 días y sin comandos ni rutas completas. se puede cambiar la carpeta en pruebas con `CLAUDE_PET_AUDIT`.
 
 el menú permite abrir ese registro directamente; si todavía no existe, crea un archivo vacío con permisos privados.
+
+## checklist para macbook pro m1 2020 (sin notch)
+
+- [ ] barra clara: mueve el cursor al centro de la barra de menús; la pastilla asoma y no tapa iconos ni el reloj.
+- [ ] barra oscura (fondo de pantalla oscuro): el borde fino se ve y la silueta no se funde con la barra.
+- [ ] autoocultar la barra de menús (ajustes del sistema, escritorio y dock): al llevar el cursor al borde superior la isla asoma sin dejar hueco.
+- [ ] app a pantalla completa: la isla no aparece sola; con el cursor en el borde asoma, y con un permiso pendiente abre.
+- [ ] monitor externo: elige `pantalla fija` y luego `seguir al ratón`; al cruzar de pantalla espera cerca de 0,6 s antes de saltar.
+- [ ] dos espacios: cambia de escritorio con ctrl+flecha; la isla sigue ahí.
+- [ ] ubicación `abajo`: queda encima del dock, nunca detrás.
+- [ ] clics: con la isla oculta, haz clic en un menú de la barra justo debajo; debe abrirse el menú.
+- [ ] sonido: prueba "probar sonido de terminado" en el menú y confirma volumen razonable.
+- [ ] guardarropa: clic derecho sobre la mascota; elige gafas y gorro y confirma que los ojos siguen viéndose.

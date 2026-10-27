@@ -79,3 +79,15 @@
 - botones de decisión con realce de hover, hundimiento de un píxel y respuesta inmediata.
 - configuración local versionada con validación estricta y comandos de inspección.
 
+
+- ubicaciones de la isla (arriba, abajo, lateral, flotante), zona de activación de 120 a 400 pt con retraso y barra de menús oculta.
+- apariencia sin notch: borde interior, sombra hacia dentro y alto contraste; contenido compacto mínimo, normal o completo y reloj opcional.
+- selector de pantalla fija y seguimiento del ratón con histéresis de 0,6 s.
+- galería de capturas por ubicación y escala; la escala 1x ya no sale siempre a 2x.
+- reglas de aprobación (esta sesión, este proyecto 30 min, siempre) con caducidad y revocación; riesgo alto y comandos compuestos nunca se recuerdan.
+- aprobación de planes (ExitPlanMode) desde la isla.
+- puntos de restauración con `git stash create` en `refs/claude-pet/`, con confirmación y tope de 20 por proyecto.
+- detector de bucles de errores, búsquedas y ediciones repetidas.
+- banco de 13 sonidos sintetizados en escala pentatónica, motor con límite por categoría y reemplazo por archivo validado.
+- guardarropa de seis atuendos pixel-art con temporada automática.
+- resumen semanal local con racha y nivel, e imagen compartible sin nombres de proyecto.

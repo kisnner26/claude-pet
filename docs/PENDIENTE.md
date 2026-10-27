@@ -1,6 +1,20 @@
-# pendiente de verificación
+# pendiente
 
-- la lectura de items reales de la barra de menús no está disponible de forma pública y segura; se usa un margen central conservador en `ScreenMetrics`.
-- autoocultar de la barra, stage manager, dock y pantalla completa requieren una prueba manual con macos real.
-- las variantes lateral, inferior y flotante todavía no están implementadas.
-- no se pudo medir una transición a 60 fps en pantalla real desde el entorno de pruebas.
+## hecho en la consolidación
+
+fase 1 casi completa; fase 2, 3 y 4 en parte. el detalle está en `docs/CHANGELOG-ISLAND.md`.
+
+## no hecho todavía
+
+- fase 1: variante lateral e inferior con contenido girado (hoy solo cambia la geometría y las esquinas); arrastre de la isla flotante.
+- fase 2: vista previa real de diffs de Edit/Write (el hook solo envía la ruta); aprobación por lotes; teclado directo en tarjetas (Enter y Esc) porque exige que la ventana sea clave y robaría el foco de la terminal; resultado de pruebas desde PostToolUse (no se verificó que Claude Code envíe el código de salida); presupuesto de tokens; mapa de sesiones y línea de tiempo con deslizador; paleta de comandos.
+- fase 3: estiramiento escalonado del contenido, tarjetas con salida direccional, medidores interpolados, cola de animaciones con prioridades, anticipación del salto, emotes (sueño, confeti), baile con música, silencio con No Molestar y durante llamadas, háptica.
+- fase 4: soltar archivos sobre la isla, modo companion y enviar al escritorio, pastillas configurables y barra de herramientas al hover, recap del lunes dentro de la isla, modo foco, pausa activa y pomodoro, atajos configurables, onboarding, lectura en voz alta, demo guionizada ampliada, cadenas localizables.
+- fase 5: ventana de ajustes, motor de temas, editor de sprites y mascotas personalizadas, reglas declarativas, perfiles, respaldos, paquetes importables. `ConfigStore` existe pero no está conectado a los ajustes de la app (que viven en UserDefaults).
+
+## sin verificar en pantalla real
+
+- altura efectiva de la barra con distintas escalas, autoocultar, pantalla completa, monitor externo, stage manager, dock y dos espacios.
+- audio real, volumen y que `AVAudioEngine` arranque en la máquina del usuario.
+- clic derecho y menús, y que Claude Code entregue ExitPlanMode por el hook de permisos.
+- una medición a 60 fps de las transiciones.
