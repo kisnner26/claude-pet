@@ -153,6 +153,8 @@ el anillo abierto acompaña el color con una etiqueta textual `normal`, `cuidado
 
 la etiqueta sale de `ContextReading.pressureLabel`, compartida por ambos agentes y cubierta por `SafetySelfTest`.
 
+el texto copiado conserva también esa presión textual, así el diagnóstico sigue siendo legible aunque se comparta fuera de la interfaz.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
