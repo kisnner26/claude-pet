@@ -15,7 +15,7 @@ struct ContextReading: Equatable {
         return min(1, max(0, Double(remainingTokens) / Double(compactAtTokens)))
     }
     var remainingPercent: Int { Int((remainingFraction * 100).rounded()) }
-    var summary: String { "\(model) · \(remainingPercent)% restante · \(remainingTokens) tokens" }
+    var summary: String { "\(model) · \(remainingPercent)% restante · \(usedTokens) usados · \(remainingTokens) disponibles" }
     var pressure: ContextPressure {
         if remainingFraction <= 0.15 { return .critical }
         if remainingFraction <= 0.35 { return .caution }
