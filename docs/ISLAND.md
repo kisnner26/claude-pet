@@ -164,3 +164,5 @@ el modo compacto añade un icono semántico para el estado de claude: puntos al 
 codex muestra su propio icono con la misma semántica, usando únicamente el estado recibido de su adaptador.
 
 ambos iconos compactos tienen ayuda contextual con el estado textual actual.
+
+los medidores compactos admiten clic secundario para copiar el resumen de contexto; el clic principal conserva la apertura del detalle.
