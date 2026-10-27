@@ -183,6 +183,16 @@ final class MissionControl: ObservableObject {
         }
         return rows.joined(separator: "\n")
     }
+    var timelineJSON: String {
+        let rows = filteredTimeline.prefix(16).map { event -> [String: String] in
+            ["hora": event.at.formatted(date: .omitted, time: .shortened),
+             "agente": event.agent,
+             "estado": event.state.rawValue,
+             "proyecto": event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent]
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys]) else { return "[]" }
+        return String(decoding: data, as: UTF8.self)
+    }
 
     func openWorkspace() {
         guard !localWorkspace.isEmpty else { return }

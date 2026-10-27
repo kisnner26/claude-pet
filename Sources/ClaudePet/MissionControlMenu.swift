@@ -31,6 +31,9 @@ struct MissionControlMenu: View {
             Button("copiar actividad como markdown") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.timelineMarkdown, forType: .string)
             }
+            Button("copiar actividad como json") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.timelineJSON, forType: .string)
+            }
             Divider()
             Menu("panel operativo") {
                 ForEach(control.insights) { insight in
