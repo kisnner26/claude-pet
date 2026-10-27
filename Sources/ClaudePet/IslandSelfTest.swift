@@ -60,6 +60,29 @@ enum IslandSelfTest {
         check("una alerta durante ausencia conserva la isla abierta", m.tick(input(180, tasks: true, alert: true, idle: 180)) == .expanded && m.reason == .alert)
         check("el fin de tarea no pisa una alerta activa", m.tick(input(181, tasks: true, alert: true, finished: true, idle: 180)) == .expanded && m.reason == .alert)
 
+        // 5b. cierre rapido al salir el cursor (hover y clic); las alertas y lo terminado no se tocan
+        m = IslandMachine(); m.closeDelay = 1.2
+        _ = m.tick(input(0, notch: true)); _ = m.tick(input(0.7, notch: true))
+        check("abierta por hover y con el cursor encima, no se cierra", m.mode == .expanded && m.reason == .hover && m.tick(input(5, island: true, tasks: true)) == .expanded)
+        check("al salir el cursor empieza una cuenta corta", m.tick(input(6, tasks: true)) == .expanded && (m.countdown ?? 0) > 0.8)
+        check("a 0,6 s la barra va por la mitad", abs((m.tick(input(6.6, tasks: true)) == .expanded ? m.countdown ?? 0 : 0) - 0.5) < 0.01)
+        check("a 1,2 s se pliega", m.tick(input(7.3, tasks: true)) == .compact && m.countdown == nil)
+        m = IslandMachine(); m.closeDelay = 1.2
+        _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, click: true))
+        check("un clic deja mas margen: 3 s", m.tick(input(3, tasks: true)) == .expanded && m.tick(input(5.9, tasks: true)) == .expanded && m.tick(input(8.1, tasks: true)) == .compact)
+        m = IslandMachine(); m.closeDelay = 1.2
+        _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, click: true)); _ = m.tick(input(2, tasks: true))
+        check("volver con el cursor cancela el cierre", m.tick(input(2.5, island: true, tasks: true)) == .expanded && m.countdown == nil && m.tick(input(20, island: true, tasks: true)) == .expanded)
+        m = IslandMachine(); m.closeDelay = 1.2
+        _ = m.tick(input(0, tasks: true, alert: true))
+        check("una alerta nunca se cierra por salir el cursor", m.tick(input(30, tasks: true, alert: true)) == .expanded && m.reason == .alert)
+        m = IslandMachine(); m.closeDelay = 1.2
+        _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, finished: true))
+        check("la vista de terminado conserva su propio plazo", m.reason == .finished && m.tick(input(3, tasks: true)) == .expanded)
+        m = IslandMachine()
+        _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, click: true))
+        check("sin retraso configurado queda el plazo de 60 s", m.tick(input(30, tasks: true)) == .expanded)
+
         // 7b. retraso de activacion: el cursor debe quedarse sobre la zona antes de asomar
         m = IslandMachine(); m.activationDelay = 0.3
         check("con retraso, un roce rapido no asoma", m.tick(input(0, notch: true)) == .hidden && m.tick(input(0.1, notch: true)) == .hidden && m.tick(input(0.15)) == .hidden)

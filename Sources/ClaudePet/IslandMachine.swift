@@ -56,6 +56,11 @@ struct IslandMachine {
     /// Tiempo que el cursor debe permanecer sobre la zona de activacion antes de asomar (0 = de inmediato).
     var activationDelay: TimeInterval = 0
     private var approachSince: TimeInterval?
+    /// Segundos que la isla abierta por hover o clic espera, con el cursor fuera, antes de plegarse. nil = solo el plazo de 60 s.
+    var closeDelay: TimeInterval?
+    /// Un clic deliberado deja mas margen que un simple paso del cursor.
+    static let clickGraceFactor = 2.5
+    static let clickGraceMinimum: TimeInterval = 1.5
 
     private mutating func go(_ m: IslandMode, _ r: IslandReason, _ now: TimeInterval) {
         mode = m; reason = r; enteredAt = now; lastActivity = now
@@ -131,7 +136,14 @@ struct IslandMachine {
 
         case .expanded:
             // 5. se pliega tras 60 s sin actividad; los ultimos 10 s muestran una cuenta atras.
-            if i.overIsland || i.clickedPet { lastActivity = now }
+            if i.overIsland || i.clickedPet { lastActivity = now; leftSince = nil } else if leftSince == nil { leftSince = now }
+            // cierre rapido: con el cursor fuera, una isla abierta por hover o clic se pliega enseguida y una barra lo anuncia
+            if let delay = closeDelay, reason == .hover || reason == .click, let left = leftSince {
+                let grace = reason == .click ? max(Self.clickGraceMinimum, delay * Self.clickGraceFactor) : delay
+                if now - left >= grace { go(resting(i), .none, now); break }
+                countdown = max(0, min(1, 1 - (now - left) / grace))
+                break
+            }
             let quiet = now - lastActivity
             if quiet >= Self.autoClose {
                 go(resting(i), .none, now)
