@@ -132,3 +132,5 @@ la insignia de decisiones pendientes es interactiva: pulsarla activa la misma re
 los medidores compactos de contexto también son interactivos: tocar porcentaje o barra abre el detalle correspondiente.
 
 el resumen abierto muestra el modelo detectado junto al anillo y permite copiar su nombre; si falta, indica que no está disponible.
+
+la pestaña codex replica ese resumen solo cuando su adaptador publica una lectura propia: anillo, porcentaje, modelo y copia del nombre, sin inferir paridad.
