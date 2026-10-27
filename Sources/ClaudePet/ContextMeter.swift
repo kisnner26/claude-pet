@@ -21,6 +21,13 @@ struct ContextReading: Equatable {
         if remainingFraction <= 0.35 { return .caution }
         return .normal
     }
+    var pressureLabel: String {
+        switch pressure {
+        case .normal: return "normal"
+        case .caution: return "cuidado"
+        case .critical: return "crítico"
+        }
+    }
 }
 
 /// Lee solo contadores de uso del transcript local. No conserva mensajes, herramientas ni prompts.

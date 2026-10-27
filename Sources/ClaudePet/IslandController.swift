@@ -481,7 +481,7 @@ struct IslandView: View {
                             .help(reading.summary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
-                            Text(reading.pressure == .normal ? "normal" : (reading.pressure == .caution ? "cuidado" : "crítico")).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
+                            Text(reading.pressureLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
                             Button("copiar modelo") {
                                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
                             }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))

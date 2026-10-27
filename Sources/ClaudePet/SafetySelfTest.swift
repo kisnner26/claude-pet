@@ -116,6 +116,7 @@ enum SafetySelfTest {
         check("medidor ofrece resumen copiable", context?.summary.contains("25% restante") == true)
         check("medidor cambia de presión por margen", context?.pressure == .caution
               && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
+        check("medidor expone etiqueta de presión", context?.pressureLabel == "cuidado")
 
         let codexURL = URL(fileURLWithPath: root).appendingPathComponent("codex-context.jsonl")
         let codexLines = """
