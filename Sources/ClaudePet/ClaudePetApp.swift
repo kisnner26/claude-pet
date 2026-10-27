@@ -69,6 +69,10 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let shortcutMonitor = GlobalShortcutMonitor()
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        if CommandLine.arguments.contains("--cpu-island-hidden") {
+            PetStore.shared.layout = .island
+            PetStore.shared.userHidden = true
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
             HeroSnapshot.run(into: CommandLine.arguments[i + 1]); exit(0)
         }
