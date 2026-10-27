@@ -56,7 +56,8 @@ final class IslandController {
 
     private static func metrics(of s: NSScreen) -> ScreenMetrics {
         ScreenMetrics(frame: s.frame, safeTop: s.safeAreaInsets.top,
-                      auxLeft: s.auxiliaryTopLeftArea?.width ?? 0, auxRight: s.auxiliaryTopRightArea?.width ?? 0)
+                      auxLeft: s.auxiliaryTopLeftArea?.width ?? 0, auxRight: s.auxiliaryTopRightArea?.width ?? 0,
+                      menuBarHeight: NSStatusBar.system.thickness)
     }
 
     /// Recalcula la pantalla elegida cada vez que se conecta, desconecta o cambia una pantalla.

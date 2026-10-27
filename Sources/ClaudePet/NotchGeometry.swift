@@ -8,6 +8,8 @@ struct ScreenMetrics: Equatable {
     /// Anchos de las zonas a cada lado del notch (`auxiliaryTopLeftArea` y `auxiliaryTopRightArea`).
     var auxLeft: CGFloat
     var auxRight: CGFloat
+    /// Altura real de la barra de menús en puntos; se inyecta en pruebas.
+    var menuBarHeight: CGFloat = 24
 }
 
 enum IslandScreenPreference: String, CaseIterable { case notch = "pantalla del notch"; case mouse = "seguir al ratón" }
@@ -21,13 +23,13 @@ enum NotchGeometry {
     static let expandedHeight: CGFloat = 196
     static let hitMargin: CGFloat = 6
     /// Pantalla sin notch: barra de este ancho y alto en reposo.
-    static let barSize = CGSize(width: 80, height: 32)
+    static let barWidth: CGFloat = 80
 
     static func hasNotch(_ m: ScreenMetrics) -> Bool { m.safeTop > 0 && m.frame.width - m.auxLeft - m.auxRight > 0 }
 
     /// Tamano del notch real, o de la barra cuando no hay notch.
     static func notchSize(_ m: ScreenMetrics) -> CGSize {
-        hasNotch(m) ? CGSize(width: m.frame.width - m.auxLeft - m.auxRight, height: m.safeTop) : barSize
+        hasNotch(m) ? CGSize(width: m.frame.width - m.auxLeft - m.auxRight, height: m.safeTop) : CGSize(width: barWidth, height: m.menuBarHeight)
     }
 
     static func islandSize(_ mode: IslandMode, metrics m: ScreenMetrics, expandedHeight: CGFloat = expandedHeight) -> CGSize {
