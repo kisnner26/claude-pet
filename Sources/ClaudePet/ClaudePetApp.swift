@@ -85,6 +85,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-loops") { exit(LoopDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-sound") { exit(SoundSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-wardrobe") { exit(WardrobeSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-stats") { exit(ActivityStatsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {
@@ -159,6 +160,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-wardrobe"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.wardrobe(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-recap"), i + 1 < CommandLine.arguments.count {
+            var r = WeeklyRecap(); r.sessions = 14; r.tools = 380; r.permissions = 42; r.errors = 3; r.activeDays = 5; r.streak = 4; r.level = 3
+            r.topAgent = "claude"; r.topProject = "claude-pet"; r.busiestDay = "jueves"
+            try? RecapCard.png(r, showProject: false)?.write(to: URL(fileURLWithPath: CommandLine.arguments[i + 1])); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)
@@ -248,6 +254,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         catch { PetStore.shared.setBridge(false); NSLog("ClaudePet: no se pudo abrir el socket: \(error)") }
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
+        ActivityStats.shared.load()
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
         PetStore.shared.approvalRules = ApprovalRules.shared.active()
@@ -266,6 +273,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
+            ActivityStats.shared.recordPermission()
             self?.askServer.resolve(id: id, decision)
         }
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }

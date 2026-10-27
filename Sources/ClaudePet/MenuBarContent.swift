@@ -131,6 +131,16 @@ struct MenuBarContent: View {
                     Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
+                Menu("resumen semanal", systemImage: "chart.bar") {
+                    let recap = ActivityStats.shared.recap()
+                    Text("nivel \(recap.level) · racha \(recap.streak) · \(recap.sessions) sesiones")
+                    Button("copiar resumen") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(recap.markdown(showProject: true), forType: .string) }
+                    Button("guardar imagen para compartir…") {
+                        let panel = NSSavePanel(); panel.allowedContentTypes = [.png]; panel.nameFieldStringValue = "mi-semana.png"
+                        if panel.runModal() == .OK, let url = panel.url, let data = RecapCard.png(recap, showProject: false) { try? data.write(to: url) }
+                    }
+                    Button("borrar estadísticas") { ActivityStats.shared.reset() }
+                }
                 Menu("guardarropa", systemImage: "tshirt") {
                     ForEach(Outfit.allCases) { outfit in
                         Toggle(outfit.title, isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))

@@ -121,8 +121,13 @@ final class IslandController {
         let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
         let sound = SoundEngine.shared
         sound.enabled = store.soundsEnabled; sound.volume = Float(store.soundVolume)
-        if doneNow { finishedAt = now; model.hopStart = now; sound.play(.done) }
-        if errorNow { sound.play(.error) }
+        if doneNow {
+            finishedAt = now; model.hopStart = now; sound.play(.done)
+            if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
+            if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
+            ActivityStats.shared.save()
+        }
+        if errorNow { sound.play(.error); ActivityStats.shared.recordError() }
         if store.permissionAsks.count > lastAskCount { sound.play(.permission) }
         if store.questionAsks.count > lastQuestionCount { sound.play(.question) }
         lastAskCount = store.permissionAsks.count; lastQuestionCount = store.questionAsks.count
@@ -648,5 +653,44 @@ extension IslandSnapshot {
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+/// Imagen compartible del resumen semanal. Sin nombres de proyecto salvo que el usuario lo pida.
+struct RecapCard: View {
+    let recap: WeeklyRecap
+    var showProject = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Canvas { gc, size in PetFace.draw(&gc, size: size, pixels: Sprite.block(.done, tick: 0), pose: PetPose()) }.frame(width: 56, height: 56)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("MI SEMANA").font(.system(size: 11, weight: .bold, design: .monospaced)).tracking(2).foregroundColor(Color(hex: 0xE0824F))
+                    Text("nivel \(recap.level) · racha de \(recap.streak) \(recap.streak == 1 ? "dia" : "dias")").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
+                }
+            }
+            HStack(spacing: 10) {
+                stat("\(recap.sessions)", "sesiones")
+                stat("\(recap.tools)", "herramientas")
+                stat("\(recap.permissions)", "permisos")
+                stat("\(recap.activeDays)/7", "dias activos")
+            }
+            if let a = recap.topAgent { Text("agente mas usado: \(a)").font(.system(size: 12, design: .monospaced)).foregroundColor(.white.opacity(0.7)) }
+            if showProject, let p = recap.topProject { Text("proyecto mas usado: \(p)").font(.system(size: 12, design: .monospaced)).foregroundColor(.white.opacity(0.7)) }
+            if let d = recap.busiestDay { Text("dia mas activo: \(d)").font(.system(size: 12, design: .monospaced)).foregroundColor(.white.opacity(0.7)) }
+        }
+        .padding(22).frame(width: 420, alignment: .leading).background(Color.black)
+    }
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(.system(size: 22, weight: .bold, design: .monospaced)).foregroundColor(.white)
+            Text(label).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55))
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    @MainActor static func png(_ recap: WeeklyRecap, showProject: Bool) -> Data? {
+        let r = ImageRenderer(content: RecapCard(recap: recap, showProject: showProject))
+        r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 }
