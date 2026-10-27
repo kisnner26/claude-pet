@@ -159,6 +159,8 @@ la etiqueta accesible del medidor compacto anuncia porcentaje y presión textual
 
 la ayuda contextual del medidor incluye también el estado actual, además de la leyenda de colores.
 
+cuando la presión es crítica, claude y codex muestran además un icono de advertencia; el estado accesible sigue anunciándose como `crítico`.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
