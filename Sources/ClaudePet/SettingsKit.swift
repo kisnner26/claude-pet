@@ -44,7 +44,7 @@ struct SCard<Content: View>: View {
 }
 
 struct SDivider: View {
-    var body: some View { Rectangle().fill(SettingsTheme.line).frame(height: 1).padding(.leading, 20) }
+    var body: some View { Rectangle().fill(SettingsTheme.line).frame(height: 1).padding(.horizontal, 20) }
 }
 
 struct SRow<Trailing: View>: View {
