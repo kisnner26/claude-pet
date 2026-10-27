@@ -75,6 +75,11 @@ struct PermissionCardView: View {
                 if ask.canAlways && ask.tool != "ExitPlanMode" { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
                 IslandActionButton(title: ask.tool == "ExitPlanMode" ? "aprobar plan" : "permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
                 scopeMenu(for: ask, risk: reading.risk)
+                let batch = ApprovalBatch.group(store.permissionAsks)
+                if batch.first?.id == ask.id, batch.count >= ApprovalBatch.minimum {
+                    IslandActionButton(title: "permitir las \(batch.count) lecturas", fill: Color(hex: 0xE0824F).opacity(0.85), ink: .black) { store.answerBatch(batch.map(\.id)) }
+                        .help(batch.map(\.detail).joined(separator: "\n"))
+                }
                 IslandActionButton(title: "responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
