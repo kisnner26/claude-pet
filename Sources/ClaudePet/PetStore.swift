@@ -145,6 +145,7 @@ final class PetStore: ObservableObject {
     private var concernUntil = Date.distantPast
     private var codexGestureUntil = Date.distantPast
     private var demoTimer: Timer?
+    private var stateSince = Date()
     private var collaborationSince: Date?
     var visibility: PresenceLogic.Visibility {
         PresenceLogic.visibility(Presence(claude: (claudePresent || pinSession) && !muteClaude,
@@ -159,6 +160,10 @@ final class PetStore: ObservableObject {
         case 1: return "1 decisión pendiente"
         default: return "\(pendingAttentionCount) decisiones pendientes"
         }
+    }
+    var stateDurationLabel: String {
+        let seconds = max(0, Int(Date().timeIntervalSince(stateSince)))
+        return seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min"
     }
     var alertsAreSnoozed: Bool { Date() < alertsSnoozedUntil }
     func snoozeAlerts(minutes: Int = 15) {
@@ -810,6 +815,7 @@ final class PetStore: ObservableObject {
         project = newProject
         if new != state {
             state = new
+            stateSince = Date()
             if new == .done { claudeDoneUntil = Date().addingTimeInterval(2.5) }
             announce("claude pet: \(new.label.lowercased())")
         }

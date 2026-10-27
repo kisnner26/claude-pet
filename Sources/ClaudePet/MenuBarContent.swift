@@ -13,6 +13,7 @@ struct MenuBarContent: View {
     var body: some View {
         Section("en vivo") {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
+            if store.state != .idle { Label("desde hace \(store.stateDurationLabel)", systemImage: "timer") }
             Label("codex: \(store.codexPresent ? store.codexState.label.lowercased() : "en reposo")", systemImage: "sparkles")
             if let warning = store.safetyAlert {
                 Label(warning.title, systemImage: "exclamationmark.triangle.fill")
