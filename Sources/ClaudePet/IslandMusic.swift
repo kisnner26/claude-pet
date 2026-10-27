@@ -143,3 +143,25 @@ extension IslandSnapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 }
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-permission <ruta.png>`: la tarjeta de permiso con el aviso del perimetro (no persiste nada).
+    @MainActor static func fence(to path: String) {
+        let root = "/Users/demo/mi-app"
+        PerimeterStore.shared.storagePath = nil      // la captura nunca escribe tu archivo real
+        PerimeterStore.shared.upsert(Perimeter(root: root, allow: ["Sources/Auth"], mode: .ask))
+        let inside = PermissionAsk(id: "a", session: "s", tool: "Edit", project: "mi-app", detail: root + "/Sources/Auth/Login.swift", canAlways: true, at: Date())
+        let outside = PermissionAsk(id: "b", session: "s", tool: "Edit", project: "mi-app", detail: root + "/Sources/Billing/Charge.swift", canAlways: true, at: Date())
+        let secret = PermissionAsk(id: "c", session: "s", tool: "Write", project: "mi-app", detail: root + "/Sources/Auth/.env", canAlways: false, at: Date())
+        let view = VStack(spacing: 14) {
+            PermissionCardView(store: PetStore.shared, ask: inside)
+            PermissionCardView(store: PetStore.shared, ask: outside)
+            PermissionCardView(store: PetStore.shared, ask: secret)
+        }
+        .padding(18).frame(width: 440).background(Color.black)
+        let r = ImageRenderer(content: view); r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}

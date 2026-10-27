@@ -168,6 +168,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-settings"), i + 1 < CommandLine.arguments.count {
             SettingsSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-music"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.music(to: CommandLine.arguments[i + 1]); exit(0)
         }

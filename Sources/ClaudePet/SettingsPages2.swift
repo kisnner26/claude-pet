@@ -459,7 +459,9 @@ struct GlobListEditor: View {
 struct PerimetroPage: View {
     @ObservedObject var store: PetStore
 
-    private var workspace: String { store.mission.workspace }
+    /// Solo para las capturas de documentacion: finge un proyecto activo.
+    static var previewWorkspace: String?
+    private var workspace: String { Self.previewWorkspace ?? store.mission.workspace }
     private var current: Perimeter? { store.perimeters.first { $0.root == workspace } }
 
     var body: some View {

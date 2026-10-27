@@ -158,6 +158,11 @@ enum SettingsSnapshot {
     @MainActor static func render(to directory: String, pages: [SettingsPage] = SettingsPage.allCases) {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         for page in pages {
+            if page == .perimetro, PerimetroPage.previewWorkspace == nil {
+                let sample = "/Users/demo/mi-app"
+                PerimetroPage.previewWorkspace = sample
+                PetStore.shared.perimeters = [Perimeter(root: sample, allow: ["Sources/Auth", "Tests/**"], protect: Perimeter.defaultProtect, mode: .ask)]
+            }
             let host = NSHostingView(rootView: SettingsView(store: PetStore.shared, page: page, fixedSize: true))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: .darkAqua)
