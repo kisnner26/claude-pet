@@ -163,6 +163,9 @@ final class PetStore: ObservableObject {
         default: return "\(pendingAttentionCount) decisiones pendientes"
         }
     }
+    var attentionBadgeLabel: String? {
+        pendingAttentionCount == 0 ? nil : (pendingAttentionCount > 9 ? "9+" : "\(pendingAttentionCount)")
+    }
     var stateDurationLabel: String {
         let seconds = max(0, Int(Date().timeIntervalSince(stateSince)))
         return seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min"

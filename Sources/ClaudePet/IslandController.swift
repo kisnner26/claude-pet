@@ -211,6 +211,15 @@ struct IslandView: View {
                     .foregroundColor(contextColor(reading.pressure))
                     .accessibilityLabel("contexto: \(reading.remainingPercent) por ciento restante")
             }
+            if compact, let badge = store.attentionBadgeLabel {
+                Text(badge)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color(hex: 0xF0A24B)))
+                    .accessibilityLabel(store.attentionLabel)
+            }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent { CodexMini(store: store, greet: false).frame(width: 22, height: 24) }
