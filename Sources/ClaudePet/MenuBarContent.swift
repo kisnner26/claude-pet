@@ -89,6 +89,9 @@ struct MenuBarContent: View {
             Button("abrir isla ahora", systemImage: "rectangle.topthird.inset.filled") {
                 store.layout = .island; store.userHidden = false
             }
+            Button("volver a mascotas flotantes", systemImage: "rectangle.inset.filled") {
+                store.layout = .floating; store.userHidden = false
+            }
         }
 
         Section {
