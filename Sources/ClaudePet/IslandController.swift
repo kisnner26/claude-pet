@@ -199,6 +199,7 @@ struct IslandView: View {
         HStack(alignment: .center, spacing: compact ? 6 : 16) {
             PetFace(store: store, model: model)
                 .frame(width: side, height: side)
+                .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
@@ -266,6 +267,16 @@ struct IslandView: View {
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
+
+    private var statusColor: Color {
+        switch store.state {
+        case .waiting: return Color(hex: 0xE7B45B)
+        case .error: return Color(hex: 0xD85C5C)
+        case .done: return Color(hex: 0x6CCB8A)
+        case .tool, .thinking, .starting: return Color(hex: 0x5270E8)
+        case .idle: return .clear
+        }
+    }
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 6) {
