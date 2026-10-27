@@ -72,6 +72,7 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 - el salto a terminal solo se activa cuando hay una única ventana visible de terminal, iterm, ghostty, warp o vs code cuyo título contiene el proyecto; con ambigüedad muestra `terminal no identificada` y no enfoca nada.
 - la vista abierta conserva hasta ocho pasos recientes de claude en memoria; muestra herramienta, objetivo recortado y `+N -M` cuando el objetivo coincide con un archivo cambiado. pulsar un paso reutiliza `GitPulse`/`DiffPullReader`; no se escriben comandos ni rutas completas.
 - verificado: todos los autochequeos de permisos, preguntas, isla, terminal, pasos, pestañas, telemetría, acciones, limpieza, atajos, pantallas y resistencia; también `swift build` y las imágenes `--snapshot-island` y `--snapshot-poses`. no se comprobó en una pantalla real el paso por encima del notch, los clics traversantes, el foco de terminal ni la autorización de accesibilidad; hay que probarlo con `ClaudePet -layout island`.
+- el menú incluye `ver demo de la isla`: carga datos sintéticos solo en memoria durante 30 s para enseñar permisos, preguntas, contexto, pasos y los dos agentes sin hooks ni sesiones reales. `--selftest-demo` comprueba que carga y limpia todo.
 
 ## animación del personaje
 
