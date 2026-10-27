@@ -440,6 +440,7 @@ struct IslandView: View {
                 HStack(spacing: 8) {
                     if let reading = store.contextReading {
                         ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
+                            .help(reading.summary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
                             Text(store.contextPressureLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
@@ -477,6 +478,7 @@ struct IslandView: View {
                 if let reading = store.codexContextReading {
                     HStack(spacing: 8) {
                         ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
+                            .help(reading.summary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
                             Text(reading.pressure == .normal ? "normal" : (reading.pressure == .caution ? "cuidado" : "crítico")).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
