@@ -53,6 +53,9 @@ struct MenuBarContent: View {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.mission.shareSummary, forType: .string)
             }
             Button("actualizar contexto ahora", systemImage: "arrow.clockwise") { store.refreshTelemetryNow() }
+            Button("actualizar todo", systemImage: "arrow.triangle.2.circlepath") {
+                store.refreshTelemetryNow(); store.mission.refreshGit()
+            }
             Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
                 store.demoMode ? store.stopDemo() : store.startDemo()
             }
