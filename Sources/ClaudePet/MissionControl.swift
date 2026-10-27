@@ -164,7 +164,7 @@ final class MissionControl: ObservableObject {
     var timelineAgentCounts: String {
         let claude = timeline.count { $0.agent == "claude" }
         let codex = timeline.count { $0.agent == "codex" }
-        return "claude (claude) · codex (codex)"
+        return "claude \(claude) · codex \(codex)"
     }
     func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
 
