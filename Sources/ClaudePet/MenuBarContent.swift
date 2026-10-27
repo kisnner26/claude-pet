@@ -79,6 +79,7 @@ struct MenuBarContent: View {
                     Picker("pantalla de la isla", selection: $store.islandScreenPreference) { ForEach(IslandScreenPreference.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                 }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
+            Toggle("mantener mascotas visibles", isOn: $store.pinSession)
                 Toggle("burbuja de actividad", isOn: $store.showBubble)
                 Divider()
                 Menu("animaciones", systemImage: "figure.run") { animationMenu }

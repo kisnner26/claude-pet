@@ -72,6 +72,10 @@ final class PetStore: ObservableObject {
     @Published var questionAsks: [QuestionAsk] = []
     var answerQuestion: (String, [String: String]) -> Void = { _, _ in }
     @Published var userHidden = false
+    /// Mantiene las mascotas visibles aunque el agente esté en reposo, sin alterar el puente.
+    @Published var pinSession: Bool = UserDefaults.standard.bool(forKey: "pinSession") {
+        didSet { UserDefaults.standard.set(pinSession, forKey: "pinSession") }
+    }
     private var claudeAppOpen = false
     private var codexAppOpen = false
     private var hookPresentUntil = Date.distantPast        // hay hooks de Claude Code recientes y la sesion no se cerro
@@ -125,7 +129,7 @@ final class PetStore: ObservableObject {
     private var demoTimer: Timer?
     private var collaborationSince: Date?
     var visibility: PresenceLogic.Visibility {
-        PresenceLogic.visibility(Presence(claude: claudePresent, codex: codexPresent), auto: autoVisibility, userHidden: userHidden)
+        PresenceLogic.visibility(Presence(claude: claudePresent || pinSession, codex: codexPresent || pinSession), auto: autoVisibility, userHidden: userHidden)
     }
     var terminalProject: String { mission.workspace.isEmpty ? project : URL(fileURLWithPath: mission.workspace).lastPathComponent }
     var terminalTargetAvailable: Bool { TerminalTargetResolver.current(project: terminalProject) != nil }
