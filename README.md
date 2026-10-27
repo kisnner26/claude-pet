@@ -2,7 +2,7 @@
 
 windows: [instalación y detalles](windows/README.md). tiene la burbuja con la tarea, mission control, avisos de cambio y atasco, diff y el traspaso entre claude y codex. todavía no tiene el fútbol, el abrazo ni el panel de aspectos de codex, que son solo de macos.
 
-dos mascotas pixel-art para macos, una por herramienta: claude code y codex. cada una es una ventana independiente que aparece cuando usas su herramienta y muestra en tiempo real lo que hace. swiftui puro, sin dependencias, todo local.
+dos mascotas pixel-art para macos, una por herramienta: claude code y codex. cada una es una ventana independiente que aparece cuando usas su herramienta y muestra en tiempo real lo que hace. swiftui puro, sin dependencias, todo local. tambien puede vivir como una isla anclada al notch, con permisos y preguntas respondibles sin salir de lo que haces.
 
 pagina: https://kisnner26.github.io/claude-pet/
 
@@ -25,6 +25,26 @@ pagina: https://kisnner26.github.io/claude-pet/
 - cuando codex termina en un proyecto donde claude sigue trabajando, el menu ofrece abrir el diff.
 - un aro alrededor de claude estima cuánto contexto queda antes de la compactación: azul con margen, ámbar al acercarse y rojo en zona crítica. al pulsarlo abre el relevo de sesión.
 - hasta doce bloques rodean la mascota con los archivos que están cambiando. su tamaño refleja líneas tocadas; azul es modificado, verde staged, crema nuevo y coral conflicto. al pulsar abre el diff o el archivo nuevo.
+
+## isla en el notch
+
+alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla. en la isla las mascotas salen del notch (o de una barra superior en pantallas sin notch) y se despliegan solo cuando hace falta. detalle tecnico, protocolo y limites en [docs/ISLAND.md](docs/ISLAND.md); historial de funciones en [docs/CHANGELOG-ISLAND.md](docs/CHANGELOG-ISLAND.md).
+
+- **cuatro modos**: oculta, asoma al pasar el cursor sobre el notch, compacta mientras hay tareas y abierta. se pliega sola a los 60 s con una cuenta atras en los ultimos 10, y se oculta si estas ausente 3 min.
+- **permisos desde la isla**: un hook bloqueante muestra la herramienta y el detalle con `permitir`, `siempre` y `denegar`. es opt-in (`responder permisos desde la isla`). si algo falla, el hook sale vacio y claude code pregunta en la terminal como siempre.
+- **preguntas**: las preguntas de claude code se responden en la isla, con opciones, seleccion multiple, varias preguntas seguidas y respuesta libre. cada permiso o pregunta se puede copiar o devolver a la terminal.
+- **la mascota esta viva**: respira, parpadea, los ojos siguen el cursor, reacciona al toque (tres toques seguidos la marean) y salta al terminar una tarea. con "reducir movimiento" solo queda la mirada.
+- **panel abierto**: pestanas por agente, ticker de pasos recientes con antiguedad y filtro, anillo y barra de contexto con tendencia y presion, rama y salud git, decisiones pendientes y acceso a mission control y al relevo de sesion.
+- **atajos globales**: opt-in, solo ctrl+opcion+a/d/i/s/p, y se desregistran al cerrar. piden permiso de accesibilidad.
+- **varias pantallas**: sigue al raton entre monitores; el tamano sale del notch real.
+
+![modos de la isla](docs/img/island-modos.png)
+
+![poses de la mascota](docs/img/island-poses.png)
+
+los permisos y preguntas viajan por `~/.claude-pet/ask.sock` (unix, 0600, mismo usuario). las lineas tienen tope de 4096 bytes, hay maximo ocho pendientes por tipo y el instalador de hooks es idempotente.
+
+estado de verificacion: la logica, los protocolos y la limpieza al cerrar tienen autopruebas; en reposo la isla gasta cerca de 4 % de cpu. aun no esta probada sobre el notch fisico, el clic traversante, voiceover ni una sesion real de claude code y codex: la checklist manual esta en [docs/ISLAND.md](docs/ISLAND.md).
 
 ## ocho sistemas visuales
 
@@ -86,9 +106,10 @@ protocolo y guia para el adaptador de codex en [docs/PET-BUS.md](docs/PET-BUS.md
 
 ```
 claude code --hook--> hooks/pet-hook.sh --socket unix 0600--> ClaudePet.app
+claude code --PermissionRequest / preguntas--> hooks/pet-permission.sh, pet-question.sh --ask.sock--> isla
 ```
 
-el script traduce 10 eventos de hook a un estado y lo manda por un socket local. no hay red, ni credenciales, ni telemetria.
+el script traduce 10 eventos de hook a un estado y lo manda por un socket local. los hooks de permisos y preguntas esperan tu respuesta en la isla y fallan abiertos. no hay red, ni credenciales, ni telemetria.
 
 ## privacidad
 
@@ -99,6 +120,7 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
 - cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS` y codex usa la ventana registrada por su propia sesión.
+- los hooks de la isla solo bloquean mientras esperan tu respuesta y con la opcion activada; ante cualquier error, plazo agotado o app cerrada devuelven salida vacia. validan la entrada, acotan su tamano y escapan la salida json; nunca ejecutan shell con rutas, nombres o detalles recibidos.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
 - web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla ni accede al historial del navegador. claudwler solo usa red si activas `verificar enlaces rotos en red`, y guarda textos y destinos de enlaces de cada recorrido en tu carpeta de soporte.
@@ -114,6 +136,8 @@ open build/ClaudePet.app
 ./install-hooks.sh --dry-run   # muestra el diff exacto de ~/.claude/settings.json
 ./install-hooks.sh             # lo aplica tras pedir confirmacion, con copia de respaldo
 ```
+
+para la isla: activa `isla en el notch` en el menu (o arranca con `-layout island`) y, si quieres responder permisos y preguntas ahi, `responder permisos desde la isla`. el instalador anade tambien los hooks de permisos y preguntas sin duplicar los que ya tengas.
 
 abre una sesion nueva de claude code para que cargue los hooks. no pide permisos del sistema: escribe solo en `~/.claude-pet/` y, al instalar, fusiona sus hooks en `~/.claude/settings.json` sin tocar los tuyos. si macos bloquea la app (firma ad-hoc): clic derecho, abrir.
 
@@ -132,6 +156,11 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler  # verificador
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
+tests/permission.sh          # permisos de la isla de punta a punta con el hook real
+tests/cpu.sh                 # cpu medio en reposo durante 30 s (falla sobre 5 %)
+swift build && .build/debug/ClaudePet --selftest-island      # maquina de estados, geometria, animacion
+.build/debug/ClaudePet --selftest-question   # preguntas de la isla
+.build/debug/ClaudePet --selftest-cleanup    # socket y bandera se borran al cerrar
 build/ClaudePet.app/Contents/MacOS/ClaudePet --trigger football   # greet | cheer | concern
 ```
 
