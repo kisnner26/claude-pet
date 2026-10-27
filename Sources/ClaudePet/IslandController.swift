@@ -179,7 +179,7 @@ struct IslandView: View {
                     .help("estado claude: \(store.state.label.lowercased())")
             }
             if compact, let reading = store.contextReading {
-                contextMeter(reading, label: "contexto")
+                IslandContextMeter(reading: reading, label: "contexto", onOpen: { model.poke() })
                 if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() }.contextMenu { Button("copiar contexto", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string) } } }
             }
             if compact, let badge = store.attentionBadgeLabel {
@@ -213,7 +213,7 @@ struct IslandView: View {
             Spacer(minLength: 0)
             if compact && store.codexPresent {
                 if let reading = store.codexContextReading {
-                    contextMeter(reading, label: "contexto codex")
+                    IslandContextMeter(reading: reading, label: "contexto codex", onOpen: { model.poke() })
                     if reading.pressure == .critical { Image(systemName: "exclamationmark.circle.fill").font(.system(size: 9)).foregroundColor(contextColor(reading.pressure)).accessibilityHidden(true).onTapGesture { model.poke() }.contextMenu { Button("copiar contexto codex", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string) } } }
                 }
                 CodexMini(store: store, greet: false).frame(width: 22, height: 24)
@@ -295,29 +295,6 @@ struct IslandView: View {
         if seconds >= 300 { return Color(hex: 0xD85C5C) }
         if seconds >= 60 { return Color(hex: 0xE7B45B) }
         return .white.opacity(0.5)
-    }
-
-    private func contextMeter(_ reading: ContextReading, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text("\(reading.remainingPercent)%")
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundColor(contextColor(reading.pressure))
-            GeometryReader { proxy in
-                Capsule().fill(contextColor(reading.pressure))
-                    .frame(width: max(2, proxy.size.width * CGFloat(reading.remainingPercent) / 100), height: 2)
-            }
-            .frame(width: 24, height: 2)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(reading.remainingPercent) por ciento restante, estado \(reading.pressureLabel)")
-        .help("\(label): \(reading.remainingPercent)% restante · estado \(reading.pressureLabel) · azul normal · ámbar cuidado · rojo crítico")
-        .contentShape(Rectangle())
-        .onTapGesture { model.poke() }
-        .contextMenu {
-            Button("copiar \(label)", systemImage: "doc.on.clipboard") {
-                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string)
-            }
-        }
     }
 
     private var details: some View {
@@ -412,24 +389,7 @@ struct IslandView: View {
                         }
                     }
             }
-            ForEach(agentSteps.prefix(3)) { step in
-                HStack {
-                    Button { store.openLatestDiff() } label: {
-                        HStack { Text(step.label).lineLimit(1); Spacer(); Text(step.ageLabel(now: Date())).foregroundColor(.white.opacity(0.4)); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
-                    }.buttonStyle(.plain)
-                    Button("copiar", systemImage: "doc.on.clipboard") {
-                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)")", forType: .string)
-                    }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-                }.font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
-            }
-            if !agentSteps.isEmpty {
-                Button("copiar actividad reciente", systemImage: "doc.on.clipboard") {
-                    let lines = agentSteps.prefix(3).map { step in
-                        "- \(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)") · \(step.ageLabel(now: Date()))"
-                    }
-                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
-                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-            }
+            IslandTickerView(steps: agentSteps, openDiff: store.openLatestDiff)
             if store.terminalTargetAvailable {
                 Button("saltar a terminal") { store.focusTerminal() }
                     .buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
