@@ -419,9 +419,14 @@ struct IslandView: View {
                 }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
             }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
-                Button { store.openLatestDiff() } label: {
-                    HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
-                }.buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
+                HStack {
+                    Button { store.openLatestDiff() } label: {
+                        HStack { Text(step.label).lineLimit(1); Spacer(); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
+                    }.buttonStyle(.plain)
+                    Button("copiar", systemImage: "doc.on.clipboard") {
+                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)")", forType: .string)
+                    }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
+                }.font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
             if store.terminalTargetAvailable {
                 Button("saltar a terminal") { store.focusTerminal() }
