@@ -278,8 +278,12 @@ struct IslandView: View {
         let hasOther = questionSelections[index, default: []].contains { q.options.indices.contains($0) && q.options[$0].label.lowercased().contains("otra") }
         return VStack(alignment: .leading, spacing: 8) {
             Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
-            if ask.questions.count > 1 { Text("pregunta (index + 1) de (ask.questions.count)").font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
+            if ask.questions.count > 1 { Text("pregunta \(index + 1) de \(ask.questions.count)").font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
             Text(q.question).font(.system(size: 13)).foregroundColor(.white).lineLimit(2)
+            Button("copiar pregunta", systemImage: "doc.on.clipboard") {
+                let options = q.options.map(\.label).joined(separator: ", ")
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(q.question)\nopciones: \(options)", forType: .string)
+            }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
             HStack(spacing: 6) {
                 ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
                     let optionIndex = q.options.firstIndex(where: { $0.label == option.label }) ?? -1
