@@ -12,6 +12,12 @@ struct IslandStep: Identifiable, Equatable {
 
     var label: String { "\(tool) · \(target)" }
     var delta: String { added == 0 && deleted == 0 ? "" : "+\(added) -\(deleted)" }
+    func ageLabel(now: Date) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(at)))
+        if seconds < 5 { return "ahora" }
+        if seconds < 60 { return "hace \(seconds)s" }
+        return "hace \(seconds / 60)m"
+    }
 }
 
 enum IslandSteps {
