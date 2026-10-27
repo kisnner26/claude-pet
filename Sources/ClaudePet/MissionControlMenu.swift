@@ -16,6 +16,9 @@ struct MissionControlMenu: View {
             Text(control.collision ? "posible colisión: claude y codex en el mismo proyecto" : "coordinación: sin colisiones")
             Text("git: \(control.git.label)")
             Text(control.gitBreakdown)
+            Button("copiar estado de git") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString("rama: \(control.git.branch.isEmpty ? "sin rama" : control.git.branch)\n\(control.git.label)\n\(control.gitBreakdown)", forType: .string)
+            }
             if !control.git.branch.isEmpty { Text("rama: \(control.git.branch)") }
             Text("sesión: \(control.focusLabel)")
             Text("foco: \(control.brief.title.lowercased())")
