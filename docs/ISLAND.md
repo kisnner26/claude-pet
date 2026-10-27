@@ -18,8 +18,8 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 1. isla anclada al notch con cuatro modos: oculta, asoma, compacta y abierta. **hecho: `IslandMachine`** (reglas, tiempos y autoprueba `--selftest-island`).
 2. ventana sin bordes que se coloca en el notch real, o en una barra de 80 pt si no hay notch, con clics traversantes fuera de la forma. **hecho: `NotchGeometry` e `IslandController`**; el menú tiene el selector `modo` (flotante o isla en el notch) y la pantalla se recalcula al conectar o desconectar monitores.
 3. aprobar o denegar permisos desde la mascota. **hecho: `PermissionServer` y `hooks/pet-permission.sh`** (ver abajo). es opt-in.
-4. responder preguntas de `AskUserQuestion` desde la isla. **hecho: `pet-question.sh`, `QuestionServer` y tarjeta de opciones** (incluye preguntas de selección única; la selección múltiple queda representada en el protocolo y sigue pendiente en la tarjeta).
-5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar. **hecho: `PetAnimator`** (falta el saludo al asomar). con movimiento reducido solo queda la mirada.
+4. responder preguntas de `AskUserQuestion` desde la isla. **hecho: `pet-question.sh`, `QuestionServer` y tarjeta de opciones**, con selección única y múltiple en el protocolo.
+5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar y saludo al asomar. **hecho: `PetAnimator`**. con movimiento reducido solo queda la mirada.
 6. pestaña por agente (claude y codex) con su línea de pasos recientes. **hecho: selector claude/codex**; codex solo muestra el estado y la línea que ya publica su adaptador.
 7. aro de contexto y mapa de archivos dentro de la isla. **hecho: reutiliza `ContextRingView` y `FileOrbitView`** con los mismos estados normal, caution y critical.
 8. mission control y relevo de sesión accesibles desde la isla. **hecho: botones directos en la vista abierta**.
@@ -27,8 +27,8 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 10. atajos globales opcionales. **hecho: ctrl+option+a permite, ctrl+option+d deniega y ctrl+option+i abre la isla**; requieren activar el interruptor y el permiso de accesibilidad de macos.
 11. varias pantallas. **hecho: menú con `pantalla del notch` o `seguir al ratón`**, probado con `ScreenMetrics` simuladas en `--selftest-island`.
 12. resistencia del socket. **hecho: `--selftest-resistance` inyecta 500 preguntas/permisos, cierra hooks a mitad y comprueba que no quedan tarjetas pendientes**.
-7. saltar a la terminal de la sesión.
-8. vestuario y sonidos propios.
+7. saltar a la terminal de la sesión. **hecho: `TerminalTargetResolver`**, con no-op seguro si no hay coincidencia única.
+8. ticker de pasos, pestañas de agentes, contexto, mapa, mission control y relevo. **hecho en la vista abierta**.
 
 ## orden de trabajo
 
@@ -36,7 +36,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 2. ventana de la isla y geometría del notch, sin cambiar las mascotas flotantes: ajuste en el menú para elegir entre flotante e isla (hecho).
 3. animación de personaje en la isla (hecho).
 4. permisos bloqueantes con protocolo del socket documentado y prueba de que, si la app no responde, claude code sigue con su flujo normal (hecho).
-5. preguntas y saltar a la terminal. **parcial: `TerminalTargetResolver`**.
+5. preguntas y saltar a la terminal. **hecho: `QuestionServer` y `TerminalTargetResolver`**.
 6. vistas de contexto, diff, mission control y relevo dentro de la isla.
 
 ## permisos desde la isla
@@ -68,10 +68,10 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 ## limites actuales
 
 - la isla muestra a claude y un codex pixel-art animado por estado; claude saluda durante 1,4 s al asomar. con reducir movimiento no se animan ni codex ni el saludo.
-- `AskUserQuestion` ya llega por `ask.sock` y se puede responder desde la tarjeta; selección múltiple, varias preguntas visibles a la vez y verificación con una sesión real de Claude Code quedan pendientes.
+- `AskUserQuestion` ya llega por `ask.sock`, conserva hasta cuatro preguntas y devuelve el formato documentado; falta validarlo con una sesión real de Claude Code.
 - el salto a terminal solo se activa cuando hay una única ventana visible de terminal, iterm, ghostty, warp o vs code cuyo título contiene el proyecto; con ambigüedad muestra `terminal no identificada` y no enfoca nada.
 - la vista abierta conserva hasta ocho pasos recientes de claude en memoria; muestra herramienta, objetivo recortado y `+N -M` cuando el objetivo coincide con un archivo cambiado. pulsar un paso reutiliza `GitPulse`/`DiffPullReader`; no se escriben comandos ni rutas completas.
-- verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
+- verificado: todos los autochequeos de permisos, preguntas, isla, terminal, pasos, pestañas, telemetría, acciones, limpieza, atajos, pantallas y resistencia; también `swift build` y las imágenes `--snapshot-island` y `--snapshot-poses`. no se comprobó en una pantalla real el paso por encima del notch, los clics traversantes, el foco de terminal ni la autorización de accesibilidad; hay que probarlo con `ClaudePet -layout island`.
 
 ## animación del personaje
 
@@ -88,7 +88,7 @@ de izquierda a derecha: reposo, mirando a la derecha, mirando arriba, parpadeo, 
 
 ## preguntas desde la isla
 
-el hook `hooks/pet-question.sh` solo actúa para `PreToolUse` con `tool_name=AskUserQuestion`, exige la bandera opt-in y envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)` por el mismo socket local. la tarjeta muestra la primera pregunta y sus opciones. la respuesta vuelve como `updatedInput.answers`; si falla el socket, falta una herramienta o vence el plazo, el hook sale sin imprimir y claude code conserva su flujo normal en la terminal.
+el hook `hooks/pet-question.sh` solo actúa para `PreToolUse` con `tool_name=AskUserQuestion`, exige la bandera opt-in y envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)` por el mismo socket local. la tarjeta muestra la primera pregunta de cada entrada y sus opciones. la respuesta vuelve como `updatedInput.answers`; si falla el socket, falta una herramienta o vence el plazo, el hook sale sin imprimir y claude code conserva su flujo normal en la terminal.
 
 formato verificado contra la documentación oficial de hooks de claude code: [hooks reference](https://code.claude.com/docs/en/hooks), sección `AskUserQuestion`. `PreToolUse` debe devolver `hookSpecificOutput.permissionDecision = "allow"` y `updatedInput` con las `questions` originales más `answers` como objeto que asigna el texto de cada pregunta a su respuesta; en selección múltiple las etiquetas se unen con comas.
 
