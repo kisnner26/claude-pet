@@ -306,3 +306,15 @@ enum StreakFire {
         return out
     }
 }
+
+// MARK: onda de actividad
+
+enum ActivityPing {
+    static let duration: TimeInterval = 0.8
+    /// Una onda que sale de la mascota cada vez que el agente usa una herramienta: nil fuera de la ventana de tiempo.
+    static func ring(age: TimeInterval) -> (progress: Double, alpha: Double)? {
+        guard age >= 0, age < duration else { return nil }
+        let p = age / duration
+        return (p, (1 - p) * 0.6)
+    }
+}

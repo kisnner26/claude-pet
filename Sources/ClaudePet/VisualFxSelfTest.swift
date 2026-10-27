@@ -102,6 +102,9 @@ enum VisualFxSelfTest {
         let flameLow = flame.filter { $0.y > 0.8 }, flameHigh = flame.filter { $0.y < 0.35 }
         check("la llama es mas caliente abajo que arriba", !flameLow.isEmpty && !flameHigh.isEmpty && flameLow.contains { $0.color == 0xFFE08A || $0.color == 0xFFB347 } && flameHigh.allSatisfy { $0.color != 0xFFE08A })
 
+        // onda de actividad
+        check("la onda crece y se apaga en 0,8 s", ActivityPing.ring(age: 0.1)!.progress < ActivityPing.ring(age: 0.6)!.progress && ActivityPing.ring(age: 0.1)!.alpha > ActivityPing.ring(age: 0.6)!.alpha && ActivityPing.ring(age: 0.8) == nil && ActivityPing.ring(age: -1) == nil)
+
         print(failures == 0 ? "EFECTOS OK" : "EFECTOS FALLOS: \(failures)")
         return failures == 0
     }

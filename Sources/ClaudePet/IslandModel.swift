@@ -25,6 +25,8 @@ final class IslandModel: ObservableObject {
     /// Archivos soltados sobre la isla (los pone el controlador).
     var onFiles: ([URL]) -> Void = { _ in }
     /// Ultima edicion con lineas cambiadas, para la lluvia de lineas.
+    /// Instante de la ultima herramienta usada, para la onda de actividad.
+    @Published var pingAt: TimeInterval?
     @Published var lineRain: (since: TimeInterval, added: Int, deleted: Int)?
     /// Cuando termino cada agente, para el choque de manos.
     /// Cuando empezo a abrirse la isla (para las gotas).

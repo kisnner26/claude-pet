@@ -222,3 +222,19 @@ struct StreakFireView: View {
         }
     }
 }
+
+/// Onda azul que sale de la mascota con cada herramienta que usa el agente.
+struct ActivityPingView: View {
+    let since: TimeInterval
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { _ in
+            if let ring = ActivityPing.ring(age: ProcessInfo.processInfo.systemUptime - since) {
+                Canvas { gc, size in
+                    let base = min(size.width, size.height) / 2, r = base * (0.5 + 0.5 * CGFloat(ring.progress))
+                    gc.stroke(Path(ellipseIn: CGRect(x: size.width / 2 - r, y: size.height / 2 - r, width: r * 2, height: r * 2)), with: .color(Color(hex: 0x7C93F0).opacity(ring.alpha)), lineWidth: 1.5)
+                }
+            }
+        }
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
