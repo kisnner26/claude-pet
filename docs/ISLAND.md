@@ -37,6 +37,8 @@ las tarjetas de permiso muestran un riesgo calculado localmente: lectura como ba
 
 la isla usa 30 hz mientras está activa y 1 hz cuando está oculta, sin tareas ni atención pendiente. `--selftest-polling` verifica la política.
 
+las transiciones usan un resorte compartido (respuesta 0,42 s, amortiguación 0,82, duración máxima 0,72 s); con reducir movimiento se usa un fundido de 0,12 s.
+
 medición local con `tests/cpu.sh` (30 s, `ps`, después del arranque):
 
 - debug oculto: 4.24 %

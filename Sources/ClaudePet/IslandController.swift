@@ -137,8 +137,7 @@ struct IslandView: View {
     @State private var questionIndex = 0
     @State private var questionFreeText = ""
 
-    private var open: Animation { .spring(response: 0.5, dampingFraction: 0.72) }
-    private var close: Animation { .timingCurve(0.45, 0, 0.2, 1, duration: 0.34) }
+    private var transition: Animation { store.reduceMotion ? IslandMotion.reduced : IslandMotion.spring }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -146,8 +145,8 @@ struct IslandView: View {
             island.frame(width: model.size.width, height: model.size.height)
         }
         .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: .top)
-        .animation(model.mode == .expanded ? open : close, value: model.size)
-        .animation(model.mode == .expanded ? open : close, value: model.mode)
+        .animation(transition, value: model.size)
+        .animation(transition, value: model.mode)
     }
 
     private var island: some View {

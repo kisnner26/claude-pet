@@ -91,6 +91,7 @@ enum IslandSelfTest {
               NotchGeometry.overNotch(CGPoint(x: 756, y: 975), metrics: notchMac) && NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 5, y: 975), metrics: notchMac)
               && !NotchGeometry.overNotch(CGPoint(x: 756 + 92 + 8, y: 975), metrics: notchMac) && !NotchGeometry.overNotch(CGPoint(x: 756, y: 900), metrics: notchMac))
         check("la zona transparente de la ventana no cuenta como isla", !NotchGeometry.contains(CGPoint(x: 756, y: 800), mode: .compact, metrics: notchMac))
+        check("la isla comparte un resorte amortiguado", IslandMotion.springResponse > 0 && IslandMotion.springDamping > 0.7 && IslandMotion.maximumDuration < 1)
 
         // 10. animacion de personaje
         let calm = CGPoint.zero
