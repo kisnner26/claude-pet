@@ -31,6 +31,7 @@ final class PetStore: ObservableObject {
     @Published private(set) var codexDragging = false
     @Published private(set) var codexGesture: CodexGesture?
     @Published private(set) var safetyAlert: Activity?
+    @Published private(set) var alertsSnoozedUntil = Date.distantPast
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
     @Published private(set) var contextReading: ContextReading?
@@ -159,6 +160,13 @@ final class PetStore: ObservableObject {
         default: return "\(pendingAttentionCount) decisiones pendientes"
         }
     }
+    var alertsAreSnoozed: Bool { Date() < alertsSnoozedUntil }
+    func snoozeAlerts(minutes: Int = 15) {
+        alertsSnoozedUntil = Date().addingTimeInterval(TimeInterval(max(1, minutes) * 60))
+        safetyAlert = nil
+        refresh()
+    }
+    func wakeAlerts() { alertsSnoozedUntil = .distantPast; updateSafetyAlert(Date()); refresh() }
     func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }
@@ -740,7 +748,7 @@ final class PetStore: ObservableObject {
     }
 
     private func updateSafetyAlert(_ now: Date) {
-        guard alertDisplayMode.allows(critical: true) else { safetyAlert = nil; return }
+        guard alertDisplayMode.allows(critical: true), now >= alertsSnoozedUntil else { safetyAlert = nil; return }
         let changed = monitor.changed.filter { sessions[$0] != nil }
         if !changed.isEmpty {
             safetyAlert = Activity(title: "El proyecto cambio mientras claude pensaba",

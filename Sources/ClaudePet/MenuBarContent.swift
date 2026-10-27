@@ -150,6 +150,9 @@ struct MenuBarContent: View {
         Picker("avisos visuales", selection: $store.alertDisplayMode) {
             ForEach(AlertDisplayMode.allCases) { Text($0.rawValue).tag($0) }
         }
+        Button(store.alertsAreSnoozed ? "reactivar avisos" : "silenciar avisos 15 min", systemImage: store.alertsAreSnoozed ? "bell" : "bell.slash") {
+            store.alertsAreSnoozed ? store.wakeAlerts() : store.snoozeAlerts()
+        }
         Toggle("bloquear herramientas si el proyecto cambia", isOn: $store.blockOnChange)
         Divider()
         Toggle("compartir nombre del proyecto", isOn: $store.shareProject)

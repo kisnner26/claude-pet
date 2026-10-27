@@ -1,10 +1,13 @@
 import Foundation
 
+@MainActor
 enum AlertPolicySelfTest {
     static func run() -> Bool {
         let ok = AlertDisplayMode.allowsAll
-        print(ok ? "ALERTAS OK" : "ALERTAS FALLOS")
-        return ok
+        let store = PetStore(); store.snoozeAlerts(minutes: 1); let muted = store.alertsAreSnoozed; store.wakeAlerts(); let awake = !store.alertsAreSnoozed
+        let final = ok && muted && awake
+        print(final ? "ALERTAS OK" : "ALERTAS FALLOS")
+        return final
     }
 }
 
