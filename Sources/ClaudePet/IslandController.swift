@@ -209,13 +209,14 @@ struct IslandView: View {
                 contextMeter(reading, label: "contexto")
             }
             if compact, let badge = store.attentionBadgeLabel {
-                Text(badge)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(.black)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(Color(hex: 0xF0A24B)))
-                    .accessibilityLabel(store.attentionLabel)
+                Button { model.poke() } label: {
+                    Text(badge)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color(hex: 0xF0A24B)))
+                }.buttonStyle(.plain).accessibilityLabel(store.attentionLabel)
             }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
