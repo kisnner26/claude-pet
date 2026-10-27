@@ -167,6 +167,8 @@ la gráfica ofrece `copiar tendencia`: solo copia agente, porcentaje, variación
 
 cuando el monitor de seguridad detecta una sesión bloqueada, la vista compacta muestra un triángulo rojo independiente de la insignia de decisiones. al pulsarlo se abre el detalle; su menú contextual copia únicamente el título y subtítulo de la alerta.
 
+el ticker de la vista abierta filtra los pasos por la pestaña activa. claude muestra solo sus eventos y codex solo los que publique su adaptador; una pestaña sin eventos queda vacía en vez de mostrar actividad ajena.
+
 cuando la presión es crítica, claude y codex muestran además un icono de advertencia; el estado accesible sigue anunciándose como `crítico`.
 
 el icono de advertencia es interactivo y abre el detalle de contexto al pulsarlo.
