@@ -1,0 +1,38 @@
+# ajustes
+
+Ventana propia de claude-pet, en el mismo estilo oscuro de cristal que la isla. Se abre desde el menú de la barra ("ajustes…", ⌘,) o con `ClaudePet --open-settings <página>` (`resumen`, `apariencia`, `comportamiento`, `agentes`, `permisos`, `privacidad`, `guardarropa`, `sonidos`, `foco`, `atajos`, `copia`, `acerca`).
+
+La barra lateral agrupa las páginas en inicio, isla, agentes, seguridad, mascota y sistema, y el buscador filtra por título y por palabras clave sin distinguir acentos: escribir "restauracion" lleva a copia y restauración.
+
+## páginas
+
+| página | qué controla |
+|---|---|
+| resumen | sesiones, herramientas, permisos y errores de hoy; nivel, racha y semana; copiar o guardar como imagen; acceso a mission control y relevo |
+| apariencia | modo, ubicación, contenido compacto, reloj, pantalla, mascotas, animaciones, partido, burbuja y avisos visuales, con vista previa |
+| comportamiento | ancho y retraso de la zona de activación, cuánto tarda en plegarse, aparición automática y fijar mascotas |
+| agentes | mostrar u ocultar claude y codex, gestos, detalle local, aviso de bloqueo y verificación de enlaces |
+| permisos | responder desde la isla, bloqueo si el proyecto cambia, puntos de restauración y reglas de aprobación (revocar una o todas) |
+| privacidad | nombre del proyecto al compartir, carpeta de datos, registro de decisiones y borrado de estadísticas |
+| guardarropa | atuendos por nivel y atuendos de temporada |
+| sonidos | volumen general y por categoría, prueba de cada sonido y sonidos propios |
+| foco y pomodoro | foco manual o por horario y control del pomodoro |
+| atajos | letra de cada atajo global, con control de duplicados |
+| copia y restauración | exportar, importar y restablecer ajustes |
+| acerca de | versión, commitero y dónde vive cada dato |
+
+![apariencia](img/ajustes-apariencia.jpg)
+
+![sonidos](img/ajustes-sonidos.jpg)
+
+![atajos](img/ajustes-atajos.jpg)
+
+## cosas que conviene saber
+
+- **sonidos por categoría**: el volumen de interfaz, alertas y mascota se multiplica por el general. El motor ya lo soportaba; ahora se guarda y se aplica desde un solo sitio (`PetStore.applySound`), así que isla, menú y ajustes no se desincronizan.
+- **atajos**: siempre control y opción más una letra o un número sin acento. Se guardan como `allow=a,deny=d,...` y lo que no se entiende vuelve a su valor original.
+- **copia**: el archivo es `{ "format": "claude-pet-settings", "version": 1, "settings": { ... } }`. Al importar solo se aceptan claves conocidas, con el tipo y el rango correctos y hasta 256 KB; el resto se descarta y se cuenta. Los ajustes se leen al arrancar, así que tras importar o restablecer la app ofrece reiniciar.
+- **capturas**: `ClaudePet --snapshot-settings <carpeta>` genera una imagen por página.
+- **pruebas**: `ClaudePet --selftest-settings` cubre el buscador, los atajos (duplicados y entradas inválidas), el volumen por categoría y la copia (ida y vuelta, valores hostiles, formato incorrecto, tamaño y restablecer).
+
+![copia](img/ajustes-copia.jpg)

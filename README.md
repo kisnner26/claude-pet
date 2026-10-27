@@ -35,7 +35,7 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 - **preguntas**: las preguntas de claude code se responden en la isla, con opciones, seleccion multiple, varias preguntas seguidas y respuesta libre. cada permiso o pregunta se puede copiar o devolver a la terminal.
 - **la mascota esta viva**: respira, parpadea, los ojos siguen el cursor, reacciona al toque (tres toques seguidos la marean) y salta al terminar una tarea. con "reducir movimiento" solo queda la mirada.
 - **panel abierto**: pestanas por agente, ticker de pasos recientes con antiguedad y filtro, anillo y barra de contexto con tendencia y presion, rama y salud git, decisiones pendientes y acceso a mission control y al relevo de sesion.
-- **atajos globales**: opt-in, solo ctrl+opcion+a/d/i/s/p, y se desregistran al cerrar. piden permiso de accesibilidad.
+- **atajos globales**: opt-in, siempre ctrl+opcion más una letra que eliges en ajustes (por defecto a/d/i/s/p), y se desregistran al cerrar. piden permiso de accesibilidad.
 - **varias pantallas**: sigue al raton entre monitores; el tamano sale del notch real.
 
 ### lo nuevo de la isla
@@ -46,6 +46,18 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 - **aprobar con criterio**: riesgo y secretos en cada permiso, reglas que se recuerdan con caducidad, planes, lecturas por lotes, puntos de restauración con git y registro de auditoría local.
 - **más**: sonidos sintetizados propios (muestras en `docs/sonidos/`), guardarropa con atuendos que se desbloquean por nivel, resumen semanal con imagen para compartir, modo foco, pomodoro con reloj de arena y soltar archivos sobre la isla para obtener `@ruta`.
 - **commitero**: si está instalado, el botón "commitear" de la isla abre [commitero](https://github.com/kisnner26/commitero) con los cambios del proyecto.
+
+### ventana de ajustes
+
+![ajustes](docs/img/ajustes-resumen.jpg)
+
+Menú de la barra → "ajustes…" (⌘,), o `ClaudePet --open-settings [página]`. Doce páginas con buscador:
+
+- **vista previa de la isla** que se mueve al cambiar ubicación, zona de activación, contenido compacto o reloj.
+- **sonidos**: volumen general y por categoría, prueba de cada sonido y detección de los que has reemplazado con tus propios archivos.
+- **atajos configurables**: eliges la letra de cada acción; si ya está en uso te lo dice y no cambia nada.
+- **copia y restauración**: exporta los ajustes a un `.json`, impórtalos en otro Mac (cada valor se valida por tipo y rango) o restablece todo.
+- permisos, reglas de aprobación y puntos de restauración, agentes, privacidad, guardarropa, foco y pomodoro. detalle en [docs/AJUSTES.md](docs/AJUSTES.md).
 
 ![escena y estados](docs/img/estilo-trabajando.png)
 
