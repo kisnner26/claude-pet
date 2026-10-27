@@ -147,6 +147,8 @@ la insignia de pendientes muestra una ayuda contextual con el total y recuerda q
 
 `copiar contexto` usa un resumen completo con modelo, porcentaje restante y tokens disponibles; `SafetySelfTest` valida el formato sin guardar el transcript.
 
+el resumen también indica tokens usados, para comparar consumo y capacidad restante en una sola línea.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
