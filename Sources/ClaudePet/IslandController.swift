@@ -427,6 +427,11 @@ struct IslandView: View {
         .help("\(label): \(reading.remainingPercent)% restante · azul normal · ámbar cuidado · rojo crítico")
         .contentShape(Rectangle())
         .onTapGesture { model.poke() }
+        .contextMenu {
+            Button("copiar \(label)", systemImage: "doc.on.clipboard") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string)
+            }
+        }
     }
 
     private var details: some View {
