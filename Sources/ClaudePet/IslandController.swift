@@ -386,6 +386,8 @@ struct IslandView: View {
                     if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
                 }
                 HStack(spacing: 8) {
+                    Button("actualizar", systemImage: "arrow.clockwise") { store.refreshTelemetryNow() }
+                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
                     if store.contextReading != nil {
                         Button("copiar contexto", systemImage: "doc.on.clipboard") {
                             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.contextLabel, forType: .string)
