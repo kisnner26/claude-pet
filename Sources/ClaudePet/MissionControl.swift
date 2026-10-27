@@ -136,7 +136,8 @@ final class MissionControl: ObservableObject {
         let projectName = localProject.isEmpty ? "sin proyecto" : URL(fileURLWithPath: localProject).lastPathComponent
         let agent = localState.isActive ? "claude" : (peerState.isActive ? "codex" : "ninguno")
         let workspaceName = localWorkspace.isEmpty ? "sin workspace" : URL(fileURLWithPath: localWorkspace).lastPathComponent
-        return "claude-pet · \(projectName) · workspace \(workspaceName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
+        let branchName = git.branch.isEmpty ? "sin rama" : git.branch
+        return "claude-pet · \(projectName) · workspace \(workspaceName) · rama \(branchName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
     }
 
     /// Informe local sin comandos, prompts ni rutas completas para pegar en un issue.
