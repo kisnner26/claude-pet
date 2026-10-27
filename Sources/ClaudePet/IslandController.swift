@@ -235,6 +235,12 @@ struct IslandView: View {
                 CodexMini(store: store, greet: false).frame(width: 22, height: 24)
                     .accessibilityLabel("codex: \(store.codexState.label.lowercased()), \(store.codexStateDurationLabel)")
                     .accessibilityHint("adaptador de codex; pulsa para abrir el detalle")
+                if store.codexState != .idle {
+                    Image(systemName: codexStatusSymbol)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(codexColor)
+                        .accessibilityHidden(true)
+                }
             }
         }
         .padding(.leading, compact ? 8 : 24)
@@ -368,6 +374,17 @@ struct IslandView: View {
 
     private var statusSymbol: String {
         switch store.state {
+        case .thinking: return "ellipsis"
+        case .tool, .starting: return "hammer"
+        case .waiting: return "hand.raised"
+        case .error: return "exclamationmark.triangle"
+        case .done: return "checkmark"
+        case .idle: return "circle"
+        }
+    }
+
+    private var codexStatusSymbol: String {
+        switch store.codexState {
         case .thinking: return "ellipsis"
         case .tool, .starting: return "hammer"
         case .waiting: return "hand.raised"
