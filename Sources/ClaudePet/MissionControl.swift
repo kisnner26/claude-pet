@@ -135,7 +135,8 @@ final class MissionControl: ObservableObject {
     var shareSummary: String {
         let projectName = localProject.isEmpty ? "sin proyecto" : URL(fileURLWithPath: localProject).lastPathComponent
         let agent = localState.isActive ? "claude" : (peerState.isActive ? "codex" : "ninguno")
-        return "claude-pet · \(projectName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
+        let workspaceName = localWorkspace.isEmpty ? "sin workspace" : URL(fileURLWithPath: localWorkspace).lastPathComponent
+        return "claude-pet · \(projectName) · workspace \(workspaceName) · agente \(agent) · \(git.label) · \(toolCalls) herramientas"
     }
 
     /// Informe local sin comandos, prompts ni rutas completas para pegar en un issue.
