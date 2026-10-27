@@ -212,6 +212,7 @@ struct IslandView: View {
                     .font(.system(size: 9, weight: .bold))
                     .foregroundColor(statusColor)
                     .accessibilityHidden(true)
+                    .help("estado claude: \(store.state.label.lowercased())")
             }
             if compact, let reading = store.contextReading {
                 contextMeter(reading, label: "contexto")
@@ -241,6 +242,7 @@ struct IslandView: View {
                         .font(.system(size: 9, weight: .bold))
                         .foregroundColor(codexColor)
                         .accessibilityHidden(true)
+                        .help("estado codex: \(store.codexState.label.lowercased())")
                 }
             }
         }
