@@ -17,6 +17,9 @@ struct MissionControlMenu: View {
             Text("git: \(control.git.label)")
             Text("sesión: \(control.focusLabel)")
             Text("foco: \(control.brief.title.lowercased())")
+            Button("copiar foco operativo") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(control.brief.title)\n\(control.brief.detail)", forType: .string)
+            }
             Button("actualizar salud git") { control.refreshGit() }
             Button("abrir carpeta del proyecto") { control.openWorkspace() }
             Button("copiar informe técnico") {
