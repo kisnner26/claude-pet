@@ -42,6 +42,7 @@ final class PermissionServer: @unchecked Sendable {
     private var pending: [Conn] = []
     /// Se llama (en el hilo del socket) cada vez que cambia la lista de permisos pendientes.
     var onChange: (([PermissionAsk]) -> Void)?
+    var onQuestion: ((QuestionAsk) -> Void)?
 
     init(path: String = PermissionServer.defaultPath) { self.path = path }
 
@@ -76,6 +77,8 @@ final class PermissionServer: @unchecked Sendable {
         unlink(path)
         lock.lock(); let all = pending; pending = []; lock.unlock()
         for c in all { finish(c, reply: nil) }
+        lock.lock(); let questions = questionPending; questionPending = []; lock.unlock()
+        for q in questions { close(q.fd) }
         onChange?([])
     }
 
@@ -117,6 +120,13 @@ final class PermissionServer: @unchecked Sendable {
             if data.contains(0x0A) { break }
         }
         let line = String(decoding: data.prefix(Self.maxLine), as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
+        if let question = QuestionServer.parse(line) {
+            // AskUserQuestion comparte el socket y queda abierto hasta la respuesta.
+            let response = QuestionConn(fd: c, ask: question)
+            lock.lock(); questionPending.append(response); lock.unlock()
+            onQuestion?(question)
+            return
+        }
         lock.lock(); let full = pending.count >= Self.maxPending; lock.unlock()
         // lleno o linea invalida: se cierra sin respuesta y Claude Code pregunta en la terminal
         guard !full, let ask = Self.parse(line) else { close(c); return }
@@ -134,6 +144,16 @@ final class PermissionServer: @unchecked Sendable {
         lock.lock(); pending.append(conn); let list = pending.map(\.ask); lock.unlock()
         src.resume()
         onChange?(list)
+    }
+
+    private final class QuestionConn { let fd: Int32; let ask: QuestionAsk; init(fd: Int32, ask: QuestionAsk) { self.fd = fd; self.ask = ask } }
+    private var questionPending: [QuestionConn] = []
+
+    @discardableResult
+    func resolveQuestion(id: String, answers: [[String: Any]]) -> Bool {
+        lock.lock(); guard let i = questionPending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }; let q = questionPending.remove(at: i); lock.unlock()
+        guard let data = try? JSONSerialization.data(withJSONObject: answers), let text = String(data: data, encoding: .utf8) else { close(q.fd); return false }
+        _ = (text + "\n").withCString { write(q.fd, $0, strlen($0)) }; close(q.fd); return true
     }
 
     private func drop(_ c: Conn) {

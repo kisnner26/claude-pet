@@ -86,6 +86,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             let hook = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "hooks/pet-permission.sh"
             exit(PermissionSelfTest.run(hook: hook) ? 0 : 1)
         }
+        if CommandLine.arguments.contains("--selftest-question") { exit(QuestionSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
@@ -175,7 +176,12 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         askServer.onChange = { asks in Task { @MainActor in PetStore.shared.permissionAsks = asks } }
+        askServer.onQuestion = { ask in Task { @MainActor in PetStore.shared.questionAsks.append(ask) } }
         PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
+        PetStore.shared.answerQuestion = { [weak self] id, answers in
+            guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }
+            Task { @MainActor in PetStore.shared.questionAsks.removeAll { $0.id == id } }
+        }
         do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
         syncPermissionFlag()
 

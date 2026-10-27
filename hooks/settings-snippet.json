@@ -2,7 +2,8 @@
   "hooks": {
     "SessionStart":       [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh SessionStart",       "timeout": 5 }] }],
     "UserPromptSubmit":   [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh UserPromptSubmit",   "timeout": 5 }] }],
-    "PreToolUse":         [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh PreToolUse",         "timeout": 5 }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh PreToolUse",         "timeout": 5 }] },
+                          { "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-question.sh PreToolUse",      "timeout": 120 }] }],
     "PostToolUse":        [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh PostToolUse",        "timeout": 5 }] }],
     "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh PostToolUseFailure", "timeout": 5 }] }],
     "PermissionRequest":  [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-hook.sh PermissionRequest",  "timeout": 5 }] },

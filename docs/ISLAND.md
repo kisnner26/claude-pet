@@ -18,7 +18,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 1. isla anclada al notch con cuatro modos: oculta, asoma, compacta y abierta. **hecho: `IslandMachine`** (reglas, tiempos y autoprueba `--selftest-island`).
 2. ventana sin bordes que se coloca en el notch real, o en una barra de 80 pt si no hay notch, con clics traversantes fuera de la forma. **hecho: `NotchGeometry` e `IslandController`**; el menú tiene el selector `modo` (flotante o isla en el notch) y la pantalla se recalcula al conectar o desconectar monitores.
 3. aprobar o denegar permisos desde la mascota. **hecho: `PermissionServer` y `hooks/pet-permission.sh`** (ver abajo). es opt-in.
-4. responder preguntas de `AskUserQuestion` desde la isla.
+4. responder preguntas de `AskUserQuestion` desde la isla. **hecho: `pet-question.sh`, `QuestionServer` y tarjeta de opciones** (incluye preguntas de selección única; la selección múltiple queda representada en el protocolo y sigue pendiente en la tarjeta).
 5. animación de personaje: respiración, parpadeo, ojos que siguen el cursor, reacción al toque (molestia y mareo), salto al terminar. **hecho: `PetAnimator`** (falta el saludo al asomar). con movimiento reducido solo queda la mirada.
 6. pestaña por agente (claude y codex) con su línea de pasos recientes.
 7. saltar a la terminal de la sesión.
@@ -62,7 +62,7 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 ## limites actuales
 
 - la isla muestra a claude y un punto para codex; codex todavía no tiene animación propia en la isla.
-- las preguntas de `AskUserQuestion` aún no se responden desde la isla; los permisos sí.
+- `AskUserQuestion` ya llega por `ask.sock` y se puede responder desde la tarjeta; selección múltiple, varias preguntas visibles a la vez y verificación con una sesión real de Claude Code quedan pendientes.
 - no hay atajos de teclado para permitir o denegar: la ventana no toma el foco. solo botones.
 - verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
 
@@ -78,3 +78,9 @@ de izquierda a derecha: reposo, mirando a la derecha, mirando arriba, parpadeo, 
 - un toque sacude y entrecierra los ojos; tres seguidos marean 1,8 s.
 - al terminar una tarea salta 3 celdas y cae con un pequeño aplastamiento.
 - con «reducir movimiento» o con animaciones apagadas solo queda la mirada.
+
+## preguntas desde la isla
+
+el hook `hooks/pet-question.sh` solo actúa para `PreToolUse` con `tool_name=AskUserQuestion`, exige la bandera opt-in y envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)` por el mismo socket local. la tarjeta muestra la primera pregunta y sus opciones. la respuesta vuelve como `updatedInput.answers`; si falla el socket, falta una herramienta o vence el plazo, el hook sale sin imprimir y claude code conserva su flujo normal en la terminal.
+
+prueba automática: `ClaudePet --selftest-question` valida el parseo, las opciones y el fallo cerrado de entradas inválidas. falta probar el ciclo completo con una sesión real y revisar selección múltiple.

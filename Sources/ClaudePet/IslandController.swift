@@ -111,7 +111,7 @@ final class IslandController {
         let finishedPending = finishedAt.map { now - $0 < 0.1 } ?? false
 
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
-        let asking = !store.permissionAsks.isEmpty
+        let asking = !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty
         let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
         let input = IslandInput(now: now,
                                 overNotch: NotchGeometry.overNotch(mouse, metrics: m),
@@ -196,7 +196,7 @@ struct IslandView: View {
                 .frame(width: side, height: side)
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
-            if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else { details } }
+            if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent { Circle().fill(codexColor).frame(width: 8, height: 8) }
         }
@@ -240,6 +240,24 @@ struct IslandView: View {
                 .background(Capsule().fill(fill))
         }
         .buttonStyle(.plain)
+    }
+
+    private func questionCard(_ ask: QuestionAsk) -> some View {
+        let q = ask.questions[0]
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
+            Text(q.question).font(.system(size: 13)).foregroundColor(.white).lineLimit(2)
+            HStack(spacing: 6) {
+                ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
+                    permissionButton(option.label, fill: Color.white.opacity(0.1), ink: .white) {
+                        let answers = ask.questions.enumerated().map { index, item -> [String: Any] in
+                            ["question": item.question, "answer": index == 0 ? option.label : ""]
+                        }
+                        store.answerQuestion(ask.id, answers)
+                    }
+                }
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
@@ -297,15 +315,17 @@ enum IslandSnapshot {
         let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1512, height: 982), safeTop: 38, auxLeft: 664, auxRight: 664)
         let store = PetStore.shared
         let rows: [(IslandMode, PetState)] = [(.hidden, .idle), (.peek, .idle), (.compact, .thinking), (.expanded, .tool), (.expanded, .waiting)]
-        store.permissionAsks = [PermissionAsk(id: "demo", session: "abc", tool: "Bash", project: "claude-pet",
-                                              detail: "rm -rf build && swift build -c release", canAlways: true, at: Date()),
-                                PermissionAsk(id: "demo2", session: "abc", tool: "Edit", project: "claude-pet", detail: "", canAlways: false, at: Date())]
-        defer { store.permissionAsks = [] }
+        let demoPermission = PermissionAsk(id: "demo", session: "abc", tool: "Bash", project: "claude-pet",
+                                           detail: "rm -rf build && swift build -c release", canAlways: true, at: Date())
+        let demoQuestion = QuestionAsk(id: "question-demo", session: "abc", project: "claude-pet", questions: [
+            IslandQuestion(id: "q", header: "modo", question: "como quieres continuar?", options: [("rápido", "menos pasos"), ("seguro", "más revisión")], multiSelect: false)])
+        defer { store.permissionAsks = []; store.questionAsks = [] }
         let cell = NotchGeometry.panelSize
         let view = VStack(spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                 let model = IslandModel()
-                let h: CGFloat = i == 4 ? NotchGeometry.permissionHeight : 150
+                let _ = { store.permissionAsks = i == 4 ? [demoPermission] : []; store.questionAsks = i == 3 ? [demoQuestion] : [] }()
+                let h: CGFloat = i >= 3 ? NotchGeometry.permissionHeight : 150
                 let _ = { model.mode = row.0; model.size = NotchGeometry.islandSize(row.0, metrics: m, expandedHeight: h) }()
                 IslandView(model: model, store: store)
                     .frame(width: cell.width, height: i == 4 ? 250 : 190, alignment: .top)
