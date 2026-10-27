@@ -176,7 +176,7 @@ enum IslandSelfTest {
         let z = PetAnimator.particles(at: 3, pose: emote(3, scene(400)), scene: scene(400))
         check("dormida suelta z en la esquina superior derecha, dentro del lienzo", !z.isEmpty && z.allSatisfy { (0..<16).contains($0.x) && (0..<16).contains($0.y) && $0.x >= 10 && $0.y <= 7 })
         check("sin emocion no hay particulas", PetAnimator.particles(at: 3, pose: PetPose(), scene: scene()).isEmpty)
-        let conf = scene(0, .done, confetti: 100)
+        let conf = scene(0, .idle, confetti: 100)
         let c1 = PetAnimator.particles(at: 101, pose: PetPose(), scene: conf)
         check("el confeti cae durante 2,6 s y desaparece", !c1.isEmpty && c1.allSatisfy { (0..<16).contains($0.x) && (0..<16).contains($0.y) }
               && !PetAnimator.particles(at: 102, pose: PetPose(), scene: conf).isEmpty && PetAnimator.particles(at: 102.7, pose: PetPose(), scene: conf).isEmpty
@@ -199,6 +199,36 @@ enum IslandSelfTest {
         m = IslandMachine(); _ = m.tick(input(0, tasks: true)); _ = m.tick(input(1, tasks: true, finished: true))
         var dismiss = input(2, tasks: true); dismiss.dismissFinished = true
         check("pulsar ok cierra la tarjeta de terminado sin esperar", m.reason == .finished && m.tick(dismiss) == .compact)
+        // vida propia en reposo
+        var looks = 0, stretches = 0, yawns = 0, ears = 0, lastLook = false, lastStretch = false, lastYawn = false, lastEar = false
+        for k in 0..<30_000 {
+            let life = PetAnimator.idleLife(at: Double(k) / 100)
+            if life.look != nil && !lastLook { looks += 1 }; lastLook = life.look != nil
+            if life.stretch != nil && !lastStretch { stretches += 1 }; lastStretch = life.stretch != nil
+            if life.yawn && !lastYawn { yawns += 1 }; lastYawn = life.yawn
+            if life.earLift && !lastEar { ears += 1 }; lastEar = life.earLift
+        }
+        check("en 5 min mira alrededor entre 30 y 55 veces", (30...55).contains(looks))
+        check("en 5 min se estira entre 5 y 14 veces", (5...14).contains(stretches))
+        check("bosteza en algunos estiramientos, no en todos", yawns >= 1 && yawns <= stretches)
+        check("mueve las orejas con frecuencia", ears > 20)
+        check("la vida propia es determinista", PetAnimator.idleLife(at: 123.4) == PetAnimator.idleLife(at: 123.4))
+        func quiet(_ t: TimeInterval, state: PetState = .idle, idle: TimeInterval = 5, gaze: CGPoint = .zero) -> PetPose { PetAnimator.pose(at: t, gaze: gaze, pokes: [], hopStart: nil, motion: true, scene: PetScene(idleSeconds: idle, state: state)) }
+        let lookTime = (0..<3000).map { Double($0) / 10 }.first { PetAnimator.idleLife(at: $0 + 0.5).look != nil } ?? 0
+        check("en reposo sus ojos se mueven solos", { let q = quiet(lookTime + 0.5); return q.eyeDX != 0 || q.eyeDY != 0 }())
+        check("si el cursor la distrae, manda el cursor", quiet(lookTime + 0.5, gaze: CGPoint(x: -1, y: 0)).eyeDX == -1)
+        check("trabajando no hace sus cosas de reposo", !(0..<400).contains { let q = quiet(Double($0) / 4, state: .tool); return q.earLift || q.yawn })
+        check("dormida no hace sus cosas de reposo", !(0..<400).contains { let q = quiet(Double($0) / 4, idle: 400); return q.earLift || q.yawn })
+        let stretchTime = (0..<9000).map { Double($0) / 10 }.first { PetAnimator.idleLife(at: $0).stretch != nil } ?? 0
+        check("al estirarse crece en vertical y sube un poco", { let q = quiet(stretchTime + 0.35); return q.scaleY > 1.06 && q.dy < 0 }())
+        let yawnTime = (0..<9000).map { Double($0) / 10 }.first { PetAnimator.idleLife(at: $0).yawn } ?? -1
+        check("el bostezo abre la boca con los ojos cerrados", yawnTime >= 0 && { let q = quiet(yawnTime); return q.yawn && q.blink }())
+        let yawned = PetAnimator.apply(Sprite.block(.idle, tick: 3), pose: { var q = PetPose(); q.yawn = true; q.blink = true; return q }())
+        check("el bostezo dibuja la boca dentro del cuerpo", yawned.filter { $0.c == Pal.charcoal && $0.y >= 10 && $0.x >= 7 && $0.x <= 8 }.count == 4)
+        let lifted = PetAnimator.apply(Sprite.block(.idle, tick: 3), pose: { var q = PetPose(); q.earLift = true; return q }())
+        let baseEars = Sprite.block(.idle, tick: 3).filter { $0.x <= 1 || $0.x >= 14 }.map(\.y).min() ?? 0
+        check("el tic sube las orejas una celda", (lifted.filter { $0.x <= 1 || $0.x >= 14 }.map(\.y).min() ?? 0) == baseEars - 1)
+        check("al terminar titilan destellos y no hay confeti", !PetAnimator.particles(at: 2.0, pose: PetPose(), scene: PetScene(state: .done)).isEmpty && PetAnimator.particles(at: 2.0, pose: PetPose(), scene: PetScene(state: .idle)).isEmpty)
         check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo

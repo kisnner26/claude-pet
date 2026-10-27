@@ -18,6 +18,9 @@ struct PetPose: Equatable {
     var sleepy = false
     var worried = false
     var dancing = false
+    /// Las orejas se levantan un instante (tic o estiramiento).
+    var earLift = false
+    var yawn = false
 }
 
 /// Lo que la mascota sabe de su entorno para elegir una emocion. Todo llega ya calculado por el controlador.
@@ -70,6 +73,33 @@ enum PetAnimator {
         dizzyTrigger(pokes: pokes, at: t).map { dizzyLength - (t - $0) }
     }
 
+    /// Pequenas conductas propias de la mascota en reposo, sin que nadie las provoque. Deterministas: el tiempo decide.
+    /// - mirar alrededor: ~cada 7 s, 1 s, a la izquierda, a la derecha o arriba
+    /// - tic de orejas: ~cada 9 s, 0,2 s
+    /// - estirarse: ~cada 31 s, 0,7 s; en uno de cada dos estiramientos le sigue un bostezo de 0,8 s
+    struct IdleLife: Equatable {
+        var look: (dx: Int, dy: Int)? = nil
+        var stretch: Double? = nil      // 0...1 dentro del estiramiento
+        var yawn = false
+        var earLift = false
+        static func == (a: IdleLife, b: IdleLife) -> Bool { a.look?.dx == b.look?.dx && a.look?.dy == b.look?.dy && a.stretch == b.stretch && a.yawn == b.yawn && a.earLift == b.earLift }
+    }
+
+    static func idleLife(at t: TimeInterval) -> IdleLife {
+        var life = IdleLife()
+        let lookCycle = 7.0, n = Int((t / lookCycle).rounded(.down))
+        let lookStart = jitter(n + 101) * (lookCycle - 1.2), d = t - Double(n) * lookCycle - lookStart
+        if d >= 0 && d < 1.0 { let r = jitter(n + 211); life.look = r < 0.4 ? (-1, 0) : r < 0.8 ? (1, 0) : (0, -1) }
+        let earCycle = 9.0, m = Int((t / earCycle).rounded(.down))
+        let earStart = jitter(m + 307) * (earCycle - 0.4), e = t - Double(m) * earCycle - earStart
+        if e >= 0 && e < 0.2 { life.earLift = true }
+        let stretchCycle = 31.0, q = Int((t / stretchCycle).rounded(.down))
+        let stretchStart = 4 + jitter(q + 401) * (stretchCycle - 10), s = t - Double(q) * stretchCycle - stretchStart
+        if s >= 0 && s < 0.7 { life.stretch = s / 0.7; if s > 0.14 && s < 0.56 { life.earLift = true } }
+        else if jitter(q + 503) > 0.5, s >= 0.7 && s < 1.5 { life.yawn = true }
+        return life
+    }
+
     /// Parpadeo cada 2 a 5 s, con un parpadeo doble de vez en cuando.
     static func isBlinking(at t: TimeInterval) -> Bool {
         let cycle = 3.5
@@ -102,6 +132,18 @@ enum PetAnimator {
         p.scaleY = 1 + 0.04 * CGFloat(breath)
         p.scaleX = 1 - 0.015 * CGFloat(breath)
         p.blink = isBlinking(at: t)
+
+        // vida propia: solo cuando la mascota esta tranquila (en reposo y sin que el cursor la distraiga)
+        if scene.state == .idle, scene.idleSeconds < sleepAfter, look.dx == 0, look.dy == 0 {
+            let life = idleLife(at: t)
+            if let l = life.look { p.eyeDX = l.dx; p.eyeDY = l.dy }
+            if let k = life.stretch {
+                let w = CGFloat(sin(k * .pi))
+                p.scaleY *= 1 + 0.10 * w; p.scaleX *= 1 - 0.04 * w; p.dy -= 0.6 * w
+            }
+            p.earLift = life.earLift
+            if life.yawn { p.yawn = true; p.blink = true }
+        }
 
         // toque: sacudida corta; tres toques seguidos marean
         if let third = dizzyTrigger(pokes: pokes, at: t) {
@@ -185,6 +227,13 @@ enum PetAnimator {
                 for (cx, cy) in [(0, 2), (1, 2), (1, 1), (1, 0)] where clip(x + cx, y + cy) && k < 0.85 { out.append(Px(x: x + cx, y: y + cy, c: light)) }
             }
         }
+        if scene.state == .done {
+            // destellos que titilan alrededor de la cabeza mientras dura el "listo"
+            let spots = [(1, 2), (13, 1), (14, 4), (3, 0)]
+            for (i, spot) in spots.enumerated() where Int((t * 5).rounded(.down) + Double(i)) % 3 != 0 {
+                for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
+            }
+        }
         if let start = scene.confettiStart, t >= start, t - start < confettiLength {
             let k = (t - start) / confettiLength
             let palette = [Color(hex: 0xE7B45B), Color(hex: 0xC84B4B), Color(hex: 0x6CCB8A), Color(hex: 0x5270E8), Color(hex: 0xE58BB0)]
@@ -202,9 +251,13 @@ enum PetAnimator {
     /// Los ojos son los pixeles de tinta de la zona de la cara (filas 5 a 10).
     static func apply(_ pixels: [Px], pose: PetPose) -> [Px] {
         func isEye(_ q: Px) -> Bool { q.c == Pal.charcoal && q.y >= 5 && q.y <= 10 && q.x >= 3 && q.x <= 12 }
+        // orejas: los laterales del cuerpo; un tic las sube una celda
+        var pixels = pixels
+        if pose.earLift { pixels = pixels.map { ($0.x <= 1 || $0.x >= 14) && $0.y <= 12 ? Px(x: $0.x, y: $0.y - 1, c: $0.c) : $0 } }
         let eyes = pixels.filter(isEye)
-        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes else { return pixels }
+        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn else { return pixels }
         var out = pixels.filter { !isEye($0) }
+        if pose.yawn { for (x, y) in [(7, 10), (8, 10), (7, 11), (8, 11)] { out.append(Px(x: x, y: y, c: Pal.charcoal)) } }
         let ink = Pal.charcoal
         if pose.dizzy {
             for (cx, cy) in [(5, 8), (10, 8)] {
