@@ -229,6 +229,22 @@ struct IslandView: View {
                 }.buttonStyle(.plain).accessibilityLabel(store.attentionLabel)
                     .help("\(store.attentionLabel) · pulsa para abrir")
             }
+            if compact, let alert = store.safetyAlert {
+                Button { model.poke() } label: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Color(hex: 0xD85C5C))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("alerta de seguridad: \(alert.title)")
+                .help("\(alert.title) · pulsa para abrir el detalle")
+                .contextMenu {
+                    Button("copiar alerta", systemImage: "doc.on.clipboard") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("\(alert.title) · \(alert.subtitle)", forType: .string)
+                    }
+                }
+            }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent {
