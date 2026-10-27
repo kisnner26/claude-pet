@@ -202,6 +202,12 @@ struct IslandView: View {
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
+            if compact, let reading = store.contextReading {
+                Text("\(reading.remainingPercent)%")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundColor(contextColor(reading.pressure))
+                    .accessibilityLabel("contexto: \(reading.remainingPercent) por ciento restante")
+            }
             if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent { CodexMini(store: store, greet: false).frame(width: 22, height: 24) }
@@ -275,6 +281,14 @@ struct IslandView: View {
         case .done: return Color(hex: 0x6CCB8A)
         case .tool, .thinking, .starting: return Color(hex: 0x5270E8)
         case .idle: return .clear
+        }
+    }
+
+    private func contextColor(_ pressure: ContextPressure) -> Color {
+        switch pressure {
+        case .normal: return Color(hex: 0x5270E8)
+        case .caution: return Color(hex: 0xE7B45B)
+        case .critical: return Color(hex: 0xD85C5C)
         }
     }
 
