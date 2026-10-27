@@ -104,3 +104,5 @@ en modo compacto, la isla muestra una insignia ámbar con el número de permisos
 cuando el adaptador de codex publica contexto, el modo compacto muestra también su porcentaje y reutiliza los mismos colores de presión; si no hay lectura, no se inventa ningún valor.
 
 el porcentaje compacto incluye una barra horizontal proporcional al contexto restante para claude y codex; la barra mantiene el estado azul, ámbar o rojo y su etiqueta accesible indica el agente correspondiente.
+
+la vista abierta añade acciones directas para copiar el resumen de contexto y abrir el diff más reciente desde el mapa de archivos.
