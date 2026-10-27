@@ -116,3 +116,5 @@ el botón `actualizar` fuerza una lectura inmediata de telemetría, contexto y c
 si existe un workspace publicado, la vista abierta ofrece `abrir carpeta del proyecto` y lo entrega a finder mediante `NSWorkspace`, sin copiar ni persistir rutas.
 
 cada paso reciente del ticker incluye una acción `copiar` que conserva solo su etiqueta y delta (`+N -M`) en el portapapeles.
+
+cuando git está disponible, la vista abierta muestra la rama activa y permite copiarla con un clic; si no hay repositorio, no aparece ninguna rama inventada.
