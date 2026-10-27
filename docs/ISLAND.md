@@ -33,7 +33,15 @@ las respuestas de preguntas se validan como json antes de envolverse en `updated
 
 ## rendimiento y seguridad
 
-la isla usa 60 hz mientras está activa y 1 hz cuando está oculta, sin tareas ni atención pendiente. `--selftest-polling` verifica la política; no sustituye un perfil de cpu en pantalla real.
+la isla usa 30 hz mientras está activa y 1 hz cuando está oculta, sin tareas ni atención pendiente. `--selftest-polling` verifica la política.
+
+medición local con `tests/cpu.sh` (30 s, `ps`, después del arranque):
+
+- debug oculto: 4.24 %
+- release oculto: 4.42 %
+- debug compacto con demo de tareas: 28.50 %; supera el objetivo de 10 % y queda pendiente optimizar el lienzo animado de la mascota.
+
+`sample` confirmó que el reposo alto venía de dos fuentes: las `TimelineView` de las ventanas flotantes seguían renderizando aunque estuvieran ordenadas fuera, y `MenuBarExtra` actualizaba el replicante de `NSStatusItem` durante el modo de medición. ambas rutas se detienen en modo oculto. el compacto sigue dominado por `CanvasDisplayList.updateValue` de `PetFace` a causa de la animación activa.
 
 los atajos globales son opt-in, aceptan únicamente ctrl+option+a/d/i/s/p, ignoran repeticiones y se desregistran al cerrar. requieren permiso de accesibilidad de macos.
 
