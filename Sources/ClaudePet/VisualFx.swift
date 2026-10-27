@@ -267,3 +267,42 @@ enum Gooey {
         }
     }
 }
+
+// MARK: llama de racha
+
+enum StreakFire {
+    /// Tamaño de la llama segun los dias seguidos: 0 = nada, 1 = brasa, 2 = llama, 3 = hoguera, 4 = hoguera con chispas.
+    static func tier(streak: Int) -> Int { streak <= 0 ? 0 : streak < 3 ? 1 : streak < 7 ? 2 : streak < 14 ? 3 : 4 }
+
+    /// Pixeles de la llama en una rejilla normalizada. Parpadea con el tiempo; arde desde abajo y se afina hacia arriba.
+    static func pixels(at t: TimeInterval, streak: Int) -> [FxPixel] {
+        let tier = tier(streak: streak)
+        guard tier > 0 else { return [] }
+        let height = [0, 3, 6, 9, 11][tier], baseWidth = [0, 2, 4, 6, 7][tier]
+        var out: [FxPixel] = []
+        for row in 0..<height {
+            let k = Double(row) / Double(height)                       // 0 abajo, 1 arriba
+            // silueta de gota: panza abajo, cuello fino y punta que se mece; el ancho respira con el tiempo
+            let profile = pow(1 - pow(k, 1.7), 0.8) * (0.88 + 0.12 * sin(t * 6 + k * 5))
+            let width = max(1, Int((Double(baseWidth) * profile).rounded()))
+            let sway = sin(t * 5 + Double(row) * 0.7) * 1.1 * k * k
+            for col in 0..<width {
+                let flicker = VisualFx.rnd(row * 31 + col * 7 + Int(t * 9))
+                if k > 0.35 && flicker < 0.18 { continue }              // la punta chisporrotea
+                let edge = width > 1 ? abs(Double(col) - Double(width - 1) / 2) / (Double(width - 1) / 2) : 0
+                let heat = (1 - k) * 0.6 + (1 - edge) * 0.55            // el centro y la base arden mas
+                let color: UInt32 = heat > 0.75 ? 0xFFE08A : heat > 0.5 ? 0xFFB347 : heat > 0.3 ? 0xFF7A33 : 0xD94A2B
+                let x = 0.5 + (Double(col) - Double(width - 1) / 2 + sway) / 9
+                let y = 1 - (Double(row) + 0.5) / 12
+                out.append(FxPixel(x: x, y: y, size: 1, color: color, alpha: 0.95 - k * 0.2))
+            }
+        }
+        if tier >= 4 {
+            for i in 0..<3 {
+                let p = (t * 0.9 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+                out.append(FxPixel(x: 0.5 + sin(p * 5 + Double(i) * 2) * 0.28, y: 0.18 - p * 0.2, size: 0.7, color: 0xFFE9A8, alpha: 1 - p))
+            }
+        }
+        return out
+    }
+}

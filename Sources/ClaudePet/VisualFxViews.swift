@@ -208,3 +208,17 @@ struct GooeyDripsView: View {
         .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
+
+/// Llama que arde junto al contador de racha y crece con los dias seguidos.
+struct StreakFireView: View {
+    let streak: Int
+    var body: some View {
+        if StreakFire.tier(streak: streak) > 0 {
+            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { ctx in
+                FxCanvas(pixels: StreakFire.pixels(at: ctx.date.timeIntervalSinceReferenceDate, streak: streak), unit: 2.6)
+            }
+            .frame(width: 24, height: 32)
+            .accessibilityHidden(true)
+        }
+    }
+}

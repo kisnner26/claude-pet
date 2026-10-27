@@ -90,6 +90,18 @@ enum VisualFxSelfTest {
         check("a mitad de camino las gotas cuelgan mas que al principio", mid.count == 4 && (mid.map(\.drop).max() ?? 0) > (early.map(\.drop).max() ?? 0) && mid.allSatisfy { $0.drop >= 0 && $0.drop <= 26 && $0.radius > 2 && $0.radius < 10 && (0...1).contains($0.x) })
         check("las gotas son deterministas y se reparten a lo ancho", Gooey.blobs(age: 0.5) == Gooey.blobs(age: 0.5) && Set(mid.map { Int($0.x * 10) }).count >= 3)
 
+        // llama de racha
+        let fireTiers = [0, 1, 2, 3, 6, 7, 13, 14, 99].map { StreakFire.tier(streak: $0) }
+        check("los dias seguidos pasan a etapas de la llama", fireTiers == [0, 1, 1, 2, 2, 3, 3, 4, 4])
+        check("sin racha no hay llama", StreakFire.pixels(at: 1, streak: 0).isEmpty)
+        let sizes = [1, 3, 7, 14].map { StreakFire.pixels(at: 2, streak: $0).count }
+        check("la llama crece con la racha", sizes[0] < sizes[1] && sizes[1] < sizes[2] && sizes[2] < sizes[3])
+        let flame = StreakFire.pixels(at: 2.3, streak: 10)
+        check("la llama cabe en su caja y es determinista", flame == StreakFire.pixels(at: 2.3, streak: 10) && flame.allSatisfy { (-0.1...1.1).contains($0.x) && (-0.1...1.1).contains($0.y) })
+        check("la llama parpadea con el tiempo", StreakFire.pixels(at: 2.0, streak: 10) != StreakFire.pixels(at: 2.4, streak: 10))
+        let flameLow = flame.filter { $0.y > 0.8 }, flameHigh = flame.filter { $0.y < 0.35 }
+        check("la llama es mas caliente abajo que arriba", !flameLow.isEmpty && !flameHigh.isEmpty && flameLow.contains { $0.color == 0xFFE08A || $0.color == 0xFFB347 } && flameHigh.allSatisfy { $0.color != 0xFFE08A })
+
         print(failures == 0 ? "EFECTOS OK" : "EFECTOS FALLOS: \(failures)")
         return failures == 0
     }
