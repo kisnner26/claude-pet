@@ -141,6 +141,7 @@ struct MenuBarContent: View {
                     }
                     Button("borrar estadísticas") { ActivityStats.shared.reset() }
                 }
+                Toggle("bailar con la música", isOn: $store.danceToMusic)
                 Menu("guardarropa", systemImage: "tshirt") {
                     ForEach(Outfit.allCases) { outfit in
                         Toggle(outfit.title, isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))

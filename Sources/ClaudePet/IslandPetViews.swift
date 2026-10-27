@@ -12,14 +12,18 @@ struct PetFace: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
-            let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion, hover: model.hover)
+            let scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing && store.danceToMusic)
+            let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion, hover: model.hover, scene: scene)
             Canvas { gc, size in
                 var cue = store.cue(at: ctx.date)
                 if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
                 if Sprite.skin == .block { px = Wardrobe.compose(px, outfits: store.outfitsNow(at: ctx.date), state: store.state, tick: tick) }
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
+                // las particulas no siguen al cuerpo: se dibujan antes de moverlo
+                var overlay = gc
                 PetFace.draw(&gc, size: size, pixels: px, pose: pose)
+                if motion { PetFace.draw(&overlay, size: size, pixels: PetAnimator.particles(at: now, pose: pose, scene: scene), pose: PetPose()) }
             }
             }
         }

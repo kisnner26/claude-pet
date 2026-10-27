@@ -133,7 +133,35 @@ enum IslandSelfTest {
         check("tres toques en menos de 2 s activan mareo antes del tercer segundo", pose(11.9, pokes: [10, 10.6, 11.1]).dizzy)
         check("el mareo pasa a los 1,8 s", !pose(12.7, pokes: three).dizzy)
         check("dos toques espaciados no marean", !pose(11, pokes: [5, 10.5]).dizzy)
-        check("el salto sube a media altura y vuelve al suelo", { let top = pose(20.3, hop: 20).dy; return top < -2.9 && pose(20.7, hop: 20).dy == 0 && pose(19.9, hop: 20).dy == 0 }())
+        check("el salto: se agacha, sube a media altura, cae y rebota", {
+            let crouch = pose(20.1, hop: 20), top = pose(20.42, hop: 20).dy, bounce = pose(20.88, hop: 20).dy
+            return crouch.scaleY < 0.95 && crouch.dy == 0 && top < -2.9 && bounce < -0.5 && pose(21.3, hop: 20).dy == 0 && pose(19.9, hop: 20).dy == 0
+        }())
+        check("el rebote es mas pequeno que el salto", abs(pose(20.88, hop: 20).dy) < abs(pose(20.42, hop: 20).dy))
+
+        // emociones de fondo
+        func scene(_ idle: TimeInterval = 0, _ state: PetState = .idle, dance: Bool = false, confetti: TimeInterval? = nil) -> PetScene { PetScene(idleSeconds: idle, state: state, confettiStart: confetti, dancing: dance) }
+        func emote(_ t: TimeInterval, _ sc: PetScene, pokes: [TimeInterval] = [], hop: TimeInterval? = nil) -> PetPose { PetAnimator.pose(at: t, gaze: .zero, pokes: pokes, hopStart: hop, motion: true, scene: sc) }
+        check("tras 5 min de reposo se duerme con los ojos cerrados", emote(50, scene(301)).sleepy && emote(50, scene(301)).blink && !emote(50, scene(299)).sleepy)
+        check("dormida respira cada 6 s y despierta cada 4 s", abs(emote(1.5, scene(301)).scaleY - emote(7.5, scene(301)).scaleY) < 1e-9 && abs(emote(1.5, scene(0)).scaleY - emote(7.5, scene(0)).scaleY) > 1e-6)
+        check("trabajando no se duerme aunque el usuario este ausente", !emote(50, scene(999, .thinking)).sleepy)
+        check("un toque la despierta de inmediato", !emote(50.1, scene(301), pokes: [50]).sleepy)
+        check("con error se preocupa y tiembla", emote(10, scene(0, .error)).worried && (1..<20).contains { abs(emote(10 + Double($0) * 0.013, scene(0, .error)).dx) > 0.1 })
+        check("con musica baila: se mece y rebota", emote(10, scene(0, .idle, dance: true)).dancing && (1..<20).contains { abs(emote(10 + Double($0) * 0.05, scene(0, .idle, dance: true)).rotation) > 3 })
+        check("bailar no pisa el salto de terminado", !emote(20.4, scene(0, .idle, dance: true), hop: 20).dancing)
+        check("sin movimiento no hay emociones", { let q = PetAnimator.pose(at: 10, gaze: .zero, pokes: [], hopStart: nil, motion: false, scene: scene(999)); return !q.sleepy && !q.worried && !q.dancing }())
+        let z = PetAnimator.particles(at: 3, pose: emote(3, scene(400)), scene: scene(400))
+        check("dormida suelta z en la esquina superior derecha, dentro del lienzo", !z.isEmpty && z.allSatisfy { (0..<16).contains($0.x) && (0..<16).contains($0.y) && $0.x >= 10 && $0.y <= 7 })
+        check("sin emocion no hay particulas", PetAnimator.particles(at: 3, pose: PetPose(), scene: scene()).isEmpty)
+        let conf = scene(0, .done, confetti: 100)
+        let c1 = PetAnimator.particles(at: 101, pose: PetPose(), scene: conf)
+        check("el confeti cae durante 2,6 s y desaparece", !c1.isEmpty && c1.allSatisfy { (0..<16).contains($0.x) && (0..<16).contains($0.y) }
+              && !PetAnimator.particles(at: 102, pose: PetPose(), scene: conf).isEmpty && PetAnimator.particles(at: 102.7, pose: PetPose(), scene: conf).isEmpty
+              && PetAnimator.particles(at: 99, pose: PetPose(), scene: conf).isEmpty)
+        check("el confeti es determinista", PetAnimator.particles(at: 101, pose: PetPose(), scene: conf).map { "\($0.x),\($0.y)" } == c1.map { "\($0.x),\($0.y)" })
+        check("preocupada muestra una gota de sudor", PetAnimator.particles(at: 2, pose: emote(2, scene(0, .error)), scene: scene(0, .error)).count == 2)
+        check("la musica solo cuenta si el estado es exactamente playing", MusicMonitor.parse("playing\n") && !MusicMonitor.parse("paused") && !MusicMonitor.parse("stopped") && !MusicMonitor.parse("") && !MusicMonitor.parse("not playing"))
+        check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo
         var eyesOK = true, moved = false, blinkLine = false

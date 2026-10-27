@@ -121,6 +121,10 @@ final class PetStore: ObservableObject {
     /// Lo que lleva puesto la mascota: lo elegido mas, si esta activado, el atuendo de temporada.
     func outfitsNow(at date: Date = Date()) -> Set<Outfit> { seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe }
     func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
+    /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
+    @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {
+        didSet { UserDefaults.standard.set(danceToMusic, forKey: "danceToMusic") }
+    }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

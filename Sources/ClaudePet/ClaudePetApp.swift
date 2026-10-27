@@ -166,6 +166,9 @@ final class AppController: NSObject, NSApplicationDelegate {
             r.topAgent = "claude"; r.topProject = "claude-pet"; r.busiestDay = "jueves"
             try? RecapCard.png(r, showProject: false)?.write(to: URL(fileURLWithPath: CommandLine.arguments[i + 1])); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-emotes"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.emotes(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-poses"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.poses(to: CommandLine.arguments[i + 1]); exit(0)
         }

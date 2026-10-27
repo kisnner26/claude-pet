@@ -14,6 +14,20 @@ struct PetPose: Equatable {
     var dizzy = false
     var annoyed = false
     var wideEyes = false
+    /// Dormida: ojos cerrados y respiracion lenta.
+    var sleepy = false
+    var worried = false
+    var dancing = false
+}
+
+/// Lo que la mascota sabe de su entorno para elegir una emocion. Todo llega ya calculado por el controlador.
+struct PetScene: Equatable {
+    /// Segundos sin que el usuario toque el raton ni el teclado.
+    var idleSeconds: TimeInterval = 0
+    var state: PetState = .idle
+    /// Inicio de la fiesta de confeti tras una tarea larga.
+    var confettiStart: TimeInterval?
+    var dancing = false
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -28,6 +42,12 @@ enum PetAnimator {
     static let pokeAnnoyed: TimeInterval = 0.6
     static let hopLength: TimeInterval = 0.6
     static let hopHeight: CGFloat = 3
+    /// Anticipacion: se agacha antes de saltar; despues rebota un poco al caer.
+    static let crouchLength: TimeInterval = 0.12
+    static let bounceLength: TimeInterval = 0.28
+    static let sleepAfter: TimeInterval = 300
+    static let confettiLength: TimeInterval = 2.6
+    static let longTask: TimeInterval = 300
 
     /// Numero pseudoaleatorio estable por ciclo (0...1), sin estado.
     private static func jitter(_ n: Int) -> Double {
@@ -56,7 +76,7 @@ enum PetAnimator {
         return (dx, dy)
     }
 
-    static func pose(at t: TimeInterval, gaze: CGPoint, pokes: [TimeInterval], hopStart: TimeInterval?, motion: Bool, hover: Bool = false) -> PetPose {
+    static func pose(at t: TimeInterval, gaze: CGPoint, pokes: [TimeInterval], hopStart: TimeInterval?, motion: Bool, hover: Bool = false, scene: PetScene = PetScene()) -> PetPose {
         var p = PetPose()
         let look = eyes(gaze: gaze)
         p.eyeDX = look.dx; p.eyeDY = look.dy
@@ -88,13 +108,81 @@ enum PetAnimator {
             else { p.scaleY *= 0.96 + 0.04 * CGFloat(min(1, (k - 0.22) / 0.78)) }
         }
 
-        // salto al terminar: arco con un pequeno aplastamiento al caer
-        if let h = hopStart, t >= h, t - h < hopLength {
-            let k = (t - h) / hopLength
-            p.dy -= hopHeight * CGFloat(sin(k * .pi))
-            if k > 0.85 { p.scaleY *= 0.93; p.scaleX *= 1.04 }
+        // salto al terminar: se agacha, salta en arco, cae aplastada y rebota una vez mas pequeno
+        if let h = hopStart, t >= h {
+            let e = t - h
+            if e < crouchLength {
+                let k = CGFloat(e / crouchLength)
+                p.scaleY *= 1 - 0.13 * k; p.scaleX *= 1 + 0.07 * k
+            } else if e < crouchLength + hopLength {
+                let k = (e - crouchLength) / hopLength
+                p.dy -= hopHeight * CGFloat(sin(k * .pi))
+                if k > 0.85 { p.scaleY *= 0.93; p.scaleX *= 1.04 }
+            } else if e < crouchLength + hopLength + bounceLength {
+                let k = (e - crouchLength - hopLength) / bounceLength
+                p.dy -= 1 * CGFloat(sin(k * .pi))
+                if k < 0.25 { p.scaleY *= 0.95; p.scaleX *= 1.03 }
+            }
+        }
+
+        // emociones de fondo: solo cuando nada mas reclama a la mascota
+        let busy = p.dizzy || p.annoyed || hopStart.map { t >= $0 && t - $0 < crouchLength + hopLength + bounceLength } == true
+        if !busy {
+            if scene.state == .idle, scene.idleSeconds >= sleepAfter {
+                p.sleepy = true; p.blink = true
+                p.scaleY = 1 + 0.03 * CGFloat((sin(t * 2 * .pi / 6) + 1) / 2)     // respira mas despacio y mas hondo
+            } else if scene.state == .error {
+                p.worried = true
+                p.dx += CGFloat(sin(t * 50)) * 0.25                              // tiembla de preocupacion
+            } else if scene.dancing, scene.state == .idle || scene.state == .done {
+                p.dancing = true
+                p.rotation = 6 * sin(t * 2 * .pi * 2)
+                p.dy -= 0.8 * CGFloat(abs(sin(t * 2 * .pi * 2)))
+            }
         }
         return p
+    }
+
+    /// Particulas pixel-art de las emociones, en la rejilla 16x16 del sprite, siempre dentro del lienzo.
+    static func particles(at t: TimeInterval, pose: PetPose, scene: PetScene) -> [Px] {
+        var out: [Px] = []
+        let cream = Pal.cream, light = Pal.light
+        func clip(_ x: Int, _ y: Int) -> Bool { (0..<16).contains(x) && (0..<16).contains(y) }
+        if pose.sleepy {
+            // tres "z" que suben y se desvanecen, desfasadas
+            for i in 0..<3 {
+                let k = (t / 3 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+                let size = k < 0.4 ? 2 : 3
+                let x = 10 + Int(k * 4) + i % 2, y = 3 - Int(k * 3)
+                let cells: [(Int, Int)] = size == 2 ? [(0, 0), (1, 0), (0, 1), (1, 1)] : [(0, 0), (1, 0), (2, 0), (1, 1), (0, 2), (1, 2), (2, 2)]
+                for (cx, cy) in cells where clip(x + cx, max(0, y) + cy) && k < 0.9 { out.append(Px(x: x + cx, y: max(0, y) + cy, c: cream)) }
+            }
+        }
+        if pose.worried {
+            // gota de sudor que resbala por la frente
+            let k = (t * 1.2).truncatingRemainder(dividingBy: 1)
+            let y = 4 + Int(k * 4)
+            for (cx, cy) in [(0, 0), (0, 1)] where clip(13 + cx, y + cy) { out.append(Px(x: 13 + cx, y: y + cy, c: Color(hex: 0x8CC8F0))) }
+        }
+        if pose.dancing {
+            // notas que suben a los lados
+            for i in 0..<2 {
+                let k = (t * 0.9 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
+                let x = i == 0 ? 1 : 13, y = 5 - Int(k * 5)
+                for (cx, cy) in [(0, 2), (1, 2), (1, 1), (1, 0)] where clip(x + cx, y + cy) && k < 0.85 { out.append(Px(x: x + cx, y: y + cy, c: light)) }
+            }
+        }
+        if let start = scene.confettiStart, t >= start, t - start < confettiLength {
+            let k = (t - start) / confettiLength
+            let palette = [Color(hex: 0xE7B45B), Color(hex: 0xC84B4B), Color(hex: 0x6CCB8A), Color(hex: 0x5270E8), Color(hex: 0xE58BB0)]
+            for i in 0..<16 {
+                let x = Int(jitter(i + 100) * 15.99)
+                let speed = 0.6 + jitter(i + 200) * 0.8
+                let y = Int((k * speed * 18) - jitter(i + 300) * 6) % 40
+                if clip(x, y) && k < 0.95 { out.append(Px(x: x, y: y, c: palette[i % palette.count])) }
+            }
+        }
+        return out
     }
 
     /// Aplica la pose a los pixeles del sprite: ojos desplazados, parpadeo y ojos de mareo.

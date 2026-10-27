@@ -16,6 +16,11 @@ final class IslandModel: ObservableObject {
     @Published var hover = false
     var pokes: [TimeInterval] = []
     var hopStart: TimeInterval?
+    /// Segundos sin actividad del usuario, para dormirse.
+    var idleSeconds: TimeInterval = 0
+    var confettiStart: TimeInterval?
+    /// Hay musica sonando y el usuario activo el baile.
+    var dancing = false
     var greetUntil: TimeInterval = 0
     var onPetClick: () -> Void = {}
 

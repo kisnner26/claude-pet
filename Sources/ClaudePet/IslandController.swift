@@ -19,6 +19,8 @@ final class IslandController {
     private var timerInterval: TimeInterval = IslandPollingPolicy.activeInterval
     private var follower = ScreenFollower()
     private var lastSoundMode: IslandMode = .hidden
+    private var taskStartedAt: TimeInterval?
+    private let music = MusicMonitor()
     private var lastAskCount = 0
     private var lastQuestionCount = 0
     private var lastScreenPreference: IslandScreenPreference?
@@ -121,7 +123,11 @@ final class IslandController {
         let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
         let sound = SoundEngine.shared
         sound.enabled = store.soundsEnabled; sound.volume = Float(store.soundVolume)
+        // una tarea larga que termina se celebra con confeti
+        if tasksRunning() { if taskStartedAt == nil { taskStartedAt = now } }
         if doneNow {
+            if let started = taskStartedAt, now - started >= PetAnimator.longTask { model.confettiStart = now }
+            taskStartedAt = tasksRunning() ? now : nil
             finishedAt = now; model.hopStart = now; sound.play(.done)
             if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
             if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
@@ -146,6 +152,8 @@ final class IslandController {
                                 idleSeconds: idle,
                                 clickedPet: clicked)
         clicked = false
+        model.idleSeconds = idle
+        model.dancing = store.danceToMusic && music.isPlaying(enabled: true, now: now)
         let mode = machine.tick(input)
         if model.hover != input.overIsland { model.hover = input.overIsland }
         let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
@@ -692,5 +700,37 @@ struct RecapCard: View {
         r.scale = 2
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return nil }
         return rep.representation(using: .png, properties: [:])
+    }
+}
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-emotes <ruta.png>`: dormida, preocupada, bailando y con confeti.
+    static func emotes(to path: String) {
+        let t: TimeInterval = 3.2
+        let cases: [(String, PetState, PetScene)] = [
+            ("dormida", .idle, PetScene(idleSeconds: 400, state: .idle)),
+            ("preocupada", .error, PetScene(state: .error)),
+            ("bailando", .idle, PetScene(state: .idle, dancing: true)),
+            ("confeti", .done, PetScene(state: .done, confettiStart: t - 1.0)),
+        ]
+        let view = HStack(spacing: 14) {
+            ForEach(Array(cases.enumerated()), id: \.offset) { _, c in
+                VStack(spacing: 6) {
+                    Canvas { gc, size in
+                        let pose = PetAnimator.pose(at: t, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: c.2)
+                        var overlay = gc
+                        let px = PetAnimator.apply(Sprite.block(c.1, tick: 3), pose: pose)
+                        PetFace.draw(&gc, size: size, pixels: px, pose: pose)
+                        PetFace.draw(&overlay, size: size, pixels: PetAnimator.particles(at: t, pose: pose, scene: c.2), pose: PetPose())
+                    }.frame(width: 112, height: 112)
+                    Text(c.0).font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.8))
+                }
+            }
+        }.padding(16).background(Color.black)
+        let r = ImageRenderer(content: view)
+        r.scale = scale
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
     }
 }
