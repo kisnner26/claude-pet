@@ -447,7 +447,7 @@ struct IslandView: View {
                         .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
                     if store.contextReading != nil {
                         Button("copiar contexto", systemImage: "doc.on.clipboard") {
-                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.contextLabel, forType: .string)
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.contextReading?.summary ?? store.contextLabel, forType: .string)
                         }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
                     }
                     if !store.mission.changes.isEmpty {

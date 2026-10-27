@@ -113,6 +113,7 @@ enum SafetySelfTest {
         try? Data(contextLines.utf8).write(to: contextURL)
         let context = ContextMeter.read(url: contextURL, compactAt: 20_000)
         check("medidor usa el último contador real", context?.usedTokens == 15_000 && context?.remainingPercent == 25)
+        check("medidor ofrece resumen copiable", context?.summary.contains("25% restante") == true)
         check("medidor cambia de presión por margen", context?.pressure == .caution
               && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
 
