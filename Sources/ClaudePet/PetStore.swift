@@ -169,7 +169,7 @@ final class PetStore: ObservableObject {
     }
     var codexStateDurationLabel: String {
         let seconds = max(0, Int(Date().timeIntervalSince(peerStateSince)))
-        return seconds < 60 ? "(seconds) s" : "(seconds / 60) min"
+        return seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min"
     }
     var contextLabel: String {
         guard let reading = contextReading else { return "contexto no disponible" }
