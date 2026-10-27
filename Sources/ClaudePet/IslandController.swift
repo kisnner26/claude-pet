@@ -821,23 +821,35 @@ extension IslandSnapshot {
         func find(_ match: (PetAnimator.IdleLife) -> Bool) -> TimeInterval {
             (0..<20_000).map { Double($0) / 10 }.first { match(PetAnimator.idleLife(at: $0 + 0.3)) } ?? 0
         }
-        let scene = PetScene(idleSeconds: 5, state: .idle)
-        let frames: [(String, TimeInterval)] = [
-            ("en reposo", 1.0),
-            ("mira alrededor", find { $0.look != nil } + 0.3),
-            ("tic de orejas", find { $0.earLift && $0.stretch == nil } + 0.3),
-            ("se estira", find { $0.stretch != nil } + 0.3 + 0.35),
-            ("bosteza", find { $0.yawn } + 0.3),
+        let base = PetScene(idleSeconds: 5, state: .idle)
+        var entering = base; entering.openedAt = 10
+        var nodding = base; nodding.decisionAllow = true; nodding.decisionAt = 20
+        var shaking = base; shaking.decisionAllow = false; shaking.decisionAt = 30
+        var impatient = PetScene(state: .waiting); impatient.waitingFor = 20
+        var alarmed = PetScene(state: .waiting); alarmed.waitingFor = 50
+        let frames: [(String, TimeInterval, PetScene)] = [
+            ("en reposo", 1.0, base),
+            ("mira alrededor", find { $0.look != nil } + 0.3, base),
+            ("tic de orejas", find { $0.earLift && $0.stretch == nil } + 0.3, base),
+            ("se estira", find { $0.stretch != nil } + 0.3 + 0.35, base),
+            ("bosteza", find { $0.yawn } + 0.3, base),
+            ("entra al abrir", 10.12, entering),
+            ("asiente", 20.2, nodding),
+            ("niega", 30.1, shaking),
+            ("impaciente", 3.3, impatient),
+            ("alarmada", 1.0, alarmed),
         ]
         let view = HStack(spacing: 18) {
             ForEach(Array(frames.enumerated()), id: \.offset) { _, f in
                 VStack(spacing: 8) {
                     Canvas { gc, size in
-                        let pose = PetAnimator.pose(at: f.1, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: scene)
-                        let px = PetAnimator.apply(Sprite.block(.idle, tick: 3), pose: pose)
+                        let pose = PetAnimator.pose(at: f.1, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: f.2)
+                        var overlay = gc
+                        let px = PetAnimator.apply(Sprite.block(f.2.state, tick: 3), pose: pose)
                         PetFace.draw(&gc, size: size, pixels: px, pose: pose)
-                    }.frame(width: 110, height: 110)
-                    Text(f.0).font(.system(size: 11)).foregroundColor(.white.opacity(0.75))
+                        PetFace.draw(&overlay, size: size, pixels: PetAnimator.particles(at: f.1, pose: pose, scene: f.2), pose: PetPose())
+                    }.frame(width: 96, height: 96)
+                    Text(f.0).font(.system(size: 10)).foregroundColor(.white.opacity(0.75))
                 }
             }
         }.padding(18).background(Color.black)
