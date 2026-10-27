@@ -177,8 +177,12 @@ final class IslandController {
             if let started = taskStartedAt, now - started >= PetAnimator.longTask { model.confettiStart = now }
             taskStartedAt = tasksRunning() ? now : nil
             finishedAt = now; model.hopStart = now; sound.play(.done)
-            if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
-            if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
+            // solo cuentan las tareas que duraron de verdad, no cada turno corto
+            let ran = taskStartedAt.map { now - $0 } ?? 0
+            if ActivityStats.countsAsTask(duration: ran) {
+                if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
+                if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
+            }
             ActivityStats.shared.save()
             store.refreshWeeklyRecap()
         }
@@ -886,6 +890,12 @@ extension IslandSnapshot {
                     RoundedRectangle(cornerRadius: 10).fill(.black).frame(width: 150, height: 40).offset(y: 10)
                     GooeyDripsStatic(width: 150, age: 0.5).offset(y: 44)
                 })
+            }
+            HStack(spacing: 14) {
+                cell("racha: 1 día", FxCanvas(pixels: StreakFire.pixels(at: 1.3, streak: 1), unit: 5).frame(width: 60, height: 80))
+                cell("racha: 3 días", FxCanvas(pixels: StreakFire.pixels(at: 1.3, streak: 3), unit: 5).frame(width: 60, height: 80))
+                cell("racha: 7 días", FxCanvas(pixels: StreakFire.pixels(at: 1.3, streak: 7), unit: 5).frame(width: 60, height: 80))
+                cell("racha: 14 días", FxCanvas(pixels: StreakFire.pixels(at: 1.3, streak: 14), unit: 5).frame(width: 60, height: 80))
             }
         }.padding(18).background(Color(hex: 0x14161C))
         let r = ImageRenderer(content: view)

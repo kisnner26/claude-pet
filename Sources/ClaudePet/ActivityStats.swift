@@ -35,6 +35,9 @@ struct WeeklyRecap: Equatable {
 final class ActivityStats {
     static let shared = ActivityStats()
     static let keepDays = 120
+    /// Un turno que dura menos que esto (una consulta rapida) no cuenta como tarea.
+    static let minTaskSeconds: TimeInterval = 20
+    static func countsAsTask(duration: TimeInterval) -> Bool { duration >= minTaskSeconds }
     private(set) var days: [String: DayStats] = [:]
     private let lock = NSLock()
     var calendar = Calendar(identifier: .gregorian)

@@ -62,6 +62,8 @@ enum ActivityStatsSelfTest {
         let broken = ActivityStats(); broken.load()
         check("un archivo corrupto no rompe nada", broken.days.isEmpty)
 
+        check("un turno de 5 s no es una tarea y uno de 20 s si", !ActivityStats.countsAsTask(duration: 5) && !ActivityStats.countsAsTask(duration: 19.9) && ActivityStats.countsAsTask(duration: 20) && ActivityStats.countsAsTask(duration: 600))
+
         print(failures == 0 ? "ESTADISTICAS OK" : "ESTADISTICAS FALLOS: \(failures)")
         return failures == 0
     }
