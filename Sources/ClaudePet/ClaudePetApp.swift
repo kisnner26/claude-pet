@@ -503,6 +503,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func cleanupIsland() {
+        shortcutMonitor.stop()
         setPermissionFlag(false)
         askServer.stop(); server.stop(); busServer.stop()
         terminationSignals.forEach { $0.cancel() }; terminationSignals.removeAll()

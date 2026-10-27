@@ -9,7 +9,8 @@ SOCK="${CLAUDE_PET_ASK_SOCK:-$PET_DIR/ask.sock}"
 [ -S "$SOCK" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 command -v perl >/dev/null 2>&1 || exit 0
-input=$(head -c 262144 2>/dev/null); [ -n "$input" ] || exit 0
+input=$(head -c 262145 2>/dev/null); [ -n "$input" ] || exit 0
+[ "${#input}" -le 262144 ] || exit 0
 tool=$(printf '%s' "$input" | jq -r '.tool_name // ""' 2>/dev/null)
 [ "$tool" = "AskUserQuestion" ] || exit 0
 sid=$(printf '%s' "$input" | jq -r '.session_id // "x"' | tr -cd 'A-Za-z0-9_-' | cut -c1-16)
@@ -19,10 +20,13 @@ questions=$(printf '%s' "$input" | jq -c '.tool_input.questions // []' 2>/dev/nu
 payload=$(printf '%s' "$questions" | base64 | tr -d '\n')
 line=$(printf 'ask\t%s\t%s\t%s\n' "$sid" "$proj" "$payload")
 export CLAUDE_PET_QUESTIONS="$questions"
-exec perl -e '
+answers=$(perl -e '
 use strict; use IO::Socket::UNIX;
 my ($path,$wait,$line)=@ARGV; my $s=IO::Socket::UNIX->new(Peer=>$path) or exit 0;
 $s->autoflush(1); print $s $line; $SIG{ALRM}=sub{exit 0}; alarm $wait;
 my $r=<$s>; exit 0 unless defined $r; $r =~ s/^\s+|\s+$//g;
-print "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"updatedInput\":{\"questions\":$ENV{CLAUDE_PET_QUESTIONS},\"answers\":$r}}}\n" if $r =~ /^\{[^\n]*\}$/;
-' "$SOCK" "${CLAUDE_PET_ASK_WAIT:-110}" "$line"
+print $r if $r =~ /^\{[^\n]*\}$/;
+' "$SOCK" "${CLAUDE_PET_ASK_WAIT:-110}" "$line")
+[ -n "$answers" ] || exit 0
+printf '%s\n' "$answers" | jq -e 'type == "object"' >/dev/null 2>&1 || exit 0
+printf '%s\n' "$answers" | jq -c --argjson questions "$questions" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"allow",updatedInput:{questions:$questions,answers:.}}}' 2>/dev/null || exit 0

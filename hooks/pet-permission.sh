@@ -21,8 +21,9 @@ WAIT="${CLAUDE_PET_ASK_WAIT:-110}"
 command -v jq >/dev/null 2>&1 || exit 0
 command -v perl >/dev/null 2>&1 || exit 0
 
-input=$(head -c 262144 2>/dev/null)
+input=$(head -c 262145 2>/dev/null)
 [ -n "$input" ] || exit 0
+[ "${#input}" -le 262144 ] || exit 0
 
 flat() { tr -d '\000-\037\\' | head -c "$1"; }
 

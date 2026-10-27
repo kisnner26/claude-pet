@@ -8,7 +8,10 @@ final class GlobalShortcutMonitor {
     func start() {
         guard token == nil else { return }
         token = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard event.modifierFlags.intersection([.control, .option]) == [.control, .option], let key = event.charactersIgnoringModifiers?.lowercased(), let shortcut = ["a": GlobalShortcut.allow, "d": .deny, "i": .island, "s": .snooze, "p": .pin][key] else { return }
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard flags == [.control, .option], !event.isARepeat,
+                  let key = event.charactersIgnoringModifiers?.lowercased(), key.count == 1,
+                  let shortcut = ["a": GlobalShortcut.allow, "d": .deny, "i": .island, "s": .snooze, "p": .pin][key] else { return }
             self?.onShortcut?(shortcut)
         }
     }
