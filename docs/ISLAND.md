@@ -106,3 +106,5 @@ cuando el adaptador de codex publica contexto, el modo compacto muestra también
 el porcentaje compacto incluye una barra horizontal proporcional al contexto restante para claude y codex; la barra mantiene el estado azul, ámbar o rojo y su etiqueta accesible indica el agente correspondiente.
 
 la vista abierta añade acciones directas para copiar el resumen de contexto y abrir el diff más reciente desde el mapa de archivos.
+
+la pestaña abierta de cada agente muestra cuánto tiempo lleva activa la actividad actual, usando el mismo contador que el menú de la aplicación.
