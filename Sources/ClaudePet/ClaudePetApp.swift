@@ -80,6 +80,10 @@ final class AppController: NSObject, NSApplicationDelegate {
             return
         }
         if CommandLine.arguments.contains("--selftest-companion") { exit(CompanionSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--selftest-permission") {
+            let hook = i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "hooks/pet-permission.sh"
+            exit(PermissionSelfTest.run(hook: hook) ? 0 : 1)
+        }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
