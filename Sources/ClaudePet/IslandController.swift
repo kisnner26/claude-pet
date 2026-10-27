@@ -165,6 +165,8 @@ struct IslandView: View {
     @ObservedObject var model: IslandModel
     @ObservedObject var store: PetStore
     @State private var agentTab: IslandAgentTab = .claude
+    @State private var selectedQuestionOptions: Set<Int> = []
+    @State private var selectedQuestionID = ""
 
     private var open: Animation { .spring(response: 0.5, dampingFraction: 0.72) }
     private var close: Animation { .timingCurve(0.45, 0, 0.2, 1, duration: 0.34) }
@@ -256,20 +258,37 @@ struct IslandView: View {
 
     private func questionCard(_ ask: QuestionAsk) -> some View {
         let q = ask.questions[0]
+        let multi = q.multiSelect
         return VStack(alignment: .leading, spacing: 8) {
             Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
             Text(q.question).font(.system(size: 13)).foregroundColor(.white).lineLimit(2)
             HStack(spacing: 6) {
                 ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
-                    permissionButton(option.label, fill: Color.white.opacity(0.1), ink: .white) {
-                        let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { index, item in
-                            (item.question, index == 0 ? option.label : "")
-                        })
-                        store.answerQuestion(ask.id, answers)
+                    let selected = selectedQuestionOptions.contains(q.options.firstIndex(where: { $0.label == option.label }) ?? -1)
+                    permissionButton(option.label, fill: selected ? Color(hex: 0x5270E8) : Color.white.opacity(0.1), ink: selected ? .black : .white) {
+                        if multi {
+                            if selected { selectedQuestionOptions.remove(q.options.firstIndex(where: { $0.label == option.label }) ?? -1) }
+                            else { selectedQuestionOptions.insert(q.options.firstIndex(where: { $0.label == option.label }) ?? 0) }
+                        } else {
+                            answerQuestion(ask, q, selected: [q.options.firstIndex(where: { $0.label == option.label }) ?? 0])
+                        }
                     }
                 }
             }
+            if multi {
+                permissionButton("confirmar selección", fill: Color(hex: 0xE0824F), ink: .black) {
+                    answerQuestion(ask, q, selected: Array(selectedQuestionOptions).sorted())
+                }.disabled(selectedQuestionOptions.isEmpty)
+            }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func answerQuestion(_ ask: QuestionAsk, _ question: IslandQuestion, selected: [Int]) {
+        let labels = selected.compactMap { question.options.indices.contains($0) ? question.options[$0].label : nil }.joined(separator: ", ")
+        let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { index, item in (item.question, index == 0 ? labels : "") })
+        store.answerQuestion(ask.id, answers)
+        selectedQuestionOptions.removeAll()
+        selectedQuestionID = ask.id
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
