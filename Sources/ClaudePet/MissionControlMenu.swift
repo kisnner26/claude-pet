@@ -25,6 +25,9 @@ struct MissionControlMenu: View {
             Button("copiar actividad reciente") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.timelineExport, forType: .string)
             }
+            Button("copiar actividad como markdown") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(control.timelineMarkdown, forType: .string)
+            }
             Divider()
             Menu("panel operativo") {
                 ForEach(control.insights) { insight in

@@ -174,6 +174,15 @@ final class MissionControl: ObservableObject {
             return "\(time)\t\(event.agent)\t\(event.state.rawValue)\t\(event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent)"
         }.joined(separator: "\n")
     }
+    var timelineMarkdown: String {
+        guard !filteredTimeline.isEmpty else { return "sin actividad reciente" }
+        let rows = filteredTimeline.prefix(16).map { event in
+            let time = event.at.formatted(date: .omitted, time: .shortened)
+            let project = event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent
+            return "- `\(time)` **\(event.agent)** · \(event.state.label.lowercased()) · \(project)"
+        }
+        return rows.joined(separator: "\n")
+    }
 
     func openWorkspace() {
         guard !localWorkspace.isEmpty else { return }
