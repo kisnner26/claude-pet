@@ -56,7 +56,7 @@ enum NotchGeometry {
     /// Ventana fija que contiene la isla; el resto es transparente y deja pasar los clics.
     static let panelSize = CGSize(width: 720, height: 320)
     static let expandedWidth: CGFloat = 640
-    static let expandedHeight: CGFloat = 196
+    static let expandedHeight: CGFloat = 176
     static let hitMargin: CGFloat = 6
     /// Pantalla sin notch: barra de este ancho y alto en reposo.
     static let barWidth: CGFloat = 80
@@ -126,7 +126,7 @@ enum NotchGeometry {
         }
     }
 
-    static let permissionHeight: CGFloat = 224
+    static let permissionHeight: CGFloat = 208
 
     static func contains(_ p: CGPoint, mode: IslandMode, metrics m: ScreenMetrics, placement: IslandPlacement = .top, expandedHeight: CGFloat = expandedHeight) -> Bool {
         islandFrame(mode, metrics: m, placement: placement, expandedHeight: expandedHeight).insetBy(dx: -hitMargin, dy: -hitMargin).contains(p)

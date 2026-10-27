@@ -129,6 +129,9 @@ struct MenuBarContent: View {
                     Toggle("reloj en la isla", isOn: $store.islandShowClock)
                     Picker("ubicación", selection: $store.islandPlacement) { ForEach(IslandPlacement.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                     Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
+                    Picker("plegar al salir el cursor", selection: $store.islandCloseDelay) {
+                        Text("rápido").tag(0.6); Text("normal").tag(1.2); Text("lento").tag(2.5); Text("solo a los 60 s").tag(0.0)
+                    }
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
                 Menu("resumen semanal", systemImage: "chart.bar") {

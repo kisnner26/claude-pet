@@ -138,6 +138,10 @@ final class PetStore: ObservableObject {
     var focusMode: FocusMode { FocusMode(manual: focusManual, scheduleStart: focusStart >= 0 ? focusStart : nil, scheduleEnd: focusEnd >= 0 ? focusEnd : nil) }
     /// Pomodoro opcional de la isla.
     @Published var pomodoro = Pomodoro()
+    /// Segundos que la isla espera con el cursor fuera antes de plegarse (0 = solo a los 60 s).
+    @Published var islandCloseDelay: Double = {
+        UserDefaults.standard.object(forKey: "islandCloseDelay") == nil ? 1.2 : min(10, max(0, UserDefaults.standard.double(forKey: "islandCloseDelay")))
+    }() { didSet { UserDefaults.standard.set(islandCloseDelay, forKey: "islandCloseDelay") } }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }
@@ -292,6 +296,7 @@ final class PetStore: ObservableObject {
         refresh()
     }
     func setSnapshotState(_ s: PetState) { state = s }
+    func setSnapshotSteps(_ steps: [IslandStep]) { recentIslandSteps = steps }
     func setSnapshotContext(_ reading: ContextReading?) {
         contextReading = reading
         if let reading { contextHistory = ContextTrend.append(reading, to: contextHistory, at: Date()) }

@@ -125,6 +125,7 @@ final class IslandController {
         }
         if model.placement != placement || moved { relocate(); m = metrics ?? m }
         machine.activationDelay = store.islandActivationDelay
+        machine.closeDelay = store.islandCloseDelay > 0 ? store.islandCloseDelay : nil
         let now = ProcessInfo.processInfo.systemUptime
         let mouse = NSEvent.mouseLocation
 
@@ -159,7 +160,7 @@ final class IslandController {
         let overZone = NotchGeometry.overNotch(mouse, metrics: m, placement: placement, activationWidth: store.islandActivationWidth)
         let input = IslandInput(now: now,
                                 overNotch: overZone,
-                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, placement: placement, expandedHeight: eh),
+                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, placement: placement, expandedHeight: eh) || RunLoop.current.currentMode == .eventTracking,
                                 tasksRunning: tasksRunning(),
                                 alertPending: asking || c == .waiting || c == .error || x == .waiting || x == .error,
                                 finishedPending: finishedPending,
@@ -385,7 +386,7 @@ struct IslandView: View {
         } else if model.reason == .finished {
             IslandFinishedCard(store: store) { model.dismissRequested = true }
         } else {
-            details
+            IslandOverviewView(store: store, agentTab: $agentTab)
         }
     }
 
@@ -464,122 +465,6 @@ struct IslandView: View {
         return .white.opacity(0.5)
     }
 
-    private var details: some View {
-        let agentSteps = IslandSteps.forAgent(agentTab, in: store.recentIslandSteps)
-        return VStack(alignment: .leading, spacing: 6) {
-            if let loop = store.loopAlert {
-                HStack(spacing: 8) {
-                    Label(loop.title, systemImage: "arrow.triangle.2.circlepath").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xE7B45B))
-                    Text(loop.summary).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Button("copiar") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(loop.title)\n\(loop.summary)", forType: .string) }
-                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                    Button("descartar") { store.dismissLoopAlert() }
-                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                }
-            }
-            if store.contextReading != nil || !store.mission.changes.isEmpty {
-                HStack(spacing: 8) {
-                    if let reading = store.contextReading {
-                        ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
-                            .help(reading.summary)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
-                            Text(store.contextPressureLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
-                            Button("copiar modelo") {
-                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
-                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-                            Button("copiar contexto") {
-                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.summary, forType: .string)
-                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-                        }
-                    }
-                    if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
-                }
-                if !store.contextHistory.isEmpty {
-                    ContextTrendView(samples: store.contextHistory)
-                        .frame(height: 30)
-                }
-                HStack(spacing: 8) {
-                    Button("actualizar", systemImage: "arrow.clockwise") { store.refreshTelemetryNow() }
-                        .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                    if store.contextReading != nil {
-                        Button("copiar contexto", systemImage: "doc.on.clipboard") {
-                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.contextReading?.summary ?? store.contextLabel, forType: .string)
-                        }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                    }
-                    if !store.mission.changes.isEmpty {
-                        Button("abrir cambios", systemImage: "arrow.up.right") { store.openLatestDiff() }
-                            .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
-                    }
-                }
-            }
-            if store.codexPresent { Picker("agente", selection: $agentTab) { ForEach(IslandAgentTabs.available(codex: true), id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).onChange(of: store.codexPresent) { agentTab = IslandAgentTabs.keep(agentTab, codex: $0) } }
-            if agentTab == .claude {
-                Text("claude · \(store.state.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(.white)
-                    .contextMenu { Button("copiar estado", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("claude · \(store.state.label.lowercased()) · \(store.stateDurationLabel)", forType: .string) } }
-                if store.state != .idle { Text("activo desde hace \(store.stateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.stateDurationSeconds)) }
-                if let a = store.claudeBubbleActivity { Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1); if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) } }
-            } else {
-                if let reading = store.codexContextReading {
-                    HStack(spacing: 8) {
-                        ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48)
-                            .help(reading.summary)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(reading.model.isEmpty ? "modelo no disponible" : reading.model).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
-                            Text(reading.pressureLabel).font(.system(size: 9, design: .monospaced)).foregroundColor(contextColor(reading.pressure))
-                            Button("copiar modelo") {
-                                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(reading.model, forType: .string)
-                            }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-                        }
-                    }
-                    if !store.codexContextHistory.isEmpty {
-                        ContextTrendView(samples: store.codexContextHistory, agent: "codex")
-                            .frame(height: 30)
-                    }
-                }
-                Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
-                    .contextMenu { Button("copiar estado", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("codex · \(store.codexState.label.lowercased()) · \(store.codexStateDurationLabel)", forType: .string) } }
-                if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.codexStateDurationSeconds)) }
-                Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
-            }
-            Button("copiar resumen de sesión", systemImage: "doc.on.clipboard") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString("\(store.sessionSummary) · \(agentTab.rawValue) · \(agentTab == .claude ? store.state.label.lowercased() : store.codexState.label.lowercased())", forType: .string)
-            }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-            if !store.mission.workspace.isEmpty {
-                Button("abrir carpeta del proyecto", systemImage: "folder") {
-                    NSWorkspace.shared.open(URL(fileURLWithPath: store.mission.workspace))
-                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-            }
-            if store.mission.git.available {
-                Button("rama: \(store.mission.git.branch.isEmpty ? "sin rama" : store.mission.git.branch)", systemImage: "arrow.triangle.branch") {
-                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.mission.git.branch, forType: .string)
-                }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                Text("\(store.mission.git.affected) cambios · \(store.mission.git.staged) staged · \(store.mission.git.conflicts) conflictos")
-                    .font(.system(size: 10, design: .monospaced)).foregroundColor(store.mission.git.conflicts > 0 ? Color(hex: 0xD85C5C) : .white.opacity(0.5))
-                    .onTapGesture { AppController.shared.showMissionDashboard() }
-                    .help("abrir mission control: cambios, staged y conflictos")
-                    .contextMenu {
-                        Button("copiar estado git", systemImage: "doc.on.clipboard") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString("\(store.mission.git.affected) cambios · \(store.mission.git.staged) staged · \(store.mission.git.conflicts) conflictos", forType: .string)
-                        }
-                    }
-            }
-            IslandTickerView(steps: agentSteps, openDiff: store.openLatestDiff)
-            if store.terminalTargetAvailable {
-                Button("saltar a terminal") { store.focusTerminal() }
-                    .buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
-            } else if store.state == .waiting || store.state == .error {
-                Text("terminal no identificada").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45))
-            }
-            HStack(spacing: 8) {
-                Button("mission control") { AppController.shared.showMissionDashboard() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-                Button("relevo") { AppController.shared.showRelay() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
-            }
-        }
-    }
 
 }
 
@@ -807,7 +692,14 @@ extension IslandSnapshot {
         let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1440, height: 900), safeTop: 0, auxLeft: 0, auxRight: 0)
         let ask = PermissionAsk(id: "d", session: "s", tool: "Bash", project: "korus", detail: "git push origin main", canAlways: true, at: Date())
         let scenes: [(String, (IslandModel, PetStore) -> Void)] = [
-            ("trabajando", { _, s in s.permissionAsks = []; s.setSnapshotState(.tool) }),
+            ("trabajando", { _, s in
+                s.permissionAsks = []; s.setSnapshotState(.tool)
+                s.setSnapshotContext(ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude"))
+                let now = Date()
+                s.setSnapshotSteps([IslandStep(agent: "claude", tool: "Read", target: "src/billing.ts", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-42)),
+                                    IslandStep(agent: "claude", tool: "Edit", target: "src/billing.ts", added: 3, deleted: 1, workspace: "", at: now.addingTimeInterval(-18)),
+                                    IslandStep(agent: "claude", tool: "Bash", target: "npm test", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-3))])
+            }),
             ("permiso", { _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }),
             ("terminado", { mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }),
             ("mareo", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dizzyLeft = 3 }),
