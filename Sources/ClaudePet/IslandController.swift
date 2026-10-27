@@ -197,7 +197,6 @@ final class IslandController {
             model.mode = mode
         }
         if model.reason != machine.reason { model.reason = machine.reason }
-        if model.countdown != machine.countdown { model.countdown = machine.countdown }
         if model.size != size { model.size = size }
 
         // los ojos siguen al cursor por toda la pantalla
@@ -264,10 +263,6 @@ struct IslandView: View {
                 shape.stroke(Color.white.opacity(highContrast ? 0.7 : 0.14), lineWidth: highContrast ? 2 : 1)
             }
             if model.mode != .hidden { content }
-            if let c = model.countdown {
-                Capsule().fill(Color.white.opacity(0.35)).frame(width: 160 * c, height: 2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom).padding(.bottom, 4)
-            }
         }
         .clipShape(shape)
         .shadow(color: .black.opacity(drawsOwnEdge && model.mode != .hidden ? 0.35 : 0), radius: 6, x: 0, y: shadowY)
