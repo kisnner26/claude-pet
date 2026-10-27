@@ -24,4 +24,9 @@ enum IslandSteps {
     static func append(_ step: IslandStep, to steps: [IslandStep], limit: Int = 8) -> [IslandStep] {
         Array((steps + [step]).suffix(limit))
     }
+
+    static func forAgent(_ agent: IslandAgentTab, in steps: [IslandStep]) -> [IslandStep] {
+        let name = agent == .claude ? "claude" : "codex"
+        return steps.filter { $0.agent.lowercased() == name }
+    }
 }

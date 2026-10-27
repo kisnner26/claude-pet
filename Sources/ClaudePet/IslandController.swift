@@ -453,7 +453,8 @@ struct IslandView: View {
     }
 
     private var details: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let agentSteps = IslandSteps.forAgent(agentTab, in: store.recentIslandSteps)
+        return VStack(alignment: .leading, spacing: 6) {
             if store.contextReading != nil || !store.mission.changes.isEmpty {
                 HStack(spacing: 8) {
                     if let reading = store.contextReading {
@@ -543,7 +544,7 @@ struct IslandView: View {
                         }
                     }
             }
-            ForEach(store.recentIslandSteps.prefix(3)) { step in
+            ForEach(agentSteps.prefix(3)) { step in
                 HStack {
                     Button { store.openLatestDiff() } label: {
                         HStack { Text(step.label).lineLimit(1); Spacer(); Text(step.ageLabel(now: Date())).foregroundColor(.white.opacity(0.4)); if !step.delta.isEmpty { Text(step.delta).foregroundColor(Color(hex: 0xE0824F)) } }
@@ -553,9 +554,9 @@ struct IslandView: View {
                     }.buttonStyle(.plain).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
                 }.font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.7))
             }
-            if !store.recentIslandSteps.isEmpty {
+            if !agentSteps.isEmpty {
                 Button("copiar actividad reciente", systemImage: "doc.on.clipboard") {
-                    let lines = store.recentIslandSteps.prefix(3).map { step in
+                    let lines = agentSteps.prefix(3).map { step in
                         "- \(step.label)\(step.delta.isEmpty ? "" : " · \(step.delta)") · \(step.ageLabel(now: Date()))"
                     }
                     NSPasteboard.general.clearContents(); NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
