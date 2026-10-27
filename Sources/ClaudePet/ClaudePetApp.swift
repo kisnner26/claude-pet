@@ -70,6 +70,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ n: Notification) {
         _ = ConfigStore.shared.load()
+        if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {
             _ = ConfigStore.shared.load()
