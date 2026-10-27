@@ -428,6 +428,12 @@ struct IslandView: View {
                     .font(.system(size: 10, design: .monospaced)).foregroundColor(store.mission.git.conflicts > 0 ? Color(hex: 0xD85C5C) : .white.opacity(0.5))
                     .onTapGesture { AppController.shared.showMissionDashboard() }
                     .help("abrir mission control: cambios, staged y conflictos")
+                    .contextMenu {
+                        Button("copiar estado git", systemImage: "doc.on.clipboard") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString("\(store.mission.git.affected) cambios · \(store.mission.git.staged) staged · \(store.mission.git.conflicts) conflictos", forType: .string)
+                        }
+                    }
             }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 HStack {
