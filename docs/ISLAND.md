@@ -122,3 +122,5 @@ cuando git está disponible, la vista abierta muestra la rama activa y permite c
 debajo de la rama se resumen cambios, staged y conflictos; los conflictos se colorean en rojo para detectarlos antes de continuar.
 
 el resumen de salud git es interactivo: al pulsarlo abre mission control para revisar el detalle completo.
+
+los indicadores de contexto y git tienen ayudas contextuales al pasar el cursor, con la leyenda de colores y la acción disponible.
