@@ -163,6 +163,8 @@ la vista abierta dibuja una tendencia de las últimas 24 lecturas de contexto. e
 
 la pestaña codex mantiene su propia serie independiente cuando el adaptador publica lecturas; no reutiliza ni inventa datos de claude. si la caída acumulada es de al menos 10 puntos, aparece `descenso rápido`.
 
+la gráfica ofrece `copiar tendencia`: solo copia agente, porcentaje, variación y número de lecturas, nunca el contenido del transcript.
+
 cuando la presión es crítica, claude y codex muestran además un icono de advertencia; el estado accesible sigue anunciándose como `crítico`.
 
 el icono de advertencia es interactivo y abre el detalle de contexto al pulsarlo.

@@ -31,10 +31,17 @@ enum ContextTrend {
         guard let delta = delta(samples), delta <= -10 else { return nil }
         return "descenso rápido"
     }
+
+    static func copyText(_ samples: [ContextSample], agent: String) -> String {
+        guard let last = samples.last else { return "\(agent) · sin lecturas" }
+        let warning = warning(samples).map { " · \($0)" } ?? ""
+        return "\(agent) · \(last.percent)% restante · \(label(samples))\(warning) · \(samples.count) lecturas"
+    }
 }
 
 struct ContextTrendView: View {
     let samples: [ContextSample]
+    var agent: String = "contexto"
 
     private func color(_ pressure: ContextPressure) -> Color {
         switch pressure {
@@ -71,6 +78,13 @@ struct ContextTrendView: View {
                 }
             }
             .frame(height: 18)
+            Button("copiar tendencia", systemImage: "doc.on.clipboard") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(ContextTrend.copyText(samples, agent: agent), forType: .string)
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 8, design: .monospaced))
+            .foregroundColor(.white.opacity(0.45))
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("tendencia de contexto: \(ContextTrend.label(samples))")
