@@ -10,6 +10,8 @@ struct ScreenMetrics: Equatable {
     var auxRight: CGFloat
     /// Altura real de la barra de menús en puntos; se inyecta en pruebas.
     var menuBarHeight: CGFloat = 24
+    var centerLeftInset: CGFloat = 180
+    var centerRightInset: CGFloat = 180
 }
 
 enum IslandScreenPreference: String, CaseIterable { case notch = "pantalla del notch"; case mouse = "seguir al ratón" }
@@ -32,12 +34,15 @@ enum NotchGeometry {
         hasNotch(m) ? CGSize(width: m.frame.width - m.auxLeft - m.auxRight, height: m.safeTop) : CGSize(width: barWidth, height: m.menuBarHeight)
     }
 
-    static func islandSize(_ mode: IslandMode, metrics m: ScreenMetrics, expandedHeight: CGFloat = expandedHeight) -> CGSize {
+    static func islandSize(_ mode: IslandMode, metrics m: ScreenMetrics, expandedHeight: CGFloat = expandedHeight, compactContentWidth: CGFloat? = nil) -> CGSize {
         let n = notchSize(m)
         switch mode {
         case .hidden: return n
         case .peek: return CGSize(width: n.width + 64, height: n.height)
-        case .compact: return CGSize(width: hasNotch(m) ? n.width + 104 : 240, height: n.height)
+        case .compact:
+            let base = hasNotch(m) ? n.width + 104 : (compactContentWidth ?? 240)
+            let maxWidth = max(120, m.frame.width - m.centerLeftInset - m.centerRightInset)
+            return CGSize(width: min(max(120, base), maxWidth), height: n.height)
         case .expanded: return CGSize(width: expandedWidth, height: max(expandedHeight, n.height))
         }
     }

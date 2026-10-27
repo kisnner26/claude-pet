@@ -76,6 +76,8 @@ enum IslandSelfTest {
         check("sin notch respeta la altura de barra inyectada", !NotchGeometry.hasNotch(plainMac) && NotchGeometry.notchSize(plainMac).height == 24)
         let largeBar = ScreenMetrics(frame: plainMac.frame, safeTop: 0, auxLeft: 0, auxRight: 0, menuBarHeight: 30)
         check("barra grande conserva la altura en puntos", NotchGeometry.notchSize(largeBar) == CGSize(width: 80, height: 30))
+        let fullBar = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1280, height: 720), safeTop: 0, auxLeft: 0, auxRight: 0, centerLeftInset: 500, centerRightInset: 500)
+        check("barra llena limita el ancho compacto", NotchGeometry.islandSize(.compact, metrics: fullBar, compactContentWidth: 400).width == 280)
         check("oculta mide como el notch; asoma +64; compacta +104",
               NotchGeometry.islandSize(.hidden, metrics: notchMac).width == 184 && NotchGeometry.islandSize(.peek, metrics: notchMac).width == 248
               && NotchGeometry.islandSize(.compact, metrics: notchMac).width == 288)

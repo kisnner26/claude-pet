@@ -55,6 +55,16 @@ los atajos globales son opt-in, aceptan únicamente ctrl+option+a/d/i/s/p, ignor
 
 ## límites conocidos
 
+### sin notch
+
+en pantallas sin notch la isla usa una pastilla centrada con la altura real de la barra en puntos. el ancho compacto puede limitarse por márgenes centrales conservadores para no tapar el reloj ni los iconos. `ScreenMetrics` permite probar barras llenas y resoluciones mixtas sin depender de una pantalla conectada.
+
+para regenerar las capturas sintéticas:
+
+```sh
+tests/snapshots-sin-notch.sh
+```
+
 - no se ha verificado sobre el notch físico ni el clic atravesante en una pantalla real.
 - no se ha verificado el foco real de terminal, finder o mission control.
 - no se ha verificado voiceover real ni el permiso de accesibilidad.
