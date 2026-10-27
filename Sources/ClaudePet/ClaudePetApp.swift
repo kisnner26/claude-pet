@@ -97,6 +97,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             exit(PermissionSelfTest.run(hook: hook) ? 0 : 1)
         }
         if CommandLine.arguments.contains("--selftest-question") { exit(QuestionSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-permission-risk") { exit(PermissionRiskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-terminal") { exit(TerminalTargetSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-steps") { exit(IslandStepsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-tabs") { exit(IslandAgentTabsSelfTest.run() ? 0 : 1) }

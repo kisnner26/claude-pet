@@ -31,6 +31,8 @@ las líneas tienen límite de 4096 bytes y deben terminar en salto de línea. ha
 
 las respuestas de preguntas se validan como json antes de envolverse en `updatedInput`; las decisiones de permisos solo pueden ser `allow`, `always` o `deny`. no se ejecuta shell con rutas, nombres o detalles recibidos del hook.
 
+las tarjetas de permiso muestran un riesgo calculado localmente: lectura como bajo, edición o ejecución como medio y borrado, privilegios, rutas externas o posibles secretos como alto. el clasificador no decide por el usuario ni cambia el fallo abierto del hook.
+
 ## rendimiento y seguridad
 
 la isla usa 30 hz mientras está activa y 1 hz cuando está oculta, sin tareas ni atención pendiente. `--selftest-polling` verifica la política.

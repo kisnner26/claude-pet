@@ -30,4 +30,5 @@
 - reacción de hover: los ojos crecen una celda mientras el cursor permanece sobre la isla.
 - clic con aplastamiento y gesto de molestia durante 0,6 s; se conserva el mareo de tres clics en 2 s.
 - autopruebas nuevas en `--selftest-island` para ambas reacciones.
+- clasificador local de riesgo en permisos: bajo, medio y alto con explicación visible y casos de evasión básicos.
 
