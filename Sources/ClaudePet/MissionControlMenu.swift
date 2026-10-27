@@ -17,6 +17,9 @@ struct MissionControlMenu: View {
             Text("git: \(control.git.label)")
             Text("sesión: \(control.focusLabel)")
             Text("foco: \(control.brief.title.lowercased())")
+            if !control.topTools.isEmpty {
+                Text("herramientas: " + control.topTools.map { "\($0.name) ×\($0.count)" }.joined(separator: " · "))
+            }
             Button("copiar foco operativo") {
                 NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(control.brief.title)\n\(control.brief.detail)", forType: .string)
             }
