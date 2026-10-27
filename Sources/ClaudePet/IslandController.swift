@@ -256,6 +256,16 @@ struct IslandView: View {
         .buttonStyle(.plain)
     }
 
+    private func questionOptionButton(_ title: String, description: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(selected ? .black : .white)
+                if !description.isEmpty { Text(description).font(.system(size: 9)).foregroundColor(selected ? Color.black.opacity(0.7) : Color.white.opacity(0.55)).lineLimit(1) }
+            }.padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Capsule().fill(selected ? Color(hex: 0x5270E8) : Color.white.opacity(0.1)))
+        }.buttonStyle(.plain)
+    }
+
     private func questionCard(_ ask: QuestionAsk) -> some View {
         let index = min(questionIndex, max(0, ask.questions.count - 1))
         let q = ask.questions[index]
@@ -268,7 +278,7 @@ struct IslandView: View {
                 ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
                     let optionIndex = q.options.firstIndex(where: { $0.label == option.label }) ?? -1
                     let selected = questionSelections[index, default: []].contains(optionIndex)
-                    permissionButton(option.label, fill: selected ? Color(hex: 0x5270E8) : Color.white.opacity(0.1), ink: selected ? .black : .white) {
+                    questionOptionButton(option.label, description: option.description, selected: selected) {
                         if multi {
                             if selected { questionSelections[index, default: []].remove(optionIndex) }
                             else { questionSelections[index, default: []].insert(optionIndex) }
