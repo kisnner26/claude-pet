@@ -53,7 +53,7 @@ exec perl -e '
   my ($path, $wait, $line, $allow, $always, $deny) = @ARGV;
   my $s = IO::Socket::UNIX->new(Peer => $path) or exit 0;
   $s->autoflush(1);
-  print $s $line;
+  print $s $line, "\n";
   $SIG{ALRM} = sub { exit 0 };
   alarm $wait;
   my $r = <$s>;

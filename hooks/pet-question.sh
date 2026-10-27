@@ -23,7 +23,7 @@ export CLAUDE_PET_QUESTIONS="$questions"
 answers=$(perl -e '
 use strict; use IO::Socket::UNIX;
 my ($path,$wait,$line)=@ARGV; my $s=IO::Socket::UNIX->new(Peer=>$path) or exit 0;
-$s->autoflush(1); print $s $line; $SIG{ALRM}=sub{exit 0}; alarm $wait;
+$s->autoflush(1); print $s $line, "\n"; $SIG{ALRM}=sub{exit 0}; alarm $wait;
 my $r=<$s>; exit 0 unless defined $r; $r =~ s/^\s+|\s+$//g;
 print $r if $r =~ /^\{[^\n]*\}$/;
 ' "$SOCK" "${CLAUDE_PET_ASK_WAIT:-110}" "$line")

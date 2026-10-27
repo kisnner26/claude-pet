@@ -129,13 +129,14 @@ final class PermissionServer: @unchecked Sendable {
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
         var data = Data()
         var buf = [UInt8](repeating: 0, count: 512)
-        while data.count < Self.maxLine {
+        while data.count <= Self.maxLine {
             let n = read(c, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0..<n])
             if data.contains(0x0A) { break }
         }
-        let line = String(decoding: data.prefix(Self.maxLine), as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
+        guard data.count <= Self.maxLine, data.contains(0x0A) else { close(c); return }
+        let line = String(decoding: data, as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
         if let question = QuestionServer.parse(line) {
             // AskUserQuestion comparte el socket y queda abierto hasta la respuesta.
             let response = QuestionConn(fd: c, ask: question)
