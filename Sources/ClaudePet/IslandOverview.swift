@@ -24,6 +24,8 @@ struct IslandOverviewView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             IslandStage(store: store, model: model, agent: agentTab, statusColor: Self.stateColor(state) == .white.opacity(0.5) ? .clear : Self.stateColor(state))
+                .id(agentTab)
+                .transition(animated ? .asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .offset(x: -16)), removal: .opacity) : .identity)
                 .reveal(0, shown, animated: animated)
             VStack(alignment: .leading, spacing: 8) {
                 if let loop = store.loopAlert { loopBanner(loop).reveal(0, shown, animated: animated) }
@@ -58,7 +60,9 @@ struct IslandOverviewView: View {
     private var agentSwitch: some View {
         HStack(spacing: 4) {
             ForEach(IslandAgentTabs.available(codex: true), id: \.self) { tab in
-                AgentAvatarTab(tab: tab, selected: agentTab == tab, state: tab == .claude ? store.state : store.codexState, codexSkin: store.codexSkin) { agentTab = tab }
+                AgentAvatarTab(tab: tab, selected: agentTab == tab, state: tab == .claude ? store.state : store.codexState, codexSkin: store.codexSkin) {
+                    if animated { withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) { agentTab = tab } } else { agentTab = tab }
+                }
             }
         }
         .accessibilityElement(children: .contain).accessibilityLabel("agente")
@@ -114,7 +118,7 @@ struct IslandOverviewView: View {
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(value).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+            Text(value).font(.system(size: 17, weight: .semibold)).foregroundColor(.white).contentTransition(.numericText()).animation(animated ? .spring(response: 0.5, dampingFraction: 0.8) : nil, value: value)
             Text(label).font(.system(size: 10)).foregroundColor(.white.opacity(0.45))
         }
     }

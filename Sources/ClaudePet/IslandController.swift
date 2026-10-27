@@ -192,6 +192,7 @@ final class IslandController {
         if x == .done && lastCodex != .done { model.codexDoneAt = now }
         if let step = store.recentIslandSteps.last, step.id != lastStepID {
             lastStepID = step.id
+            model.pingAt = now
             if step.added + step.deleted > 0 { model.lineRain = (now, step.added, step.deleted) }
         }
         let hourglass: Double? = store.pomodoro.phase == .idle ? nil : store.pomodoro.remaining(now: now) / max(1, store.pomodoro.length(of: store.pomodoro.phase))
