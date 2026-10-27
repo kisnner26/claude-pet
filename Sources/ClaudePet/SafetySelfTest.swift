@@ -125,6 +125,7 @@ enum SafetySelfTest {
         trend = ContextTrend.append(trendB, to: trend, at: trendStart.addingTimeInterval(2))
         check("tendencia de contexto conserva muestras numéricas y evita duplicados", trend.count == 2 && ContextTrend.delta(trend) == -25)
         check("tendencia de contexto etiqueta la caída", ContextTrend.label(trend) == "-25 puntos")
+        check("tendencia detecta descenso rápido", ContextTrend.warning(trend) == "descenso rápido")
         let many = (0..<40).reduce(into: [ContextSample]()) { result, index in
             result.append(ContextSample(percent: index, pressure: .normal, at: trendStart.addingTimeInterval(Double(index))))
         }

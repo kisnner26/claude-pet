@@ -26,6 +26,11 @@ enum ContextTrend {
         if delta == 0 { return "estable" }
         return delta > 0 ? "+\(delta) puntos" : "\(delta) puntos"
     }
+
+    static func warning(_ samples: [ContextSample]) -> String? {
+        guard let delta = delta(samples), delta <= -10 else { return nil }
+        return "descenso rápido"
+    }
 }
 
 struct ContextTrendView: View {
@@ -45,6 +50,9 @@ struct ContextTrendView: View {
                 Text("tendencia de contexto").font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55))
                 Spacer()
                 Text(ContextTrend.label(samples)).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.7))
+                if let warning = ContextTrend.warning(samples) {
+                    Text(warning).font(.system(size: 8, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C))
+                }
             }
             GeometryReader { proxy in
                 Path { path in
