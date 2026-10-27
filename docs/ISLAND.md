@@ -23,6 +23,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 6. pestaña por agente (claude y codex) con su línea de pasos recientes. **hecho: selector claude/codex**; codex solo muestra el estado y la línea que ya publica su adaptador.
 7. aro de contexto y mapa de archivos dentro de la isla. **hecho: reutiliza `ContextRingView` y `FileOrbitView`** con los mismos estados normal, caution y critical.
 8. mission control y relevo de sesión accesibles desde la isla. **hecho: botones directos en la vista abierta**.
+9. limpieza al recibir `SIGTERM` o `SIGINT`. **hecho: detiene sockets y borra la bandera opt-in**.
 7. saltar a la terminal de la sesión.
 8. vestuario y sonidos propios.
 

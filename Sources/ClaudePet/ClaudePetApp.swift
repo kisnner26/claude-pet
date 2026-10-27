@@ -65,6 +65,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let busServer = EventServer(path: PetBus.ownSocket)
     private let askServer = PermissionServer()
     private var permissionFlagOn = false
+    private var terminationSignals: [DispatchSourceSignal] = []
 
     func applicationDidFinishLaunching(_ n: Notification) {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
@@ -92,6 +93,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-tabs") { exit(IslandAgentTabsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-telemetry") { exit(IslandTelemetrySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-actions") { exit(IslandActionsSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-cleanup") { exit(IslandCleanupSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-island") { exit(IslandSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-football") { exit(FootballSelfTest.run() ? 0 : 1) }
         if let flag = CommandLine.arguments.firstIndex(of: "--selftest-claudwler") {
@@ -189,6 +191,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
         syncPermissionFlag()
+        installTerminationSignals()
 
         busServer.onLine = { line in Task { @MainActor in PetStore.shared.receive(line: line) } }
         do { try busServer.start(); PetStore.shared.setBus(true) }
@@ -458,8 +461,22 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ n: Notification) {
         PetStore.shared.shutdownBus()
+        cleanupIsland()
+    }
+
+    private func installTerminationSignals() {
+        for number in [SIGTERM, SIGINT] {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+            source.setEventHandler { [weak self] in self?.cleanupIsland(); NSApp.terminate(nil) }
+            source.resume(); terminationSignals.append(source)
+        }
+    }
+
+    private func cleanupIsland() {
         setPermissionFlag(false)
         askServer.stop(); server.stop(); busServer.stop()
+        terminationSignals.forEach { $0.cancel() }; terminationSignals.removeAll()
     }
 
     /// La bandera que el hook consulta: solo existe con la isla activa y el ajuste encendido; se borra al salir.
