@@ -24,6 +24,11 @@ final class IslandModel: ObservableObject {
     }
 }
 
+/// El primer clic sobre la isla debe pulsar el boton, no solo activar la ventana.
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 /// Isla pegada al notch (o a una barra arriba si no hay notch). Reemplaza a las mascotas flotantes.
 @MainActor
 final class IslandController {
@@ -47,7 +52,7 @@ final class IslandController {
         guard timer == nil else { return }
         let p = PetPanel(contentRect: NSRect(origin: .zero, size: NotchGeometry.panelSize),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        p.contentView = NSHostingView(rootView: IslandView(model: model, store: store))
+        p.contentView = FirstMouseHostingView(rootView: IslandView(model: model, store: store))
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = false
@@ -106,29 +111,31 @@ final class IslandController {
         let finishedPending = finishedAt.map { now - $0 < 0.1 } ?? false
 
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+        let asking = !store.permissionAsks.isEmpty
+        let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
         let input = IslandInput(now: now,
                                 overNotch: NotchGeometry.overNotch(mouse, metrics: m),
-                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m),
+                                overIsland: NotchGeometry.contains(mouse, mode: machine.mode, metrics: m, expandedHeight: eh),
                                 tasksRunning: tasksRunning(),
-                                alertPending: c == .waiting || c == .error || x == .waiting || x == .error,
+                                alertPending: asking || c == .waiting || c == .error || x == .waiting || x == .error,
                                 finishedPending: finishedPending,
                                 idleSeconds: idle,
                                 clickedPet: clicked)
         clicked = false
         let mode = machine.tick(input)
 
-        let size = NotchGeometry.islandSize(mode, metrics: m)
+        let size = NotchGeometry.islandSize(mode, metrics: m, expandedHeight: eh)
         if model.mode != mode { model.mode = mode }
         if model.reason != machine.reason { model.reason = machine.reason }
         if model.countdown != machine.countdown { model.countdown = machine.countdown }
         if model.size != size { model.size = size }
 
         // los ojos siguen al cursor por toda la pantalla
-        let f = NotchGeometry.islandFrame(mode, metrics: m)
+        let f = NotchGeometry.islandFrame(mode, metrics: m, expandedHeight: eh)
         model.gaze = CGPoint(x: max(-1, min(1, (mouse.x - f.midX) / 400)), y: max(-1, min(1, (mouse.y - f.midY) / 300)))
 
         // clics traversantes: la ventana solo recibe el raton sobre la forma visible de la isla
-        let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m)
+        let interactive = mode != .hidden && NotchGeometry.contains(mouse, mode: mode, metrics: m, expandedHeight: eh)
         if panel.ignoresMouseEvents == interactive { panel.ignoresMouseEvents = !interactive }
     }
 }
@@ -189,7 +196,7 @@ struct IslandView: View {
                 .frame(width: side, height: side)
                 .contentShape(Rectangle())
                 .onTapGesture { model.poke() }
-            if !compact { details }
+            if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent { Circle().fill(codexColor).frame(width: 8, height: 8) }
         }
@@ -198,6 +205,41 @@ struct IslandView: View {
         .padding(.top, compact ? 0 : 38)
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)
+    }
+
+    /// Tarjeta de permiso: que quiere hacer Claude y tres botones.
+    private func permissionCard(_ ask: PermissionAsk) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("claude pide permiso").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
+                if store.permissionAsks.count > 1 {
+                    Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 11, design: .monospaced)).foregroundColor(Color.white.opacity(0.5))
+                }
+            }
+            Text(ask.project.isEmpty ? ask.tool : "\(ask.tool) · \(ask.project)")
+                .font(.system(size: 12)).foregroundColor(Color.white.opacity(0.6)).lineLimit(1)
+            if !ask.detail.isEmpty {
+                Text(ask.detail).font(.system(size: 12, design: .monospaced)).foregroundColor(.white)
+                    .lineLimit(3).padding(8).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+            }
+            HStack(spacing: 8) {
+                permissionButton("denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
+                Spacer(minLength: 0)
+                if ask.canAlways { permissionButton("siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
+                permissionButton("permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func permissionButton(_ title: String, fill: Color, ink: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(ink)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(Capsule().fill(fill))
+        }
+        .buttonStyle(.plain)
     }
 
     private var codexColor: Color { store.codexState == .idle ? Color.white.opacity(0.35) : Color(hex: 0x5270E8) }
@@ -254,14 +296,19 @@ enum IslandSnapshot {
     static func render(to path: String) {
         let m = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1512, height: 982), safeTop: 38, auxLeft: 664, auxRight: 664)
         let store = PetStore.shared
-        let rows: [(IslandMode, PetState)] = [(.hidden, .idle), (.peek, .idle), (.compact, .thinking), (.expanded, .tool)]
+        let rows: [(IslandMode, PetState)] = [(.hidden, .idle), (.peek, .idle), (.compact, .thinking), (.expanded, .tool), (.expanded, .waiting)]
+        store.permissionAsks = [PermissionAsk(id: "demo", session: "abc", tool: "Bash", project: "claude-pet",
+                                              detail: "rm -rf build && swift build -c release", canAlways: true, at: Date()),
+                                PermissionAsk(id: "demo2", session: "abc", tool: "Edit", project: "claude-pet", detail: "", canAlways: false, at: Date())]
+        defer { store.permissionAsks = [] }
         let cell = NotchGeometry.panelSize
         let view = VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+            ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
                 let model = IslandModel()
-                let _ = { model.mode = row.0; model.size = NotchGeometry.islandSize(row.0, metrics: m, expandedHeight: 150) }()
+                let h: CGFloat = i == 4 ? NotchGeometry.permissionHeight : 150
+                let _ = { model.mode = row.0; model.size = NotchGeometry.islandSize(row.0, metrics: m, expandedHeight: h) }()
                 IslandView(model: model, store: store)
-                    .frame(width: cell.width, height: 190, alignment: .top)
+                    .frame(width: cell.width, height: i == 4 ? 250 : 190, alignment: .top)
                     .clipped()
                     .background(Color(hex: 0x6C7A89))
             }

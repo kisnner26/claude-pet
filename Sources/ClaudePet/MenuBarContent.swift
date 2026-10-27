@@ -67,6 +67,9 @@ struct MenuBarContent: View {
                 Picker("modo", selection: $store.layout) {
                     ForEach(PetLayout.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
+                if store.layout == .island {
+                    Toggle("responder permisos desde la isla", isOn: $store.islandPermissions)
+                }
                 Toggle("aparición automática", isOn: $store.autoVisibility)
                 Toggle("burbuja de actividad", isOn: $store.showBubble)
                 Divider()

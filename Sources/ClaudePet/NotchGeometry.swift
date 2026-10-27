@@ -53,8 +53,10 @@ enum NotchGeometry {
         return CGRect(x: m.frame.midX - s.width / 2, y: m.frame.maxY - s.height, width: s.width, height: s.height)
     }
 
-    static func contains(_ p: CGPoint, mode: IslandMode, metrics m: ScreenMetrics) -> Bool {
-        islandFrame(mode, metrics: m).insetBy(dx: -hitMargin, dy: -hitMargin).contains(p)
+    static let permissionHeight: CGFloat = 224
+
+    static func contains(_ p: CGPoint, mode: IslandMode, metrics m: ScreenMetrics, expandedHeight: CGFloat = expandedHeight) -> Bool {
+        islandFrame(mode, metrics: m, expandedHeight: expandedHeight).insetBy(dx: -hitMargin, dy: -hitMargin).contains(p)
     }
 
     /// El cursor esta sobre el notch (o la barra), con margen. Es lo que hace asomar a la mascota.

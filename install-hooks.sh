@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")"
 DEST="$HOME/.claude-pet"
 SETTINGS="$HOME/.claude/settings.json"
-TAG="/.claude-pet/pet-hook.sh"
+TAG="/.claude-pet/pet-"       # pet-hook.sh y pet-permission.sh
 
 command -v jq >/dev/null || { echo "falta jq (brew install jq)"; exit 1; }
 
@@ -20,7 +20,7 @@ if [ "$1" = "--uninstall" ]; then
     else . end' "$SETTINGS" > "$tmp"
   cp "$SETTINGS" "$SETTINGS.bak-claudepet"
   cp "$tmp" "$SETTINGS"; rm "$tmp"
-  rm -rf "$DEST/pet-hook.sh"
+  rm -rf "$DEST/pet-hook.sh" "$DEST/pet-permission.sh" "$DEST/island-permissions"
   echo "hooks quitados. copia previa: $SETTINGS.bak-claudepet"
   exit 0
 fi
@@ -33,7 +33,7 @@ jq --slurpfile add hooks/settings-snippet.json '
 ' "$SETTINGS" > "$merged"
 
 echo "Se modificara UN archivo: $SETTINGS"
-echo "Se copiara: hooks/pet-hook.sh -> $DEST/pet-hook.sh"
+echo "Se copiara: hooks/pet-hook.sh y hooks/pet-permission.sh -> $DEST/"
 echo "Diferencia en settings.json:"
 diff "$SETTINGS" "$merged" || true
 [ "$1" = "--dry-run" ] && { rm "$merged"; echo "(dry-run: nada cambiado)"; exit 0; }
@@ -43,6 +43,7 @@ printf "Aplicar? [s/N] "; read -r ans
 
 mkdir -p "$DEST"; chmod 700 "$DEST"
 cp hooks/pet-hook.sh "$DEST/pet-hook.sh"; chmod 755 "$DEST/pet-hook.sh"
+cp hooks/pet-permission.sh "$DEST/pet-permission.sh"; chmod 755 "$DEST/pet-permission.sh"
 cp "$SETTINGS" "$SETTINGS.bak-claudepet"
 cp "$merged" "$SETTINGS"; rm "$merged"
 echo "listo. copia previa: $SETTINGS.bak-claudepet  (abre una sesion nueva de Claude Code)"

@@ -63,6 +63,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private let server = EventServer()
     private let busServer = EventServer(path: PetBus.ownSocket)
+    private let askServer = PermissionServer()
+    private var permissionFlagOn = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-hero"), i + 1 < CommandLine.arguments.count {
@@ -170,6 +172,12 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         do { try server.start(); PetStore.shared.setBridge(true) }
         catch { PetStore.shared.setBridge(false); NSLog("ClaudePet: no se pudo abrir el socket: \(error)") }
+
+        // permisos desde la isla: el hook espera en ask.sock hasta que respondas
+        askServer.onChange = { asks in Task { @MainActor in PetStore.shared.permissionAsks = asks } }
+        PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
+        do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
+        syncPermissionFlag()
 
         busServer.onLine = { line in Task { @MainActor in PetStore.shared.receive(line: line) } }
         do { try busServer.start(); PetStore.shared.setBus(true) }
@@ -439,7 +447,24 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ n: Notification) {
         PetStore.shared.shutdownBus()
-        server.stop(); busServer.stop()
+        setPermissionFlag(false)
+        askServer.stop(); server.stop(); busServer.stop()
+    }
+
+    /// La bandera que el hook consulta: solo existe con la isla activa y el ajuste encendido; se borra al salir.
+    private func syncPermissionFlag() {
+        setPermissionFlag(PetStore.shared.layout == .island && PetStore.shared.islandPermissions)
+    }
+
+    private func setPermissionFlag(_ on: Bool) {
+        let path = NSHomeDirectory() + "/.claude-pet/island-permissions"
+        if on {
+            try? FileManager.default.createDirectory(atPath: NSHomeDirectory() + "/.claude-pet", withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            if !FileManager.default.fileExists(atPath: path) { FileManager.default.createFile(atPath: path, contents: Data(), attributes: [.posixPermissions: 0o600]) }
+        } else {
+            try? FileManager.default.removeItem(atPath: path)
+        }
+        permissionFlagOn = on
     }
 
     var windowVisible: Bool { panel?.isVisible ?? false }
@@ -448,6 +473,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     /// Cada mascota se muestra u oculta por su cuenta segun la presencia de su herramienta (y lo que se oculto desde el menu).
     private func applyVisibility() {
         guard panel != nil, codexPanel != nil else { return }
+        if permissionFlagOn != (PetStore.shared.layout == .island && PetStore.shared.islandPermissions) { syncPermissionFlag() }
         if PetStore.shared.layout == .island {
             // modo isla: una sola pieza en el notch; las ventanas flotantes, sus burbujas y el escenario se ocultan
             if island == nil { island = IslandController(store: PetStore.shared) }
