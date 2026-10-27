@@ -25,11 +25,14 @@ if [ "$1" = "--uninstall" ]; then
   exit 0
 fi
 
-# fusion: agrega nuestros hooks sin tocar los existentes
+# fusion idempotente: agrega solo los hooks cuyo comando aun no esta en ese evento y no toca los existentes
 merged=$(mktemp)
 jq --slurpfile add hooks/settings-snippet.json '
   .hooks = ((.hooks // {}) as $cur
-    | reduce ($add[0].hooks | to_entries[]) as $e ($cur; .[$e.key] = ((.[$e.key] // []) + $e.value)))
+    | reduce ($add[0].hooks | to_entries[]) as $e ($cur;
+        .[$e.key] as $have
+        | ([($have // [])[].hooks[]?.command]) as $cmds
+        | .[$e.key] = (($have // []) + [$e.value[] | select(.hooks | all(.command as $c | $cmds | index($c) | not))])))
 ' "$SETTINGS" > "$merged"
 
 echo "Se modificara UN archivo: $SETTINGS"
