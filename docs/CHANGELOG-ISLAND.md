@@ -27,6 +27,8 @@
 - atajos opcionales, demo, telemetría, limpieza y prueba de resistencia.
 # cambios recientes
 
+- registro local de decisiones de permisos, con riesgo, resultado y origen; retención de 90 días y permisos 0600.
+
 - reacción de hover: los ojos crecen una celda mientras el cursor permanece sobre la isla.
 - clic con aplastamiento y gesto de molestia durante 0,6 s; se conserva el mareo de tres clics en 2 s.
 - autopruebas nuevas en `--selftest-island` para ambas reacciones.

@@ -80,3 +80,5 @@ tests/snapshots-sin-notch.sh
 - [ ] voiceover: activa voiceover, enfoca la isla y confirma que anuncia agente, estado, porcentaje y alerta sin leer comandos completos.
 
 el detalle de capacidades y cambios pequeños está en [CHANGELOG-ISLAND.md](CHANGELOG-ISLAND.md).
+
+las decisiones de permisos se guardan localmente en `~/.claude-pet/audit/decisions.jsonl`, con permisos 0600, solo durante 90 días y sin comandos ni rutas completas. se puede cambiar la carpeta en pruebas con `CLAUDE_PET_AUDIT`.

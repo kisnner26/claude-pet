@@ -100,6 +100,7 @@ final class PermissionServer: @unchecked Sendable {
         let rest = pending.map(\.ask)
         lock.unlock()
         finish(c, reply: decision.rawValue)
+        AuditLog.record(ask: c.ask, result: decision.rawValue)
         onChange?(rest)
         return true
     }
@@ -108,7 +109,7 @@ final class PermissionServer: @unchecked Sendable {
     func dismissPermission(id: String) -> Bool {
         lock.lock(); guard let i = pending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }
         let c = pending.remove(at: i); let rest = pending.map(\.ask); lock.unlock()
-        finish(c, reply: nil); onChange?(rest); return true
+        finish(c, reply: nil); AuditLog.record(ask: c.ask, result: "terminal", source: "terminal"); onChange?(rest); return true
     }
 
     // MARK: conexiones
