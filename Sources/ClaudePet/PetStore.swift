@@ -119,7 +119,10 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(seasonalOutfits, forKey: "seasonalOutfits") }
     }
     /// Lo que lleva puesto la mascota: lo elegido mas, si esta activado, el atuendo de temporada.
-    func outfitsNow(at date: Date = Date()) -> Set<Outfit> { seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe }
+    func outfitsNow(at date: Date = Date()) -> Set<Outfit> {
+        let chosen = seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe
+        return chosen.filter { Evolution.isUnlocked($0, level: weeklyRecap.level) || Wardrobe.seasonal(on: date).contains($0) }
+    }
     func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
     /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
     @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {

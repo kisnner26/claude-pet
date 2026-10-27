@@ -57,10 +57,28 @@ struct IslandDizzyNotice: View {
 struct IslandFinishedCard: View {
     @ObservedObject var store: PetStore
     var onDismiss: () -> Void
+    @State private var started = Date()
+    @State private var trailerDone = false
+    private var files: [Trailer.File] { store.mission.changes.map { Trailer.File(name: $0.name, added: $0.added, deleted: $0.deleted) } }
+    private var cinematic: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering && !files.isEmpty }
+
     var body: some View {
+        Group {
+            if cinematic && !trailerDone { TrailerView(files: files, start: started) }
+            else { card }
+        }
+        .task {
+            started = Date()
+            guard cinematic else { trailerDone = true; return }
+            try? await Task.sleep(nanoseconds: UInt64(Trailer.duration * 1_000_000_000))
+            trailerDone = true
+        }
+    }
+
+    private var card: some View {
         let agent = store.state == .done ? "claude code" : "codex"
         let step = store.recentIslandSteps.last
-        VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Text(store.terminalProject.isEmpty ? "proyecto" : store.terminalProject).font(.system(size: 11, weight: .bold)).foregroundColor(.white)
                 Text("\(agent) terminó").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))

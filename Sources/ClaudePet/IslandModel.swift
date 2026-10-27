@@ -24,6 +24,15 @@ final class IslandModel: ObservableObject {
     var swallowStart: TimeInterval?
     /// Archivos soltados sobre la isla (los pone el controlador).
     var onFiles: ([URL]) -> Void = { _ in }
+    /// Ultima edicion con lineas cambiadas, para la lluvia de lineas.
+    @Published var lineRain: (since: TimeInterval, added: Int, deleted: Int)?
+    /// Cuando termino cada agente, para el choque de manos.
+    /// Cuando empezo a abrirse la isla (para las gotas).
+    @Published var expandStart: TimeInterval?
+    var claudeDoneAt: TimeInterval?
+    var codexDoneAt: TimeInterval?
+    /// Fraccion de arena que queda arriba en el reloj del pomodoro (nil = sin temporizador).
+    @Published var hourglassTop: Double?
     @Published var pomodoroLabel: String?
     /// Segundos de mareo que quedan (para el aviso), o nil.
     @Published var dizzyLeft: Int?

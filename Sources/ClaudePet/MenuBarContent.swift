@@ -161,7 +161,7 @@ struct MenuBarContent: View {
                 Toggle("bailar con la música", isOn: $store.danceToMusic)
                 Menu("guardarropa", systemImage: "tshirt") {
                     ForEach(Outfit.allCases) { outfit in
-                        Toggle(outfit.title, isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))
+                        Toggle(Evolution.isUnlocked(outfit, level: store.weeklyRecap.level) ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) })).disabled(!Evolution.isUnlocked(outfit, level: store.weeklyRecap.level))
                     }
                     Divider()
                     Toggle("atuendos de temporada", isOn: $store.seasonalOutfits)

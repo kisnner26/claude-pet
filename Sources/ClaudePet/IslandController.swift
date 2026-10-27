@@ -31,6 +31,7 @@ final class IslandController {
     private var cursorNearZone = false
     private var lastSoundMode: IslandMode = .hidden
     private var taskStartedAt: TimeInterval?
+    private var lastStepID: UUID?
     private let music = MusicMonitor()
     private var lastAskCount = 0
     private var lastQuestionCount = 0
@@ -182,6 +183,15 @@ final class IslandController {
             store.refreshWeeklyRecap()
         }
         if errorNow { sound.play(.error); ActivityStats.shared.recordError() }
+        // efectos: cuando termina cada agente (choque de manos) y cuando llega una edicion con lineas (lluvia)
+        if c == .done && lastClaude != .done { model.claudeDoneAt = now }
+        if x == .done && lastCodex != .done { model.codexDoneAt = now }
+        if let step = store.recentIslandSteps.last, step.id != lastStepID {
+            lastStepID = step.id
+            if step.added + step.deleted > 0 { model.lineRain = (now, step.added, step.deleted) }
+        }
+        let hourglass: Double? = store.pomodoro.phase == .idle ? nil : store.pomodoro.remaining(now: now) / max(1, store.pomodoro.length(of: store.pomodoro.phase))
+        if model.hourglassTop != hourglass, hourglass == nil || abs((model.hourglassTop ?? -1) - (hourglass ?? 0)) > 0.02 { model.hourglassTop = hourglass }
         if store.permissionAsks.count > lastAskCount { sound.play(.permission) }
         if store.questionAsks.count > lastQuestionCount { sound.play(.question) }
         lastAskCount = store.permissionAsks.count; lastQuestionCount = store.questionAsks.count
@@ -223,7 +233,7 @@ final class IslandController {
         if model.mode != mode {
             if mode == .peek && model.mode == .hidden { model.greetUntil = now + 1.4 }
             if mode == .peek && lastSoundMode == .hidden { sound.play(.peek) }
-            else if mode == .expanded && lastSoundMode != .expanded { sound.play(.open) }
+            else if mode == .expanded && lastSoundMode != .expanded { sound.play(.open); model.expandStart = now }
             else if lastSoundMode == .expanded && mode != .expanded { sound.play(.fold) }
             lastSoundMode = mode
             model.mode = mode
@@ -265,12 +275,18 @@ struct IslandView: View {
         ZStack(alignment: anchor) {
             Color.clear
             island.frame(width: model.size.width, height: model.size.height)
+            // gotas de metal liquido que cuelgan del borde al abrirse
+            if effectsOn, model.mode == .expanded, model.placement == .top || model.placement == .floating, let start = model.expandStart {
+                GooeyDripsView(width: model.size.width, start: start).offset(y: model.size.height - 6)
+            }
         }
         .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: anchor)
         .animation(transition, value: model.size)
         .animation(transition, value: model.mode)
     }
 
+
+    private var effectsOn: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
 
     private var anchor: Alignment {
         switch model.placement { case .top, .floating: return .top; case .bottom: return .bottom; case .side: return .trailing }
@@ -289,6 +305,15 @@ struct IslandView: View {
                 // el brillo va como superposicion: no puede cambiar el tamaño de la isla
                 .overlay(alignment: .topLeading) {
                     IslandGlowView(glow: glow).animation(store.reduceMotion ? nil : .easeInOut(duration: 0.45), value: glow)
+                }
+                // nivel de contexto como liquido y aurora de luz: solo con la isla abierta y con animaciones
+                .overlay {
+                    if model.mode == .expanded && effectsOn {
+                        ZStack {
+                            if let g = glow { AuroraView(color: g.hex) }
+                            if let r = store.contextReading { LiquidView(level: LiquidModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: LiquidModel.colorHex(r.pressure), amplitude: LiquidModel.amplitude(store.state)) }
+                        }
+                    }
                 }
                 .opacity(model.mode == .hidden && (model.hasNotch || model.menuBarHidden) ? 0 : 1)
             if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden) {
@@ -310,6 +335,14 @@ struct IslandView: View {
             PetFace(store: store, model: model)
                 .frame(width: side, height: side)
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
+                .overlay {
+                    if !compact, effectsOn, let ask = store.permissionAsks.first {
+                        let risk = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk
+                        AlertPulseView(color: AlertPulse.riskColor(risk), askedAt: ask.at).frame(width: side * 2, height: side * 2)
+                    } else if !compact, effectsOn, !store.questionAsks.isEmpty {
+                        AlertPulseView(color: 0x5270E8).frame(width: side * 2, height: side * 2)
+                    }
+                }
                 .overlay(alignment: .topLeading) {
                     // punto de estado en la esquina de la mascota, solo con la isla abierta
                     if !compact, let dot = dotColor {
@@ -322,7 +355,7 @@ struct IslandView: View {
                 .accessibilityHint("pulsa para abrir el detalle")
                 .contextMenu {
                     ForEach(Outfit.allCases) { outfit in
-                        Toggle(outfit.title, isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))
+                        Toggle(Evolution.isUnlocked(outfit, level: store.weeklyRecap.level) ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) })).disabled(!Evolution.isUnlocked(outfit, level: store.weeklyRecap.level))
                     }
                     Divider()
                     Toggle("atuendos de temporada", isOn: $store.seasonalOutfits)
@@ -381,6 +414,7 @@ struct IslandView: View {
                 Button { model.poke() } label: { Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10, weight: .bold)).foregroundColor(Color(hex: 0xE7B45B)) }
                     .buttonStyle(.plain).help("\(loop.title) · pulsa para abrir").accessibilityLabel(loop.title)
             }
+            if compact, let top = model.hourglassTop { HourglassView(top: top).scaleEffect(0.5).frame(width: 14, height: 20) }
             if compact, let timer = model.pomodoroLabel {
                 Text(timer).font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundColor(store.pomodoro.onBreak ? Color(hex: 0x6CCB8A) : Color(hex: 0xE0824F))
                     .accessibilityLabel("temporizador: \(timer)")
@@ -805,5 +839,90 @@ extension IslandSnapshot {
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-fx <ruta.png>`: una celda por efecto visual, en un instante representativo de su animacion.
+    static func fx(to path: String) {
+        isRendering = true
+        defer { isRendering = false }
+        let t: TimeInterval = 1.7
+        func cell(_ title: String, _ view: some View) -> some View {
+            VStack(spacing: 6) {
+                ZStack { RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x05060A)); view }.frame(width: 190, height: 120).clipShape(RoundedRectangle(cornerRadius: 14))
+                Text(title).font(.system(size: 11)).foregroundColor(.white.opacity(0.8))
+            }
+        }
+        func mascot(_ state: PetState = .idle, outfits: Set<Outfit> = []) -> some View {
+            Canvas { gc, size in PetFace.draw(&gc, size: size, pixels: Wardrobe.compose(Sprite.block(state, tick: 3), outfits: outfits, state: state, tick: 3), pose: PetPose()) }.frame(width: 64, height: 64)
+        }
+        let rain = LineRain.drops(at: 1.0, since: 0, added: 40, deleted: 12)
+        let files = [Trailer.File(name: "PetStore.swift", added: 84, deleted: 9), Trailer.File(name: "IslandStage.swift", added: 60, deleted: 2)]
+        let tf = Trailer.frame(at: 1.0, files: files)
+        let view = VStack(spacing: 14) {
+            HStack(spacing: 14) {
+                cell("pulso de alerta", ZStack { AlertPulseViewStatic(color: 0xE7B45B); mascot(.waiting) })
+                cell("reloj de arena", HourglassView(top: 0.55).scaleEffect(2))
+                cell("contexto líquido", ZStack { LiquidView(level: 0.62, color: 0x2966ED, amplitude: 4, animated: false); mascot() })
+                cell("aurora", ZStack { if #available(macOS 15.0, *) { AuroraView(color: 0x6CCB8A, animated: false) }; mascot(.done) })
+            }
+            HStack(spacing: 14) {
+                cell("error: lluvia", ZStack { FxCanvas(pixels: StageScene.particles(at: t, state: .error, hour: 12)); mascot(.error) })
+                cell("terminado: sol", ZStack { FxCanvas(pixels: StageScene.particles(at: t, state: .done, hour: 12)); mascot(.done) })
+                cell("ejecutando: chispas", ZStack { FxCanvas(pixels: StageScene.particles(at: t, state: .tool, hour: 12)); mascot(.tool) })
+                cell("de noche: estrellas", ZStack { FxCanvas(pixels: StageScene.particles(at: t, state: .idle, hour: 23)); mascot() })
+            }
+            HStack(spacing: 14) {
+                cell("lluvia de líneas", ZStack { FxCanvas(pixels: rain); mascot(.tool) })
+                cell("evolución nivel 8", ZStack { EvolutionView(level: 8); mascot(outfits: [.crown]) })
+                cell("tráiler de la tarea", VStack(alignment: .leading, spacing: 4) {
+                    Text(tf.caption).font(.system(size: 14, weight: .bold)).foregroundColor(.white)
+                    HStack(spacing: 8) { Text("+\(tf.added)").foregroundColor(Color(hex: 0x6CCB8A)); Text("−\(tf.deleted)").foregroundColor(Color(hex: 0xD85C5C)) }.font(.system(size: 24, weight: .heavy, design: .rounded))
+                }.padding())
+                cell("isla líquida", ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 10).fill(.black).frame(width: 150, height: 40).offset(y: 10)
+                    GooeyDripsStatic(width: 150, age: 0.5).offset(y: 44)
+                })
+            }
+        }.padding(18).background(Color(hex: 0x14161C))
+        let r = ImageRenderer(content: view)
+        r.scale = scale
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+/// Versiones estaticas (sin TimelineView) para las capturas.
+struct AlertPulseViewStatic: View {
+    let color: UInt32
+    var body: some View {
+        Canvas { gc, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2), base = min(size.width, size.height) / 2
+            for ring in AlertPulse.rings(at: 0.6) {
+                let r = base * (0.55 + 0.45 * CGFloat(ring.progress))
+                gc.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)), with: .color(Color(hex: color).opacity(ring.alpha)), lineWidth: 2)
+            }
+            var arc = Path(); arc.addArc(center: c, radius: base * 0.52, startAngle: .degrees(-90), endAngle: .degrees(150), clockwise: false)
+            gc.stroke(arc, with: .color(Color(hex: color)), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+        }.frame(width: 110, height: 110)
+    }
+}
+
+struct GooeyDripsStatic: View {
+    let width: CGFloat
+    let age: TimeInterval
+    var body: some View {
+        Canvas { gc, size in
+            gc.addFilter(.alphaThreshold(min: 0.5, color: .black)); gc.addFilter(.blur(radius: 6))
+            gc.drawLayer { layer in
+                layer.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: size.width, height: 8), cornerRadius: 4), with: .color(.black))
+                for b in Gooey.blobs(age: age) {
+                    let cx = CGFloat(b.x) * size.width, cy = 6 + CGFloat(b.drop), r = CGFloat(b.radius)
+                    layer.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r * 1.15, width: r * 2, height: r * 2.3)), with: .color(.black))
+                }
+            }
+        }.frame(width: width, height: 44)
     }
 }
