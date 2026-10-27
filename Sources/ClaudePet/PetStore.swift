@@ -188,6 +188,10 @@ final class PetStore: ObservableObject {
         let toolName = tool.isEmpty ? "sin herramienta" : tool
         return "\(projectName) · \(toolName)"
     }
+    var workspaceLabel: String {
+        let path = mission.workspace.isEmpty ? "" : mission.workspace
+        return path.isEmpty ? "workspace no disponible" : URL(fileURLWithPath: path).lastPathComponent
+    }
     var codexContextLabel: String {
         guard let reading = codexContextReading else { return "contexto codex no disponible" }
         return "contexto codex: \(reading.remainingPercent)% restante"

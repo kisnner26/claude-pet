@@ -14,6 +14,7 @@ struct MenuBarContent: View {
         Section("en vivo") {
             Label("claude: \(store.state.label.lowercased())", systemImage: stateSymbol)
             if store.state != .idle { Label(store.sessionSummary, systemImage: "briefcase") }
+            if !store.mission.workspace.isEmpty { Label(store.workspaceLabel, systemImage: "folder") }
             if store.state != .idle { Label("desde hace \(store.stateDurationLabel)", systemImage: "timer") }
             if store.contextReading != nil { Label("\(store.contextLabel) · \(store.contextPressureLabel) · \(store.contextModelLabel)", systemImage: "circle.dotted") }
             if store.contextReading != nil {
