@@ -458,6 +458,7 @@ struct IslandView: View {
             if store.codexPresent { Picker("agente", selection: $agentTab) { ForEach(IslandAgentTabs.available(codex: true), id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).onChange(of: store.codexPresent) { agentTab = IslandAgentTabs.keep(agentTab, codex: $0) } }
             if agentTab == .claude {
                 Text("claude · \(store.state.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(.white)
+                    .contextMenu { Button("copiar estado", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("claude · \(store.state.label.lowercased()) · \(store.stateDurationLabel)", forType: .string) } }
                 if store.state != .idle { Text("activo desde hace \(store.stateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.stateDurationSeconds)) }
                 if let a = store.claudeBubbleActivity { Text(a.title).font(.system(size: 13)).foregroundColor(Color.white.opacity(0.85)).lineLimit(1); if !a.subtitle.isEmpty { Text(a.subtitle).font(.system(size: 12)).foregroundColor(Color.white.opacity(0.55)).lineLimit(1) } }
             } else {
@@ -473,6 +474,7 @@ struct IslandView: View {
                     }
                 }
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(codexColor)
+                    .contextMenu { Button("copiar estado", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString("codex · \(store.codexState.label.lowercased()) · \(store.codexStateDurationLabel)", forType: .string) } }
                 if store.codexState != .idle { Text("activo desde hace \(store.codexStateDurationLabel)").font(.system(size: 10, design: .monospaced)).foregroundColor(durationColor(store.codexStateDurationSeconds)) }
                 Text("línea publicada por codex").font(.system(size: 12)).foregroundColor(.white.opacity(0.55))
             }
