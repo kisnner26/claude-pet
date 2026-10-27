@@ -151,6 +151,8 @@ el resumen también indica tokens usados, para comparar consumo y capacidad rest
 
 el anillo abierto acompaña el color con una etiqueta textual `normal`, `cuidado` o `crítico` para claude y codex.
 
+la etiqueta sale de `ContextReading.pressureLabel`, compartida por ambos agentes y cubierta por `SafetySelfTest`.
+
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
