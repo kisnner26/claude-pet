@@ -209,7 +209,7 @@ struct IslandView: View {
                     }
                 }
             }
-            if !compact { if let ask = store.permissionAsks.first { permissionCard(ask) } else if let ask = store.questionAsks.first { questionCard(ask) } else { details } }
+            if !compact { if let ask = store.permissionAsks.first { PermissionCardView(store: store, ask: ask) } else if let ask = store.questionAsks.first { QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion) } else { details } }
             Spacer(minLength: 0)
             if compact && store.codexPresent {
                 if let reading = store.codexContextReading {
@@ -233,102 +233,6 @@ struct IslandView: View {
         .padding(.top, compact ? 0 : 38)
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)
-    }
-
-    /// Tarjeta de permiso: que quiere hacer Claude y tres botones.
-    private func permissionCard(_ ask: PermissionAsk) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("claude pide permiso").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
-                if store.permissionAsks.count > 1 {
-                    Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 11, design: .monospaced)).foregroundColor(Color.white.opacity(0.5))
-                }
-            }
-            Text(ask.project.isEmpty ? ask.tool : "\(ask.tool) · \(ask.project)")
-                .font(.system(size: 12)).foregroundColor(Color.white.opacity(0.6)).lineLimit(1)
-            if !ask.detail.isEmpty {
-                Text(ask.detail).font(.system(size: 12, design: .monospaced)).foregroundColor(.white)
-                    .lineLimit(3).padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
-                Button("copiar detalle", systemImage: "doc.on.clipboard") {
-                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string)
-                }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
-            }
-            Button("copiar permiso completo", systemImage: "doc.on.doc") {
-                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string)
-            }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
-            HStack(spacing: 8) {
-                permissionButton("denegar", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .deny) }
-                Spacer(minLength: 0)
-                if ask.canAlways { permissionButton("siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
-                permissionButton("permitir", fill: Color(hex: 0xE0824F), ink: .black) { store.answerPermission(ask.id, .allow) }
-                permissionButton("responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) { store.dismissPermission(ask.id) }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func permissionButton(_ title: String, fill: Color, ink: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(ink)
-                .padding(.horizontal, 14).padding(.vertical, 6)
-                .background(Capsule().fill(fill))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func questionOptionButton(_ title: String, description: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(selected ? .black : .white)
-                if !description.isEmpty { Text(description).font(.system(size: 9)).foregroundColor(selected ? Color.black.opacity(0.7) : Color.white.opacity(0.55)).lineLimit(1) }
-            }.padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Capsule().fill(selected ? Color(hex: 0x5270E8) : Color.white.opacity(0.1)))
-        }.buttonStyle(.plain)
-    }
-
-    private func questionCard(_ ask: QuestionAsk) -> some View {
-        let index = min(questionIndex, max(0, ask.questions.count - 1))
-        let q = ask.questions[index]
-        let multi = q.multiSelect
-        let hasOther = questionSelections[index, default: []].contains { q.options.indices.contains($0) && q.options[$0].label.lowercased().contains("otra") }
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("claude pregunta").font(.system(size: 14, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xEC9A6E))
-            if ask.questions.count > 1 { Text("pregunta \(index + 1) de \(ask.questions.count)").font(.system(size: 10, design: .monospaced)).foregroundColor(Color.white.opacity(0.5)) }
-            Text(q.question).font(.system(size: 13)).foregroundColor(.white).lineLimit(2)
-            Button("copiar pregunta", systemImage: "doc.on.clipboard") {
-                let options = q.options.map(\.label).joined(separator: ", ")
-                NSPasteboard.general.clearContents(); NSPasteboard.general.setString("\(q.question)\nopciones: \(options)", forType: .string)
-            }.font(.system(size: 10, design: .monospaced)).buttonStyle(.plain).foregroundColor(Color.white.opacity(0.6))
-            HStack(spacing: 6) {
-                ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
-                    let optionIndex = q.options.firstIndex(where: { $0.label == option.label }) ?? -1
-                    let selected = questionSelections[index, default: []].contains(optionIndex)
-                    questionOptionButton(option.label, description: option.description, selected: selected) {
-                        let isOther = option.label.lowercased().contains("otra")
-                        if multi || isOther {
-                            if selected { questionSelections[index, default: []].remove(optionIndex) }
-                            else { questionSelections[index, default: []].insert(optionIndex) }
-                        } else {
-                            commitQuestion(ask, index: index, selected: [optionIndex])
-                        }
-                    }
-                }
-            }
-            if q.options.indices.contains(where: { questionSelections[index, default: []].contains($0) && q.options[$0].label.lowercased().contains("otra") }) {
-                TextField("escribe tu respuesta", text: $questionFreeText)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12))
-            }
-            if multi || hasOther {
-                permissionButton(index + 1 < ask.questions.count ? "siguiente" : "confirmar selección", fill: Color(hex: 0xE0824F), ink: .black) {
-                    commitQuestion(ask, index: index, selected: Array(questionSelections[index, default: []]).sorted())
-                }.disabled(questionSelections[index, default: []].isEmpty || (questionSelections[index, default: []].contains(where: { q.options[$0].label.lowercased().contains("otra") }) && questionFreeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-            }
-            permissionButton("responder en terminal", fill: Color.white.opacity(0.06), ink: Color.white.opacity(0.7)) {
-                store.dismissQuestion(ask.id); questionSelections.removeAll(); questionIndex = 0; questionFreeText = ""
-            }
-        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commitQuestion(_ ask: QuestionAsk, index: Int, selected: [Int]) {
