@@ -385,6 +385,17 @@ struct IslandView: View {
                     if let reading = store.contextReading { ContextRingView(reading: reading).scaleEffect(0.42).frame(width: 48, height: 48) }
                     if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
                 }
+                HStack(spacing: 8) {
+                    if store.contextReading != nil {
+                        Button("copiar contexto", systemImage: "doc.on.clipboard") {
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.contextLabel, forType: .string)
+                        }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))
+                    }
+                    if !store.mission.changes.isEmpty {
+                        Button("abrir cambios", systemImage: "arrow.up.right") { store.openLatestDiff() }
+                            .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
+                    }
+                }
             }
             if store.codexPresent { Picker("agente", selection: $agentTab) { ForEach(IslandAgentTabs.available(codex: true), id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented).onChange(of: store.codexPresent) { agentTab = IslandAgentTabs.keep(agentTab, codex: $0) } }
             if agentTab == .claude {
