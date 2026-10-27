@@ -6,12 +6,25 @@ struct IslandActionButton: View {
     let fill: Color
     let ink: Color
     let action: () -> Void
+    @State private var hovering = false
     var body: some View {
         Button(action: action) {
             Text(title).font(.system(size: 12.5, weight: .medium)).foregroundColor(ink)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(Capsule().fill(fill))
-        }.buttonStyle(.plain)
+        }
+        .buttonStyle(IslandPressStyle())
+        .onHover { hovering = $0 }
+        .scaleEffect(hovering ? 1.03 : 1)
+        .animation(.easeOut(duration: 0.07), value: hovering)
+    }
+}
+
+private struct IslandPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .offset(y: configuration.isPressed ? 1 : 0)
+            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
 
