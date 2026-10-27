@@ -140,3 +140,5 @@ el ticker de pasos muestra antigüedad relativa (`ahora`, segundos o minutos) ca
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
 
 la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
+
+la mascota de claude expone a voiceover su estado y duración, además de una indicación para pulsar y abrir el detalle.
