@@ -2,34 +2,6 @@ import SwiftUI
 import AppKit
 import Combine
 
-/// Lo que la vista de la isla dibuja; la actualiza el controlador a 60 Hz.
-@MainActor
-final class IslandModel: ObservableObject {
-    @Published var mode: IslandMode = .hidden
-    @Published var reason: IslandReason = .none
-    @Published var size = CGSize(width: 184, height: 38)
-    @Published var hasNotch = true
-    @Published var countdown: Double?
-    /// Posicion del cursor respecto al centro de la isla, de -1 a 1; los ojos de la mascota lo siguen.
-    @Published var gaze = CGPoint.zero
-    /// Instantes (systemUptime) de los ultimos toques a la mascota y del ultimo fin de tarea.
-    var pokes: [TimeInterval] = []
-    var hopStart: TimeInterval?
-    var greetUntil: TimeInterval = 0
-    var onPetClick: () -> Void = {}
-
-    func poke() {
-        pokes.append(ProcessInfo.processInfo.systemUptime)
-        if pokes.count > 6 { pokes.removeFirst(pokes.count - 6) }
-        onPetClick()
-    }
-}
-
-/// El primer clic sobre la isla debe pulsar el boton, no solo activar la ventana.
-final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-}
-
 /// Isla pegada al notch (o a una barra arriba si no hay notch). Reemplaza a las mascotas flotantes.
 @MainActor
 final class IslandController {
@@ -150,23 +122,6 @@ final class IslandController {
         let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
         RunLoop.main.add(t, forMode: .common)
         timer = t
-    }
-}
-
-/// Forma de la isla: esquinas de arriba cuadradas (se funde con el borde) y de abajo redondeadas.
-struct IslandShape: Shape {
-    var radius: CGFloat
-    var animatableData: CGFloat { get { radius } set { radius = newValue } }
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.minY))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - radius))
-        p.addQuadCurve(to: CGPoint(x: r.maxX - radius, y: r.maxY), control: CGPoint(x: r.maxX, y: r.maxY))
-        p.addLine(to: CGPoint(x: r.minX + radius, y: r.maxY))
-        p.addQuadCurve(to: CGPoint(x: r.minX, y: r.maxY - radius), control: CGPoint(x: r.minX, y: r.maxY))
-        p.closeSubpath()
-        return p
     }
 }
 
