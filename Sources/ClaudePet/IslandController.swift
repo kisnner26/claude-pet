@@ -456,6 +456,10 @@ struct IslandView: View {
                     }
                     if !store.mission.changes.isEmpty { FileOrbitView(files: store.mission.changes).scaleEffect(0.52).frame(width: 66, height: 66) }
                 }
+                if !store.contextHistory.isEmpty {
+                    ContextTrendView(samples: store.contextHistory)
+                        .frame(height: 30)
+                }
                 HStack(spacing: 8) {
                     Button("actualizar", systemImage: "arrow.clockwise") { store.refreshTelemetryNow() }
                         .buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.6))

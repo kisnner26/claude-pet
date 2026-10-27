@@ -35,6 +35,7 @@ final class PetStore: ObservableObject {
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
     @Published private(set) var contextReading: ContextReading?
+    @Published private(set) var contextHistory: [ContextSample] = []
     @Published private(set) var diffPull: DiffPull?
     @Published private(set) var radarTarget: String?
     @Published private(set) var codexContextReading: ContextReading?
@@ -216,7 +217,11 @@ final class PetStore: ObservableObject {
         nextCodexGitScan = .distantPast
         refresh()
     }
-    func setSnapshotContext(_ reading: ContextReading?) { contextReading = reading }
+    func setSnapshotContext(_ reading: ContextReading?) {
+        contextReading = reading
+        if let reading { contextHistory = ContextTrend.append(reading, to: contextHistory, at: Date()) }
+        else { contextHistory = [] }
+    }
     func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }
@@ -424,7 +429,7 @@ final class PetStore: ObservableObject {
             contextScanTask?.cancel()
             contextScanTask = nil
             contextSession = ""
-            contextReading = nil
+            contextReading = nil; contextHistory = []
         }
     }
 
@@ -750,7 +755,7 @@ final class PetStore: ObservableObject {
         if session != contextSession {
             contextScanTask?.cancel()
             contextSession = session
-            contextReading = nil
+            contextReading = nil; contextHistory = []
             nextContextScan = .distantPast
         }
         guard now >= nextContextScan, contextScanTask == nil else { return }
@@ -760,7 +765,10 @@ final class PetStore: ObservableObject {
             guard let self else { return }
             let reading = await contextScanner.read(sessionPrefix: prefix)
             guard !Task.isCancelled, contextSession == prefix else { return }
-            if let reading, contextReading != reading { contextReading = reading }
+            if let reading, contextReading != reading {
+                contextReading = reading
+                contextHistory = ContextTrend.append(reading, to: contextHistory, at: Date())
+            }
             contextScanTask = nil
         }
     }

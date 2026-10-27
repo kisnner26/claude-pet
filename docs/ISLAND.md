@@ -159,6 +159,8 @@ la etiqueta accesible del medidor compacto anuncia porcentaje y presión textual
 
 la ayuda contextual del medidor incluye también el estado actual, además de la leyenda de colores.
 
+la vista abierta dibuja una tendencia de las últimas 24 lecturas de contexto. es una serie numérica en memoria: muestra la variación en puntos y conserva el color azul, ámbar o rojo de la lectura más reciente; no guarda transcripts, comandos ni rutas.
+
 cuando la presión es crítica, claude y codex muestran además un icono de advertencia; el estado accesible sigue anunciándose como `crítico`.
 
 el icono de advertencia es interactivo y abre el detalle de contexto al pulsarlo.

@@ -117,6 +117,18 @@ enum SafetySelfTest {
         check("medidor cambia de presión por margen", context?.pressure == .caution
               && ContextReading(usedTokens: 19_000, compactAtTokens: 20_000, model: "x").pressure == .critical)
         check("medidor expone etiqueta de presión", context?.pressureLabel == "cuidado")
+        let trendStart = Date(timeIntervalSince1970: 100)
+        let trendA = ContextReading(usedTokens: 10_000, compactAtTokens: 20_000, model: "x")
+        let trendB = ContextReading(usedTokens: 15_000, compactAtTokens: 20_000, model: "x")
+        var trend = ContextTrend.append(trendA, to: [], at: trendStart)
+        trend = ContextTrend.append(trendA, to: trend, at: trendStart.addingTimeInterval(1))
+        trend = ContextTrend.append(trendB, to: trend, at: trendStart.addingTimeInterval(2))
+        check("tendencia de contexto conserva muestras numéricas y evita duplicados", trend.count == 2 && ContextTrend.delta(trend) == -25)
+        check("tendencia de contexto etiqueta la caída", ContextTrend.label(trend) == "-25 puntos")
+        let many = (0..<40).reduce(into: [ContextSample]()) { result, index in
+            result.append(ContextSample(percent: index, pressure: .normal, at: trendStart.addingTimeInterval(Double(index))))
+        }
+        check("tendencia limita el historial en memoria", ContextTrend.append(trendA, to: many, at: trendStart).count == ContextTrend.limit)
 
         let codexURL = URL(fileURLWithPath: root).appendingPathComponent("codex-context.jsonl")
         let codexLines = """
