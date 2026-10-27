@@ -69,6 +69,17 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let shortcutMonitor = GlobalShortcutMonitor()
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--print-config") {
+            _ = ConfigStore.shared.load()
+            let data = try? JSONEncoder.pretty.encode(ConfigStore.shared.value)
+            if let data, let text = String(data: data, encoding: .utf8) { print(text) }
+            exit(ConfigStore.shared.lastError == nil ? 0 : 1)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--validate-config"), i + 1 < CommandLine.arguments.count {
+            do { _ = try ConfigStore.decode(Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[i + 1]))); print("CONFIGURACIÓN VÁLIDA"); exit(0) }
+            catch { fputs("configuración inválida: \(error)\n", stderr); exit(1) }
+        }
         if CommandLine.arguments.contains("--cpu-island-hidden") {
             PetStore.shared.layout = .island
             PetStore.shared.userHidden = true

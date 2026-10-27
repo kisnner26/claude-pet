@@ -34,4 +34,5 @@
 - detector local de posibles secretos en comandos y rutas, mostrando solo una etiqueta y cuatro caracteres de prefijo.
 - transición compartida con resorte amortiguado y variante corta para reducir movimiento; al cambiar de dirección SwiftUI invierte desde el tamaño actual.
 - botones de decisión con realce de hover, hundimiento de un píxel y respuesta inmediata.
+- configuración local versionada con validación estricta y comandos de inspección.
 

@@ -14,6 +14,8 @@ desde el repositorio:
 
 activa `isla en el notch` en el menú. responder permisos y preguntas desde la isla es opt-in. el instalador es idempotente y las pruebas usan `HOME` temporal; no se debe editar `~/.claude/settings.json` a mano.
 
+las preferencias tipadas de la isla se documentan en [CONFIG.md](CONFIG.md). un archivo inválido conserva la última configuración válida y no bloquea los hooks.
+
 pruebas principales:
 
 ```sh
