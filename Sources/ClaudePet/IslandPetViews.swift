@@ -12,7 +12,7 @@ struct PetFace: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
-            let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion)
+            let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion, hover: model.hover)
             Canvas { gc, size in
                 var cue = store.cue(at: ctx.date)
                 if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }

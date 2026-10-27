@@ -12,6 +12,8 @@ struct PetPose: Equatable {
     var eyeDY = 0
     var blink = false
     var dizzy = false
+    var annoyed = false
+    var wideEyes = false
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -23,6 +25,7 @@ enum PetAnimator {
     static let dizzyWindow: TimeInterval = 2
     static let dizzyPokes = 3
     static let dizzyLength: TimeInterval = 1.8
+    static let pokeAnnoyed: TimeInterval = 0.6
     static let hopLength: TimeInterval = 0.6
     static let hopHeight: CGFloat = 3
 
@@ -53,10 +56,11 @@ enum PetAnimator {
         return (dx, dy)
     }
 
-    static func pose(at t: TimeInterval, gaze: CGPoint, pokes: [TimeInterval], hopStart: TimeInterval?, motion: Bool) -> PetPose {
+    static func pose(at t: TimeInterval, gaze: CGPoint, pokes: [TimeInterval], hopStart: TimeInterval?, motion: Bool, hover: Bool = false) -> PetPose {
         var p = PetPose()
         let look = eyes(gaze: gaze)
         p.eyeDX = look.dx; p.eyeDY = look.dy
+        p.wideEyes = hover
         guard motion else { return p }
 
         // respiracion: el cuerpo se estira un 4 % desde los pies
@@ -76,6 +80,13 @@ enum PetAnimator {
             p.dx = CGFloat(sin(k * 6 * .pi)) * (1 - CGFloat(k))
             p.blink = true     // entrecierra los ojos, molesta
         }
+        if let last = pokes.filter({ $0 <= t }).max(), t - last < pokeAnnoyed {
+            let k = (t - last) / pokeAnnoyed
+            p.annoyed = true
+            p.blink = true
+            if k < 0.22 { p.scaleY *= 0.86; p.scaleX *= 1.06 }
+            else { p.scaleY *= 0.96 + 0.04 * CGFloat(min(1, (k - 0.22) / 0.78)) }
+        }
 
         // salto al terminar: arco con un pequeno aplastamiento al caer
         if let h = hopStart, t >= h, t - h < hopLength {
@@ -91,7 +102,7 @@ enum PetAnimator {
     static func apply(_ pixels: [Px], pose: PetPose) -> [Px] {
         func isEye(_ q: Px) -> Bool { q.c == Pal.charcoal && q.y >= 5 && q.y <= 10 && q.x >= 3 && q.x <= 12 }
         let eyes = pixels.filter(isEye)
-        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy else { return pixels }
+        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes else { return pixels }
         var out = pixels.filter { !isEye($0) }
         let ink = Pal.charcoal
         if pose.dizzy {
@@ -101,7 +112,11 @@ enum PetAnimator {
         } else if pose.blink {
             for x in Set(eyes.map(\.x)) { out.append(Px(x: x + pose.eyeDX, y: 8, c: ink)) }
         } else {
-            for e in eyes { out.append(Px(x: min(12, max(3, e.x + pose.eyeDX)), y: min(11, max(5, e.y + pose.eyeDY)), c: ink)) }
+            for e in eyes {
+                let x = min(12, max(3, e.x + pose.eyeDX)), y = min(11, max(5, e.y + pose.eyeDY))
+                out.append(Px(x: x, y: y, c: ink))
+                if pose.wideEyes { out.append(Px(x: x, y: min(11, y + 1), c: ink)) }
+            }
         }
         return out
     }

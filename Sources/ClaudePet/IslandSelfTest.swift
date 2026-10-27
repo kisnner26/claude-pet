@@ -94,8 +94,8 @@ enum IslandSelfTest {
 
         // 10. animacion de personaje
         let calm = CGPoint.zero
-        func pose(_ t: TimeInterval, gaze: CGPoint = calm, pokes: [TimeInterval] = [], hop: TimeInterval? = nil, motion: Bool = true) -> PetPose {
-            PetAnimator.pose(at: t, gaze: gaze, pokes: pokes, hopStart: hop, motion: motion)
+        func pose(_ t: TimeInterval, gaze: CGPoint = calm, pokes: [TimeInterval] = [], hop: TimeInterval? = nil, motion: Bool = true, hover: Bool = false) -> PetPose {
+            PetAnimator.pose(at: t, gaze: gaze, pokes: pokes, hopStart: hop, motion: motion, hover: hover)
         }
         let scales = stride(from: 0.0, to: 8.0, by: 0.05).map { pose($0).scaleY }
         check("respira entre 1,00 y 1,04 y sube y baja", scales.min()! >= 1 && scales.max()! <= 1.0401 && scales.max()! - scales.min()! > 0.03)
@@ -111,6 +111,8 @@ enum IslandSelfTest {
               && PetAnimator.eyes(gaze: CGPoint(x: 0, y: 1)) == (0, -1) && PetAnimator.eyes(gaze: CGPoint(x: 0, y: -1)) == (0, 1))
         check("con el cursor cerca del centro mira al frente", PetAnimator.eyes(gaze: CGPoint(x: 0.1, y: -0.2)) == (0, 0))
         check("la mirada sigue funcionando con movimiento reducido", pose(1, gaze: CGPoint(x: 1, y: 0), motion: false).eyeDX == 1)
+        check("hover agranda los ojos una celda", pose(1, hover: true).wideEyes && !pose(1).wideEyes)
+        check("clic aplasta y molesta durante 0,6 s", { let q = pose(10.05, pokes: [10]); return q.annoyed && q.scaleY < 0.9 && pose(10.5, pokes: [10]).annoyed && !pose(10.7, pokes: [10]).annoyed }())
         check("un toque sacude el cuerpo", (1..<10).contains { abs(pose(10 + Double($0) * 0.03, pokes: [10]).dx) > 0.2 })
         check("la sacudida termina a los 0,35 s", pose(10.5, pokes: [10]).dx == 0)
         let three: [TimeInterval] = [10, 10.4, 10.8]

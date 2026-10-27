@@ -10,6 +10,7 @@ final class IslandModel: ObservableObject {
     @Published var hasNotch = true
     @Published var countdown: Double?
     @Published var gaze = CGPoint.zero
+    @Published var hover = false
     var pokes: [TimeInterval] = []
     var hopStart: TimeInterval?
     var greetUntil: TimeInterval = 0

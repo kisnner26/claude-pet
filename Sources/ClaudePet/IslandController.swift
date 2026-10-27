@@ -95,6 +95,7 @@ final class IslandController {
                                 clickedPet: clicked)
         clicked = false
         let mode = machine.tick(input)
+        if model.hover != input.overIsland { model.hover = input.overIsland }
         let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking)
         if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 

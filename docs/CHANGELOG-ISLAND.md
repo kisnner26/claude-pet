@@ -25,3 +25,9 @@
 - ticker de herramientas, objetivos, deltas, antigüedad y copia.
 - tabs claude/codex, mission control, relevo y salto seguro a terminal.
 - atajos opcionales, demo, telemetría, limpieza y prueba de resistencia.
+# cambios recientes
+
+- reacción de hover: los ojos crecen una celda mientras el cursor permanece sobre la isla.
+- clic con aplastamiento y gesto de molestia durante 0,6 s; se conserva el mareo de tres clics en 2 s.
+- autopruebas nuevas en `--selftest-island` para ambas reacciones.
+
