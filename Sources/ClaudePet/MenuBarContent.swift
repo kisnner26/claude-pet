@@ -30,6 +30,9 @@ struct MenuBarContent: View {
 
         Section {
             Button("abrir tablero", systemImage: "rectangle.3.group") { AppController.shared.showMissionDashboard() }
+            Button("copiar resumen local", systemImage: "doc.on.clipboard") {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.mission.shareSummary, forType: .string)
+            }
             Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
                 store.demoMode ? store.stopDemo() : store.startDemo()
             }
