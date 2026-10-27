@@ -227,6 +227,8 @@ struct IslandView: View {
                     contextMeter(reading, label: "contexto codex")
                 }
                 CodexMini(store: store, greet: false).frame(width: 22, height: 24)
+                    .accessibilityLabel("codex: \(store.codexState.label.lowercased()), \(store.codexStateDurationLabel)")
+                    .accessibilityHint("adaptador de codex; pulsa para abrir el detalle")
             }
         }
         .padding(.leading, compact ? 8 : 24)
