@@ -91,6 +91,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-drop") { exit(FileDropSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-commitero") { exit(CommiteroLauncherSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-headline") { exit(IslandHeadlineSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-fx") { exit(VisualFxSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-placement") { exit(IslandPlacementSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-config") { exit(ConfigSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--print-config") {
