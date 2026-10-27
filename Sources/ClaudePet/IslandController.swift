@@ -376,6 +376,7 @@ struct IslandView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(reading.remainingPercent) por ciento restante")
+        .help("\(label): \(reading.remainingPercent)% restante · azul normal · ámbar cuidado · rojo crítico")
     }
 
     private var details: some View {
@@ -425,6 +426,7 @@ struct IslandView: View {
                 Text("\(store.mission.git.affected) cambios · \(store.mission.git.staged) staged · \(store.mission.git.conflicts) conflictos")
                     .font(.system(size: 10, design: .monospaced)).foregroundColor(store.mission.git.conflicts > 0 ? Color(hex: 0xD85C5C) : .white.opacity(0.5))
                     .onTapGesture { AppController.shared.showMissionDashboard() }
+                    .help("abrir mission control: cambios, staged y conflictos")
             }
             ForEach(store.recentIslandSteps.prefix(3)) { step in
                 HStack {
