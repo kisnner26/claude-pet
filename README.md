@@ -38,6 +38,17 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 - **atajos globales**: opt-in, solo ctrl+opcion+a/d/i/s/p, y se desregistran al cerrar. piden permiso de accesibilidad.
 - **varias pantallas**: sigue al raton entre monitores; el tamano sale del notch real.
 
+### lo nuevo de la isla
+
+- **sin notch**: pastilla propia con la altura real de la barra de menús; ubicación arriba, abajo, lateral o flotante, zona de activación ajustable y selector de pantalla. capturas por entorno en `docs/img/sin-notch/`.
+- **escena de la mascota**: grande, con su suelo, su mundo por estado (lluvia en error, sol al terminar, chispas al ejecutar, estrellas de noche) y una frase que se escribe sola con lo que hace el agente. en reposo mira alrededor, mueve las orejas, se estira y bosteza.
+- **efectos**: pulso de alerta con cuenta atrás, contexto como líquido, aurora de luz, lluvia de líneas al editar, tráiler de 3 s al terminar, choque de manos entre claude y codex y gotas líquidas al abrir. galería en `docs/img/efectos.png`.
+- **aprobar con criterio**: riesgo y secretos en cada permiso, reglas que se recuerdan con caducidad, planes, lecturas por lotes, puntos de restauración con git y registro de auditoría local.
+- **más**: sonidos sintetizados propios (muestras en `docs/sonidos/`), guardarropa con atuendos que se desbloquean por nivel, resumen semanal con imagen para compartir, modo foco, pomodoro con reloj de arena y soltar archivos sobre la isla para obtener `@ruta`.
+- **commitero**: si está instalado, el botón "commitear" de la isla abre [commitero](https://github.com/kisnner26/commitero) con los cambios del proyecto.
+
+![escena y estados](docs/img/estilo-trabajando.png)
+
 ![modos de la isla](docs/img/island-modos.png)
 
 ![poses de la mascota](docs/img/island-poses.png)
