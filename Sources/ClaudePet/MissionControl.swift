@@ -161,6 +161,11 @@ final class MissionControl: ObservableObject {
         return timelineOrder == .newest ? selected : Array(selected.reversed())
     }
     var filteredTimelineLabel: String { "\(filteredTimeline.count) eventos" }
+    var timelineAgentCounts: String {
+        let claude = timeline.count { $0.agent == "claude" }
+        let codex = timeline.count { $0.agent == "codex" }
+        return "claude (claude) · codex (codex)"
+    }
     func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
 
     var timelineExport: String {

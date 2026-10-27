@@ -43,6 +43,7 @@ struct MissionControlMenu: View {
                 ForEach(MissionTimelineOrder.allCases) { Text($0.rawValue).tag($0) }
             }
             Text(control.filteredTimelineLabel)
+            Text(control.timelineAgentCounts)
             Button("limpiar actividad reciente", systemImage: "trash") { control.clearTimeline() }
             if let capsule = control.recovery {
                 Divider()
