@@ -28,6 +28,7 @@
 # cambios recientes
 
 - registro local de decisiones de permisos, con riesgo, resultado y origen; retención de 90 días y permisos 0600.
+- acceso directo desde el menú al registro local de decisiones.
 
 - reacción de hover: los ojos crecen una celda mientras el cursor permanece sobre la isla.
 - clic con aplastamiento y gesto de molestia durante 0,6 s; se conserva el mareo de tres clics en 2 s.

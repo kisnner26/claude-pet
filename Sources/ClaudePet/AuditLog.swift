@@ -24,6 +24,16 @@ enum AuditLog {
         } catch { }
     }
 
+    static func ensureFile() -> URL? {
+        let url = URL(fileURLWithPath: path)
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil, attributes: [.posixPermissions: 0o600]) }
+            chmod(url.path, 0o600)
+            return url
+        } catch { return nil }
+    }
+
     private static func prune(url: URL) {
         guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) else { return }
         let cutoff = Date().addingTimeInterval(-90 * 24 * 3600)

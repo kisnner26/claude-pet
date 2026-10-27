@@ -62,6 +62,9 @@ struct MenuBarContent: View {
             Button("actualizar todo", systemImage: "arrow.triangle.2.circlepath") {
                 store.refreshTelemetryNow(); store.mission.refreshGit()
             }
+            Button("abrir registro de decisiones", systemImage: "list.bullet.rectangle") {
+                if let url = AuditLog.ensureFile() { NSWorkspace.shared.open(url) }
+            }
             Button(store.demoMode ? "detener demo" : "ver demo de la isla", systemImage: store.demoMode ? "stop.fill" : "play.fill") {
                 store.demoMode ? store.stopDemo() : store.startDemo()
             }
