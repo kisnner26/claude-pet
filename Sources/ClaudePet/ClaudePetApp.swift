@@ -176,7 +176,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         askServer.onChange = { asks in Task { @MainActor in PetStore.shared.permissionAsks = asks } }
-        askServer.onQuestion = { ask in Task { @MainActor in PetStore.shared.questionAsks.append(ask) } }
+        askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
         PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
         PetStore.shared.answerQuestion = { [weak self] id, answers in
             guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }

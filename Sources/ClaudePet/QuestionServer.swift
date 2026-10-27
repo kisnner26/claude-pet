@@ -48,13 +48,15 @@ final class QuestionServer: @unchecked Sendable {
         let p = line.split(separator: "\t", maxSplits: 3, omittingEmptySubsequences: false).map(String.init)
         guard p.count == 4, p[0] == "ask", let data = Data(base64Encoded: p[3]),
               let raw = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]], !raw.isEmpty else { return nil }
-        let qs: [IslandQuestion] = raw.compactMap { q in
+        let qs: [IslandQuestion] = raw.prefix(4).compactMap { q in
             guard let question = q["question"] as? String, let options = q["options"] as? [[String: Any]], !question.isEmpty else { return nil }
-            let choices = options.compactMap { o -> (String, String)? in
+            let choices = options.prefix(8).compactMap { o -> (String, String)? in
                 guard let label = o["label"] as? String, !label.isEmpty else { return nil }
-                return (label, o["description"] as? String ?? "")
+                func clean(_ value: String, _ limit: Int) -> String { String(value.unicodeScalars.filter { $0.value >= 32 && $0.value != 127 }.prefix(limit).map(Character.init)) }
+                return (clean(label, 120), clean(o["description"] as? String ?? "", 240))
             }
-            return IslandQuestion(id: UUID().uuidString, header: q["header"] as? String ?? "", question: question, options: choices, multiSelect: q["multiSelect"] as? Bool ?? false)
+            func clean(_ value: String, _ limit: Int) -> String { String(value.unicodeScalars.filter { $0.value >= 32 && $0.value != 127 }.prefix(limit).map(Character.init)) }
+            return IslandQuestion(id: UUID().uuidString, header: clean(q["header"] as? String ?? "", 40), question: clean(question, 400), options: choices, multiSelect: q["multiSelect"] as? Bool ?? false)
         }
         guard !qs.isEmpty else { return nil }
         return QuestionAsk(id: UUID().uuidString, session: p[1], project: p[2], questions: qs)

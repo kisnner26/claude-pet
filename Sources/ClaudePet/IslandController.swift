@@ -250,9 +250,9 @@ struct IslandView: View {
             HStack(spacing: 6) {
                 ForEach(Array(q.options.enumerated()), id: \.offset) { _, option in
                     permissionButton(option.label, fill: Color.white.opacity(0.1), ink: .white) {
-                        let answers = ask.questions.enumerated().map { index, item -> [String: Any] in
-                            ["question": item.question, "answer": index == 0 ? option.label : ""]
-                        }
+                        let answers = Dictionary(uniqueKeysWithValues: ask.questions.enumerated().map { index, item in
+                            (item.question, index == 0 ? option.label : "")
+                        })
                         store.answerQuestion(ask.id, answers)
                     }
                 }

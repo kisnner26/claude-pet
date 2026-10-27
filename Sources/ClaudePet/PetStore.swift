@@ -61,7 +61,7 @@ final class PetStore: ObservableObject {
     @Published var permissionAsks: [PermissionAsk] = []
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     @Published var questionAsks: [QuestionAsk] = []
-    var answerQuestion: (String, [[String: Any]]) -> Void = { _, _ in }
+    var answerQuestion: (String, [String: String]) -> Void = { _, _ in }
     @Published var userHidden = false
     private var claudeAppOpen = false
     private var codexAppOpen = false

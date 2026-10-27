@@ -18,10 +18,11 @@ questions=$(printf '%s' "$input" | jq -c '.tool_input.questions // []' 2>/dev/nu
 [ "$questions" != "[]" ] || exit 0
 payload=$(printf '%s' "$questions" | base64 | tr -d '\n')
 line=$(printf 'ask\t%s\t%s\t%s\n' "$sid" "$proj" "$payload")
+export CLAUDE_PET_QUESTIONS="$questions"
 exec perl -e '
 use strict; use IO::Socket::UNIX;
 my ($path,$wait,$line)=@ARGV; my $s=IO::Socket::UNIX->new(Peer=>$path) or exit 0;
 $s->autoflush(1); print $s $line; $SIG{ALRM}=sub{exit 0}; alarm $wait;
-my $r=<$s>; exit 0 unless defined $r; $r =~ s/\s+//g;
-print "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"updatedInput\":{\"answers\":$r}}}\n" if $r =~ /^\[[^\n]*\]$/;
+my $r=<$s>; exit 0 unless defined $r; $r =~ s/^\s+|\s+$//g;
+print "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"updatedInput\":{\"questions\":$ENV{CLAUDE_PET_QUESTIONS},\"answers\":$r}}}\n" if $r =~ /^\{[^\n]*\}$/;
 ' "$SOCK" "${CLAUDE_PET_ASK_WAIT:-110}" "$line"

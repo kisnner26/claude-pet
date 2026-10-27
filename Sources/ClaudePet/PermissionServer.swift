@@ -42,11 +42,12 @@ final class PermissionServer: @unchecked Sendable {
     private var pending: [Conn] = []
     /// Se llama (en el hilo del socket) cada vez que cambia la lista de permisos pendientes.
     var onChange: (([PermissionAsk]) -> Void)?
-    var onQuestion: ((QuestionAsk) -> Void)?
+    var onQuestionsChange: (([QuestionAsk]) -> Void)?
 
     init(path: String = PermissionServer.defaultPath) { self.path = path }
 
     var asks: [PermissionAsk] { lock.lock(); defer { lock.unlock() }; return pending.map(\.ask) }
+    var questions: [QuestionAsk] { lock.lock(); defer { lock.unlock() }; return questionPending.map(\.ask) }
 
     func start() throws {
         let dir = (path as NSString).deletingLastPathComponent
@@ -78,7 +79,8 @@ final class PermissionServer: @unchecked Sendable {
         lock.lock(); let all = pending; pending = []; lock.unlock()
         for c in all { finish(c, reply: nil) }
         lock.lock(); let questions = questionPending; questionPending = []; lock.unlock()
-        for q in questions { close(q.fd) }
+        for q in questions { q.closed = true; q.source?.cancel(); close(q.fd) }
+        onQuestionsChange?([])
         onChange?([])
     }
 
@@ -123,8 +125,16 @@ final class PermissionServer: @unchecked Sendable {
         if let question = QuestionServer.parse(line) {
             // AskUserQuestion comparte el socket y queda abierto hasta la respuesta.
             let response = QuestionConn(fd: c, ask: question)
-            lock.lock(); questionPending.append(response); lock.unlock()
-            onQuestion?(question)
+            let src = DispatchSource.makeReadSource(fileDescriptor: c, queue: queue)
+            src.setEventHandler { [weak self, weak response] in
+                guard let self, let response, !response.closed else { return }
+                var b = [UInt8](repeating: 0, count: 64); let n = read(response.fd, &b, b.count)
+                if n == 0 || (n < 0 && errno != EAGAIN && errno != EINTR) { self.dropQuestion(response) }
+            }
+            response.source = src
+            lock.lock(); guard questionPending.count < Self.maxPending else { lock.unlock(); close(c); return }; questionPending.append(response); lock.unlock()
+            src.resume()
+            lock.lock(); let questions = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(questions)
             return
         }
         lock.lock(); let full = pending.count >= Self.maxPending; lock.unlock()
@@ -146,14 +156,21 @@ final class PermissionServer: @unchecked Sendable {
         onChange?(list)
     }
 
-    private final class QuestionConn { let fd: Int32; let ask: QuestionAsk; init(fd: Int32, ask: QuestionAsk) { self.fd = fd; self.ask = ask } }
+    private final class QuestionConn { let fd: Int32; let ask: QuestionAsk; var source: DispatchSourceRead?; var closed = false; init(fd: Int32, ask: QuestionAsk) { self.fd = fd; self.ask = ask } }
     private var questionPending: [QuestionConn] = []
 
     @discardableResult
-    func resolveQuestion(id: String, answers: [[String: Any]]) -> Bool {
+    func resolveQuestion(id: String, answers: [String: String]) -> Bool {
         lock.lock(); guard let i = questionPending.firstIndex(where: { $0.ask.id == id }) else { lock.unlock(); return false }; let q = questionPending.remove(at: i); lock.unlock()
         guard let data = try? JSONSerialization.data(withJSONObject: answers), let text = String(data: data, encoding: .utf8) else { close(q.fd); return false }
-        _ = (text + "\n").withCString { write(q.fd, $0, strlen($0)) }; close(q.fd); return true
+        q.closed = true; q.source?.cancel(); _ = (text + "\n").withCString { write(q.fd, $0, strlen($0)) }; close(q.fd)
+        lock.lock(); let rest = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(rest); return true
+    }
+
+    private func dropQuestion(_ q: QuestionConn) {
+        lock.lock(); questionPending.removeAll { $0 === q }; lock.unlock()
+        q.closed = true; q.source?.cancel(); close(q.fd)
+        lock.lock(); let questions = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(questions)
     }
 
     private func drop(_ c: Conn) {

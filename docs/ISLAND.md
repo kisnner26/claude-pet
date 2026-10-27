@@ -83,4 +83,6 @@ de izquierda a derecha: reposo, mirando a la derecha, mirando arriba, parpadeo, 
 
 el hook `hooks/pet-question.sh` solo actúa para `PreToolUse` con `tool_name=AskUserQuestion`, exige la bandera opt-in y envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)` por el mismo socket local. la tarjeta muestra la primera pregunta y sus opciones. la respuesta vuelve como `updatedInput.answers`; si falla el socket, falta una herramienta o vence el plazo, el hook sale sin imprimir y claude code conserva su flujo normal en la terminal.
 
-prueba automática: `ClaudePet --selftest-question` valida el parseo, las opciones y el fallo cerrado de entradas inválidas. falta probar el ciclo completo con una sesión real y revisar selección múltiple.
+formato verificado contra la documentación oficial de hooks de claude code: [hooks reference](https://code.claude.com/docs/en/hooks), sección `AskUserQuestion`. `PreToolUse` debe devolver `hookSpecificOutput.permissionDecision = "allow"` y `updatedInput` con las `questions` originales más `answers` como objeto que asigna el texto de cada pregunta a su respuesta; en selección múltiple las etiquetas se unen con comas.
+
+prueba automática: `ClaudePet --selftest-question hooks/pet-question.sh` ejecuta el hook real con home temporal y cubre opción única, múltiple, cuatro preguntas, texto libre, muerte del hook, app cerrada, plazo, entradas inválidas, recorte, controles y límite de pendientes. falta probar el ciclo completo con una sesión real de claude code.
