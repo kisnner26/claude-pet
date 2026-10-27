@@ -132,6 +132,10 @@ enum PetAnimator {
         p.scaleY = 1 + 0.04 * CGFloat(breath)
         p.scaleX = 1 - 0.015 * CGFloat(breath)
         p.blink = isBlinking(at: t)
+        // se inclina un poco hacia el cursor, como si lo siguiera con todo el cuerpo (no solo con los ojos)
+        let lean = max(-1, min(1, Double(gaze.x)))
+        p.rotation = lean * 3.5
+        p.dx = CGFloat(lean) * 0.35
 
         // vida propia: solo cuando la mascota esta tranquila (en reposo y sin que el cursor la distraiga)
         if scene.state == .idle, scene.idleSeconds < sleepAfter, look.dx == 0, look.dy == 0 {

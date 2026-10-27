@@ -229,6 +229,13 @@ enum IslandSelfTest {
         let baseEars = Sprite.block(.idle, tick: 3).filter { $0.x <= 1 || $0.x >= 14 }.map(\.y).min() ?? 0
         check("el tic sube las orejas una celda", (lifted.filter { $0.x <= 1 || $0.x >= 14 }.map(\.y).min() ?? 0) == baseEars - 1)
         check("al terminar titilan destellos y no hay confeti", !PetAnimator.particles(at: 2.0, pose: PetPose(), scene: PetScene(state: .done)).isEmpty && PetAnimator.particles(at: 2.0, pose: PetPose(), scene: PetScene(state: .idle)).isEmpty)
+        // inclinacion hacia el cursor
+        func lean(_ gx: Double) -> PetPose { PetAnimator.pose(at: 5, gaze: CGPoint(x: gx, y: 0), pokes: [], hopStart: nil, motion: true, scene: PetScene(idleSeconds: 0, state: .tool)) }
+        check("se inclina hacia el lado del cursor", lean(1).rotation > 2 && lean(-1).rotation < -2 && lean(1).dx > 0 && lean(-1).dx < 0)
+        check("sin cursor cerca va derecha", lean(0).rotation == 0 && lean(0).dx == 0)
+        check("la inclinacion tiene un tope", lean(50).rotation <= 3.6 && lean(-50).rotation >= -3.6)
+        check("sin movimiento no se inclina", PetAnimator.pose(at: 5, gaze: CGPoint(x: 1, y: 0), pokes: [], hopStart: nil, motion: false).rotation == 0)
+        check("el mareo manda sobre la inclinacion", abs(PetAnimator.pose(at: 11.2, gaze: CGPoint(x: 1, y: 0), pokes: [10, 10.4, 10.8], hopStart: nil, motion: true).rotation) != 3.5)
         check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo
