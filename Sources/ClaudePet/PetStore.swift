@@ -165,6 +165,10 @@ final class PetStore: ObservableObject {
         let seconds = max(0, Int(Date().timeIntervalSince(stateSince)))
         return seconds < 60 ? "\(seconds) s" : "\(seconds / 60) min"
     }
+    var contextLabel: String {
+        guard let reading = contextReading else { return "contexto no disponible" }
+        return "contexto: \(reading.remainingPercent)% restante"
+    }
     var alertsAreSnoozed: Bool { Date() < alertsSnoozedUntil }
     func snoozeAlerts(minutes: Int = 15) {
         alertsSnoozedUntil = Date().addingTimeInterval(TimeInterval(max(1, minutes) * 60))
