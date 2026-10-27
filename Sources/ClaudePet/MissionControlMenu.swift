@@ -53,6 +53,7 @@ struct MissionControlMenu: View {
             }
             Text(control.filteredTimelineLabel)
             Text(control.timelineAgentCounts)
+            Text("último evento: \(control.lastActivityLabel)")
             Button("limpiar actividad reciente", systemImage: "trash") { control.clearTimeline() }
             if let capsule = control.recovery {
                 Divider()

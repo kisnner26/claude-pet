@@ -166,6 +166,11 @@ final class MissionControl: ObservableObject {
         let codex = timeline.count { $0.agent == "codex" }
         return "claude \(claude) · codex \(codex)"
     }
+    var lastActivityLabel: String {
+        guard let event = timeline.first else { return "sin actividad" }
+        let seconds = max(0, Int(now().timeIntervalSince(event.at)))
+        return seconds < 60 ? "hace (seconds) s" : "hace (seconds / 60) min"
+    }
     func clearTimeline() { timeline.removeAll(); objectWillChange.send() }
 
     var timelineExport: String {
