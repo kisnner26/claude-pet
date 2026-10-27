@@ -86,6 +86,9 @@ struct MenuBarContent: View {
             Button(store.userHidden ? "mostrar mascotas" : "ocultar mascotas", systemImage: store.userHidden ? "eye" : "eye.slash") {
                 AppController.shared.toggleWindow()
             }
+            Button("abrir isla ahora", systemImage: "rectangle.topthird.inset.filled") {
+                store.layout = .island; store.userHidden = false
+            }
         }
 
         Section {
