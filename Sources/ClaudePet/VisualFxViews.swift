@@ -106,10 +106,11 @@ struct AuroraView: View {
 /// El mundo de la mascota: clima y detalles segun el estado, detras de ella.
 struct StageSceneView: View {
     let state: PetState
+    var idleSeconds: TimeInterval = 0
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { ctx in
             let hour = Calendar.current.component(.hour, from: ctx.date)
-            FxCanvas(pixels: StageScene.particles(at: ctx.date.timeIntervalSinceReferenceDate, state: state, hour: hour), unit: 3)
+            FxCanvas(pixels: StageScene.particles(at: ctx.date.timeIntervalSinceReferenceDate, state: state, hour: hour, idleSeconds: idleSeconds), unit: 3)
         }
     }
 }

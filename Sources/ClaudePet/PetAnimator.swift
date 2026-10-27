@@ -22,6 +22,8 @@ struct PetPose: Equatable {
     var earLift = false
     var yawn = false
     var impatient = false
+    /// Ojos contentos (^ ^) mientras la acarician.
+    var happy = false
 }
 
 /// Lo que la mascota sabe de su entorno para elegir una emocion. Todo llega ya calculado por el controlador.
@@ -39,6 +41,9 @@ struct PetScene: Equatable {
     var decisionAt: TimeInterval?
     /// Segundos que lleva esperando tu respuesta a un permiso.
     var waitingFor: TimeInterval = 0
+    /// Segundos que el cursor lleva encima de la mascota (caricia).
+    var pettingFor: TimeInterval = 0
+    var daytime = true
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -216,6 +221,17 @@ enum PetAnimator {
             p.impatient = true
         }
 
+        // la mariposa: la sigue con los ojos mientras revolotea (solo si el cursor no la distrae)
+        if scene.state == .idle, look.dx == 0, look.dy == 0, Butterfly.visible(idleSeconds: scene.idleSeconds, hour: scene.daytime ? 12 : 23) {
+            let g = Butterfly.gaze(at: t)
+            p.eyeDX = g.dx; p.eyeDY = g.dy
+        }
+        // caricia: si el cursor se queda encima, ronronea con los ojos contentos
+        if scene.pettingFor >= Petting.after, !p.dizzy, !p.annoyed {
+            p.happy = true; p.blink = false
+            p.scaleY *= 1 + 0.015 * CGFloat(sin(t * 18))
+        }
+
         // emociones de fondo: solo cuando nada mas reclama a la mascota
         let busy = p.dizzy || p.annoyed || hopStart.map { t >= $0 && t - $0 < crouchLength + hopLength + bounceLength } == true
         if !busy {
@@ -270,6 +286,7 @@ enum PetAnimator {
                 for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
             }
         }
+        if pose.happy { out += Petting.hearts(at: t) }
         if scene.waitingFor >= alarmedAfter, Int(t * 3) % 2 == 0 {
             for (x, y) in [(7, 0), (8, 0), (7, 1), (8, 1), (7, 2), (8, 2), (7, 4), (8, 4)] { out.append(Px(x: x, y: y, c: Color(hex: 0xE7B45B))) }
         }
@@ -294,11 +311,13 @@ enum PetAnimator {
         var pixels = pixels
         if pose.earLift { pixels = pixels.map { ($0.x <= 1 || $0.x >= 14) && $0.y <= 12 ? Px(x: $0.x, y: $0.y - 1, c: $0.c) : $0 } }
         let eyes = pixels.filter(isEye)
-        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn else { return pixels }
+        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn || pose.happy else { return pixels }
         var out = pixels.filter { !isEye($0) }
         if pose.yawn { for (x, y) in [(7, 10), (8, 10), (7, 11), (8, 11)] { out.append(Px(x: x, y: y, c: Pal.charcoal)) } }
         let ink = Pal.charcoal
-        if pose.dizzy {
+        if pose.happy {
+            for cx in [5, 10] { for (x, y) in [(-1, 1), (0, 0), (1, 1)] { out.append(Px(x: cx + x, y: 8 + y, c: ink)) } }
+        } else if pose.dizzy {
             for (cx, cy) in [(5, 8), (10, 8)] {
                 for (x, y) in [(-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)] { out.append(Px(x: cx + x, y: cy + y, c: ink)) }
             }

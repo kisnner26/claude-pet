@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import SwiftUI
 
 /// Un punto de un efecto visual. Coordenadas normalizadas (0...1) salvo que se diga otra cosa; color en hexadecimal.
 struct FxPixel: Equatable {
@@ -103,7 +104,7 @@ enum LiquidModel {
 
 enum StageScene {
     /// Particulas del mundo de la mascota en una caja normalizada (0...1). `hour` decide si es de noche.
-    static func particles(at t: TimeInterval, state: PetState, hour: Int) -> [FxPixel] {
+    static func particles(at t: TimeInterval, state: PetState, hour: Int, idleSeconds: TimeInterval = 0) -> [FxPixel] {
         var out: [FxPixel] = []
         switch state {
         case .error:
@@ -136,6 +137,7 @@ enum StageScene {
                 out.append(FxPixel(x: 0.8 + Double(i) * 0.05, y: 0.18, size: 2, color: 0xE7B45B, alpha: on ? 1 : 0.25))
             }
         case .idle:
+            if Butterfly.visible(idleSeconds: idleSeconds, hour: hour) { out += Butterfly.pixels(at: t) }
             if hour < 6 || hour >= 21 {
                 for i in 0..<12 {
                     let tw = 0.35 + 0.65 * abs(sin(t * (0.6 + VisualFx.rnd(i) * 0.8) + VisualFx.rnd(i + 7) * 6))
@@ -316,5 +318,51 @@ enum ActivityPing {
         guard age >= 0, age < duration else { return nil }
         let p = age / duration
         return (p, (1 - p) * 0.6)
+    }
+}
+
+// MARK: mariposa
+
+enum Butterfly {
+    /// Aparece de dia cuando la mascota lleva medio minuto tranquila y se va cuando se duerme.
+    static func visible(idleSeconds: TimeInterval, hour: Int) -> Bool { idleSeconds >= 30 && idleSeconds < PetAnimator.sleepAfter && hour >= 6 && hour < 21 }
+
+    /// Posicion en la caja normalizada de la escena: revolotea en un 8 por encima de la mascota.
+    static func position(at t: TimeInterval) -> (x: Double, y: Double) {
+        (0.5 + 0.40 * sin(t * 0.7), 0.30 + 0.16 * sin(t * 1.4 + 1))
+    }
+
+    /// Hacia donde mira la mascota para seguirla con los ojos.
+    static func gaze(at t: TimeInterval) -> (dx: Int, dy: Int) {
+        let p = position(at: t)
+        return (p.x < 0.35 ? -1 : p.x > 0.65 ? 1 : 0, p.y < 0.24 ? -1 : 0)
+    }
+
+    static func pixels(at t: TimeInterval) -> [FxPixel] {
+        let p = position(at: t), open = Int(t * 6) % 2 == 0
+        var out = [FxPixel(x: p.x, y: p.y, size: 1, color: 0x3A3A44)]
+        let wing: UInt32 = 0xFF9FD0, dx = open ? 0.034 : 0.016
+        out.append(FxPixel(x: p.x - dx, y: p.y - 0.02, size: open ? 1.6 : 1, color: wing, alpha: 0.95))
+        out.append(FxPixel(x: p.x + dx, y: p.y - 0.02, size: open ? 1.6 : 1, color: wing, alpha: 0.95))
+        return out
+    }
+}
+
+// MARK: caricia
+
+enum Petting {
+    static let after: TimeInterval = 0.8
+    /// Corazones que suben mientras la mascota esta contenta: tres, desfasados, en una caja 16x16 del sprite.
+    static func hearts(at t: TimeInterval) -> [Px] {
+        var out: [Px] = []
+        for i in 0..<3 {
+            let k = (t * 0.7 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
+            let x = 3 + i * 4 + (i == 1 ? 1 : 0), y = 3 - Int(k * 4)
+            guard k < 0.92 else { continue }
+            for (dx, dy) in [(0, 0), (2, 0), (0, 1), (1, 1), (2, 1), (1, 2)] where (0..<16).contains(x + dx) && (0..<16).contains(y + dy) {
+                out.append(Px(x: x + dx, y: y + dy, c: Color(hex: 0xFF7DA8)))
+            }
+        }
+        return out
     }
 }

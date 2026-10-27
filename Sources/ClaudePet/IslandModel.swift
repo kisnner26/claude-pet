@@ -17,6 +17,8 @@ final class IslandModel: ObservableObject {
     var pokes: [TimeInterval] = []
     /// Toques sobre la mascota de codex (llevan su propio mareo).
     var codexPokes: [TimeInterval] = []
+    /// Desde cuando el cursor esta encima de la mascota (caricia).
+    var petHoverSince: TimeInterval?
     var hopStart: TimeInterval?
     /// Segundos sin actividad del usuario, para dormirse.
     var idleSeconds: TimeInterval = 0

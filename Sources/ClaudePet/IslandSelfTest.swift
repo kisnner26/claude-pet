@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// `ClaudePet --selftest-island`: reglas de la isla (oculta, asoma, compacta, abierta, alertas, terminado, ausencia).
 enum IslandSelfTest {
@@ -252,6 +253,22 @@ enum IslandSelfTest {
         check("tras 15 s esperando golpetea y se balancea", moment(3.3, impatient).impatient && (0..<50).contains { abs(moment(Double($0) / 10, impatient).rotation) > 1.5 } && (0..<50).contains { moment(Double($0) / 10, impatient).dy < -0.2 })
         var alarmed = PetScene(state: .waiting); alarmed.waitingFor = 50
         check("tras 40 s aparece una exclamacion que parpadea", (0..<20).contains { !PetAnimator.particles(at: Double($0) / 5, pose: PetPose(), scene: alarmed).isEmpty } && PetAnimator.particles(at: 1, pose: PetPose(), scene: impatient).isEmpty)
+        // caricia y mariposa
+        var petted = PetScene(state: .idle); petted.pettingFor = 1.2
+        var brief = PetScene(state: .idle); brief.pettingFor = 0.3
+        check("tras 0,8 s con el cursor encima se pone contenta", moment(5, petted).happy && !moment(5, brief).happy)
+        check("contenta ronronea: vibra un poco", (0..<30).contains { abs(moment(Double($0) / 7, petted).scaleY - moment(Double($0) / 7, PetScene(state: .idle)).scaleY) > 0.008 })
+        let happyEyes = PetAnimator.apply(Sprite.block(.idle, tick: 3), pose: { var q = PetPose(); q.happy = true; return q }())
+        check("los ojos contentos son un ^ en cada ojo", happyEyes.filter { $0.c == Pal.charcoal && $0.y >= 8 && $0.y <= 9 }.count == 6)
+        check("suben corazones mientras la acarician", !PetAnimator.particles(at: 2, pose: moment(5, petted), scene: petted).isEmpty && PetAnimator.particles(at: 2, pose: moment(5, brief), scene: brief).allSatisfy { $0.c != Color(hex: 0xFF7DA8) } && Petting.hearts(at: 1).allSatisfy { (0..<16).contains($0.x) && (0..<16).contains($0.y) })
+        var calmDay = PetScene(idleSeconds: 60, state: .idle)
+        let followedEyes = (0..<400).map { PetAnimator.pose(at: Double($0) / 10, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: calmDay) }.filter { $0.eyeDX != 0 }.count
+        check("de dia, tranquila, sigue la mariposa con los ojos", followedEyes > 40)
+        calmDay.idleSeconds = 5
+        check("sin tiempo tranquila no hay mariposa que seguir", Butterfly.visible(idleSeconds: 5, hour: 12) == false && Butterfly.visible(idleSeconds: 60, hour: 12) && !Butterfly.visible(idleSeconds: 60, hour: 23) && !Butterfly.visible(idleSeconds: 400, hour: 12))
+        check("la mariposa se dibuja en el escenario solo cuando toca", !StageScene.particles(at: 3, state: .idle, hour: 12, idleSeconds: 60).isEmpty && StageScene.particles(at: 3, state: .idle, hour: 12, idleSeconds: 5).isEmpty)
+        check("la mariposa revolotea dentro de la caja", (0..<500).allSatisfy { let p = Butterfly.position(at: Double($0) / 10); return (0.05...0.95).contains(p.x) && (0.1...0.5).contains(p.y) })
+        check("el cursor manda sobre la mariposa", PetAnimator.pose(at: 3.3, gaze: CGPoint(x: -1, y: 0), pokes: [], hopStart: nil, motion: true, scene: PetScene(idleSeconds: 60, state: .idle)).eyeDX == -1)
         check("bailando saca notas a los lados", !PetAnimator.particles(at: 2, pose: emote(2, scene(0, .idle, dance: true)), scene: scene(0, .idle, dance: true)).isEmpty)
 
         // el sprite real: los ojos se mueven, parpadean y nunca salen del cuerpo

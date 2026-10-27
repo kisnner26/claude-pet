@@ -39,7 +39,7 @@ struct IslandStage: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            if animated { StageSceneView(state: state).frame(width: 104, height: 100) }      // el clima y los detalles del estado
+            if animated { StageSceneView(state: state, idleSeconds: model.idleSeconds).frame(width: 104, height: 100) }      // el clima y los detalles del estado
             EvolutionView(level: store.weeklyRecap.level).frame(width: 104, height: 100)       // halo y estrellitas por nivel
             // suelo: un disco de luz tenue bajo los pies
             Ellipse()
@@ -53,6 +53,7 @@ struct IslandStage: View {
             .frame(width: 92, height: 92)
             .contentShape(Rectangle())
             .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
+            .onHover { model.petHoverSince = $0 ? ProcessInfo.processInfo.systemUptime : nil }
             .accessibilityLabel("\(agent.rawValue): toca para saludar")
             if animated, let ping = model.pingAt { ActivityPingView(since: ping).frame(width: 110, height: 110) }
             if animated, agent == .claude, let rain = model.lineRain {
