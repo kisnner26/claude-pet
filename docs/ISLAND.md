@@ -30,7 +30,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 2. ventana de la isla y geometría del notch, sin cambiar las mascotas flotantes: ajuste en el menú para elegir entre flotante e isla (hecho).
 3. animación de personaje en la isla (hecho).
 4. permisos bloqueantes con protocolo del socket documentado y prueba de que, si la app no responde, claude code sigue con su flujo normal (hecho).
-5. preguntas y saltar a la terminal.
+5. preguntas y saltar a la terminal. **parcial: `TerminalTargetResolver`**.
 6. vistas de contexto, diff, mission control y relevo dentro de la isla.
 
 ## permisos desde la isla
@@ -63,7 +63,7 @@ de arriba abajo: oculta (invisible, es el propio notch), asoma, compacta y abier
 
 - la isla muestra a claude y un punto para codex; codex todavía no tiene animación propia en la isla.
 - `AskUserQuestion` ya llega por `ask.sock` y se puede responder desde la tarjeta; selección múltiple, varias preguntas visibles a la vez y verificación con una sesión real de Claude Code quedan pendientes.
-- no hay atajos de teclado para permitir o denegar: la ventana no toma el foco. solo botones.
+- el salto a terminal solo se activa cuando hay una única ventana visible de terminal, iterm, ghostty, warp o vs code cuyo título contiene el proyecto; con ambigüedad muestra `terminal no identificada` y no enfoca nada.
 - verificado: el protocolo de permisos de extremo a extremo (`--selftest-permission`), las reglas y la geometría con `--selftest-island` y el dibujo de los cuatro modos con la imagen anterior. no se comprobó en una pantalla real el paso por encima del notch ni los clics traversantes; hay que probarlo con `ClaudePet -layout island`.
 
 ## animación del personaje
@@ -86,3 +86,5 @@ el hook `hooks/pet-question.sh` solo actúa para `PreToolUse` con `tool_name=Ask
 formato verificado contra la documentación oficial de hooks de claude code: [hooks reference](https://code.claude.com/docs/en/hooks), sección `AskUserQuestion`. `PreToolUse` debe devolver `hookSpecificOutput.permissionDecision = "allow"` y `updatedInput` con las `questions` originales más `answers` como objeto que asigna el texto de cada pregunta a su respuesta; en selección múltiple las etiquetas se unen con comas.
 
 prueba automática: `ClaudePet --selftest-question hooks/pet-question.sh` ejecuta el hook real con home temporal y cubre opción única, múltiple, cuatro preguntas, texto libre, muerte del hook, app cerrada, plazo, entradas inválidas, recorte, controles y límite de pendientes. falta probar el ciclo completo con una sesión real de claude code.
+
+prueba automática adicional: `ClaudePet --selftest-terminal` cubre coincidencia única, ambigüedad y aplicación no terminal. no se probó el foco de una ventana real.

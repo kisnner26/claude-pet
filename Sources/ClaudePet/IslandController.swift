@@ -272,6 +272,12 @@ struct IslandView: View {
             if store.codexPresent {
                 Text("codex · \(store.codexState.label.lowercased())").font(.system(size: 12, design: .monospaced)).foregroundColor(codexColor)
             }
+            if store.terminalTargetAvailable {
+                Button("saltar a terminal") { store.focusTerminal() }
+                    .buttonStyle(.plain).font(.system(size: 11, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
+            } else if store.state == .waiting || store.state == .error {
+                Text("terminal no identificada").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45))
+            }
         }
     }
 }

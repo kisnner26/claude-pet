@@ -117,6 +117,9 @@ final class PetStore: ObservableObject {
     var visibility: PresenceLogic.Visibility {
         PresenceLogic.visibility(Presence(claude: claudePresent, codex: codexPresent), auto: autoVisibility, userHidden: userHidden)
     }
+    var terminalProject: String { mission.workspace.isEmpty ? project : URL(fileURLWithPath: mission.workspace).lastPathComponent }
+    var terminalTargetAvailable: Bool { TerminalTargetResolver.current(project: terminalProject) != nil }
+    func focusTerminal() { _ = TerminalTargetResolver.focus(project: terminalProject) }
     var pairNear: Bool { gameGeometry != nil }
     var collaborationStartedAt: Date? { collaborationSince }
     /// Estado que se muestra para Codex: la prueba local tiene prioridad, luego el bus.
