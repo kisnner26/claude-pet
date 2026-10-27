@@ -68,6 +68,16 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var terminationSignals: [DispatchSourceSignal] = []
     private let shortcutMonitor = GlobalShortcutMonitor()
 
+    /// Antes de permitir un cambio de riesgo medio o alto, guarda un punto de restauracion si el usuario lo activo.
+    @MainActor static func checkpoint(before ask: PermissionAsk) {
+        let store = PetStore.shared
+        guard store.autoRestorePoints, ask.tool != "ExitPlanMode",
+              PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk != .low else { return }
+        let workspace = store.mission.workspace
+        guard RestorePoints.create(workspace: workspace, label: "\(ask.tool) \(ask.project)") != nil else { return }
+        store.refreshRestorePoints()
+    }
+
     func applicationDidFinishLaunching(_ n: Notification) {
         _ = ConfigStore.shared.load()
         if CommandLine.arguments.contains("--selftest-approval-rules") { exit(ApprovalRulesSelfTest.run() ? 0 : 1) }
@@ -242,11 +252,15 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         PetStore.shared.approveWithScope = { [weak self] id, scope in
             guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }
+            Self.checkpoint(before: ask)
             ApprovalRules.shared.add(scope: scope, ask: ask)
             self?.askServer.resolve(id: id, .allow, source: scope == .once ? "isla" : "isla · \(scope.rawValue)")
         }
         askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
-        PetStore.shared.answerPermission = { [weak self] id, decision in self?.askServer.resolve(id: id, decision) }
+        PetStore.shared.answerPermission = { [weak self] id, decision in
+            if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
+            self?.askServer.resolve(id: id, decision)
+        }
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }
         PetStore.shared.answerQuestion = { [weak self] id, answers in
             guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }

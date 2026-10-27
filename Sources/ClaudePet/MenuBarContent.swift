@@ -131,6 +131,18 @@ struct MenuBarContent: View {
                     Picker("zona de activación", selection: $store.islandActivationWidth) { ForEach([120.0, 180, 240, 320, 400], id: \.self) { Text("\(Int($0)) pt").tag($0) } }
                     Picker("retraso al asomar", selection: $store.islandActivationDelay) { ForEach([0.0, 0.15, 0.3, 0.5, 1.0], id: \.self) { Text($0 == 0 ? "inmediato" : String(format: "%.2f s", $0)).tag($0) } }
                 }
+                Menu("puntos de restauración") {
+                    Toggle("crear uno antes de permitir cambios", isOn: $store.autoRestorePoints)
+                    Button("crear punto ahora") {
+                        if RestorePoints.create(workspace: store.mission.workspace, label: "manual") == nil { NSSound.beep() }
+                        store.refreshRestorePoints()
+                    }
+                    if store.restorePoints.isEmpty { Text("sin puntos en este proyecto") }
+                    ForEach(store.restorePoints.prefix(10)) { point in
+                        Button("restaurar \(point.at.formatted(date: .omitted, time: .shortened)) · \(point.label)") { RestoreDialog.confirm(store: store, point: point) }
+                    }
+                }
+                .onAppear { store.refreshRestorePoints() }
                 if !store.approvalRules.isEmpty {
                     Menu("reglas de aprobación (\(store.approvalRules.count))") {
                         ForEach(store.approvalRules) { rule in

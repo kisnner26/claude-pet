@@ -91,6 +91,18 @@ final class PetStore: ObservableObject {
     @Published var islandFixedScreenID: String = UserDefaults.standard.string(forKey: "islandFixedScreenID") ?? "" {
         didSet { UserDefaults.standard.set(islandFixedScreenID, forKey: "islandFixedScreenID") }
     }
+    /// Crea un punto de restauracion antes de permitir un cambio de riesgo medio o alto (escribe una referencia en el .git del proyecto).
+    @Published var autoRestorePoints: Bool = UserDefaults.standard.bool(forKey: "autoRestorePoints") {
+        didSet { UserDefaults.standard.set(autoRestorePoints, forKey: "autoRestorePoints") }
+    }
+    @Published var restorePoints: [RestorePoints.Point] = []
+    func refreshRestorePoints() {
+        let workspace = mission.workspace
+        DispatchQueue.global(qos: .utility).async {
+            let list = RestorePoints.list(workspace: workspace)
+            DispatchQueue.main.async { [weak self] in self?.restorePoints = list }
+        }
+    }
     @Published var islandPermissions: Bool = UserDefaults.standard.bool(forKey: "islandPermissions") {
         didSet { UserDefaults.standard.set(islandPermissions, forKey: "islandPermissions") }
     }

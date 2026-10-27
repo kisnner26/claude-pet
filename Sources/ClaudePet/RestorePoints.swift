@@ -77,3 +77,19 @@ enum RestorePoints {
         return git(workspace, ["restore", "--source=\(point.sha)", "--worktree", "--", ":/"], timeout: 20)?.status == 0
     }
 }
+
+import AppKit
+
+/// Dialogo de confirmacion: muestra que cambiaria y solo restaura si el usuario acepta.
+enum RestoreDialog {
+    @MainActor static func confirm(store: PetStore, point: RestorePoints.Point) {
+        let workspace = store.mission.workspace
+        let alert = NSAlert()
+        alert.messageText = "restaurar el punto de \(point.at.formatted(date: .abbreviated, time: .shortened))"
+        alert.informativeText = "esto reescribe los archivos seguidos con su contenido de entonces. los archivos nuevos y el indice no se tocan.\n\n" + String(RestorePoints.preview(workspace: workspace, point: point).prefix(900))
+        alert.addButton(withTitle: "cancelar")
+        alert.addButton(withTitle: "restaurar")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        if !RestorePoints.restore(workspace: workspace, point: point) { NSSound.beep() }
+    }
+}
