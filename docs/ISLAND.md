@@ -138,3 +138,5 @@ la pestaña codex replica ese resumen solo cuando su adaptador publica una lectu
 el ticker de pasos muestra antigüedad relativa (`ahora`, segundos o minutos) calculada en memoria para distinguir actividad reciente de líneas antiguas.
 
 el cálculo vive en `IslandStep.ageLabel(now:)` y `IslandStepsSelfTest` lo valida con reloj determinista.
+
+la duración del estado activo cambia de color: blanco antes de un minuto, ámbar desde un minuto y rojo desde cinco; se aplica por separado a claude y codex.
