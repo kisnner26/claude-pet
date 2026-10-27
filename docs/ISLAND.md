@@ -26,6 +26,7 @@ plan para que claude pet viva en el notch (o en la barra superior en pantallas s
 9. limpieza al recibir `SIGTERM` o `SIGINT`. **hecho: detiene sockets y borra la bandera opt-in**.
 10. atajos globales opcionales. **hecho: ctrl+option+a permite, ctrl+option+d deniega y ctrl+option+i abre la isla**; requieren activar el interruptor y el permiso de accesibilidad de macos.
 11. varias pantallas. **hecho: menú con `pantalla del notch` o `seguir al ratón`**, probado con `ScreenMetrics` simuladas en `--selftest-island`.
+12. resistencia del socket. **hecho: `--selftest-resistance` inyecta 500 preguntas/permisos, cierra hooks a mitad y comprueba que no quedan tarjetas pendientes**.
 7. saltar a la terminal de la sesión.
 8. vestuario y sonidos propios.
 
