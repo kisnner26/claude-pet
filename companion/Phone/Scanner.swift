@@ -3,20 +3,25 @@ import SwiftUI
 
 /// Lee el QR de claude pet con la cámara: `visto://pair?c=CODIGO`.
 struct QRScanner: UIViewControllerRepresentable {
-    let onCode: (String) -> Void
+    let onCode: (String, RelayEndpoint?) -> Void
     func makeUIViewController(context: Context) -> ScannerController { let c = ScannerController(); c.onCode = onCode; return c }
     func updateUIViewController(_ vc: ScannerController, context: Context) {}
 
-    static func code(from text: String) -> String? {
-        guard let u = URLComponents(string: text), u.scheme == "visto", u.host == "pair", let c = u.queryItems?.first(where: { $0.name == "c" })?.value else { return nil }
-        return Pairing.isValid(c) ? c : nil
+    static func code(from text: String) -> String? { payload(from: text)?.code }
+
+    /// `visto://pair?c=CODIGO` y, si la Mac usa un relay, `&r=host:puerto&t=1`.
+    static func payload(from text: String) -> (code: String, relay: RelayEndpoint?)? {
+        guard let u = URLComponents(string: text), u.scheme == "visto", u.host == "pair", let c = u.queryItems?.first(where: { $0.name == "c" })?.value, Pairing.isValid(c) else { return nil }
+        let r = u.queryItems?.first(where: { $0.name == "r" })?.value
+        let tls = u.queryItems?.first(where: { $0.name == "t" })?.value == "1"
+        return (c, r.flatMap { RelayEndpoint.parse($0, tls: tls) })
     }
 }
 
 import VistoCore
 
 final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var onCode: ((String) -> Void)?
+    var onCode: ((String, RelayEndpoint?) -> Void)?
     private let session = AVCaptureSession()
     private var done = false
 
@@ -40,9 +45,9 @@ final class ScannerController: UIViewController, AVCaptureMetadataOutputObjectsD
     override func viewWillDisappear(_ animated: Bool) { super.viewWillDisappear(animated); session.stopRunning() }
 
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput objects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard !done, let s = (objects.first as? AVMetadataMachineReadableCodeObject)?.stringValue, let code = QRScanner.code(from: s) else { return }
+        guard !done, let s = (objects.first as? AVMetadataMachineReadableCodeObject)?.stringValue, let p = QRScanner.payload(from: s) else { return }
         done = true
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onCode?(code)
+        onCode?(p.code, p.relay)
     }
 }

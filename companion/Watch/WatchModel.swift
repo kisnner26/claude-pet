@@ -33,7 +33,7 @@ final class WatchModel: NSObject, ObservableObject {
         client.onNewAsk = { _ in WKInterfaceDevice.current().play(.notification) }
         client.onNewQuestion = { _ in WKInterfaceDevice.current().play(.notification) }
         client.onEvent = { kind, _, _, _ in WKInterfaceDevice.current().play(kind == "done" ? .success : .failure) }
-        client.configure(code: code, deviceName: "Apple Watch")
+        client.configure(code: code, deviceName: "Apple Watch", relay: VistoStore.relay)
         client.start()
         let s = WCSession.default; s.delegate = self; s.activate(); session = s
         QuickDecision.decide = { allow in await WatchModel.shared.quickDecide(allow: allow) }
@@ -92,10 +92,14 @@ final class WatchModel: NSObject, ObservableObject {
 
     private func apply(_ ctx: [String: Any]) {
         if let l = ctx["lang"] as? String, let lang = Lang(rawValue: l), lang != L.current { L.set(lang); language = lang }
+        if let r = ctx["relay"] as? String {
+            let p = r.split(separator: ":").map(String.init)
+            VistoStore.relay = p.count == 3 ? RelayEndpoint(host: p[0], port: UInt16(p[1]) ?? 7777, tls: p[2] == "1") : nil
+        }
         if let c = ctx["code"] as? String {
             let v = c.isEmpty ? nil : c
             VistoStore.code = v; code = v
-            client.configure(code: v, deviceName: "Apple Watch")
+            client.configure(code: v, deviceName: "Apple Watch", relay: VistoStore.relay)
             if v == nil { client.stop() } else { client.start() }
         }
         if let d = ctx["snap"] as? Data, let new = try? JSONDecoder().decode(VistoSnapshot.self, from: d) {

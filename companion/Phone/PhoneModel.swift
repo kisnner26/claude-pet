@@ -17,6 +17,15 @@ final class PhoneModel: NSObject, ObservableObject {
     private var started = false
     private let live = LiveManager()
     @Published var requireFaceID: Bool = UserDefaults.standard.bool(forKey: "auth.faceid") { didSet { UserDefaults.standard.set(requireFaceID, forKey: "auth.faceid") } }
+    /// Relay para usar Visto fuera de la red local (opcional). Al cambiarlo se reconecta y se avisa al reloj.
+    @Published var relay: RelayEndpoint? = VistoStore.relay {
+        didSet {
+            VistoStore.relay = relay
+            guard started else { return }
+            client.configure(code: code, deviceName: UIDevice.current.name, relay: relay)
+            pushCode()
+        }
+    }
     @Published var language: Lang = L.current {
         didSet { L.set(language); registerCategories(); pushCode() }
     }
@@ -40,7 +49,7 @@ final class PhoneModel: NSObject, ObservableObject {
         QuickDecision.decide = { allow in await PhoneModel.shared.quickDecide(allow: allow) }
         QuickDecision.focus = { on in await MainActor.run { PhoneModel.shared.client.setFocus(on) }; return on ? L.tr("Modo foco activado.") : L.tr("Modo foco apagado.") }
         LiveBridge.decide = { id, allow in await PhoneModel.shared.decideByID(id, allow: allow) }
-        client.configure(code: code, deviceName: UIDevice.current.name)
+        client.configure(code: code, deviceName: UIDevice.current.name, relay: relay)
         client.start()
         if WCSession.isSupported() { let s = WCSession.default; s.delegate = self; s.activate(); session = s }
     }
@@ -54,11 +63,12 @@ final class PhoneModel: NSObject, ObservableObject {
         ])
     }
 
-    func pair(_ raw: String) -> Bool {
+    func pair(_ raw: String, relay scanned: RelayEndpoint? = nil) -> Bool {
         guard Pairing.isValid(raw) else { return false }
         let c = Pairing.normalize(raw)
         VistoStore.code = c; code = c
-        client.configure(code: c, deviceName: UIDevice.current.name)
+        if let scanned { relay = scanned }      // el QR de la Mac trae su relay
+        client.configure(code: c, deviceName: UIDevice.current.name, relay: relay)
         client.start()
         pushCode()
         return true
@@ -66,12 +76,12 @@ final class PhoneModel: NSObject, ObservableObject {
 
     func unpair() {
         VistoStore.code = nil; code = nil
-        client.configure(code: nil, deviceName: UIDevice.current.name)
+        client.configure(code: nil, deviceName: UIDevice.current.name, relay: relay)
         client.stop()
         pushCode()
     }
 
-    func retry() { client.configure(code: code, deviceName: UIDevice.current.name); client.stop(); client.start() }
+    func retry() { client.configure(code: code, deviceName: UIDevice.current.name, relay: relay); client.stop(); client.start() }
 
     private func notify(_ a: Ask) {
         let c = UNMutableNotificationContent()
@@ -192,7 +202,7 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func pushCode() {
         guard let s = session, s.activationState == .activated else { return }
-        var ctx = s.applicationContext; ctx["code"] = code ?? ""; ctx["lang"] = language.rawValue
+        var ctx = s.applicationContext; ctx["code"] = code ?? ""; ctx["lang"] = language.rawValue; ctx["relay"] = relay.map { "\($0.host):\($0.port):\($0.tls ? 1 : 0)" } ?? ""
         try? s.updateApplicationContext(ctx)
     }
 

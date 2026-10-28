@@ -1,8 +1,15 @@
 import Foundation
+import VistoCore
 import Security
 
 /// El código de emparejamiento es un secreto: vive en el llavero, no en UserDefaults.
 enum VistoStore {
+    /// El relay opcional para usar Visto fuera de la red local. No es secreto: la direccion de tu propio servidor.
+    static var relay: RelayEndpoint? {
+        get { UserDefaults.standard.data(forKey: "relay").flatMap { try? JSONDecoder().decode(RelayEndpoint.self, from: $0) } }
+        set { if let v = newValue, let d = try? JSONEncoder().encode(v) { UserDefaults.standard.set(d, forKey: "relay") } else { UserDefaults.standard.removeObject(forKey: "relay") } }
+    }
+
     private static let service = "com.kisnner26.visto"
 
     static var code: String? {

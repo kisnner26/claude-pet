@@ -91,5 +91,11 @@ enum L10nEN {
         "Pelota": "Ball",
         "Saltar": "Jump",
         "Toca una mascota, mantén para acariciarla, arrástrala o pellizca para cambiar el tamaño.": "Tap a pet, hold to pet it, drag it or pinch to resize.",
+        "Relay (fuera de casa)": "Relay (away from home)",
+        "TLS (wss/https)": "TLS",
+        "Dirección no válida.": "Invalid address.",
+        "Opcional: tu propio servidor relay para usar Visto sin estar en la misma red que la Mac. Solo copia bytes cifrados de extremo a extremo. También se rellena al escanear el QR de claude pet.": "Optional: your own relay server to use Visto without being on the Mac's network. It only copies end-to-end encrypted bytes. It is also filled in when you scan claude pet's QR.",
+        "Conectando por el relay": "Connecting through the relay",
+        "No encuentro tu Mac por el relay: ¿está encendida y con el acceso remoto activado?": "I can't find your Mac through the relay: is it on, with remote access enabled?",
     ]
 }

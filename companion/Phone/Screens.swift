@@ -39,7 +39,7 @@ struct PairView: View {
         }
         .fullScreenCover(isPresented: $scanning) {
             ZStack(alignment: .topTrailing) {
-                QRScanner { code in scanning = false; _ = model.pair(code) }.ignoresSafeArea()
+                QRScanner { code, relay in scanning = false; _ = model.pair(code, relay: relay) }.ignoresSafeArea()
                 Button("Cerrar") { scanning = false }.buttonStyle(.glass).padding(20)
             }.overlay(alignment: .bottom) { Text("Apunta al cuadro de Ajustes → permisos en la Mac").font(.system(size: 14, weight: .medium)).padding(12).glassEffect(.regular, in: .capsule).padding(.bottom, 50) }
         }
@@ -324,6 +324,8 @@ struct SettingsView: View {
     @ObservedObject var client: VistoClient
     @ObservedObject private var feel = Feel.shared
     @Environment(\.dismiss) private var dismiss
+    @State private var relayText = VistoStore.relay?.display ?? ""
+    @State private var relayTLS = VistoStore.relay?.tls ?? false
 
     var body: some View {
         NavigationStack {
@@ -345,6 +347,13 @@ struct SettingsView: View {
                     Toggle("Inclinar la mascota con el giroscopio", isOn: $feel.tilt)
                     Button("Probar") { Feel.shared.ask(tool: "Bash", project: "claude-pet", risky: false) }
                 } header: { Text("Sensaciones") } footer: { Text("Los sonidos se sintetizan en el teléfono y respetan el interruptor de silencio. La voz y la linterna empiezan apagadas.") }
+                Section {
+                    TextField("mi.servidor.com:7777", text: $relayText).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                    Toggle("TLS (wss/https)", isOn: $relayTLS)
+                    if !relayText.isEmpty, RelayEndpoint.parse(relayText, tls: relayTLS) == nil { Text("Dirección no válida.").foregroundStyle(VT.amber).font(.system(size: 12)) }
+                } header: { Text("Relay (fuera de casa)") } footer: { Text("Opcional: tu propio servidor relay para usar Visto sin estar en la misma red que la Mac. Solo copia bytes cifrados de extremo a extremo. También se rellena al escanear el QR de claude pet.") }
+                .onChange(of: relayText) { _, v in model.relay = RelayEndpoint.parse(v, tls: relayTLS) }
+                .onChange(of: relayTLS) { _, v in model.relay = RelayEndpoint.parse(relayText, tls: v) }
                 Section("Historial") {
                     Button("Borrar mis decisiones guardadas", role: .destructive) { model.clearHistory() }
                 }
