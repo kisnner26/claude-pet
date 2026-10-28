@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
-## [Sin publicar]
+## [2.11.0] - 2026-10-28
 
 ### cambiado
 - Cambio de protocolo: la clave del canal de Visto se deriva ahora del código con PBKDF2 (120 000 vueltas) en lugar de un HKDF rápido, para encarecer el adivinar el código. Hay que actualizar la Mac y Visto a la vez; con una sola de las dos no se conectan.
