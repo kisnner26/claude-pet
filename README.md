@@ -15,6 +15,7 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 - **visto**: app de iPhone y Apple Watch para aprobar permisos con un toque. [más abajo](#visto).
 - **plugins y taller**: acciones, ajustes y eventos con una carpeta y un `plugin.json`, y un catálogo para instalar los de otros.
 - **vivas**: claude y codex tienen las mismas expresiones y su propio guardarropa; se visten según el tiempo (opcional), sudan, tiritan, se mosquean si las golpeas seguido y se pueden sacar al escritorio, donde te siguen el cursor.
+- **laboratorio**: [galaxia](tools/galaxia) (tu repo como estrellas), [ciudad](tools/ciudad) (tus repos como edificios) y [radar](tools/radar) (sondeo de red) vienen incluidos: un clic en ajustes o en las herramientas de la isla. son programas de node 20+ sin dependencias que solo escuchan en 127.0.0.1.
 - **más**: reproductor de música con la mascota bailando al compás, acceso rápido que cambia según la app activa (más de cien apps y por categoría), traspaso entre claude y codex, modo foco y pomodoro, español e inglés.
 
 ![claude pet hoy](docs/img/producto.jpg)

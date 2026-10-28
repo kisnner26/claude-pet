@@ -36,6 +36,7 @@ struct ResumenPage: View {
                     }
                 }
             }
+            LabCard(store: store)
             SCard(title: "atajos de trabajo") {
                 SRow(title: "mission control", detail: "cambios del proyecto, ramas y conflictos") {
                     SButton(title: "abrir", symbol: "square.grid.2x2") { AppController.shared.showMissionDashboard() }

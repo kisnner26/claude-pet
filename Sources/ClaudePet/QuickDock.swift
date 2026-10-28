@@ -68,7 +68,7 @@ struct QuickDock: View {
                      musicAvailable: store.musicPlayer && music.nowPlaying != nil, musicPlaying: music.isPlaying,
                      pomodoroRunning: store.pomodoro.phase != .idle, alertsSnoozed: store.alertsAreSnoozed,
                      hasPerimeter: store.perimeters.contains { $0.root == workspace },
-                     profile: store.quickAppAware ? front.profile : .other, frontAppName: front.name, hasRemote: !workspace.isEmpty && remotes.webURL(for: workspace) != nil, branch: store.mission.git.branch, focusOn: store.focusManual)
+                     profile: store.quickAppAware ? front.profile : .other, frontAppName: front.name, hasRemote: !workspace.isEmpty && remotes.webURL(for: workspace) != nil, branch: store.mission.git.branch, focusOn: store.focusManual, labAvailable: LabLauncher.shared.available)
     }
 
     var body: some View {
@@ -191,6 +191,13 @@ struct QuickDock: View {
             let b = store.mission.git.branch
             guard !b.isEmpty else { NSSound.beep(); return }
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(b, forType: .string); plugins.show("rama copiada")
+        case .labGalaxy, .labCity, .labRadar:
+            let tool: LabTool = a == .labGalaxy ? .galaxy : a == .labCity ? .city : .radar
+            let ws = workspace
+            Task { @MainActor in
+                plugins.show("abriendo \(tool.title)…")
+                if case .failure(let why) = await LabLauncher.shared.open(tool, workspace: ws) { plugins.show(why) }
+            }
         case .focus:
             store.focusManual.toggle(); plugins.show(store.focusManual ? "modo foco activado" : "modo foco apagado")
         }

@@ -4,7 +4,7 @@ import Foundation
 enum QuickAction: String, CaseIterable, Identifiable {
     case commit, terminal, changes, music, mission, summary, folder, restorePoint, pomodoro, snooze, relay, perimeter, settings
     // las que traen los perfiles por app
-    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext, copyBranch, focus
+    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext, copyBranch, focus, labGalaxy, labCity, labRadar
     var id: String { rawValue }
 }
 
@@ -29,6 +29,8 @@ struct QuickContext: Equatable {
     var hasRemote = false
     var branch = ""
     var focusOn = false
+    /// node 20+ y las herramientas incluidas estan disponibles.
+    var labAvailable = false
 }
 
 struct QuickDescriptor: Equatable {
@@ -61,6 +63,9 @@ enum QuickActions {
         case .musicPrev, .musicNext: return c.musicAvailable
         case .copyBranch: return c.hasWorkspace && c.isRepo && !c.branch.isEmpty
         case .focus: return true
+        case .labGalaxy: return c.labAvailable && c.hasWorkspace && c.isRepo
+        case .labCity: return c.labAvailable && c.hasWorkspace
+        case .labRadar: return c.labAvailable
         }
     }
 
@@ -86,6 +91,9 @@ enum QuickActions {
         case .musicPrev: return QuickDescriptor(title: "anterior", symbol: "backward.fill", when: "suena algo en Spotify o Apple Music")
         case .musicNext: return QuickDescriptor(title: "siguiente", symbol: "forward.fill", when: "suena algo en Spotify o Apple Music")
         case .copyBranch: return QuickDescriptor(title: "copiar rama", symbol: "arrow.triangle.branch", when: "el proyecto es un repositorio con una rama activa")
+        case .labGalaxy: return QuickDescriptor(title: "galaxia del repo", symbol: "sparkles", when: "hay un repositorio activo y node 20 o superior")
+        case .labCity: return QuickDescriptor(title: "ciudad de proyectos", symbol: "building.2", when: "hay un proyecto activo y node 20 o superior")
+        case .labRadar: return QuickDescriptor(title: "radar de red", symbol: "dot.radiowaves.left.and.right", when: "node 20 o superior")
         case .focus: return QuickDescriptor(title: c.focusOn ? "salir del foco" : "modo foco", symbol: c.focusOn ? "moon.fill" : "moon", when: "siempre")
         }
     }
