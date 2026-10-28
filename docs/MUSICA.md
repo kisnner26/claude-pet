@@ -10,9 +10,7 @@ Se activa en Ajustes → música. En la isla abierta aparece un botón de nota j
 
 La portada sale de Spotify (su CDN) o de Apple Music (del propio reproductor) y se guarda en `~/Library/Caches/claude-pet/covers` a 192 px, en JPEG, hasta 80 archivos y 24 MB (se borra lo más antiguo). La próxima vez que suene esa canción aparece al instante, sin red. Mientras no hay portada se dibuja una propia: degradado estable por título con su inicial.
 
-En Ajustes → música, **recientes** muestra las últimas canciones con su portada; al pulsar una se vuelve a poner (la app debe estar abierta). El historial vive en `~/.claude-pet/music-index.json` (60 canciones, permisos 0600) y se puede borrar con sus portadas desde el mismo sitio.
-
-![recientes](img/ajustes-musica.jpg)
+En Ajustes → música, **recientes** muestra las últimas canciones con su portada (la tira de abajo de la captura de arriba); al pulsar una se vuelve a poner (la app debe estar abierta). El historial vive en `~/.claude-pet/music-index.json` (60 canciones, permisos 0600) y se puede borrar con sus portadas desde el mismo sitio.
 
 ## fluidez
 
