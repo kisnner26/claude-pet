@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [sin publicar]
+
+### añadido
+- Visto sincroniza con claude pet el estado de Claude y Codex, las últimas acciones, las preguntas de Claude (con respuesta desde el móvil y, si es de una sola elección, desde el reloj), avisos de terminado y fallo, y el modo foco en los dos sentidos.
+
 ## [2.6.0] - 2026-10-27
 
 ### añadido
