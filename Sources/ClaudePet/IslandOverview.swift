@@ -169,16 +169,7 @@ struct IslandOverviewView: View {
     // MARK: acciones visibles
 
     private var actions: some View {
-        HStack(spacing: 6) {
-            if CommiteroLauncher.available(), !store.mission.workspace.isEmpty, store.mission.git.affected > 0 {
-                actionButton("commitear", symbol: "arrow.triangle.branch", prominent: true) { CommiteroLauncher.launch(workspace: store.mission.workspace) }
-            }
-            if store.terminalTargetAvailable { actionButton("terminal", symbol: "terminal") { store.focusTerminal() } }
-            if !store.mission.changes.isEmpty { actionButton("cambios", symbol: "plus.forwardslash.minus") { store.openLatestDiff() } }
-            actionButton("resumen", symbol: "doc.on.clipboard") { copy("\(store.sessionSummary) · \(agentTab.rawValue) · \(state.label.lowercased())") }
-            actionButton("mission control", symbol: "square.grid.2x2") { AppController.shared.showMissionDashboard() }
-            Spacer(minLength: 0)
-        }
+        QuickDock(store: store, music: music, plugins: plugins) { "\(store.sessionSummary) · \(agentTab.rawValue) · \(state.label.lowercased())" }
     }
 
     private func actionButton(_ title: String, symbol: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {
