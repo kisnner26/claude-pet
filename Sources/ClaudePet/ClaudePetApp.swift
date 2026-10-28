@@ -156,6 +156,12 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-quest") { exit(QuestSelfTest.run(web: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "quest") ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-phone") { exit(PhoneAlertsSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-lab") { exit(MainActor.assumeIsolated { LabSelfTest.run(root: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "tools") } ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--analyze-music"), i + 1 < CommandLine.arguments.count {
+            if let r = MusicSync.analyze(path: CommandLine.arguments[i + 1], clipSeconds: 35) {
+                print(String(format: "tempo %.1f bpm · golpe en %.3f s · empezar en %.3f s · claridad %.2f · dura %.1f s", r.bpm, r.phase, r.start, r.confidence, r.duration))
+            } else { print("no se pudo analizar") }
+            exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--render-promo-frames"), i + 2 < CommandLine.arguments.count {
             MainActor.assumeIsolated { PromoVideo.frames(to: CommandLine.arguments[i + 1], times: CommandLine.arguments[i + 2].split(separator: ",").compactMap { Double($0) }) }; exit(0)
         }
@@ -165,6 +171,12 @@ final class AppController: NSObject, NSApplicationDelegate {
                 if let m = args.firstIndex(of: "--music"), m + 1 < args.count { PromoVideo.musicPath = args[m + 1] }
                 if let m = args.firstIndex(of: "--music-start"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.musicStart = v }
                 if let m = args.firstIndex(of: "--bpm"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.bpm = v }
+                else if let song = PromoVideo.musicPath, let r = MusicSync.analyze(path: song, clipSeconds: PromoVideo.duration + 2) {
+                    // sin tempo manual: se mide la cancion y el primer corte cae en un golpe
+                    PromoVideo.bpm = r.bpm
+                    if !args.contains("--music-start") { PromoVideo.musicStart = r.start }
+                    print(String(format: "sincronia: %.1f bpm, empieza en %.3f s (claridad %.2f)", r.bpm, PromoVideo.musicStart, r.confidence))
+                }
                 PromoVideo.run(output: args[i + 1])
             }; exit(0)
         }

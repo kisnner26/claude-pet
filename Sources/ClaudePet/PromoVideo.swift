@@ -16,7 +16,29 @@ enum PromoVideo {
     static var beat: Double { 60 / bpm }
     static var duration: Double { Double(totalBeats) * beat }
 
+    /// Metraje real: la grabacion de pantalla del iPhone con la realidad aumentada (vertical, ya en su orientacion correcta).
+    final class Footage: @unchecked Sendable {
+        private let generator: AVAssetImageGenerator
+        let duration: Double
+        private var cache: [Int: CGImage] = [:]
+        init?(path: String) {
+            let a = AVURLAsset(url: URL(fileURLWithPath: path))
+            guard a.tracks(withMediaType: .video).first != nil else { return nil }
+            generator = AVAssetImageGenerator(asset: a)
+            generator.appliesPreferredTrackTransform = false
+            generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 20); generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 20)
+            duration = CMTimeGetSeconds(a.duration)
+        }
+        func frame(at t: Double) -> CGImage? {
+            let k = Int(max(0, min(duration - 0.05, t)) * 30)
+            if let c = cache[k] { return c }
+            guard let img = try? generator.copyCGImage(at: CMTime(seconds: Double(k) / 30, preferredTimescale: 600), actualTime: nil) else { return nil }
+            cache[k] = img; return img
+        }
+    }
+
     struct Assets {
+        var footage: Footage?
         var island: [String: NSImage] = [:]
         var images: [String: NSImage] = [:]
     }
@@ -75,6 +97,8 @@ enum PromoVideo {
     private static func loadAssets() -> Assets {
         var a = Assets()
         let now = Date()
+        let recording = ProcessInfo.processInfo.environment["CLAUDE_PET_AR_FOOTAGE"] ?? (NSHomeDirectory() + "/Downloads/ScreenRecording_10-28-2026 16-19-04_1.mov")
+        a.footage = Footage(path: recording)
         let steps = [IslandStep(agent: "claude", tool: "Read", target: "src/billing.ts", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-42)),
                      IslandStep(agent: "claude", tool: "Edit", target: "src/billing.ts", added: 3, deleted: 1, workspace: "", at: now.addingTimeInterval(-18)),
                      IslandStep(agent: "claude", tool: "Bash", target: "npm test", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-3))]
@@ -233,7 +257,7 @@ private func smooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c
 private func hash(_ n: Int) -> Double { var x = UInt64(bitPattern: Int64(n)) &* 0x9E3779B97F4A7C15; x ^= x >> 29; x = x &* 0xBF58476D1CE4E5B9; x ^= x >> 32; return Double(x % 10_000) / 10_000 }
 
 private enum ShotKind {
-    case island(String), image(String), pets([Set<Outfit>], Bool), rage, word, stat(String, String), table, waiting, crawler
+    case island(String), image(String), pets([Set<Outfit>], Bool), rage, word, stat(String, String), table, waiting, crawler, footage(Double)
 }
 
 private struct Shot { let at: Double; let beats: Double; let kind: ShotKind; let word: String; var color: UInt32 = 0x000000 }
@@ -254,7 +278,7 @@ private let shots: [Shot] = {
         (2, .image("reproductor.jpg"), "TU MÚSICA", 0), (2, .image("baile.jpg"), "Y BAILAN AL COMPÁS", 0),
         (2, .image("ajustes-plugins.jpg"), "PLUGINS", 0), (2, .word, "TUS MODS\nTU TALLER", blue),
         (2, .image("lab-galaxia.jpg"), "GALAXIA: TU REPO ES UNA GALAXIA", 0), (2, .image("lab-ciudad.jpg"), "CIUDAD: TUS REPOS, EDIFICIOS", 0), (2, .image("lab-radar.jpg"), "RADAR DE RED", 0),
-        (2, .image("visto-mascotas.jpg"), "IPHONE + WATCH", 0), (2, .table, "REALIDAD AUMENTADA", 0), (1, .word, "META QUEST", blue), (1, .word, "FUERA DE CASA", 0x000000),
+        (2, .image("visto-mascotas.jpg"), "IPHONE + WATCH", 0), (3, .footage(5.2), "TUS AGENTES SOBRE TU MESA", 0), (1, .word, "META QUEST", blue), (1, .word, "FUERA DE CASA", 0x000000),
         (2, .stat("0", "CUENTAS · 0 TELEMETRÍA"), "", 0x000000), (2, .word, "GRATIS", orange), (2, .word, "CÓDIGO ABIERTO", 0x000000),
     ]
     var out: [Shot] = []
@@ -364,6 +388,21 @@ struct PromoFrame: View {
                     if duo || looks.count == 1 { PromoPet(agent: .codex, t: t + 0.6, size: duo ? 560 : 640, outfits: o, pokes: duo ? pokes : [], state: .idle) }
                 }.offset(y: -60)
                 if !shot.word.isEmpty { wordView(shot.word, big: shot.word.count > 8 ? 130 : 200).offset(y: 380) }
+            }
+        case .footage(let from):
+            // la grabacion real del iPhone: las mascotas en tu mesa, en AR
+            ZStack {
+                if let cg = assets.footage?.frame(at: from + lt * 0.9) {
+                    Image(decorative: cg, scale: 1).resizable().aspectRatio(contentMode: .fit).frame(height: 900).brightness(0.14).contrast(1.12).saturation(1.15)
+                        .clipShape(RoundedRectangle(cornerRadius: 48, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 48, style: .continuous).stroke(Color.white.opacity(0.25), lineWidth: 3))
+                        .shadow(color: Color(hex: blue).opacity(0.5), radius: 80).offset(x: -380 + CGFloat(lt * 6), y: -20)
+                }
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("REALIDAD\nAUMENTADA").font(.system(size: 130, weight: .black)).tracking(-5).foregroundColor(Color(hex: bone)).lineSpacing(-14)
+                    Text("tócalas · acarícialas · arrástralas\ntíralas una pelota").font(.system(size: 40, weight: .medium, design: .monospaced)).foregroundColor(Color(hex: orange))
+                    Text("grabación real de un iPhone").font(.system(size: 26, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.5))
+                }.offset(x: 330, y: -10)
             }
         case .crawler:
             crawlerScene(lt)
