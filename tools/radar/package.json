@@ -1,0 +1,10 @@
+{
+  "name": "radar",
+  "version": "0.1.0",
+  "description": "radar de red: sondea tus servicios, compara el DNS de tu equipo con los publicos y te dice como arreglarlo",
+  "type": "module",
+  "bin": { "radar": "bin/radar.js" },
+  "scripts": { "start": "node bin/radar.js", "test": "node --test test/" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}

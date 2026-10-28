@@ -1,0 +1,10 @@
+{
+  "name": "galaxia",
+  "version": "0.1.0",
+  "description": "galaxia del repo: cada archivo es una estrella, su historial de git decide tamaño, brillo y constelaciones",
+  "type": "module",
+  "bin": { "galaxia": "bin/galaxia.js" },
+  "scripts": { "start": "node bin/galaxia.js", "test": "node --test test/" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="radar-token" content="__TOKEN__">
+<title>Radar de red</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Radar de red.</h1><p id="sub">sondeando...</p></div>
+    <form id="add" autocomplete="off"><input id="host" placeholder="añadir host, p. ej. gitlab.com" spellcheck="false"><button>Añadir</button></form>
+  </header>
+  <section class="stage">
+    <div class="scope"><canvas id="radar" width="720" height="720" aria-label="radar de servicios"></canvas></div>
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "ciudad",
+  "version": "0.1.0",
+  "description": "ciudad de proyectos: cada repo de una carpeta es un edificio; altura, luces y color salen de su git",
+  "type": "module",
+  "bin": { "ciudad": "bin/ciudad.js" },
+  "scripts": { "start": "node bin/ciudad.js", "test": "node --test test/" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
