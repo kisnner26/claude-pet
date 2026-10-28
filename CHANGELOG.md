@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.7.1] - 2026-10-28
+
+### corregido
+- el estado de los agentes y la actividad no llegaban a Visto: un debounce nunca disparaba porque la mascota publica cambios sin parar.
+
+### añadido
+- Visto muestra la mascota de cada agente animada según lo que hace, con tres anillos (límite de 5 horas, semanal y contexto) y una línea de latido. En el iPhone las decisiones se toman deslizando la tarjeta; en el reloj, Double Tap permite.
+
 ## [2.7.0] - 2026-10-27
 
 ### añadido
