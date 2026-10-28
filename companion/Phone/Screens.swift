@@ -41,15 +41,31 @@ struct HomeView: View {
     @ObservedObject var client: VistoClient
     @State private var showSettings = false
 
+    private func label(_ t: String) -> some View {
+        Text(t).font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.6).foregroundStyle(VT.mute).padding(.top, 6)
+    }
+
     var body: some View {
         ZStack {
             VTBackdrop()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header
-                    if let p = client.plan, p.five != nil || p.week != nil { planCard(p) }
                     if let n = client.notice { notice(n) }
-                    if client.asks.isEmpty { empty } else { ForEach(client.asks) { AskCard(ask: $0, client: client) } }
+                    if !client.agents.isEmpty {
+                        label("AGENTES")
+                        VStack(spacing: 14) { ForEach(client.agents) { AgentRow(agent: $0) } }
+                            .padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular, in: .rect(cornerRadius: 24))
+                    }
+                    if !client.asks.isEmpty || !client.questions.isEmpty {
+                        label("ESPERAN TU RESPUESTA")
+                        ForEach(client.asks) { AskCard(ask: $0, model: model) }
+                        ForEach(client.questions) { QuestionCard(q: $0, model: model) }
+                    } else if client.agents.isEmpty { empty }
+                    if let p = client.plan, p.five != nil || p.week != nil { label("TU PLAN"); planCard(p) }
+                    if !client.feed.isEmpty { label("ACTIVIDAD"); feedCard }
+                    if client.isConnected { controls }
+                    if !model.history.isEmpty { label("TUS DECISIONES"); historyCard }
                 }
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 30)
             }
@@ -65,6 +81,9 @@ struct HomeView: View {
                     Circle().fill(client.isConnected ? VT.green : VT.amber).frame(width: 7, height: 7)
                     Text(client.isConnected ? "Conectado · \(client.hostName ?? "Mac")" : "Buscando claude pet").font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(client.isConnected ? .white : VT.mute)
                 }
+                if !client.isConnected, client.detail.contains("rechazó") {
+                    Text(client.detail).font(.system(size: 12)).foregroundStyle(VT.amber).fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
             Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 17)).frame(width: 44, height: 44) }.buttonStyle(.glass).clipShape(Circle())
@@ -72,9 +91,43 @@ struct HomeView: View {
     }
 
     private func planCard(_ p: PlanSnapshot) -> some View {
+        PlanBars(plan: p).padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    private var feedCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("TU PLAN").font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.6).foregroundStyle(VT.mute)
-            PlanBars(plan: p)
+            ForEach(Array(client.feed.suffix(6).reversed())) { st in
+                HStack(spacing: 8) {
+                    Circle().fill(VTFormat.agentColor(st.agent)).frame(width: 6, height: 6)
+                    Text(st.tool).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    Text(st.target).font(.system(size: 12, design: .monospaced)).foregroundStyle(VT.mute).lineLimit(1).truncationMode(.head)
+                    Spacer(minLength: 4)
+                    if !st.delta.isEmpty { Text(st.delta).font(.system(size: 11, design: .monospaced)).foregroundStyle(VT.green) }
+                }
+            }
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    private var controls: some View {
+        Toggle(isOn: Binding(get: { client.focus }, set: { client.setFocus($0) })) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Modo foco en la Mac").font(.system(size: 15, weight: .semibold))
+                Text("Silencia lo menor y deja pasar lo que pide una decisión.").font(.system(size: 12)).foregroundStyle(VT.mute)
+            }
+        }.tint(VT.blue).padding(18).glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    private var historyCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(model.history.prefix(6)) { r in
+                HStack(spacing: 8) {
+                    Image(systemName: r.allowed ? "checkmark.circle.fill" : "xmark.circle.fill").foregroundStyle(r.allowed ? VT.green : VT.red)
+                    Text(r.tool).font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text(r.project).font(.system(size: 12, design: .monospaced)).foregroundStyle(VT.mute).lineLimit(1)
+                    Spacer()
+                    Text(r.at, style: .time).font(.system(size: 11, design: .monospaced)).foregroundStyle(VT.mute)
+                }
+            }
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular, in: .rect(cornerRadius: 24))
     }
 
@@ -85,8 +138,8 @@ struct HomeView: View {
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(client.isConnected ? "Nada que aprobar." : "Esperando a claude pet.").font(.system(size: 30, weight: .heavy, design: .rounded)).foregroundStyle(client.isConnected ? .white : VT.mute)
-            Text(client.isConnected ? "Cuando Claude pida permiso para ejecutar algo, aparecerá aquí y en tu reloj." : (client.detail.isEmpty ? "Abre claude pet en la Mac, en la misma red." : client.detail))
+            Text(client.isConnected ? "Todo tranquilo." : "Esperando a claude pet.").font(.system(size: 30, weight: .heavy, design: .rounded)).foregroundStyle(client.isConnected ? .white : VT.mute)
+            Text(client.isConnected ? "Cuando Claude o Codex trabajen, los verás aquí. Si piden permiso o te preguntan algo, aparecerá en el móvil y en el reloj." : (client.detail.isEmpty ? "Abre claude pet en la Mac, en la misma red." : client.detail))
                 .font(.system(size: 14)).foregroundStyle(VT.mute).fixedSize(horizontal: false, vertical: true)
             if !client.isConnected { Button("Reintentar") { model.retry() }.buttonStyle(.glass) }
         }.padding(.top, 30)
@@ -95,7 +148,11 @@ struct HomeView: View {
 
 struct AskCard: View {
     let ask: Ask
-    @ObservedObject var client: VistoClient
+    @ObservedObject var model: PhoneModel
+
+    private func deny() -> some View {
+        Button { model.answer(ask, allow: false) } label: { Text("Denegar").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glass).tint(VT.red)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -115,16 +172,63 @@ struct AskCard: View {
             }
             if ask.canAllow {
                 HStack(spacing: 10) {
-                    Button { client.answer(ask.id, allow: false) } label: { Text("Denegar").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glass).tint(VT.red)
-                    Button { client.answer(ask.id, allow: true) } label: { Text("Permitir").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glassProminent).tint(VT.blue)
+                    deny()
+                    Button { model.answer(ask, allow: true) } label: { Text("Permitir").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glassProminent).tint(VT.blue)
                 }
             } else {
                 Text("Riesgo alto: desde aquí solo puedes denegar. Para permitirlo, hazlo en la Mac.").font(.system(size: 12)).foregroundStyle(VT.amber).fixedSize(horizontal: false, vertical: true)
-                Button { client.answer(ask.id, allow: false) } label: { Text("Denegar").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glass).tint(VT.red)
+                deny()
             }
         }
         .padding(18).frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular.tint(VT.riskColor(ask.risk).opacity(0.10)), in: .rect(cornerRadius: 26))
+    }
+}
+
+/// Una pregunta de Claude con opciones: se elige y se envía. Solo viajan los índices elegidos.
+struct QuestionCard: View {
+    let q: QAsk
+    @ObservedObject var model: PhoneModel
+    @State private var picks: [Set<Int>] = []
+
+    private var ready: Bool { picks.count == q.items.count && picks.allSatisfy { !$0.isEmpty } }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Claude pregunta").font(.system(size: 20, weight: .heavy, design: .rounded))
+                Text(q.project).font(.system(size: 12, design: .monospaced)).foregroundStyle(VT.mute).lineLimit(1)
+                Spacer()
+            }
+            ForEach(Array(q.items.enumerated()), id: \.offset) { i, item in
+                VStack(alignment: .leading, spacing: 8) {
+                    if !item.header.isEmpty { Text(item.header.uppercased()).font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.4).foregroundStyle(VT.mute) }
+                    Text(item.question).font(.system(size: 15, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                    ForEach(Array(item.options.enumerated()), id: \.offset) { j, opt in
+                        let on = picks.indices.contains(i) && picks[i].contains(j)
+                        Button { toggle(i, j, multi: item.multi) } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: on ? (item.multi ? "checkmark.square.fill" : "largecircle.fill.circle") : (item.multi ? "square" : "circle")).foregroundStyle(on ? VT.blue : VT.mute)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(opt).font(.system(size: 14, weight: .medium)).multilineTextAlignment(.leading)
+                                    if j < item.descriptions.count, !item.descriptions[j].isEmpty { Text(item.descriptions[j]).font(.system(size: 11)).foregroundStyle(VT.mute).multilineTextAlignment(.leading) }
+                                }
+                                Spacer(minLength: 0)
+                            }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 14).fill(on ? VT.blue.opacity(0.18) : Color.black.opacity(0.28)))
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+            Button { model.reply(q, picks: picks.map { $0.sorted() }) } label: { Text("Enviar respuesta").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                .buttonStyle(.glassProminent).tint(VT.blue).disabled(!ready)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular.tint(VT.codex.opacity(0.10)), in: .rect(cornerRadius: 26))
+        .onAppear { if picks.count != q.items.count { picks = Array(repeating: [], count: q.items.count) } }
+    }
+
+    private func toggle(_ i: Int, _ j: Int, multi: Bool) {
+        if picks.count != q.items.count { picks = Array(repeating: [], count: q.items.count) }
+        if multi { if picks[i].contains(j) { picks[i].remove(j) } else { picks[i].insert(j) } } else { picks[i] = [j] }
     }
 }
 
@@ -140,6 +244,9 @@ struct SettingsView: View {
                     LabeledContent("Estado", value: client.isConnected ? "Conectado a \(client.hostName ?? "Mac")" : "Sin conexión")
                     LabeledContent("Apple Watch", value: model.watchPaired ? "Emparejado" : "No encontrado")
                     Button("Reintentar") { model.retry() }
+                }
+                Section("Historial") {
+                    Button("Borrar mis decisiones guardadas", role: .destructive) { model.clearHistory() }
                 }
                 Section {
                     Button("Olvidar este emparejamiento", role: .destructive) { model.unpair(); dismiss() }

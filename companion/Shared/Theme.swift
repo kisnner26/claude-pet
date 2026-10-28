@@ -64,3 +64,57 @@ struct RiskChip: View {
             .background(Capsule().fill(VT.riskColor(risk).opacity(0.16)))
     }
 }
+
+enum VTFormat {
+    static func state(_ raw: String) -> String {
+        switch raw {
+        case "starting": return "Iniciando"; case "thinking": return "Pensando"; case "tool": return "Ejecutando"
+        case "waiting": return "Espera tu respuesta"; case "done": return "Listo"; case "error": return "Error"; default: return "En reposo"
+        }
+    }
+    static func stateColor(_ raw: String) -> Color {
+        switch raw {
+        case "thinking", "starting": return VT.codex; case "tool": return VT.claude; case "waiting": return VT.amber
+        case "done": return VT.green; case "error": return VT.red; default: return Color.white.opacity(0.35)
+        }
+    }
+    static func agentName(_ a: String) -> String { a == "codex" ? "Codex" : "Claude" }
+    static func agentColor(_ a: String) -> Color { a == "codex" ? VT.codex : VT.claude }
+    static func duration(_ seconds: Int) -> String {
+        if seconds >= 3600 { return "\(seconds / 3600) h \(seconds % 3600 / 60) m" }
+        if seconds >= 60 { return "\(seconds / 60) m \(seconds % 60) s" }
+        return "\(max(0, seconds)) s"
+    }
+}
+
+struct AgentRow: View {
+    let agent: AgentInfo
+    var compact = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
+            HStack(spacing: 8) {
+                Circle().fill(VTFormat.agentColor(agent.agent)).frame(width: compact ? 8 : 10, height: compact ? 8 : 10)
+                Text(VTFormat.agentName(agent.agent)).font(.system(size: compact ? 13 : 17, weight: .heavy, design: .rounded))
+                Spacer(minLength: 4)
+                Text(VTFormat.state(agent.state)).font(.system(size: compact ? 10 : 11, weight: .semibold, design: .monospaced)).foregroundStyle(VTFormat.stateColor(agent.state))
+            }
+            if !agent.project.isEmpty {
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                    Text("\(agent.project) · \(VTFormat.duration(Int(ctx.date.timeIntervalSince(agent.since))))").font(.system(size: compact ? 10 : 12, design: .monospaced)).foregroundStyle(VT.mute).lineLimit(1)
+                }
+            }
+            if let c = agent.contextRemaining {
+                HStack(spacing: 6) {
+                    Text("ctx").font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(VT.mute)
+                    GeometryReader { p in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.12))
+                            Capsule().fill(c <= 15 ? VT.red : c <= 35 ? VT.amber : VT.blue).frame(width: max(3, p.size.width * CGFloat(c) / 100))
+                        }
+                    }.frame(height: 3)
+                    Text("\(c)%").font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(VT.mute)
+                }
+            }
+        }
+    }
+}
