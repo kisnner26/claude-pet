@@ -127,6 +127,7 @@ struct FlowBadges: View {
 struct PluginsPage: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var host: PluginHost
+    @StateObject private var workshop = WorkshopModel()
 
     init(store: PetStore) {
         self.store = store
@@ -150,6 +151,7 @@ struct PluginsPage: View {
                     }
                 }
             }
+            WorkshopSection(model: workshop, host: host)
             if let e = host.lastError {
                 SCard { SRow(title: "no se pudo instalar", detail: e) { SBadge(text: "error", color: SettingsTheme.red) } }
             }
@@ -166,12 +168,54 @@ struct PluginsPage: View {
                 }
             }
         }
-        .onAppear { host.reload() }
+        .onAppear { host.reload(); workshop.load() }
     }
 
     private func pick() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false
         panel.message = "elige la carpeta del plugin (la que tiene plugin.json)"
         if panel.runModal() == .OK, let url = panel.url { host.install(from: url) }
+    }
+}
+
+/// Catalogo del taller dentro de la pagina de plugins: instalar con un clic, siempre desactivado hasta que el usuario apruebe.
+struct WorkshopSection: View {
+    @ObservedObject var model: WorkshopModel
+    @ObservedObject var host: PluginHost
+
+    private func installed(_ e: WorkshopEntry) -> String? { host.rows.first { $0.id == e.id }?.plugin.manifest.version }
+
+    var body: some View {
+        SCard(title: "taller", footer: "cualquiera puede publicar un plugin abriendo un pull request. cada paquete se verifica con su huella sha256 y se instala desactivado: al activarlo ves los permisos que pide.") {
+            switch model.phase {
+            case .idle, .loading:
+                SRow(title: "cargando el catálogo…", detail: "") { ProgressView().controlSize(.small) }
+            case .failed(let why):
+                SRow(title: "no se pudo cargar el taller", detail: why) { SButton(title: "reintentar", symbol: "arrow.clockwise") { model.load() } }
+            case .loaded:
+                ForEach(Array(model.entries.enumerated()), id: \.element.id) { i, e in
+                    if i > 0 { SDivider() }
+                    row(e)
+                }
+                if model.entries.isEmpty { SRow(title: "el taller está vacío", detail: "sé el primero en publicar.") { EmptyView() } }
+            }
+            if let m = model.message { SDivider(); SRow(title: "no se pudo instalar", detail: m) { SBadge(text: "error", color: SettingsTheme.red) } }
+            SDivider()
+            SRow(title: "publica el tuyo", detail: "guía para subir un plugin al taller.") {
+                SButton(title: "cómo publicar", symbol: "arrow.up.right") { if let u = URL(string: "https://github.com/kisnner26/claude-pet/blob/main/workshop/README.md") { NSWorkspace.shared.open(u) } }
+            }
+        }
+    }
+
+    @ViewBuilder private func row(_ e: WorkshopEntry) -> some View {
+        let have = installed(e), busy = model.busy.contains(e.id)
+        SRow(title: e.name, detail: "\(e.description)\nde \(e.author) · v\(e.version)" + (e.permissions.isEmpty ? "" : " · " + e.permissions.joined(separator: ", "))) {
+            HStack(spacing: 8) {
+                if e.official { SBadge(text: "oficial", color: SettingsTheme.codexLight) }
+                if busy { ProgressView().controlSize(.small) }
+                else if have == e.version { SBadge(text: "instalado", color: SettingsTheme.green) }
+                else { SButton(title: have == nil ? "instalar" : "actualizar", symbol: "arrow.down.circle", prominent: have == nil) { model.install(e, host: host) } }
+            }
+        }
     }
 }
