@@ -149,8 +149,7 @@ enum Wardrobe {
         let under = pixels(outfits.filter(\.underEyes), state: state, tick: tick)
         let over = pixels(outfits.filter { !$0.underEyes }, state: state, tick: tick)
         var out = base
-        let eye = NSColor(Pal.charcoal).usingColorSpace(.sRGB)
-        let firstEye = out.firstIndex { NSColor($0.c).usingColorSpace(.sRGB) == eye } ?? out.count
+        let firstEye = out.firstIndex { $0.c == Pal.charcoal } ?? out.count
         out.insert(contentsOf: under, at: firstEye)
         return out + over
     }

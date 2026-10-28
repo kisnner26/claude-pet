@@ -95,7 +95,7 @@ struct Indicator: View {
         let animated = layout != .island && (state == .starting || state == .thinking || state == .tool || state == .waiting)
         Group {
             if animated {
-                TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+                TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
                     indicator(time: ctx.date.timeIntervalSinceReferenceDate)
                 }
             } else {

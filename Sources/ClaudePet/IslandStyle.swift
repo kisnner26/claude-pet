@@ -100,7 +100,7 @@ struct IslandFinishedCard: View {
 struct IslandDropZone: View {
     @ObservedObject var model: IslandModel
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             let now = ProcessInfo.processInfo.systemUptime
             let progress = model.swallowStart.map { min(1, max(0, (now - $0) / 0.7)) }
             VStack(spacing: 6) {

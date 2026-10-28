@@ -475,5 +475,10 @@ enum L10nEN {
         "parar pomodoro": "stop pomodoro",
         "fijar perímetro": "set perimeter",
         "reproducir": "play",
+        "energía": "energy",
+        "con el modo de bajo consumo de macOS o con menos de un 15 % de batería, la isla deja los brillos y las hebras animadas y gasta menos.": "with macOS Low Power Mode or under 15% battery, the island drops its glows and animated strands and uses less.",
+        "ahorro automático": "automatic saving",
+        "activo ahora: efectos reducidos": "on now: reduced effects",
+        "se activa solo cuando hace falta": "turns on only when needed",
     ]
 }

@@ -24,7 +24,7 @@ struct AlertPulseView: View {
     /// Cuando llego la peticion; nil = sin cuenta atras (el anillo queda lleno).
     var askedAt: Date?
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate
             let remaining = askedAt.map { AlertPulse.remaining(since: $0, now: ctx.date) } ?? 1
             Canvas { gc, size in
@@ -121,7 +121,7 @@ struct LineRainView: View {
     let added: Int
     let deleted: Int
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             let now = ProcessInfo.processInfo.systemUptime
             if now - since < LineRain.duration {
                 ZStack(alignment: .top) {
@@ -163,7 +163,7 @@ struct TrailerView: View {
     let files: [Trailer.File]
     let start: Date
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             let f = Trailer.frame(at: ctx.date.timeIntervalSince(start), files: files)
             VStack(alignment: .leading, spacing: 6) {
                 Text(f.caption.isEmpty ? " " : f.caption)
@@ -237,7 +237,7 @@ struct StreakFireView: View {
 struct ActivityPingView: View {
     let since: TimeInterval
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { _ in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { _ in
             if let ring = ActivityPing.ring(age: ProcessInfo.processInfo.systemUptime - since) {
                 Canvas { gc, size in
                     let base = min(size.width, size.height) / 2, r = base * (0.5 + 0.5 * CGFloat(ring.progress))

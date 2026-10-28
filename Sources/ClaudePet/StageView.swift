@@ -68,7 +68,7 @@ struct CodexPetView: View {
     }
 
     private var codexCanvas: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             Canvas { gc, _ in
                 guard !store.hugActive else { return }
                 CodexRenderer.draw(&gc, now: ctx.date, info: store.companionInfo(at: ctx.date), game: store.gameFrame(at: ctx.date),
@@ -140,7 +140,7 @@ struct StageView: View {
             if store.layout == .island {
                 Color.clear
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 24)) { ctx in
+                TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
                     Canvas { gc, _ in
                         guard let geo = store.gameGeometry else { return }
                         if let start = store.gameStart {

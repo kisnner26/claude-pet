@@ -13,7 +13,7 @@ struct VinylDisc: View {
 
     var body: some View {
         ZStack {
-            TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: !playing)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !playing)) { ctx in
                 disc.rotationEffect(.degrees(playing ? (ctx.date.timeIntervalSinceReferenceDate * 200).truncatingRemainder(dividingBy: 360) : 0))
             }
             arm
@@ -55,7 +55,7 @@ struct MusicGlow: View {
     let store: PetStore
     var body: some View {
         if music.isPlaying, let hex = store.musicAccent {
-            TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
                 let now = ProcessInfo.processInfo.systemUptime
                 let pulse = store.musicPulse(at: now)
                 let beat = pulse?.listening == true ? MusicDance.envelope(beatAge: pulse?.beatAge ?? 9) * (0.4 + 0.6 * (pulse?.bass ?? 0)) : 0.0

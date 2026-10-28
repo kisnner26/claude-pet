@@ -100,7 +100,7 @@ struct DuoMate: View {
     let active: IslandAgentTab
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
             let now = ProcessInfo.processInfo.systemUptime
             let p = DuoScene.highFive(claudeDoneAt: model.claudeDoneAt, codexDoneAt: model.codexDoneAt, now: now)
             ZStack {
@@ -177,7 +177,7 @@ struct VinylCorner: View {
     let store: PetStore
     var body: some View {
         if music.nowPlaying != nil {
-            TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
                 let pulse = store.musicPulse(at: ProcessInfo.processInfo.systemUptime)
                 let beat = pulse?.listening == true ? MusicDance.envelope(beatAge: pulse?.beatAge ?? 9) : 0
                 VinylDisc(cover: music.cover, seed: music.nowPlaying?.title ?? "", tint: Color(hex: store.musicAccent ?? 0xFFFFFF), playing: music.isPlaying, beat: beat)

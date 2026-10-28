@@ -112,7 +112,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             PetStore.shared.layout = .island
             PetStore.shared.userHidden = true
         }
-        if CommandLine.arguments.contains("--cpu-island-compact") {
+        if CommandLine.arguments.contains("--cpu-island-compact") || CommandLine.arguments.contains("--cpu-island-expanded") || CommandLine.arguments.contains("--cpu-island-idle") {
             PetStore.shared.layout = .island
             PetStore.shared.userHidden = false
         }
@@ -296,7 +296,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         foreground = foregroundWatcher
         foregroundWatcher.start()
         applyVisibility()
-        if CommandLine.arguments.contains("--cpu-island-compact") {
+        if CommandLine.arguments.contains("--cpu-island-compact") || CommandLine.arguments.contains("--cpu-island-expanded") {
             PetStore.shared.startDemo()
             PetStore.shared.permissionAsks = []
             PetStore.shared.questionAsks = []

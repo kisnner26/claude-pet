@@ -38,7 +38,7 @@ struct AuraView: View {
 
     var body: some View {
         if let style = PetAura.style(state: state, collision: collision) {
-            TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !animate)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !animate)) { ctx in
                 let level = PetAura.level(style, at: animate ? ctx.date.timeIntervalSinceReferenceDate : 0, animate: animate)
                 let color = style.tint == .alert ? Color(hex: 0xFF8A7A) : Color(hex: 0x7DB4FF)
                 ZStack {

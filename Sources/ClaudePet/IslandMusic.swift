@@ -128,7 +128,7 @@ struct MusicNotesLayer: View {
     var body: some View {
         if music.isPlaying {
             let colors = store.musicAccent.map(CoverPalette.palette)
-            TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { ctx in
+            TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
                 let now = ProcessInfo.processInfo.systemUptime
                 let pulse = store.musicPulse(at: now)
                 let level = pulse?.listening == true ? max(0.15, pulse?.level ?? 0.5) : Double(music.nowPlaying?.volume ?? 50) / 100

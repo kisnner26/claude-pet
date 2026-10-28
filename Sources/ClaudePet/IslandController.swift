@@ -24,6 +24,7 @@ final class IslandController {
     private var lastLoggedDrag = false
     /// Diagnostico opcional: con CLAUDE_PET_ISLAND_LOG=<archivo> anota los cambios de modo y del cursor sobre la zona.
     private static let logPath: String? = ProcessInfo.processInfo.environment["CLAUDE_PET_ISLAND_LOG"]      // se lee una vez: `environment` crea un diccionario en cada llamada
+    static let forceExpanded = CommandLine.arguments.contains("--cpu-island-expanded")
     static func log(_ line: String) {
         guard let path = logPath, let data = (line + "\n").data(using: .utf8) else { return }
         if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(data); try? h.close() } else { try? data.write(to: URL(fileURLWithPath: path)) }
@@ -228,13 +229,14 @@ final class IslandController {
         if model.dizzyLeft != dizzyLeft { model.dizzyLeft = dizzyLeft }
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.musicPlayer ? store.musicReacting : (store.danceToMusic && music.isPlaying(enabled: true, now: now))
-        let mode = machine.tick(input)
+        // medicion de consumo: `--cpu-island-expanded` mantiene la isla abierta para medir el peor caso
+        let mode = Self.forceExpanded ? IslandMode.expanded : machine.tick(input)
         if Self.logPath != nil, mode != lastLoggedMode || input.overNotch != lastLoggedOver {
             lastLoggedMode = mode; lastLoggedOver = input.overNotch
             Self.log("modo=\(mode) razon=\(machine.reason) cursor=(\(Int(mouse.x)),\(Int(mouse.y))) sobreZona=\(input.overNotch) sobreIsla=\(input.overIsland) intervalo=\(String(format: "%.3f", timerInterval)) pantalla=\(Int(m.frame.width))x\(Int(m.frame.height)) zona=\(NotchGeometry.activationZone(metrics: m, placement: placement, activationWidth: store.islandActivationWidth))")
         }
         if model.hover != input.overIsland { model.hover = input.overIsland }
-        let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking, cursorNearZone: cursorNearZone)
+        let desiredInterval = IslandPollingPolicy.interval(hidden: mode == .hidden, tasksRunning: tasksRunning(), attention: asking, cursorNearZone: cursorNearZone, compact: mode == .compact)
         if desiredInterval != timerInterval { scheduleTimer(interval: desiredInterval) }
 
         let size = NotchGeometry.islandSize(mode, metrics: m, placement: placement, expandedHeight: eh,
@@ -297,7 +299,7 @@ struct IslandView: View {
     }
 
 
-    private var effectsOn: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
+    private var effectsOn: Bool { store.animationsEnabled && !store.reduceMotion && !store.energySaving && !IslandSnapshot.isRendering }
 
     private var anchor: Alignment {
         switch model.placement { case .top, .floating: return .top; case .bottom: return .bottom; case .side: return .trailing }

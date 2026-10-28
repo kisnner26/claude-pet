@@ -83,15 +83,28 @@ final class MusicController: ObservableObject {
         return max(0, min(n.duration, lastPosition + moved))
     }
 
+    /// Cada consulta ejecuta un AppleScript: con la pestana de musica abierta cada segundo, sonando cada 3 y sin nada sonando cada 10.
+    private var interval: TimeInterval = 0
+    private func desiredInterval() -> TimeInterval { watching ? 1 : (isPlaying ? 3 : 10) }
+
     private func reschedule() {
-        timer?.invalidate(); timer = nil
+        timer?.invalidate(); timer = nil; interval = 0
         guard enabled else { clear(); return }
-        let t = Timer(timeInterval: watching ? 1 : 3, repeats: true) { [weak self] _ in Task { @MainActor in self?.poll() } }
-        t.tolerance = watching ? 0.2 : 1
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
+        installTimer()
         poll()
     }
+
+    private func installTimer() {
+        let every = desiredInterval()
+        interval = every
+        let t = Timer(timeInterval: every, repeats: true) { [weak self] _ in Task { @MainActor in self?.poll() } }
+        t.tolerance = every * 0.25
+        RunLoop.main.add(t, forMode: .common)
+        timer?.invalidate(); timer = t
+    }
+
+    /// Cambia el ritmo de consulta si lo que pasa lo pide (empieza o se para la musica).
+    private func retime() { if enabled, desiredInterval() != interval { installTimer() } }
 
     private func clear() {
         coverTask?.cancel()
@@ -129,6 +142,7 @@ final class MusicController: ObservableObject {
         markPlayback(was: wasPlaying, now: isNowPlaying, at: now)
         let newTrack = found?.trackID != nowPlaying?.trackID
         nowPlaying = found
+        retime()
         // el aviso va DESPUES de guardar el estado nuevo: quien lo reciba (la escucha de audio) consulta `isPlaying`
         if wasPlaying != isNowPlaying { onPlayback?(isNowPlaying) }
         guard newTrack else { return }

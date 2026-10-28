@@ -204,6 +204,13 @@ final class PetStore: ObservableObject {
     @Published private(set) var weather: WeatherReading?
     @Published private(set) var weatherStatus = ""
     @Published private(set) var batteryLow = false
+    /// Modo ahorro de bateria de macOS: sin efectos de cristal ni brillos animados.
+    @Published private(set) var lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+    /// Ahorro automatico: con el modo de bajo consumo de macOS o con poca bateria, la isla dibuja sin animaciones decorativas.
+    @Published var autoEnergySaving: Bool = UserDefaults.standard.object(forKey: "autoEnergySaving") == nil ? true : UserDefaults.standard.bool(forKey: "autoEnergySaving") {
+        didSet { UserDefaults.standard.set(autoEnergySaving, forKey: "autoEnergySaving") }
+    }
+    var energySaving: Bool { autoEnergySaving && (lowPowerMode || batteryLow) }
     private let weatherService = WeatherService()
     private var batteryTimer: Timer?
 
@@ -215,6 +222,9 @@ final class PetStore: ObservableObject {
 
     func startAmbient() {
         restartWeather()
+        NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled }
+        }
         batteryTimer?.invalidate()
         batteryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in Task { @MainActor in self?.batteryLow = Battery.lowLevel() != nil } }
         batteryLow = Battery.lowLevel() != nil

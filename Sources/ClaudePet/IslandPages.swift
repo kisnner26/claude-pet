@@ -20,49 +20,52 @@ enum IslandPage: String, CaseIterable, Identifiable {
 }
 
 /// Fibra de vidrio: vidrio oscuro con hebras finas que se ven al trasluz, destellos de luz que viajan por ellas y un borde con brillo especular.
+/// Barato a proposito: las hebras se dibujan una sola vez (se rasterizan) y solo los pulsos y el borde se animan, a pocos cuadros por segundo.
 struct FiberGlassLayer: View {
     var accent: Color = Color(hex: 0x7C93F0)
     var animated = true
+    static let pulseFPS = 10.0
 
     var body: some View {
-        if animated {
-            TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in canvas(t: ctx.date.timeIntervalSinceReferenceDate) }
-        } else {
-            canvas(t: 0)
+        ZStack {
+            // hebras y brillo de la tapa: no cambian, asi que se calculan una vez
+            Canvas { gc, size in
+                gc.fill(Path(CGRect(origin: .zero, size: CGSize(width: size.width, height: size.height * 0.5))),
+                        with: .linearGradient(Gradient(colors: [.white.opacity(0.085), .clear]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.5)))
+                let n = 30
+                for i in 0..<n {
+                    let k = Double(i) / Double(n - 1)
+                    let y0 = size.height * (0.04 + 0.92 * k), amp = 3 + 7 * FiberGlassLayer.rnd(i + 11), ph = FiberGlassLayer.rnd(i + 29) * 6.28
+                    var p = Path(); p.move(to: CGPoint(x: -4, y: y0))
+                    var x = -4.0
+                    while x <= size.width + 8 { p.addLine(to: CGPoint(x: x, y: y0 + amp * sin(x / (60 + 40 * FiberGlassLayer.rnd(i + 3)) + ph))); x += 16 }
+                    gc.stroke(p, with: .color(.white.opacity(0.028 + 0.04 * FiberGlassLayer.rnd(i + 47))), lineWidth: 0.6)
+                }
+            }
+            .drawingGroup()
+            if animated {
+                TimelineView(.animation(minimumInterval: 1.0 / Self.pulseFPS)) { ctx in pulses(t: ctx.date.timeIntervalSinceReferenceDate) }
+            }
         }
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
 
-    private func canvas(t: Double) -> some View {
+    /// Cuatro pulsos de luz que recorren otras tantas hebras, como en una fibra optica.
+    private func pulses(t: Double) -> some View {
         Canvas { gc, size in
-            // brillo de la tapa de cristal
-            gc.fill(Path(CGRect(origin: .zero, size: CGSize(width: size.width, height: size.height * 0.5))),
-                    with: .linearGradient(Gradient(colors: [.white.opacity(0.085), .clear]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.5)))
-            // hebras: lineas casi horizontales con una ligera ondulacion
-            let n = 34
-            for i in 0..<n {
-                let k = Double(i) / Double(n - 1)
-                let y0 = size.height * (0.04 + 0.92 * k), amp = 3 + 7 * FiberGlassLayer.rnd(i + 11), ph = FiberGlassLayer.rnd(i + 29) * 6.28
-                var p = Path(); p.move(to: CGPoint(x: -4, y: y0))
-                var x = -4.0
-                while x <= size.width + 8 { p.addLine(to: CGPoint(x: x, y: y0 + amp * sin(x / (60 + 40 * FiberGlassLayer.rnd(i + 3)) + ph))); x += 12 }
-                gc.stroke(p, with: .color(.white.opacity(0.028 + 0.04 * FiberGlassLayer.rnd(i + 47))), lineWidth: 0.6)
-            }
-            // pulsos de luz que recorren algunas hebras, como en una fibra optica
-            for i in 0..<5 {
+            for i in 0..<4 {
                 let y0 = size.height * (0.12 + 0.76 * FiberGlassLayer.rnd(i + 71)), amp = 3 + 7 * FiberGlassLayer.rnd(i * 2 + 11)
                 let speed = 0.10 + 0.12 * FiberGlassLayer.rnd(i + 91), head = ((t * speed) + FiberGlassLayer.rnd(i + 13)).truncatingRemainder(dividingBy: 1.4) - 0.2
                 var p = Path(), started = false
-                for s in stride(from: 0.0, through: 1.0, by: 0.012) {
+                for s in stride(from: 0.0, through: 1.0, by: 0.05) {
                     let x = (head - 0.16 * (1 - s)) * size.width
                     guard x > -2, x < size.width + 2 else { continue }
                     let pt = CGPoint(x: x, y: y0 + amp * sin(x / 70 + Double(i)))
                     if started { p.addLine(to: pt) } else { p.move(to: pt); started = true }
                 }
-                gc.stroke(p, with: .linearGradient(Gradient(colors: [accent.opacity(0), accent.opacity(0.55), .white.opacity(0.7)]), startPoint: CGPoint(x: (head - 0.16) * size.width, y: y0), endPoint: CGPoint(x: head * size.width, y: y0)), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+                gc.stroke(p, with: .color(accent.opacity(0.7)), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
             }
         }
-        .blendMode(.plusLighter)
-        .allowsHitTesting(false).accessibilityHidden(true)
     }
 
     static func rnd(_ n: Int) -> Double {
@@ -72,15 +75,25 @@ struct FiberGlassLayer: View {
     }
 }
 
-/// Borde de la pildora con un destello especular que da la vuelta despacio.
+/// Borde de la pildora con un destello especular que da la vuelta despacio. Un borde tenue fijo y un trazo corto que recorre el contorno:
+/// un degradado conico girando cuesta mucho mas, y a 5 cuadros por segundo basta para algo tan lento.
 struct FiberGlassEdge: View {
     let shape: IslandShape
     var accent: Color
     var animated: Bool
     var body: some View {
-        TimelineView(.animation(minimumInterval: animated ? 1.0 / 20.0 : 3600)) { ctx in
-            let a = animated ? (ctx.date.timeIntervalSinceReferenceDate * 22).truncatingRemainder(dividingBy: 360) : 40
-            shape.stroke(AngularGradient(colors: [.white.opacity(0.05), .white.opacity(0.05), accent.opacity(0.55), .white.opacity(0.65), .white.opacity(0.05)], center: .center, angle: .degrees(a)), lineWidth: 2)
+        ZStack {
+            shape.stroke(Color.white.opacity(0.10), lineWidth: 2)
+            TimelineView(.animation(minimumInterval: animated ? 0.2 : 3600)) { ctx in
+                let head = animated ? (ctx.date.timeIntervalSinceReferenceDate * 0.06).truncatingRemainder(dividingBy: 1) : 0.12
+                ZStack {
+                    shape.trim(from: head, to: min(1, head + 0.16)).stroke(accent.opacity(0.65), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    shape.trim(from: min(1, head + 0.09), to: min(1, head + 0.16)).stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    if head + 0.16 > 1 {
+                        shape.trim(from: 0, to: head + 0.16 - 1).stroke(accent.opacity(0.65), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    }
+                }
+            }
         }
         .allowsHitTesting(false).accessibilityHidden(true)
     }

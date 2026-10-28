@@ -8,7 +8,9 @@ struct PetFace: View {
         if model.mode == .hidden {
             Color.clear
         } else {
-            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { ctx in
+            // en reposo respira y parpadea despacio: a 6 cuadros por segundo se ve igual y gasta la mitad
+            let calm = store.state == .idle && !model.dancing && model.dizzyLeft == nil && model.petHoverSince == nil && !model.dropHover && model.pokes.isEmpty
+            TimelineView(.animation(minimumInterval: calm || store.energySaving ? 1.0 / 6.0 : 1.0 / 12.0)) { ctx in
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
@@ -90,7 +92,8 @@ struct CodexMini: View {
         if model.mode == .hidden {
             Color.clear
         } else {
-            TimelineView(.animation(minimumInterval: 1.0 / 8.0)) { ctx in
+            let calmCodex = store.codexState == .idle && !model.dancing && model.dizzyLeft == nil && model.petHoverSince == nil && model.codexPokes.isEmpty
+            TimelineView(.animation(minimumInterval: calmCodex || store.energySaving ? 1.0 / 5.0 : 1.0 / 8.0)) { ctx in
             let motion = store.animationsEnabled && !store.reduceMotion
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand

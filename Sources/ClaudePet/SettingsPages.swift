@@ -279,6 +279,9 @@ struct ComportamientoPage: View {
                     }
                 }
             }
+            SCard(title: "energía", footer: "con el modo de bajo consumo de macOS o con menos de un 15 % de batería, la isla deja los brillos y las hebras animadas y gasta menos.") {
+                SToggle(title: "ahorro automático", detail: store.energySaving ? "activo ahora: efectos reducidos" : "se activa solo cuando hace falta", isOn: $store.autoEnergySaving)
+            }
             SCard(title: "genio", footer: "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto.") {
                 SToggle(title: "se enfada si la golpeas", detail: "una patada a una ventana de otra app, sin cerrarla.", isOn: $store.rageEnabled)
                 if store.rageEnabled {
