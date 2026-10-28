@@ -227,6 +227,7 @@ struct MusicaPage: View {
                     if let n = music.nowPlaying { SBadge(text: n.app.title, color: n.isPlaying ? SettingsTheme.green : SettingsTheme.mute) }
                 }
             }
+            if store.musicPlayer && !music.recents.isEmpty { recientes }
             SCard(title: "la mascota reacciona", footer: "no oye el audio: reacciona a lo que dicen las apps (suena o no, qué volumen, cuándo cambia el tema). más volumen, más notas.") {
                 if store.musicPlayer {
                     SToggle(title: "reaccionar a la música", detail: "se pone auriculares, baila y suelta notas; al cambiar de tema hay un destello.", isOn: $store.musicReacts)
@@ -239,10 +240,40 @@ struct MusicaPage: View {
         .onDisappear { music.watching = false }
     }
 
+    private var recientes: some View {
+        SCard(title: "recientes", footer: "las portadas se guardan en ~/Library/Caches/claude-pet (hasta 24 MB) para que salgan al instante. pulsa una para volver a ponerla; la app debe estar abierta.") {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 14)], alignment: .leading, spacing: 14) {
+                ForEach(music.recents.prefix(10)) { t in RecentTile(track: t, music: music) }
+            }
+            .padding(.horizontal, 20).padding(.vertical, 14)
+            SDivider()
+            SRow(title: "borrar historial y portadas") { SButton(title: "borrar", symbol: "trash", destructive: true) { music.clearIndex() } }
+        }
+    }
+
     private var status: String {
         guard store.musicPlayer else { return "activa el reproductor para verlo aquí" }
         guard let n = music.nowPlaying else { return "nada ahora mismo, o la app no está abierta" }
         return "\(n.title) · \(n.artist)"
+    }
+}
+
+struct RecentTile: View {
+    let track: IndexedTrack
+    @ObservedObject var music: MusicController
+    @State private var image: NSImage?
+    var body: some View {
+        Button { music.play(track) } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                CoverArt(cover: image, seed: track.title, size: 92)
+                Text(track.title).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                Text(track.artist).font(.system(size: 10.5)).foregroundStyle(SettingsTheme.mute).lineLimit(1)
+            }
+            .frame(width: 92, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .onAppear { image = music.cachedCover(for: track.id) }
+        .accessibilityLabel("\(track.title), \(track.artist)")
     }
 }
 

@@ -17,6 +17,8 @@ struct NowPlaying: Equatable {
     var duration: Double
     var volume: Int
     var artworkURL: String?
+    /// spotify:track:... o el identificador persistente de Music: sirve para volver a poner la cancion.
+    var uri: String?
 
     /// Identifica la cancion para detectar cambios de tema (la posicion no cuenta).
     var trackID: String { "\(app.rawValue)|\(title)|\(artist)|\(album)" }
@@ -28,33 +30,54 @@ struct NowPlaying: Equatable {
 enum MusicScript {
     static let separator = "\u{1F}"
 
+    /// Toda orden va dentro de `with timeout`: si la app no responde, el script falla en 3 s en vez de esperar dos minutos.
+    private static func guarded(_ body: String) -> String { "with timeout of 3 seconds\n\(body)\nend timeout" }
+
     static func query(_ app: MusicApp) -> String {
         let artwork = app == .spotify ? "(artwork url of trk)" : "\"\""
+        let ident = app == .spotify ? "(spotify url of trk)" : "(persistent ID of trk)"
         // ojo con los nombres: en el diccionario de Music una variable llamada `st` no compila
-        return """
+        return guarded("""
         tell application id "\(app.bundle)"
         set stateText to player state as string
         if stateText is "stopped" then return "stopped"
         set sepChar to character id 31
         set trk to current track
-        return stateText & sepChar & (name of trk) & sepChar & (artist of trk) & sepChar & (album of trk) & sepChar & (player position as string) & sepChar & ((duration of trk) as string) & sepChar & (sound volume as string) & sepChar & \(artwork)
+        return stateText & sepChar & (name of trk) & sepChar & (artist of trk) & sepChar & (album of trk) & sepChar & (player position as string) & sepChar & ((duration of trk) as string) & sepChar & (sound volume as string) & sepChar & \(artwork) & sepChar & \(ident)
         end tell
-        """
+        """)
+    }
+
+    /// Los identificadores se interpolan en un script: solo se aceptan con la forma exacta de cada app.
+    static func validID(_ id: String, app: MusicApp) -> Bool {
+        switch app {
+        case .spotify: return id.count == 36 && id.hasPrefix("spotify:track:") && id.dropFirst(14).allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        case .appleMusic: return id.count == 16 && id.allSatisfy { $0.isHexDigit && !$0.isLowercase }
+        }
+    }
+
+    /// Vuelve a poner una cancion del indice. nil si el identificador no es valido.
+    static func play(id: String, app: MusicApp) -> String? {
+        guard validID(id, app: app) else { return nil }
+        switch app {
+        case .spotify: return guarded("tell application id \"\(app.bundle)\" to play track \"\(id)\"")
+        case .appleMusic: return guarded("tell application id \"\(app.bundle)\" to play (first track of library playlist 1 whose persistent ID is \"\(id)\")")
+        }
     }
 
     /// Portada de Apple Music como datos de imagen; Spotify da una direccion en la consulta.
-    static let appleMusicArtwork = "tell application id \"com.apple.Music\" to return data of artwork 1 of current track"
+    static let appleMusicArtwork = guarded("tell application id \"com.apple.Music\" to return data of artwork 1 of current track")
 
     enum Command: Equatable { case playPause, next, previous, seek(Int), volume(Int) }
 
     static func command(_ c: Command, app: MusicApp) -> String {
         let head = "tell application id \"\(app.bundle)\" to "
         switch c {
-        case .playPause: return head + "playpause"
-        case .next: return head + "next track"
-        case .previous: return head + "previous track"
-        case .seek(let s): return head + "set player position to \(max(0, min(86_400, s)))"
-        case .volume(let v): return head + "set sound volume to \(max(0, min(100, v)))"
+        case .playPause: return guarded(head + "playpause")
+        case .next: return guarded(head + "next track")
+        case .previous: return guarded(head + "previous track")
+        case .seek(let s): return guarded(head + "set player position to \(max(0, min(86_400, s)))")
+        case .volume(let v): return guarded(head + "set sound volume to \(max(0, min(100, v)))")
         }
     }
 
@@ -81,8 +104,10 @@ enum MusicScript {
         let duration = max(0, min(seconds, 86_400))
         var art: String?
         if parts.count > 7 { let u = parts[7].trimmingCharacters(in: .whitespacesAndNewlines); if u.hasPrefix("https://"), u.count < 400 { art = u } }
+        var uri: String?
+        if parts.count > 8 { let u = parts[8].trimmingCharacters(in: .whitespacesAndNewlines); if validID(u, app: app) { uri = u } }
         return NowPlaying(app: app, isPlaying: state == "playing", title: title, artist: clean(parts[2]), album: clean(parts[3]),
-                          position: max(0, min(pos, duration)), duration: duration, volume: Int(max(0, min(100, vol)).rounded()), artworkURL: art)
+                          position: max(0, min(pos, duration)), duration: duration, volume: Int(max(0, min(100, vol)).rounded()), artworkURL: art, uri: uri)
     }
 
     /// Solo se descargan portadas de la CDN de Spotify, por https y con un tope de tamaño.

@@ -1,23 +1,27 @@
 import SwiftUI
 import AppKit
 
-/// Portada de la cancion; sin imagen, un degradado propio que sale del titulo.
+/// Portada de la cancion. Sin imagen todavia, una portada propia: degradado estable por titulo con su inicial.
 struct CoverArt: View {
     let cover: NSImage?
     let seed: String
+    var size: CGFloat = 72
     var body: some View {
         ZStack {
             if let cover {
                 Image(nsImage: cover).resizable().scaledToFill()
             } else {
                 let h = Double(seed.utf8.reduce(UInt32(2166136261)) { ($0 ^ UInt32($1)) &* 16777619 } % 360) / 360   // estable entre arranques
-                LinearGradient(colors: [Color(hue: h, saturation: 0.55, brightness: 0.75), Color(hue: (h + 0.12).truncatingRemainder(dividingBy: 1), saturation: 0.7, brightness: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: "music.note").font(.system(size: 22, weight: .medium)).foregroundColor(.white.opacity(0.85))
+                LinearGradient(colors: [Color(hue: h, saturation: 0.6, brightness: 0.8), Color(hue: (h + 0.14).truncatingRemainder(dividingBy: 1), saturation: 0.75, brightness: 0.32)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Text(String(seed.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased())
+                    .font(.system(size: size * 0.46, weight: .black, design: .rounded)).foregroundColor(.white.opacity(0.9))
+                Image(systemName: "music.note").font(.system(size: size * 0.16, weight: .semibold)).foregroundColor(.white.opacity(0.55))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing).padding(size * 0.1)
             }
         }
-        .frame(width: 72, height: 72)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.14), lineWidth: 1))
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: size * 0.17, style: .continuous).stroke(Color.white.opacity(0.14), lineWidth: 1))
     }
 }
 
@@ -132,11 +136,21 @@ extension IslandSnapshot {
     @MainActor static func music(to path: String) {
         let sample = NowPlaying(app: .spotify, isPlaying: true, title: "Taxi Cab", artist: "twenty one pilots", album: "Vessel", position: 74, duration: 262, volume: 70, artworkURL: nil)
         var paused = sample; paused.isPlaying = false; paused.app = .appleMusic; paused.title = "Heathens"; paused.album = "Suicide Squad"
+        let recent = [("Heathens", "twenty one pilots"), ("Ride", "twenty one pilots"), ("Stressed Out", "twenty one pilots"), ("Holding On", "Fall Out Boy"), ("Nico", "Bad Omens")]
         let view = VStack(alignment: .leading, spacing: 22) {
             MusicPanelContent(now: sample, cover: nil, fixedPosition: 74)
             MusicPanelContent(now: paused, cover: nil, fixedPosition: 190)
+            HStack(spacing: 10) {
+                ForEach(Array(recent.enumerated()), id: \.offset) { _, t in
+                    VStack(alignment: .leading, spacing: 3) {
+                        CoverArt(cover: nil, seed: t.0, size: 64)
+                        Text(t.0).font(.system(size: 10, weight: .semibold)).foregroundColor(.white).lineLimit(1)
+                        Text(t.1).font(.system(size: 9)).foregroundColor(.white.opacity(0.5)).lineLimit(1)
+                    }.frame(width: 64)
+                }
+            }
         }
-        .padding(22).frame(width: 420).background(Color.black)
+        .padding(22).frame(width: 440).background(Color.black)
         let r = ImageRenderer(content: view); r.scale = 2
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
