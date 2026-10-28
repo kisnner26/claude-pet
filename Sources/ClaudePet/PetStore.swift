@@ -58,6 +58,10 @@ final class PetStore: ObservableObject {
     /// Nombre de la app al frente: solo presencia, nunca captura de pantalla ni contenido.
     @Published private(set) var foregroundAppName = ""
     /// Apagado: la mascota de Claude se ve siempre (comportamiento anterior).
+    /// Idioma de la interfaz; al cambiarlo se vuelven a dibujar las vistas que observan el store.
+    @Published var language: Lang = L.current {
+        didSet { L.set(language) }
+    }
     @Published var autoVisibility: Bool = UserDefaults.standard.object(forKey: "autoVisibility") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoVisibility, forKey: "autoVisibility") }
     }

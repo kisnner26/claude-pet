@@ -260,6 +260,10 @@ struct ComportamientoPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            SCard(title: "idioma") {
+                SMenu(title: "idioma", detail: "elige el idioma de la interfaz. se aplica al momento.", selection: $store.language,
+                      options: Lang.allCases.map { ($0, $0.name) })
+            }
             SCard(title: "al acercar el cursor", footer: "con un retraso mayor se evitan aperturas por accidente al pasar por la parte de arriba.") {
                 SSlider(title: "ancho de la zona", detail: "cuánto mide, en puntos, el área que despierta la isla.", value: $store.islandActivationWidth, range: 120...400, step: 20) { "\(Int($0)) pt" }
                 SDivider()
