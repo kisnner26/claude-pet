@@ -6,6 +6,18 @@ Un reproductor de Spotify y Apple Music en la isla, y una mascota que reacciona 
 
 Se activa en Ajustes → música. En la isla abierta aparece un botón de nota junto al selector de agente; al pulsarlo, el panel de actividad deja paso al reproductor: portada, título y artista, barra de progreso que se arrastra para saltar, anterior, pausa, siguiente y volumen. También hay un submenú de música en el menú de la barra.
 
+## portadas
+
+La portada sale de Spotify (su CDN) o de Apple Music (del propio reproductor) y se guarda en `~/Library/Caches/claude-pet/covers` a 192 px, en JPEG, hasta 80 archivos y 24 MB (se borra lo más antiguo). La próxima vez que suene esa canción aparece al instante, sin red. Mientras no hay portada se dibuja una propia: degradado estable por título con su inicial.
+
+En Ajustes → música, **recientes** muestra las últimas canciones con su portada; al pulsar una se vuelve a poner (la app debe estar abierta). El historial vive en `~/.claude-pet/music-index.json` (60 canciones, permisos 0600) y se puede borrar con sus portadas desde el mismo sitio.
+
+![recientes](img/ajustes-musica.jpg)
+
+## fluidez
+
+Las consultas a Spotify y Music van por AppleScript en una cola propia, de una en una, y cada orden lleva `with timeout of 3 seconds`. Si una app no responde, el script falla a los tres segundos y la interfaz sigue fluida; no se encadenan consultas si la anterior no ha vuelto.
+
 ## cómo reacciona la mascota
 
 No oye el audio. Reacciona a lo que dicen las apps, que es lo que se puede saber sin pedir permisos de captura:

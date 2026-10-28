@@ -51,13 +51,25 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 
 ![ajustes](docs/img/ajustes-resumen.jpg)
 
-Menú de la barra → "ajustes…" (⌘,), o `ClaudePet --open-settings [página]`. Catorce páginas con buscador:
+Menú de la barra → "ajustes…" (⌘,), o `ClaudePet --open-settings [página]`. Quince páginas con buscador y vidrio real del sistema; el naranja de Claude y el azul de Codex tiñen toda la ventana:
 
 - **vista previa de la isla** que se mueve al cambiar ubicación, zona de activación, contenido compacto o reloj.
 - **sonidos**: volumen general y por categoría, prueba de cada sonido y detección de los que has reemplazado con tus propios archivos.
 - **atajos configurables**: eliges la letra de cada acción; si ya está en uso te lo dice y no cambia nada.
 - **copia y restauración**: exporta los ajustes a un `.json`, impórtalos en otro Mac (cada valor se valida por tipo y rango) o restablece todo.
 - permisos, reglas de aprobación y puntos de restauración, agentes, privacidad, guardarropa, foco y pomodoro. detalle en [docs/AJUSTES.md](docs/AJUSTES.md).
+
+### plugins
+
+![plugins](docs/img/ajustes-plugins.jpg)
+
+Carpetas con un `plugin.json` que añaden acciones al menú y a la isla, ajustes propios y reaccionan a eventos. Los crea cualquiera: puede ser un script de shell de cinco líneas. El usuario aprueba los permisos antes de activarlos, los ejecutables no pueden salirse de su carpeta y reciben un entorno mínimo. Aviso honesto: no son una caja de arena, corren con tus mismos privilegios. [commitero](https://github.com/kisnner26/commitero) ya funciona como plugin (`examples/plugins/`). Guía en [docs/PLUGINS.md](docs/PLUGINS.md).
+
+### guardarropa
+
+![atuendos](docs/img/atuendos.jpg)
+
+Los seis atuendos se ven igual en Claude y en las tres variantes de Codex, en la isla y en el modo flotante, con vista previa en ajustes.
 
 ### perímetro
 
@@ -69,11 +81,11 @@ Defines por dónde puede moverse el agente en un proyecto (carpetas permitidas y
 
 ![reproductor](docs/img/reproductor.jpg)
 
-Reproductor de Spotify y Apple Music en la isla (portada, progreso, anterior, pausa, siguiente y volumen). La mascota se pone auriculares, baila y suelta notas según el volumen, con un destello al cambiar de tema. No oye el audio: reacciona a lo que dicen las apps. Opt-in. Detalle en [docs/MUSICA.md](docs/MUSICA.md).
+Reproductor de Spotify y Apple Music en la isla (portada indexada en caché, progreso, anterior, pausa, siguiente y volumen) y una tira de recientes para volver a ponerlas. La mascota se pone auriculares, baila y suelta notas según el volumen, con un destello al cambiar de tema. No oye el audio: reacciona a lo que dicen las apps. Opt-in. Detalle en [docs/MUSICA.md](docs/MUSICA.md).
 
 ### menú de la barra
 
-Ahora es corto: estado en vivo, cuatro acciones y cuatro submenús (proyecto, mascotas, web scout, más), más ajustes y salir. Todo lo que era una opción suelta vive en la ventana de ajustes.
+Ahora es corto: estado en vivo, cuatro acciones y cuatro submenús (proyecto, mascotas, web scout, más), más los plugins que tengas, ajustes y salir. Todo lo que era una opción suelta vive en la ventana de ajustes.
 
 ### versiones
 

@@ -64,8 +64,9 @@ struct SettingsView: View {
             .overlay(Capsule().stroke(SettingsTheme.line, lineWidth: 1))
             .padding(.horizontal, 14).padding(.bottom, 12)
 
+            ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(SettingsGroup.allCases) { group in
                         let pages = results.filter { $0.group == group }
                         if !pages.isEmpty {
@@ -82,6 +83,9 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, 10).padding(.bottom, 16)
+            }
+            .onAppear { proxy.scrollTo(page, anchor: .center) }
+            .onChange(of: page) { p in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(p, anchor: .center) } }
             }
             statusFooter
         }
@@ -102,7 +106,7 @@ struct SettingsView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16).padding(.top, 40).padding(.bottom, 14)
+        .padding(.horizontal, 16).padding(.top, 38).padding(.bottom, 10)
     }
 
     private func sidebarRow(_ p: SettingsPage) -> some View {
@@ -114,13 +118,14 @@ struct SettingsView: View {
                 Text(p.title).font(.system(size: 13, weight: selected ? .semibold : .regular))
                 Spacer()
             }
-            .padding(.horizontal, 12).padding(.vertical, 7)
+            .padding(.horizontal, 12).padding(.vertical, 5.5)
             .foregroundStyle(selected ? Color.white : Color.white.opacity(0.72))
             .background(Capsule().fill(selected ? Color.white.opacity(0.1) : .clear))
             .overlay(Capsule().strokeBorder(selected ? AnyShapeStyle(SettingsTheme.duoDiagonal) : AnyShapeStyle(Color.clear), lineWidth: 1.2))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .id(p)
     }
 
     private var statusFooter: some View {
@@ -179,6 +184,13 @@ enum SettingsSnapshot {
     @MainActor static func render(to directory: String, pages: [SettingsPage] = SettingsPage.allCases) {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         for page in pages {
+            if page == .plugins, let examples = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_EXAMPLES"] {
+                // captura de documentacion: los ejemplos del repositorio instalados y activos, en una carpeta temporal
+                let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snap-plugins-\(UUID().uuidString)")
+                let reg = PluginRegistry(root: tmp, statePath: nil)
+                for n in ((try? FileManager.default.contentsOfDirectory(atPath: examples)) ?? []).sorted() { _ = try? reg.install(from: URL(fileURLWithPath: examples).appendingPathComponent(n)); reg.setEnabled(n, n != "registro-de-sesiones", approving: true) }
+                PetStore.shared.plugins = PluginHost(registry: reg)
+            }
             if page == .perimetro, PerimetroPage.previewWorkspace == nil {
                 let sample = "/Users/demo/mi-app"
                 PerimetroPage.previewWorkspace = sample

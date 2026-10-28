@@ -11,17 +11,28 @@ La barra lateral agrupa las páginas en inicio, isla, agentes, seguridad, mascot
 | resumen | sesiones, herramientas, permisos y errores de hoy; nivel, racha y semana; copiar o guardar como imagen; acceso a mission control y relevo |
 | apariencia | modo, ubicación, contenido compacto, reloj, pantalla, mascotas, animaciones, partido, burbuja y avisos visuales, con vista previa |
 | comportamiento | ancho y retraso de la zona de activación, cuánto tarda en plegarse, aparición automática y fijar mascotas |
-| agentes | mostrar u ocultar claude y codex, gestos, detalle local, aviso de bloqueo y verificación de enlaces |
+| agentes | una tarjeta por agente con su estado, mostrar u ocultar, aspecto con previsualización, gestos, detalle local y aviso de bloqueo |
 | permisos | responder desde la isla, bloqueo si el proyecto cambia, puntos de restauración y reglas de aprobación (revocar una o todas) |
 | perímetro | por dónde puede moverse el agente en cada proyecto: carpetas permitidas, archivos protegidos y avisar o bloquear. ver [PERIMETRO.md](PERIMETRO.md) |
 | privacidad | nombre del proyecto al compartir, carpeta de datos, registro de decisiones y borrado de estadísticas |
-| guardarropa | atuendos por nivel y atuendos de temporada |
+| guardarropa | vista previa de las dos mascotas, atuendos por nivel con su aspecto en Claude y Codex, y atuendos de temporada |
 | sonidos | volumen general y por categoría, prueba de cada sonido y sonidos propios |
 | música | reproductor de Spotify y Apple Music en la isla y reacciones de la mascota. ver [MUSICA.md](MUSICA.md) |
 | foco y pomodoro | foco manual o por horario y control del pomodoro |
 | atajos | letra de cada atajo global, con control de duplicados |
+| plugins | instalar, activar con permisos aprobados, ajustes y acciones de cada plugin. ver [PLUGINS.md](PLUGINS.md) |
 | copia y restauración | exportar, importar y restablecer ajustes |
 | acerca de | versión, commitero y dónde vive cada dato |
+
+## identidad
+
+Claude y Codex comparten la rejilla pixel-art y el glifo `>_`; el color los separa. La ventana usa vidrio real del sistema y el dúo naranja (el bloque de Claude) → violeta → azul (la nube de Codex). Las dos mascotas van en la barra lateral, vestidas como las tengas, y cada agente tiene su tarjeta teñida de su color.
+
+![resumen](img/ajustes-resumen.jpg)
+
+![agentes](img/ajustes-agentes.jpg)
+
+![guardarropa](img/ajustes-guardarropa.jpg)
 
 ![apariencia](img/ajustes-apariencia.jpg)
 
