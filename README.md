@@ -16,7 +16,7 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 - **plugins y taller**: acciones, ajustes y eventos con una carpeta y un `plugin.json`, y un catálogo para instalar los de otros.
 - **más**: reproductor de música con la mascota bailando al compás, guardarropa, acceso rápido que cambia según la app activa, traspaso entre claude y codex, modo foco y pomodoro.
 
-![modos de la isla](docs/img/island-modos.png)
+![claude pet hoy](docs/img/producto.jpg)
 
 ## ajustes
 
@@ -87,7 +87,7 @@ tests/remote.sh       # visto: política, canal y respuestas
 tests/cpu.sh          # cpu medio en reposo durante 30 s (falla sobre 5 %)
 ```
 
-las imágenes de este readme se generan con el propio código de dibujo de la app; no son capturas de pantalla.
+las imágenes de este readme son renders con el propio código de dibujo de la app, no capturas de pantalla.
 
 ## inspiración y licencia
 
