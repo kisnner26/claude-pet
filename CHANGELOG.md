@@ -2,6 +2,12 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [sin publicar]
+
+### añadido
+- siete plugins de ejemplo útiles: `git-estado`, `github-rapido`, `diario-de-sesiones`, `puertos`, `contexto-para-agentes`, `abrir-en` y `todos-del-proyecto`.
+- `tests/plugins-utiles.sh` los ejecuta con datos hostiles y comprueba que cada uno devuelva JSON válido y respete sus permisos.
+
 ## [2.4.2] - 2026-10-27
 
 ### cambiado

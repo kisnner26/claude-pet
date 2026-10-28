@@ -130,6 +130,22 @@ Garantiza:
 
 **No** es una caja de arena. Un plugin es un proceso con **tus mismos privilegios**: si es malicioso, puede leer tus archivos o usar la red aunque no pida ningún permiso, porque los permisos controlan lo que claude-pet le da y acepta de vuelta, no lo que el sistema le deja hacer. Activa solo plugins de gente en la que confíes y léelos antes: son scripts.
 
+## plugins incluidos
+
+En `examples/plugins/` hay once plugins listos para copiar a `~/.claude-pet/plugins/`. Ninguno se activa solo: al activarlos desde Ajustes → plugins la app muestra los permisos y tú decides.
+
+| plugin | qué hace | permisos |
+|---|---|---|
+| `git-estado` | rama, cambios y adelanto/atraso del proyecto; copiar rama; commit rápido | project, notify, clipboard |
+| `github-rapido` | abre PR, pulls, issues o acciones del remoto (solo GitHub, sin credenciales en la URL) | project, notify, open-url |
+| `diario-de-sesiones` | anota cada sesión terminada y resume el día | events, project, notify, clipboard |
+| `puertos` | lista los puertos TCP en escucha con su proceso | notify, clipboard |
+| `contexto-para-agentes` | copia un resumen en markdown del proyecto (sin contenido de archivos) | project, notify, clipboard |
+| `abrir-en` | abre el proyecto en tu editor o en Terminal | project, notify |
+| `todos-del-proyecto` | cuenta y copia los TODO/FIXME | project, notify, clipboard |
+
+Se prueban con `sh tests/plugins-utiles.sh` (repos con nombres hostiles, remotos con token, rotación del diario).
+
 ## probar tu plugin
 
 ```bash
