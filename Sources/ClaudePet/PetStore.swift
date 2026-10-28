@@ -140,6 +140,7 @@ final class PetStore: ObservableObject {
     @Published var musicReacts: Bool = UserDefaults.standard.object(forKey: "musicReacts") as? Bool ?? true {
         didSet { UserDefaults.standard.set(musicReacts, forKey: "musicReacts") }
     }
+    lazy var plugins = PluginHost()
     lazy var music = MusicController(enabled: UserDefaults.standard.bool(forKey: "musicPlayer"))
     var musicReacting: Bool { musicPlayer && musicReacts && music.isPlaying }
     @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {

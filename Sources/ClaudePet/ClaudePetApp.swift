@@ -148,6 +148,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-settings") { exit(SettingsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-music") { exit(MusicSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-polling") { exit(IslandPollingSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-resistance") { exit(IslandResistanceSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-demo") { exit(DemoModeSelfTest.run() ? 0 : 1) }
