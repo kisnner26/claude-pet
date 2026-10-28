@@ -170,6 +170,9 @@ final class AppController: NSObject, NSApplicationDelegate {
                 let args = CommandLine.arguments
                 if let m = args.firstIndex(of: "--music"), m + 1 < args.count { PromoVideo.musicPath = args[m + 1] }
                 if let m = args.firstIndex(of: "--music-start"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.musicStart = v }
+                if let m = args.firstIndex(of: "--beats"), m + 1 < args.count, let v = Int(args[m + 1]) { PromoVideo.totalBeats = v }
+                if let m = args.firstIndex(of: "--drop"), m + 1 < args.count, let v = Int(args[m + 1]) { PromoVideo.dropBeat = v }
+                if let m = args.firstIndex(of: "--credit"), m + 1 < args.count { PromoVideo.credit = args[m + 1] }
                 if let m = args.firstIndex(of: "--bpm"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.bpm = v }
                 else if let song = PromoVideo.musicPath, let r = MusicSync.analyze(path: song, clipSeconds: PromoVideo.duration + 2) {
                     // sin tempo manual: se mide la cancion y el primer corte cae en un golpe

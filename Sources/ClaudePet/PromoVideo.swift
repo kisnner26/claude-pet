@@ -9,10 +9,14 @@ enum PromoVideo {
     static let width = 1920, height = 1080, fps = 30
     /// Todo (cortes, destellos, sonido) cuelga de esta rejilla: por defecto 121,9 pulsos por minuto, el tempo medido de la cancion.
     static var bpm = 121.9
-    static let totalBeats = 72
+    nonisolated(unsafe) static var totalBeats = 92
+    /// Pulso en el que rompe el drop de la cancion: antes el montaje sube, desde aqui estalla.
+    nonisolated(unsafe) static var dropBeat = 64
     /// Cancion libre (CC0): ruta y segundo del audio donde cae un pulso, para que el primer corte coincida con el primer golpe.
     nonisolated(unsafe) static var musicPath: String?
     nonisolated(unsafe) static var musicStart = 0.0
+    /// Credito de la musica que sale al final del video.
+    nonisolated(unsafe) static var credit = "música: Techno_7 · Pro Sensory (Alex McCulloch) · CC0 · opengameart.org"
     static var beat: Double { 60 / bpm }
     static var duration: Double { Double(totalBeats) * beat }
 
@@ -264,26 +268,34 @@ private struct Shot { let at: Double; let beats: Double; let kind: ShotKind; let
 
 private let orange: UInt32 = 0xE0824F, blue: UInt32 = 0x5270E8, bone: UInt32 = 0xF4F1EA
 
-/// El guion: lo que diferencia a claude pet y se entiende de un vistazo, con la isla, el rastreador, las mascotas, la musica, los plugins y el laboratorio.
-/// Cada plano se define por su duracion en pulsos; las posiciones salen de ir sumando.
+/// El guion, en dos partes sobre la cancion: la subida (hasta el drop) presenta la isla, el rastreador, las mascotas, la musica y el laboratorio
+/// con un ritmo que se acelera; en el drop estalla el titulo y el resto va a golpe de bombo. Cada plano se define por su duracion en pulsos.
 private let shots: [Shot] = {
-    let plan: [(Double, ShotKind, String, UInt32)] = [
-        (2, .word, "TU AGENTE", 0x000000), (2, .waiting, "TE ESPERA", orange),
+    let build: [(Double, ShotKind, String, UInt32)] = [
+        (4, .word, "TU AGENTE", 0x000000), (4, .waiting, "TE ESPERA", orange),
         (4, .island("permiso"), "APRUEBA DESDE LA ISLA", 0), (2, .word, "UN TOQUE", blue), (2, .island("terminado"), "Y SIGUE", 0),
-        (2, .word, "NO APRUEBA\nA CIEGAS", 0x000000), (4, .island("riesgo"), "RIESGO + SECRETOS", 0), (3, .image("perimetro-permiso.jpg"), "TU PERÍMETRO", 0),
+        (2, .word, "NO APRUEBA\nA CIEGAS", 0x000000), (4, .island("riesgo"), "RIESGO + SECRETOS", 0), (4, .image("perimetro-permiso.jpg"), "TU PERÍMETRO", 0),
         (6, .crawler, "UNA ARAÑA CAZA TUS ENLACES ROTOS", 0),
-        (3, .pets([[], [.crown], [.glasses, .bow]], true), "DOS AGENTES · DOS MASCOTAS", 0),
+        (4, .pets([[], [.crown], [.glasses, .bow], [.beanie, .scarf]], true), "DOS AGENTES · DOS MASCOTAS", 0),
         (1, .pets([[.sunhat, .sunglasses]], false), "34°", 0), (1, .pets([[.umbrella]], false), "LLUVIA", 0), (1, .pets([[.beanie, .scarf, .earmuffs]], false), "-2°", 0),
-        (1, .word, "SI LAS GOLPEAS…", orange), (5, .rage, "PATEAN TUS VENTANAS", 0),
+        (1, .word, "SI LAS GOLPEAS…", orange), (6, .rage, "PATEAN TUS VENTANAS", 0),
         (2, .image("reproductor.jpg"), "TU MÚSICA", 0), (2, .image("baile.jpg"), "Y BAILAN AL COMPÁS", 0),
         (2, .image("ajustes-plugins.jpg"), "PLUGINS", 0), (2, .word, "TUS MODS\nTU TALLER", blue),
         (2, .image("lab-galaxia.jpg"), "GALAXIA: TU REPO ES UNA GALAXIA", 0), (2, .image("lab-ciudad.jpg"), "CIUDAD: TUS REPOS, EDIFICIOS", 0), (2, .image("lab-radar.jpg"), "RADAR DE RED", 0),
-        (2, .image("visto-mascotas.jpg"), "IPHONE + WATCH", 0), (3, .footage(5.2), "TUS AGENTES SOBRE TU MESA", 0), (1, .word, "META QUEST", blue), (1, .word, "FUERA DE CASA", 0x000000),
-        (2, .stat("0", "CUENTAS · 0 TELEMETRÍA"), "", 0x000000), (2, .word, "GRATIS", orange), (2, .word, "CÓDIGO ABIERTO", 0x000000),
+        (2, .image("visto-mascotas.jpg"), "IPHONE + WATCH", 0), (2, .word, "Y ADEMÁS…", 0x000000),
+    ]
+    let drop: [(Double, ShotKind, String, UInt32)] = [
+        (4, .pets([[.crown]], true), "CLAUDE PET", 0),
+        (4, .footage(5.2), "TUS AGENTES SOBRE TU MESA", 0), (2, .word, "META QUEST", blue), (2, .word, "FUERA DE CASA", 0x000000),
+        (2, .island("trabajando"), "CLAUDE", 0), (2, .pets([[]], true), "CODEX", 0),
+        (4, .rage, "PATEAN", 0), (2, .stat("0", "CUENTAS · 0 TELEMETRÍA"), "", 0x000000), (2, .word, "GRATIS", orange),
     ]
     var out: [Shot] = []
     var at = 0.0
-    for (beats, kind, word, color) in plan { out.append(Shot(at: at, beats: beats, kind: kind, word: word, color: color)); at += beats }
+    for (beats, kind, word, color) in build + drop {
+        if abs(at - Double(PromoVideo.dropBeat)) < 0.01 && out.last?.at != at { /* el drop cae justo donde empieza el primer plano de la segunda parte */ }
+        out.append(Shot(at: at, beats: beats, kind: kind, word: word, color: color)); at += beats
+    }
     // el cierre ocupa los pulsos que queden hasta el final
     out.append(Shot(at: at, beats: Double(PromoVideo.totalBeats) - at, kind: .word, word: "CLAUDE PET", color: 0x000000))
     return out
@@ -301,7 +313,13 @@ struct PromoFrame: View {
     private var beatPhase: Double { (t / b).truncatingRemainder(dividingBy: 1) * b }
     private var beatNo: Int { Int(t / b) }
     private var local: Double { t - shot.at * b }
-    private var punch: Double { exp(-beatPhase * 9) }
+    private var punch: Double { exp(-beatPhase * 9) * intensity }
+    /// Sube durante la primera parte y se dispara en el drop.
+    private var intensity: Double {
+        let drop = Double(PromoVideo.dropBeat)
+        let n = Double(beatNo)
+        return n < drop ? 0.25 + 0.55 * pow(n / drop, 1.6) : 1.25
+    }
 
     var body: some View {
         ZStack {
@@ -311,8 +329,8 @@ struct PromoFrame: View {
                 .rotationEffect(.degrees((hash(beatNo) - 0.5) * 5 * punch))
                 .offset(x: CGFloat((hash(beatNo + 7) - 0.5) * 60 * punch), y: CGFloat((hash(beatNo + 13) - 0.5) * 40 * punch))
             // destello blanco en cada golpe y marcos de cine
-            Color.white.opacity(0.5 * exp(-beatPhase * 22) * (beatNo >= 2 ? 1 : 0))
-            if beatNo >= 8, hash(beatNo) > 0.55 { glitch }
+            Color.white.opacity((beatNo == PromoVideo.dropBeat ? 0.95 : 0.5 * intensity) * exp(-beatPhase * (beatNo == PromoVideo.dropBeat ? 9 : 22)) * (beatNo >= 2 ? 1 : 0))
+            if beatNo >= PromoVideo.dropBeat - 8, hash(beatNo) > (beatNo >= PromoVideo.dropBeat ? 0.3 : 0.6) { glitch }
             LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.55)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
             // el fundido final
             Color.black.opacity(t > PromoVideo.duration - 0.25 ? (t - (PromoVideo.duration - 0.25)) / 0.25 : 0)
@@ -354,7 +372,7 @@ struct PromoFrame: View {
                 if shot.word == "CLAUDE PET" {
                     VStack(spacing: 14) {
                         Text("github.com/kisnner26/claude-pet").font(.system(size: 44, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: orange)).opacity(smooth(lt / (b * 2)))
-                        Text("música: Techno_2 · Pro Sensory (Alex McCulloch) · CC0 · opengameart.org").font(.system(size: 22, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.5 * smooth(lt / (b * 3))))
+                        Text(PromoVideo.credit).font(.system(size: 22, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.5 * smooth(lt / (b * 3))))
                         Text("escenas renderizadas con el código de la propia app").font(.system(size: 22, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.4 * smooth(lt / (b * 3))))
                     }.offset(y: 250)
                 }
