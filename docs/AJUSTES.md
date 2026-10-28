@@ -10,7 +10,7 @@ La barra lateral agrupa las páginas en inicio, isla, agentes, seguridad, mascot
 |---|---|
 | resumen | sesiones, herramientas, permisos y errores de hoy; nivel, racha y semana; copiar o guardar como imagen; acceso a mission control y relevo |
 | apariencia | modo, ubicación, contenido compacto, reloj, pantalla, mascotas, animaciones, partido, burbuja y avisos visuales, con vista previa |
-| comportamiento | ancho y retraso de la zona de activación, cuánto tarda en plegarse, aparición automática y fijar mascotas |
+| comportamiento | ancho y retraso de la zona de activación, cuánto tarda en plegarse, **acceso rápido de la isla** (qué acciones y en qué orden), aparición automática y fijar mascotas |
 | agentes | una tarjeta por agente con su estado, mostrar u ocultar, aspecto con previsualización, gestos, detalle local y aviso de bloqueo |
 | permisos | responder desde la isla, bloqueo si el proyecto cambia, puntos de restauración y reglas de aprobación (revocar una o todas) |
 | perímetro | por dónde puede moverse el agente en cada proyecto: carpetas permitidas, archivos protegidos y avisar o bloquear. ver [PERIMETRO.md](PERIMETRO.md) |

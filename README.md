@@ -71,6 +71,12 @@ Carpetas con un `plugin.json` que añaden acciones al menú y a la isla, ajustes
 
 Los seis atuendos se ven igual en Claude y en las tres variantes de Codex, en la isla y en el modo flotante, con vista previa en ajustes.
 
+### acceso rápido
+
+![acceso rápido](docs/img/dock.jpg)
+
+La fila de pastillas de texto de la isla es ahora un dock de **solo iconos** que se adapta al contexto: sin proyecto queda un único icono, y con cambios aparecen hasta cinco con insignias (commitear, terminal, cambios, música, mission control). Al pasar el cursor, cada botón se expande con su nombre. El resto va en un menú +, junto con las acciones de tus plugins. En Ajustes → comportamiento eliges cuáles quieres, en qué orden y cuándo aparece cada una: reproducir o pausar la música, crear un punto de restauración, abrir la carpeta del proyecto, pomodoro, silenciar avisos, relevo de sesión, perímetro y ajustes.
+
 ### perímetro
 
 ![perímetro](docs/img/perimetro-permiso.jpg)

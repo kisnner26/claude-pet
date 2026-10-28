@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.3.0] - 2026-10-27
+
+### añadido
+- **acceso rápido en la isla**: la fila de pastillas de texto pasa a ser un dock de iconos que se adapta al contexto (hasta cinco a la vez, con insignias de cambios) y se expande con su nombre al pasar el cursor. El resto, y las acciones de plugins, van en un menú +.
+- trece acciones: commitear, terminal, cambios, reproducir o pausar la música, mission control, copiar resumen, abrir la carpeta, punto de restauración, pomodoro, silenciar avisos, relevo de sesión, perímetro y ajustes. Se activan y ordenan en Ajustes → comportamiento.
+- `--selftest-quick` y `--snapshot-dock`.
+
+### cambiado
+- sin proyecto ni cambios, la isla en reposo enseña un icono en vez de dos pastillas de texto.
+
 ## [2.2.0] - 2026-10-27
 
 ### añadido
@@ -99,6 +109,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ### añadido
 - primera versión: una mascota pixel-art en la barra de menú que refleja el estado de Claude Code.
 
+[2.3.0]: https://github.com/kisnner26/claude-pet/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/kisnner26/claude-pet/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kisnner26/claude-pet/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/kisnner26/claude-pet/compare/v1.2.0...v2.0.0
