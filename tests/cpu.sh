@@ -12,7 +12,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 [ -x "$BIN" ] || { echo "compila primero con swift build" >&2; exit 1; }
-HOME="$TMP_HOME" "$BIN" --cpu-island-hidden >/dev/null 2>&1 &
+# CPU_EXTRA permite medir otras situaciones, por ejemplo la ventana de ajustes abierta: CPU_EXTRA="--open-settings guardarropa"
+HOME="$TMP_HOME" "$BIN" --cpu-island-hidden ${CPU_EXTRA:-} >/dev/null 2>&1 &
 PID=$!
 # El %cpu de ps es un promedio que arrastra el arranque (la app es de debug y cargar la interfaz pesa). Para medir el
 # reposo de verdad se deja pasar un calentamiento y se mide el tiempo de cpu consumido entre dos instantes.
