@@ -117,14 +117,17 @@ struct MusicPanelView: View {
     }
 }
 
-/// Notas que suben de la mascota mientras suena algo; cuantas, segun el volumen.
+/// Notas que suben de la mascota mientras suena algo; con la escucha activada, ademas un ecualizador y un aro en cada pulso.
 struct MusicNotesLayer: View {
     @ObservedObject var music: MusicController
+    let store: PetStore
     var body: some View {
         if music.isPlaying {
-            TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { ctx in
-                FxCanvas(pixels: MusicFx.notes(at: ctx.date.timeIntervalSinceReferenceDate, level: Double(music.nowPlaying?.volume ?? 50) / 100,
-                                               trackAge: ProcessInfo.processInfo.systemUptime - music.trackChangedAt), unit: 3)
+            TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { ctx in
+                let now = ProcessInfo.processInfo.systemUptime
+                let pulse = store.musicPulse(at: now)
+                FxCanvas(pixels: MusicFx.notes(at: ctx.date.timeIntervalSinceReferenceDate, level: pulse?.listening == true ? max(0.15, pulse?.level ?? 0.5) : Double(music.nowPlaying?.volume ?? 50) / 100,
+                                               trackAge: now - music.trackChangedAt) + (pulse.map(MusicFx.beat) ?? []), unit: 3)
             }
             .allowsHitTesting(false).accessibilityHidden(true)
         }

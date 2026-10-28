@@ -73,3 +73,50 @@ extension IslandSnapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 }
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-dance <ruta.png>`: Claude y Codex en cuatro instantes de un pulso, y sin escucha (volumen) y al pausar.
+    @MainActor static func dance(to path: String) {
+        let ages: [(String, MusicPulse)] = [
+            ("pulso", MusicPulse(playing: true, listening: true, level: 0.9, bass: 1, mid: 0.6, treble: 0.3, beatAge: 0, beatCount: 2, bpm: 124)),
+            ("+80 ms", MusicPulse(playing: true, listening: true, level: 0.85, bass: 0.8, mid: 0.5, treble: 0.4, beatAge: 0.08, beatCount: 2, bpm: 124)),
+            ("+170 ms", MusicPulse(playing: true, listening: true, level: 0.7, bass: 0.5, mid: 0.4, treble: 0.3, beatAge: 0.17, beatCount: 2, bpm: 124)),
+            ("siguiente", MusicPulse(playing: true, listening: true, level: 0.9, bass: 1, mid: 0.6, treble: 0.3, beatAge: 0, beatCount: 3, bpm: 124)),
+            ("sin escucha", MusicPulse(playing: true, volume: 0.9)),
+            ("al pausar", MusicPulse(playing: false, pausedAge: 0.6)),
+        ]
+        func scene(_ m: MusicPulse) -> PetScene { var s = PetScene(state: .idle, dancing: m.playing); s.music = m; return s }
+        let worn: Set<Outfit> = [.headphones]
+        let view = VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                ForEach(Array(ages.enumerated()), id: \.offset) { _, entry in
+                    let pose = PetAnimator.pose(at: 0.125, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: scene(entry.1))
+                    VStack(spacing: 4) {
+                        ZStack {
+                            Canvas { gc, size in
+                                let px = PetAnimator.apply(Wardrobe.compose(Sprite.block(.idle, tick: 3), outfits: worn, state: .idle, tick: 3), pose: pose)
+                                PetFace.draw(&gc, size: size, pixels: px, pose: PetPose())
+                            }.frame(width: 84, height: 84)
+                            FxCanvas(pixels: MusicFx.beat(pulse: entry.1), unit: 3).frame(width: 104, height: 100)
+                        }.frame(width: 104, height: 100)
+                        Text(entry.0).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55))
+                    }
+                }
+            }
+            HStack(spacing: 10) {
+                ForEach(Array(ages.enumerated()), id: \.offset) { _, entry in
+                    let pose = PetAnimator.pose(at: 0.125, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: scene(entry.1))
+                    ZStack {
+                        CodexMiniFrame(face: .prompt(cursor: true), legs: .stand, tick: 0, skin: .cloud, wave: false, pose: pose, outfits: worn).frame(width: 84, height: 84)
+                        FxCanvas(pixels: MusicFx.beat(pulse: entry.1), unit: 3).frame(width: 104, height: 100)
+                    }.frame(width: 104, height: 100)
+                }
+            }
+        }
+        .padding(16).background(Color(hex: 0x15161C))
+        let r = ImageRenderer(content: view); r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}

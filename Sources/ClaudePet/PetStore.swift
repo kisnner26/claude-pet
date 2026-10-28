@@ -134,12 +134,31 @@ final class PetStore: ObservableObject {
     /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
     /// Reproductor de Spotify y Apple Music en la isla. Lee titulo, artista y portada de lo que suena: por eso es opt-in.
     @Published var musicPlayer: Bool = UserDefaults.standard.bool(forKey: "musicPlayer") {
-        didSet { UserDefaults.standard.set(musicPlayer, forKey: "musicPlayer"); music.enabled = musicPlayer }
+        didSet { UserDefaults.standard.set(musicPlayer, forKey: "musicPlayer"); music.enabled = musicPlayer; syncAudio() }
     }
     /// La mascota reacciona a la musica: se pone auriculares, baila y suelta notas segun el volumen.
     @Published var musicReacts: Bool = UserDefaults.standard.object(forKey: "musicReacts") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(musicReacts, forKey: "musicReacts") }
+        didSet { UserDefaults.standard.set(musicReacts, forKey: "musicReacts"); syncAudio() }
     }
+    /// Oir el audio del Mac (pide permiso de grabacion de pantalla y audio del sistema) para seguir el ritmo de verdad.
+    @Published var musicListens: Bool = UserDefaults.standard.bool(forKey: "musicListens") {
+        didSet { UserDefaults.standard.set(musicListens, forKey: "musicListens"); syncAudio() }
+    }
+    /// La captura solo corre mientras suena algo, el reproductor esta activo y el usuario lo ha pedido.
+    func syncAudio() { AudioReactor.shared.setActive(musicPlayer && musicReacts && musicListens && music.isPlaying) }
+
+    /// Lo que la mascota sabe de la musica ahora mismo; nil si no hay nada que reflejar.
+    /// Un par de segundos despues de pausar sigue devolviendo un pulso para el suspiro.
+    func musicPulse(at now: TimeInterval) -> MusicPulse? {
+        guard musicPlayer, musicReacts, let n = music.nowPlaying else { return nil }
+        let pausedAge = now - music.pausedAt
+        guard n.isPlaying || pausedAge < MusicDance.pauseLength else { return nil }
+        var m = MusicPulse(playing: n.isPlaying, volume: Double(n.volume) / 100)
+        m.startedAge = now - music.playStartedAt
+        m.pausedAge = n.isPlaying ? nil : pausedAge
+        return n.isPlaying && musicListens ? AudioReactor.shared.box.fill(m, now: now) : m
+    }
+
     lazy var plugins = PluginHost()
     lazy var music = MusicController(enabled: UserDefaults.standard.bool(forKey: "musicPlayer"))
     var musicReacting: Bool { musicPlayer && musicReacts && music.isPlaying }

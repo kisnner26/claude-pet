@@ -174,6 +174,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-dance"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.dance(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-outfits"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.outfits(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -311,6 +314,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         AuditLog.onRecord = { ask, result, source in
             Task { @MainActor in PetStore.shared.plugins.emit(.permissionDecided, fields: ["tool": ask.tool, "project": ask.project, "decision": result, "source": source]) }
         }
+        PetStore.shared.music.onPlayback = { _ in PetStore.shared.syncAudio() }
         PetStore.shared.music.onTrack = { n in
             PetStore.shared.plugins.emit(.musicTrack, fields: ["title": n.title, "artist": n.artist, "album": n.album, "app": n.app.title])
         }

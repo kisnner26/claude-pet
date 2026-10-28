@@ -50,6 +50,7 @@ struct PetFace: View {
         if let since = model.petHoverSince { scene.pettingFor = ProcessInfo.processInfo.systemUptime - since }
         let hour = Calendar.current.component(.hour, from: Date())
         scene.daytime = hour >= 6 && hour < 21
+        scene.music = store.musicPulse(at: ProcessInfo.processInfo.systemUptime)
     }
 
     static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose) {
@@ -86,7 +87,7 @@ struct CodexMini: View {
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
             // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza y saluda con la mano
             let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true,
-                                                 scene: { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()) : PetPose()
+                                                 scene: { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState, dancing: model.dancing); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()) : PetPose()
             CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose, outfits: store.outfitsNow(at: ctx.date))
             }
         }

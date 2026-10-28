@@ -44,6 +44,10 @@ final class MusicController: ObservableObject {
     private(set) var trackChangedAt: TimeInterval = -100
     /// Lo usan los plugins: se avisa al empezar una cancion nueva.
     var onTrack: ((NowPlaying) -> Void)?
+    /// Avisa cuando empieza o se pausa la reproduccion (enciende y apaga la escucha del audio).
+    var onPlayback: ((Bool) -> Void)?
+    private(set) var playStartedAt: TimeInterval = -100
+    private(set) var pausedAt: TimeInterval = -100
 
     private let runner = ScriptRunner()
     private var lastPosition = 0.0
@@ -111,11 +115,18 @@ final class MusicController: ObservableObject {
         if let f = found { preferred = f.app; lastPosition = f.position; polledAt = now }
         guard found?.withoutPosition != nowPlaying?.withoutPosition else { return }
         if let f = found, let old = nowPlaying, f.trackID != old.trackID { trackChangedAt = now }
+        markPlayback(was: nowPlaying?.isPlaying == true, now: found?.isPlaying == true, at: now)
         let newTrack = found?.trackID != nowPlaying?.trackID
         nowPlaying = found
         guard newTrack else { return }
         if let f = found, f.isPlaying { record(f); onTrack?(f) }
         loadCover(for: found)
+    }
+
+    private func markPlayback(was: Bool, now isPlaying: Bool, at t: TimeInterval) {
+        if isPlaying && !was { playStartedAt = t }
+        if was && !isPlaying { pausedAt = t }
+        if was != isPlaying { onPlayback?(isPlaying) }
     }
 
     // MARK: indice
@@ -182,7 +193,7 @@ final class MusicController: ObservableObject {
         guard let app = nowPlaying?.app ?? preferred else { return }
         runner.run(MusicScript.command(command, app: app))
         let now = ProcessInfo.processInfo.systemUptime
-        if command == .playPause, var n = nowPlaying { n.isPlaying.toggle(); lastPosition = position(at: now); polledAt = now; nowPlaying = n }
+        if command == .playPause, var n = nowPlaying { markPlayback(was: n.isPlaying, now: !n.isPlaying, at: now); n.isPlaying.toggle(); lastPosition = position(at: now); polledAt = now; nowPlaying = n }
         if case .seek(let s) = command { lastPosition = Double(s); polledAt = now }
         if case .volume(let v) = command, var n = nowPlaying { n.volume = v; nowPlaying = n }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in MainActor.assumeIsolated { self?.poll() } }

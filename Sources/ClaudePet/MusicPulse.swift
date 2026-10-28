@@ -177,16 +177,16 @@ extension MusicFx {
         var out: [FxPixel] = []
         // tres barras de ecualizador a los pies
         for (i, v) in [m.bass, m.mid, m.treble].enumerated() {
-            let x = 0.36 + Double(i) * 0.14
-            let h = max(1, Int((min(1, max(0, v)) * 6).rounded()))
-            for k in 0..<h { out.append(FxPixel(x: x, y: 0.96 - Double(k) * 0.034, size: 2.4, color: bandColors[i], alpha: 0.55 + 0.4 * v)) }
+            let x = 0.05 + Double(i) * 0.06                     // a un lado, fuera de la mascota
+            let h = max(1, Int((min(1, max(0, v)) * 7).rounded()))
+            for k in 0..<h { out.append(FxPixel(x: x, y: 0.93 - Double(k) * 0.034, size: 2.4, color: bandColors[i], alpha: 0.55 + 0.4 * v)) }
         }
         // aro en cada pulso
         if let age = m.beatAge, age < MusicDance.beatLength {
             let p = age / MusicDance.beatLength, strong = 0.4 + 0.6 * m.bass
             for k in 0..<14 {
                 let a = Double(k) / 14 * 2 * .pi
-                out.append(FxPixel(x: 0.5 + cos(a) * (0.12 + 0.30 * p), y: 0.5 + sin(a) * (0.10 + 0.24 * p), size: 1.6, color: bandColors[k % 3], alpha: (1 - p) * strong))
+                out.append(FxPixel(x: 0.5 + cos(a) * (0.34 + 0.12 * p), y: 0.48 + sin(a) * (0.30 + 0.12 * p), size: 1.6, color: bandColors[k % 3], alpha: (1 - p) * strong))      // nace fuera de la cara y se abre
             }
         }
         return out

@@ -44,6 +44,8 @@ struct PetScene: Equatable {
     /// Segundos que el cursor lleva encima de la mascota (caricia).
     var pettingFor: TimeInterval = 0
     var daytime = true
+    /// Lo que suena y como; nil si la musica no cuenta.
+    var music: MusicPulse?
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -242,10 +244,10 @@ enum PetAnimator {
                 p.worried = true
                 p.dx += CGFloat(sin(t * 50)) * 0.25                              // tiembla de preocupacion
             } else if scene.dancing, scene.state == .idle || scene.state == .done {
-                p.dancing = true
-                p.rotation = 6 * sin(t * 2 * .pi * 2)
-                p.dy -= 0.8 * CGFloat(abs(sin(t * 2 * .pi * 2)))
+                MusicDance.apply(&p, t: t, music: scene.music ?? MusicPulse(playing: true, volume: 1))
             }
+            // un salto al empezar y un suspiro al pausar, aunque no se baile
+            if let m = scene.music, scene.state == .idle || scene.state == .done { MusicDance.transients(&p, music: m) }
         }
         return p
     }
@@ -286,7 +288,7 @@ enum PetAnimator {
                 for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
             }
         }
-        if pose.happy { out += Petting.hearts(at: t) }
+        if pose.happy && !pose.dancing { out += Petting.hearts(at: t) }
         if scene.waitingFor >= alarmedAfter, Int(t * 3) % 2 == 0 {
             for (x, y) in [(7, 0), (8, 0), (7, 1), (8, 1), (7, 2), (8, 2), (7, 4), (8, 4)] { out.append(Px(x: x, y: y, c: Color(hex: 0xE7B45B))) }
         }

@@ -106,6 +106,28 @@ enum AudioSelfTest {
         let barsOnly = MusicFx.beat(pulse: MusicPulse(playing: true, listening: true, level: 1, bass: 1, mid: 0.5, treble: 0.1, beatAge: 5))
         check("el aro solo dura un pulso", eq.count > barsOnly.count && !barsOnly.isEmpty)
 
+        // mezclador a mono
+        check("mono entrelazado", AudioMixdown.mono(interleaved: [1, 3, 2, 4, 0, 2], channels: 2) == [2, 3, 1] && AudioMixdown.mono(interleaved: [1, 2, 3], channels: 1) == [1, 2, 3])
+        check("mono planar", AudioMixdown.mono(planar: [[1, 2, 3], [3, 4, 5]]) == [2, 3, 4] && AudioMixdown.mono(planar: [[1, 2, 3]]) == [1, 2, 3] && AudioMixdown.mono(planar: []).isEmpty)
+        check("mono planar con canales de distinta longitud", AudioMixdown.mono(planar: [[1, 2, 3], [3, 4]]).count == 2)
+        check("mono con 0 canales", AudioMixdown.mono(interleaved: [1, 2], channels: 0).isEmpty)
+
+        // caja de resultados: solo hay escucha mientras llega audio
+        let box = AudioFeatureBox()
+        let base = MusicPulse(playing: true, volume: 0.7)
+        check("sin audio no hay escucha", box.fill(base, now: 100) == base)
+        let clip = kicks(bpm: 120, seconds: 3, rate: 48_000)
+        var i = 0; while i < clip.count { box.feed(Array(clip[i..<min(clip.count, i + 960)]), rate: 48_000, now: 100 + Double(i) / 48_000); i += 960 }
+        let live = box.fill(base, now: 103)
+        check("con audio hay escucha, pulsos y volumen de la app", live.listening && live.beatCount >= 4 && live.beatAge != nil && live.volume == 0.7 && live.playing)
+        check("el audio caduca: si deja de llegar, vuelve a las apps", box.fill(base, now: 104) == base)
+        box.feed(clip, rate: 44_100, now: 200)
+        check("cambio de tasa de muestreo reinicia el analizador", box.fill(base, now: 200.1).listening)
+        box.reset()
+        check("reset apaga la escucha", box.fill(base, now: 200.2) == base)
+        box.feed([], rate: 48_000, now: 300); box.feed([1, 2, 3], rate: 0, now: 300)
+        check("entradas vacias o con tasa 0 se ignoran", box.fill(base, now: 300.1) == base)
+
         print(failures == 0 ? "AUDIO OK" : "AUDIO \(failures) FALLOS")
         return failures == 0
     }

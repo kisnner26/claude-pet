@@ -212,6 +212,7 @@ struct SonidosPage: View {
 struct MusicaPage: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var music: MusicController
+    @ObservedObject private var audio = AudioReactor.shared
 
     init(store: PetStore) {
         self.store = store
@@ -228,9 +229,23 @@ struct MusicaPage: View {
                 }
             }
             if store.musicPlayer && !music.recents.isEmpty { recientes }
-            SCard(title: "la mascota reacciona", footer: "no oye el audio: reacciona a lo que dicen las apps (suena o no, qué volumen, cuándo cambia el tema). más volumen, más notas.") {
+            SCard(title: "la mascota reacciona", footer: "sin la escucha, reacciona a lo que dicen las apps: si suena o no, el volumen y los cambios de tema (salta al empezar, suspira al pausar). con la escucha, sigue el compás real.") {
                 if store.musicPlayer {
                     SToggle(title: "reaccionar a la música", detail: "se pone auriculares, baila y suelta notas; al cambiar de tema hay un destello.", isOn: $store.musicReacts)
+                    SDivider()
+                    SToggle(title: "seguir el ritmo de verdad", detail: "oye el audio del Mac para saltar con el bombo, mover la cabeza al compás y enseñar graves, medios y agudos. el audio no se guarda ni sale del Mac: solo se calculan unos números.",
+                            isOn: Binding(get: { store.musicListens }, set: { on in if on && !AudioReactor.hasPermission { AudioReactor.requestPermission() }; store.musicListens = on }))
+                    if store.musicListens {
+                        SDivider()
+                        SRow(title: "escucha", detail: audioDetail) {
+                            if audio.status == .needsPermission {
+                                SButton(title: "dar permiso", symbol: "lock.open", prominent: true) {
+                                    AudioReactor.requestPermission()
+                                    if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(u) }
+                                }
+                            } else { SBadge(text: audioBadge, color: audio.status == .listening ? SettingsTheme.green : SettingsTheme.mute) }
+                        }
+                    }
                 } else {
                     SToggle(title: "bailar cuando suena algo", detail: "solo detecta si Spotify o Apple Music están reproduciendo. no lee títulos ni portadas.", isOn: $store.danceToMusic)
                 }
@@ -248,6 +263,19 @@ struct MusicaPage: View {
             .padding(.horizontal, 20).padding(.vertical, 14)
             SDivider()
             SRow(title: "borrar historial y portadas") { SButton(title: "borrar", symbol: "trash", destructive: true) { music.clearIndex() } }
+        }
+    }
+
+    private var audioBadge: String {
+        switch audio.status { case .listening: return "oyendo"; case .starting: return "iniciando"; case .failed: return "error"; default: return "en espera" }
+    }
+    private var audioDetail: String {
+        switch audio.status {
+        case .off: return "se enciende sola cuando suena algo. macOS muestra un indicador en la barra de menú mientras escucha."
+        case .starting: return "iniciando la captura…"
+        case .listening: return "oyendo el audio del Mac. no se escucha el de claude-pet."
+        case .needsPermission: return "falta el permiso de grabación de pantalla y audio del sistema. tras darlo, vuelve a abrir claude-pet."
+        case .failed(let m): return "no se pudo escuchar: \(m)"
         }
     }
 

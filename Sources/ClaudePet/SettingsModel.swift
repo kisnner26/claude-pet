@@ -182,7 +182,7 @@ enum SettingsBackup {
         Entry(key: "autoRestorePoints", kind: .bool), Entry(key: "blockOnChange", kind: .bool),
         Entry(key: "soundsEnabled", kind: .bool), Entry(key: "soundVolume", kind: .number(0, 1)),
         Entry(key: "soundCategoryVolumes", kind: .text(80)), Entry(key: "shortcutKeys", kind: .text(80)),
-        Entry(key: "wardrobe", kind: .text(120)), Entry(key: "seasonalOutfits", kind: .bool), Entry(key: "danceToMusic", kind: .bool), Entry(key: "musicPlayer", kind: .bool), Entry(key: "musicReacts", kind: .bool),
+        Entry(key: "wardrobe", kind: .text(120)), Entry(key: "seasonalOutfits", kind: .bool), Entry(key: "danceToMusic", kind: .bool), Entry(key: "musicPlayer", kind: .bool), Entry(key: "musicReacts", kind: .bool), Entry(key: "musicListens", kind: .bool),
         Entry(key: "focusManual", kind: .bool), Entry(key: "focusStart", kind: .integer(-1, 23)), Entry(key: "focusEnd", kind: .integer(-1, 23)),
         Entry(key: "pinSession", kind: .bool), Entry(key: "muteClaude", kind: .bool), Entry(key: "muteCodex", kind: .bool),
         Entry(key: "animationsEnabled", kind: .bool), Entry(key: "footballEnabled", kind: .bool),
