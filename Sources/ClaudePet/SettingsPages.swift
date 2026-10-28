@@ -52,26 +52,33 @@ struct ResumenPage: View {
     private var hero: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(LinearGradient(colors: [SettingsTheme.blue.opacity(0.55), Color(hex: 0x1D2547).opacity(0.9)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(LinearGradient(colors: [SettingsTheme.claude.opacity(0.38), SettingsTheme.violet.opacity(0.22), SettingsTheme.codex.opacity(0.46)], startPoint: .topLeading, endPoint: .bottomTrailing))
             Canvas { ctx, size in
                 for i in 0..<46 {
                     let x = CGFloat((i * 7919) % 1000) / 1000 * size.width, y = CGFloat((i * 104729) % 1000) / 1000 * size.height
-                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.6, height: 1.6)), with: .color(.white.opacity(0.18 + Double(i % 5) * 0.07)))
+                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.6, height: 1.6)), with: .color(.white.opacity(0.14 + Double(i % 5) * 0.06)))
                 }
             }
-            VStack(alignment: .leading, spacing: 10) {
-                Text("claude-pet").font(.system(size: 34, weight: .bold)).tracking(-0.6)
-                Text(store.state == .idle ? "todo tranquilo. tus agentes no están trabajando ahora." : "claude: \(store.state.label.lowercased()) · \(store.sessionSummary)")
-                    .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.78))
-                HStack(spacing: 8) {
-                    SBadge(text: store.claudePresent ? "claude conectado" : "claude sin sesión", color: store.claudePresent ? SettingsTheme.green : SettingsTheme.mute)
-                    SBadge(text: store.codexPresent ? "codex conectado" : "codex sin sesión", color: store.codexPresent ? SettingsTheme.green : SettingsTheme.mute)
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("claude-pet").font(.system(size: 34, weight: .bold)).tracking(-0.6)
+                    Text(store.state == .idle ? "todo tranquilo. tus agentes no están trabajando ahora." : "claude: \(store.state.label.lowercased()) · \(store.sessionSummary)")
+                        .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.8)).lineLimit(2)
+                    HStack(spacing: 8) {
+                        SBadge(text: store.claudePresent ? "claude conectado" : "claude sin sesión", color: store.claudePresent ? SettingsTheme.green : SettingsTheme.mute)
+                        SBadge(text: store.codexPresent ? "codex conectado" : "codex sin sesión", color: store.codexPresent ? SettingsTheme.green : SettingsTheme.mute)
+                    }
+                }
+                Spacer(minLength: 12)
+                HStack(spacing: -6) {
+                    ClaudeSprite(state: store.state, outfits: store.outfitsNow()).frame(width: 104, height: 104).breathing()
+                    CodexSprite(face: store.codexPresent && store.codexState != .idle ? .typing(1) : .prompt(cursor: true), skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 104, height: 104).breathing(delay: 0.5)
                 }
             }
-            .padding(26)
+            .padding(.horizontal, 26)
         }
-        .frame(height: 164)
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(SettingsTheme.line, lineWidth: 1))
+        .frame(height: 170)
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
     }
 }
 
@@ -165,10 +172,6 @@ struct AparienciaPage: View {
                 }
             }
             SCard(title: "mascotas") {
-                SMenu(title: "claude", selection: $store.skin, options: Skin.allCases.map { ($0, $0.title) })
-                SDivider()
-                SMenu(title: "codex", selection: $store.codexSkin, options: CodexSkin.allCases.map { ($0, $0.title) })
-                SDivider()
                 SToggle(title: "animaciones", detail: "respiración, parpadeo, saltos y efectos.", isOn: $store.animationsEnabled)
                 SDivider()
                 SToggle(title: "partido automático", detail: "las mascotas juegan al fútbol cuando no hay trabajo.", isOn: $store.footballEnabled)
@@ -208,6 +211,37 @@ struct ComportamientoPage: View {
 
 // MARK: agentes
 
+/// Tarjeta de un agente: su mascota, su estado y lo que se puede ajustar de el. El color del agente tiñe la tarjeta.
+struct AgentCard<Sprite: View, Content: View>: View {
+    let name: String
+    let tint: Color
+    let status: String
+    var statusColor: Color?
+    @ViewBuilder var sprite: Sprite
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 16) {
+                sprite.frame(width: 84, height: 84).breathing()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(name).font(.system(size: 22, weight: .bold)).tracking(-0.3)
+                    SBadge(text: status, color: statusColor ?? tint)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 8)
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .top, endPoint: .bottom))
+            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(RadialGradient(colors: [tint.opacity(0.24), .clear], center: .topLeading, startRadius: 4, endRadius: 360))
+        })
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(LinearGradient(colors: [tint.opacity(0.55), Color.white.opacity(0.06), tint.opacity(0.25)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+    }
+}
+
 struct AgentesPage: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var scout: NativeWebScoutController
@@ -217,27 +251,60 @@ struct AgentesPage: View {
         _scout = ObservedObject(wrappedValue: store.webScout)
     }
 
+    private var outfits: Set<Outfit> { store.outfitsNow() }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SCard(title: "qué agentes se muestran") {
-                SRow(title: "claude", detail: store.claudePresent ? "hay una sesión activa" : "sin sesión ahora mismo") {
-                    Toggle("", isOn: Binding(get: { !store.muteClaude }, set: { store.muteClaude = !$0 })).labelsHidden().toggleStyle(.switch).tint(SettingsTheme.blue)
-                }
-                SDivider()
-                SRow(title: "codex", detail: store.codexPresent ? "hay una sesión activa" : "sin sesión ahora mismo") {
-                    Toggle("", isOn: Binding(get: { !store.muteCodex }, set: { store.muteCodex = !$0 })).labelsHidden().toggleStyle(.switch).tint(SettingsTheme.blue)
-                }
-                SDivider()
-                SToggle(title: "gestos de codex", detail: "la mascota de codex reacciona a lo que pasa.", isOn: $store.codexGesturesEnabled)
-            }
-            SCard(title: "detalle y vigilancia") {
-                SToggle(title: "detalle local de claude", detail: "lee el contexto y los archivos de la sesión, solo en este Mac.", isOn: $store.showDetail)
-                SDivider()
-                SToggle(title: "avisar si parecen bloqueados", detail: "una alerta cuando un agente lleva mucho rato sin avanzar.", isOn: $store.stallWatch)
-            }
+            claudeCard
+            codexCard
             SCard(title: "exploración web") {
                 SToggle(title: "verificar enlaces rotos", detail: "el explorador comprueba cada enlace que encuentra.", isOn: $scout.verifyLinks)
             }
+        }
+    }
+
+    private var claudeCard: some View {
+        AgentCard(name: "claude", tint: SettingsTheme.claude, status: store.claudePresent ? "sesión activa" : "sin sesión", statusColor: store.claudePresent ? SettingsTheme.green : SettingsTheme.mute,
+                  sprite: { ClaudeSprite(state: store.state, outfits: outfits) }) {
+            SRow(title: "mostrar en la isla") {
+                Toggle("mostrar claude", isOn: Binding(get: { !store.muteClaude }, set: { store.muteClaude = !$0 })).labelsHidden().toggleStyle(GlassToggleStyle())
+            }
+            SDivider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("aspecto").font(.system(size: 13.5, weight: .medium))
+                HStack(spacing: 10) {
+                    ForEach(Skin.allCases, id: \.self) { skin in
+                        SpriteTile(title: skin.title, selected: store.skin == skin, action: { store.skin = skin }) { ClaudeSprite(outfits: skin == .block ? outfits : [], skin: skin).frame(width: 64, height: 64) }
+                    }
+                }
+                if store.skin == .classic { Text("los atuendos están dibujados para el aspecto bloque.").font(.system(size: 11)).foregroundStyle(SettingsTheme.mute) }
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            SDivider()
+            SToggle(title: "detalle local", detail: "lee el contexto y los archivos de la sesión, solo en este Mac.", isOn: $store.showDetail)
+            SDivider()
+            SToggle(title: "avisar si parece bloqueado", detail: "una alerta cuando lleva mucho rato sin avanzar.", isOn: $store.stallWatch)
+        }
+    }
+
+    private var codexCard: some View {
+        AgentCard(name: "codex", tint: SettingsTheme.codex, status: store.codexPresent ? "sesión activa" : "sin sesión", statusColor: store.codexPresent ? SettingsTheme.green : SettingsTheme.mute,
+                  sprite: { CodexSprite(skin: store.codexSkin, outfits: outfits) }) {
+            SRow(title: "mostrar en la isla") {
+                Toggle("mostrar codex", isOn: Binding(get: { !store.muteCodex }, set: { store.muteCodex = !$0 })).labelsHidden().toggleStyle(GlassToggleStyle())
+            }
+            SDivider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("aspecto").font(.system(size: 13.5, weight: .medium))
+                HStack(spacing: 10) {
+                    ForEach(CodexSkin.allCases, id: \.self) { skin in
+                        SpriteTile(title: skin.title, selected: store.codexSkin == skin, action: { store.codexSkin = skin }) { CodexSprite(skin: skin, outfits: outfits).frame(width: 64, height: 64) }
+                    }
+                }
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+            SDivider()
+            SToggle(title: "gestos", detail: "la mascota de codex reacciona a lo que pasa.", isOn: $store.codexGesturesEnabled)
         }
     }
 }

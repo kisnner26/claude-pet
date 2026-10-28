@@ -1,19 +1,48 @@
 import SwiftUI
 import AppKit
 
-/// Estilo de la ventana de ajustes: carbon oscuro, tarjetas de cristal y un unico azul de accion.
+/// Identidad de la ventana de ajustes. Claude y Codex comparten la rejilla pixel-art y el glifo `>_`; el color los separa:
+/// el naranja del bloque de Claude y el azul de la nube de Codex. El dúo coral -> violeta -> azul es el acento de toda la ventana.
 enum SettingsTheme {
-    static let blue = Color(hex: 0x2966ED)
+    static let claude = Color(hex: 0xE0824F)
+    static let codex = Color(hex: 0x5270E8)
+    static let codexLight = Color(hex: 0x7E98FF)
+    static let violet = Color(hex: 0xB872C8)
+    /// Un solo color para controles que no admiten degradado.
+    static let blue = Color(hex: 0xA78BFA)
     static let green = Color(hex: 0x33CC5C)
     static let red = Color(hex: 0xE6213F)
     static let amber = Color(hex: 0xF2B632)
-    static let mute = Color.white.opacity(0.55)
+    static let mute = Color.white.opacity(0.58)
     static let line = Color.white.opacity(0.11)
-    static var background: some View {
+    static let duo = LinearGradient(colors: [claude, violet, codexLight], startPoint: .leading, endPoint: .trailing)
+    static let duoDiagonal = LinearGradient(colors: [claude, violet, codexLight], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static var cardBorder: LinearGradient {
+        LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.05), Color.white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+    static var background: some View { SettingsBackground() }
+}
+
+/// Vidrio real: el desenfoque lo pone macOS detras de la ventana; encima, dos luces tenues, una por agente.
+struct VisualEffect: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .hudWindow
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = material; v.blendingMode = .behindWindow; v.state = .active
+        return v
+    }
+    func updateNSView(_ v: NSVisualEffectView, context: Context) { v.material = material }
+}
+
+struct SettingsBackground: View {
+    var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: 0x121318), Color(hex: 0x1B1C23)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            RadialGradient(colors: [blue.opacity(0.16), .clear], center: .topLeading, startRadius: 20, endRadius: 560)
+            VisualEffect()
+            Color(hex: 0x0D0E13).opacity(0.62)
+            RadialGradient(colors: [SettingsTheme.claude.opacity(0.20), .clear], center: .topLeading, startRadius: 10, endRadius: 520)
+            RadialGradient(colors: [SettingsTheme.codex.opacity(0.24), .clear], center: .bottomTrailing, startRadius: 10, endRadius: 620)
         }
+        .ignoresSafeArea()
     }
 }
 
@@ -25,10 +54,11 @@ struct SCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let title {
-                Text(title.uppercased())
-                    .font(.system(size: 10, weight: .medium, design: .monospaced)).tracking(1.4)
-                    .foregroundStyle(SettingsTheme.mute)
-                    .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 4)
+                HStack(spacing: 8) {
+                    Capsule().fill(SettingsTheme.duo).frame(width: 14, height: 3)
+                    Text(title.uppercased()).font(.system(size: 10, weight: .medium, design: .monospaced)).tracking(1.4).foregroundStyle(SettingsTheme.mute)
+                }
+                .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 4)
             }
             VStack(alignment: .leading, spacing: 0) { content }
             if let footer {
@@ -38,8 +68,8 @@ struct SCard<Content: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.white.opacity(0.055)))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(SettingsTheme.line, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .top, endPoint: .bottom)))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
     }
 }
 
@@ -67,13 +97,30 @@ struct SRow<Trailing: View>: View {
     }
 }
 
+/// Interruptor de vidrio: el dúo de color cuando esta encendido.
+struct GlassToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule().fill(configuration.isOn ? AnyShapeStyle(SettingsTheme.duo) : AnyShapeStyle(Color.white.opacity(0.14)))
+                Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                Circle().fill(Color.white).padding(3).shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+            }
+            .frame(width: 42, height: 24)
+            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }
+    }
+}
+
 struct SToggle: View {
     let title: String
     var detail: String?
     @Binding var isOn: Bool
     var body: some View {
         SRow(title: title, detail: detail) {
-            Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).tint(SettingsTheme.blue)
+            Toggle(title, isOn: $isOn).labelsHidden().toggleStyle(GlassToggleStyle())
         }
     }
 }
@@ -85,10 +132,19 @@ struct SMenu<T: Hashable>: View {
     let options: [(T, String)]
     var body: some View {
         SRow(title: title, detail: detail) {
-            Picker("", selection: $selection) {
-                ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
+            Menu {
+                ForEach(options, id: \.0) { option in Button(option.1) { selection = option.0 } }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(options.first { $0.0 == selection }?.1 ?? "").font(.system(size: 12.5, weight: .medium))
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(SettingsTheme.mute)
+                }
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(Capsule().fill(Color.white.opacity(0.09)))
+                .overlay(Capsule().stroke(SettingsTheme.line, lineWidth: 1))
             }
-            .labelsHidden().pickerStyle(.menu).fixedSize()
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .accessibilityLabel(title)
         }
     }
 }
@@ -100,10 +156,51 @@ struct SSegmented<T: Hashable>: View {
     let options: [(T, String)]
     var body: some View {
         SRow(title: title, detail: detail) {
-            Picker("", selection: $selection) {
-                ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
+            HStack(spacing: 2) {
+                ForEach(options, id: \.0) { option in
+                    let on = option.0 == selection
+                    Button { withAnimation(.easeOut(duration: 0.16)) { selection = option.0 } } label: {
+                        Text(option.1).font(.system(size: 12, weight: on ? .semibold : .regular))
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .foregroundStyle(on ? Color.white : Color.white.opacity(0.7))
+                            .background(Capsule().fill(on ? AnyShapeStyle(SettingsTheme.duo.opacity(0.85)) : AnyShapeStyle(Color.clear)))
+                    }
+                    .buttonStyle(.plain).accessibilityAddTraits(on ? .isSelected : [])
+                }
             }
-            .labelsHidden().pickerStyle(.segmented).frame(width: 300)
+            .padding(3).background(Capsule().fill(Color.white.opacity(0.08))).overlay(Capsule().stroke(SettingsTheme.line, lineWidth: 1))
+        }
+    }
+}
+
+/// Barra de vidrio que se arrastra; sirve de deslizador en ajustes.
+struct GlassSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    var step: Double = 0.05
+    var width: CGFloat = 190
+    var body: some View {
+        GeometryReader { geo in
+            let f = CGFloat((value - range.lowerBound) / (range.upperBound - range.lowerBound))
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.14)).frame(height: 5)
+                Capsule().fill(SettingsTheme.duo).frame(width: max(5, geo.size.width * f), height: 5)
+                Circle().fill(Color.white).frame(width: 16, height: 16).shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                    .offset(x: max(0, min(geo.size.width - 16, geo.size.width * f - 8)))
+            }
+            .frame(maxHeight: .infinity).contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { g in
+                let raw = range.lowerBound + Double(max(0, min(1, g.location.x / max(1, geo.size.width)))) * (range.upperBound - range.lowerBound)
+                let snapped = (raw / step).rounded() * step
+                let next = max(range.lowerBound, min(range.upperBound, snapped))
+                if next != value { value = next }
+            })
+        }
+        .frame(width: width, height: 22)
+        .accessibilityElement().accessibilityValue("\(Int(((value - range.lowerBound) / (range.upperBound - range.lowerBound) * 100).rounded())) %")
+        .accessibilityAdjustableAction { dir in
+            let delta = dir == .increment ? step : -step
+            value = max(range.lowerBound, min(range.upperBound, value + delta))
         }
     }
 }
@@ -118,7 +215,7 @@ struct SSlider: View {
     var body: some View {
         SRow(title: title, detail: detail) {
             HStack(spacing: 12) {
-                Slider(value: $value, in: range, step: step).tint(SettingsTheme.blue).frame(width: 190)
+                GlassSlider(value: $value, range: range, step: step)
                 Text(format(value)).font(.system(size: 12, design: .monospaced)).foregroundStyle(SettingsTheme.mute).frame(width: 58, alignment: .trailing)
             }
         }
@@ -139,8 +236,8 @@ struct SButton: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 7)
             .foregroundStyle(destructive ? SettingsTheme.red : .white)
-            .background(Capsule().fill(prominent ? SettingsTheme.blue : Color.white.opacity(0.1)))
-            .overlay(Capsule().stroke(prominent ? .clear : SettingsTheme.line, lineWidth: 1))
+            .background(Capsule().fill(prominent ? AnyShapeStyle(SettingsTheme.duo) : AnyShapeStyle(Color.white.opacity(0.1))))
+            .overlay(Capsule().stroke(prominent ? Color.white.opacity(0.25) : SettingsTheme.line, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -161,13 +258,44 @@ struct SStat: View {
     let label: String
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 28, weight: .bold)).monospacedDigit()
+            Text(value).font(.system(size: 28, weight: .bold)).monospacedDigit().foregroundStyle(SettingsTheme.duo)
             Text(label).font(.system(size: 11)).foregroundStyle(SettingsTheme.mute)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.055)))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(SettingsTheme.line, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
+    }
+}
+
+/// Casilla seleccionable con una mascota dentro: skins y atuendos.
+struct SpriteTile<Content: View>: View {
+    let title: String
+    var detail: String?
+    var selected: Bool
+    var locked = false
+    let action: () -> Void
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                content.frame(height: 64).opacity(locked ? 0.35 : 1)
+                VStack(spacing: 1) {
+                    Text(title).font(.system(size: 12, weight: .semibold))
+                    if let detail { Text(detail).font(.system(size: 10, design: .monospaced)).foregroundStyle(SettingsTheme.mute) }
+                }
+            }
+            .frame(maxWidth: .infinity).padding(.vertical, 12).padding(.horizontal, 8)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(selected ? Color.white.opacity(0.11) : Color.white.opacity(0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(selected ? AnyShapeStyle(SettingsTheme.duoDiagonal) : AnyShapeStyle(SettingsTheme.line), lineWidth: selected ? 1.6 : 1))
+            .overlay(alignment: .topTrailing) {
+                if locked { Image(systemName: "lock.fill").font(.system(size: 10)).foregroundStyle(SettingsTheme.mute).padding(8) }
+                else if selected { Image(systemName: "checkmark.circle.fill").font(.system(size: 13)).foregroundStyle(SettingsTheme.duo).padding(7) }
+            }
+        }
+        .buttonStyle(.plain).disabled(locked)
+        .accessibilityLabel(title).accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

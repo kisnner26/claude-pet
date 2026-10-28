@@ -97,21 +97,46 @@ struct PrivacidadPage: View {
 
 struct GuardarropaPage: View {
     @ObservedObject var store: PetStore
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SCard(title: "atuendos", footer: "subes de nivel con la actividad de la semana: sesiones, herramientas y racha.") {
-                ForEach(Array(Outfit.allCases.enumerated()), id: \.element.id) { index, outfit in
-                    let unlocked = Evolution.isUnlocked(outfit, level: store.weeklyRecap.level)
-                    if index > 0 { SDivider() }
-                    SRow(title: outfit.title, detail: unlocked ? nil : "se desbloquea en el nivel \(Evolution.unlockLevel(outfit))") {
-                        Toggle("", isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) }))
-                            .labelsHidden().toggleStyle(.switch).tint(SettingsTheme.blue).disabled(!unlocked)
+            SCard(title: "así se ven ahora") {
+                HStack(spacing: 28) {
+                    VStack(spacing: 6) {
+                        ClaudeSprite(outfits: store.outfitsNow()).frame(width: 120, height: 120).breathing()
+                        Text("claude").font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.claude)
+                    }
+                    VStack(spacing: 6) {
+                        CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 120, height: 120).breathing(delay: 0.5)
+                        Text("codex").font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.codexLight)
+                    }
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 18)
+                if store.skin == .classic {
+                    SDivider()
+                    SRow(title: "los atuendos están dibujados para el aspecto bloque", detail: "con el aspecto clásico solo los lleva codex.") {
+                        SButton(title: "usar bloque", symbol: "square.fill") { store.skin = .block }
                     }
                 }
             }
+            SCard(title: "atuendos", footer: "se llevan en las dos mascotas. subes de nivel con la actividad de la semana: sesiones, herramientas y racha.") {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(Outfit.allCases) { outfit in
+                        let unlocked = Evolution.isUnlocked(outfit, level: store.weeklyRecap.level)
+                        SpriteTile(title: outfit.title, detail: unlocked ? nil : "nivel \(Evolution.unlockLevel(outfit))", selected: store.wardrobe.contains(outfit), locked: !unlocked,
+                                   action: { store.toggleOutfit(outfit) }) {
+                            HStack(spacing: 2) {
+                                ClaudeSprite(outfits: [outfit], skin: .block).frame(width: 46, height: 46)
+                                CodexSprite(skin: store.codexSkin, outfits: [outfit]).frame(width: 46, height: 46)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 14)
+            }
             SCard(title: "temporadas") {
-                SToggle(title: "atuendos de temporada", detail: "se viste solo en fechas señaladas.", isOn: $store.seasonalOutfits)
+                SToggle(title: "atuendos de temporada", detail: "se visten solos en fechas señaladas: bufanda en invierno y gorro a fin de año.", isOn: $store.seasonalOutfits)
             }
         }
         .onAppear { store.refreshWeeklyRecap() }
@@ -167,7 +192,7 @@ struct SonidosPage: View {
         let binding = Binding<Double>(get: { store.categoryVolume(category) }, set: { store.soundCategoryVolumes[category] = $0 })
         return SRow(title: category.rawValue) {
             HStack(spacing: 12) {
-                Slider(value: binding, in: 0...1, step: 0.05).tint(SettingsTheme.blue).frame(width: 170)
+                GlassSlider(value: binding, range: 0...1, step: 0.05, width: 170)
                 Text("\(Int(binding.wrappedValue * 100)) %").font(.system(size: 12, design: .monospaced)).foregroundStyle(SettingsTheme.mute).frame(width: 46, alignment: .trailing)
             }
         }

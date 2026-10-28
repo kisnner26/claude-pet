@@ -171,6 +171,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-outfits"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.outfits(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-music"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.music(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -528,25 +531,29 @@ final class AppController: NSObject, NSApplicationDelegate {
         relayPanel = panel
     }
 
-    /// Ventana de ajustes. Con `page` se abre directamente en esa pagina.
+    /// Ventana de ajustes. Con `page` se abre directamente en esa pagina. Al cerrarla se libera el contenido:
+    /// asi una ventana oculta no vuelve a dibujarse cada vez que cambia algo en la app.
     func showSettings(page: SettingsPage? = nil) {
-        if settingsWindow == nil || page != nil {
-            let view = SettingsView(store: PetStore.shared, page: page ?? .resumen)
-            if let w = settingsWindow { w.contentView = NSHostingView(rootView: view) } else {
-                let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 700),
-                                 styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-                w.title = "ajustes de claude-pet"
-                w.titlebarAppearsTransparent = true
-                w.titleVisibility = .hidden
-                w.appearance = NSAppearance(named: .darkAqua)
-                w.isReleasedWhenClosed = false
-                w.isMovableByWindowBackground = true
-                w.contentMinSize = NSSize(width: 940, height: 640)
-                w.contentView = NSHostingView(rootView: view)
-                w.setFrameAutosaveName("claude-pet-ajustes")
-                w.center()
-                settingsWindow = w
-            }
+        let fresh = settingsWindow?.contentView is NSHostingView<SettingsView> == false
+        if settingsWindow == nil {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1020, height: 720),
+                             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            w.title = "ajustes de claude-pet"
+            w.titlebarAppearsTransparent = true
+            w.titleVisibility = .hidden
+            w.appearance = NSAppearance(named: .darkAqua)
+            w.isOpaque = false
+            w.backgroundColor = .clear
+            w.isReleasedWhenClosed = false
+            w.isMovableByWindowBackground = true
+            w.contentMinSize = NSSize(width: 960, height: 660)
+            w.setFrameAutosaveName("claude-pet-ajustes")
+            w.center()
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak w] _ in w?.contentView = NSView() }
+            settingsWindow = w
+        }
+        if fresh || page != nil {
+            settingsWindow?.contentView = NSHostingView(rootView: SettingsView(store: PetStore.shared, page: page ?? .resumen))
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

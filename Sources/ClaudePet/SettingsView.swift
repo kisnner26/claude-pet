@@ -50,6 +50,7 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
+            brand
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsTheme.mute)
                 TextField("buscar un ajuste", text: $query).textFieldStyle(.plain).font(.system(size: 13))
@@ -60,7 +61,7 @@ struct SettingsView: View {
             .padding(.horizontal, 12).padding(.vertical, 8)
             .background(Capsule().fill(Color.white.opacity(0.07)))
             .overlay(Capsule().stroke(SettingsTheme.line, lineWidth: 1))
-            .padding(.horizontal, 14).padding(.top, 46).padding(.bottom, 12)
+            .padding(.horizontal, 14).padding(.bottom, 12)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -87,18 +88,35 @@ struct SettingsView: View {
         .onChange(of: query) { _ in if let first = results.first, !results.contains(page) { page = first } }
     }
 
+    /// Las dos mascotas, vestidas como las tenga el usuario: la ventana ya dice de quien es.
+    private var brand: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: -8) {
+                ClaudeSprite(outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing()
+                CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing(delay: 0.5)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text("claude-pet").font(.system(size: 15, weight: .bold)).tracking(-0.2)
+                Text(">_ claude · codex").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(SettingsTheme.duo)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16).padding(.top, 40).padding(.bottom, 14)
+    }
+
     private func sidebarRow(_ p: SettingsPage) -> some View {
         let selected = p == page
         return Button { withAnimation(.easeOut(duration: 0.18)) { page = p } } label: {
             HStack(spacing: 10) {
                 Image(systemName: p.symbol).font(.system(size: 13, weight: .regular)).frame(width: 18)
+                    .foregroundStyle(selected ? AnyShapeStyle(SettingsTheme.duo) : AnyShapeStyle(Color.white.opacity(0.72)))
                 Text(p.title).font(.system(size: 13, weight: selected ? .semibold : .regular))
                 Spacer()
             }
             .padding(.horizontal, 12).padding(.vertical, 7)
             .foregroundStyle(selected ? Color.white : Color.white.opacity(0.72))
-            .background(Capsule().fill(selected ? SettingsTheme.blue.opacity(0.32) : .clear))
-            .overlay(Capsule().stroke(selected ? SettingsTheme.blue.opacity(0.6) : .clear, lineWidth: 1))
+            .background(Capsule().fill(selected ? Color.white.opacity(0.1) : .clear))
+            .overlay(Capsule().strokeBorder(selected ? AnyShapeStyle(SettingsTheme.duoDiagonal) : AnyShapeStyle(Color.clear), lineWidth: 1.2))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -120,7 +138,8 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(page.title).font(.system(size: 30, weight: .bold)).tracking(-0.5)
-                    Text(page.subtitle).font(.system(size: 13)).foregroundStyle(SettingsTheme.mute)
+                    Capsule().fill(SettingsTheme.duo).frame(width: 44, height: 3)
+                    Text(page.subtitle).font(.system(size: 13)).foregroundStyle(SettingsTheme.mute).padding(.top, 2)
                 }
                 .padding(.bottom, 4)
                 pageBody
