@@ -144,6 +144,10 @@ final class PetStore: ObservableObject {
     @Published var musicListens: Bool = UserDefaults.standard.bool(forKey: "musicListens") {
         didSet { UserDefaults.standard.set(musicListens, forKey: "musicListens"); syncAudio() }
     }
+    /// Acciones del dock de la isla, en orden. Solo se ven las que tienen sentido en cada momento (ver QuickActions).
+    @Published var quickActions: [QuickAction] = QuickActions.decode(UserDefaults.standard.string(forKey: "quickActions")) {
+        didSet { UserDefaults.standard.set(QuickActions.encode(quickActions), forKey: "quickActions") }
+    }
     /// Los acentos de la musica (progreso, ecualizador, brillo) toman el color de la portada.
     @Published var musicTint: Bool = UserDefaults.standard.object(forKey: "musicTint") as? Bool ?? true {
         didSet { UserDefaults.standard.set(musicTint, forKey: "musicTint") }
