@@ -178,6 +178,7 @@ final class PetStore: ObservableObject {
     }
 
     lazy var plugins = PluginHost()
+    lazy var plan = PlanUsageMonitor()
     lazy var music = MusicController(enabled: UserDefaults.standard.bool(forKey: "musicPlayer"))
     var musicReacting: Bool { musicPlayer && musicReacts && music.isPlaying }
     @Published var danceToMusic: Bool = UserDefaults.standard.bool(forKey: "danceToMusic") {
@@ -240,6 +241,10 @@ final class PetStore: ObservableObject {
     }
     var onGlobalShortcutsChanged: ((Bool) -> Void)?
     /// Permisos que esperan respuesta (solo en memoria). Los responde `AppController` por el socket.
+    /// Aprobar permisos desde un puente externo (Nexo en iPhone/Watch). Opt-in; no entra en las copias de ajustes.
+    @Published var remoteApprovals: Bool = UserDefaults.standard.bool(forKey: "remoteApprovals") {
+        didSet { UserDefaults.standard.set(remoteApprovals, forKey: "remoteApprovals") }
+    }
     @Published var permissionAsks: [PermissionAsk] = []
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     /// Permite varias lecturas iguales de una vez; cada una queda en la auditoria.

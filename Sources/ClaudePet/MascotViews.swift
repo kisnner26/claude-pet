@@ -194,6 +194,34 @@ extension IslandSnapshot {
     }
 }
 
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-plan <ruta.png>`: el consumo del plan en sus tres estados (holgado, cuidado, critico) y con datos viejos.
+    @MainActor static func plan(to path: String) {
+        let now = Date()
+        func u(_ f: Double, _ w: Double, old: Bool = false) -> PlanUsage {
+            PlanUsage(five: PlanWindow(usedPercent: f, resetsAt: now.addingTimeInterval(2 * 3600 + 10 * 60)), week: PlanWindow(usedPercent: w, resetsAt: now.addingTimeInterval(3 * 86400 + 3600)), readAt: now.addingTimeInterval(old ? -7200 : 0))
+        }
+        let rows: [(String, PlanUsage)] = [("holgado", u(42, 18)), ("cuidado", u(86, 52)), ("critico", u(97, 91)), ("datos viejos", u(30, 10, old: true))]
+        let view = VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(r.0).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5))
+                    PlanUsageRow(usage: r.1)
+                }
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "gauge.with.dots.needle.67percent").font(.system(size: 10, weight: .semibold))
+                Text("límite 5 horas: queda el 14% · se reinicia en 2 h 10 m").font(.system(size: 11, weight: .medium)).lineLimit(1)
+            }.foregroundColor(.black).padding(.horizontal, 10).padding(.vertical, 4).background(Capsule().fill(Color(hex: 0xF0A24B)))
+        }
+        .padding(18).frame(width: 380, alignment: .leading).background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.black)).padding(14).background(Color(hex: 0x1A1B22))
+        let r = ImageRenderer(content: view); r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
 /// Herramienta de diseno: imprime las rejillas de las mascotas en ASCII para dibujar atuendos encima con exactitud.
 enum MascotGrids {
     static func hex(_ c: Color) -> UInt32 {

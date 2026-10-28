@@ -9,6 +9,7 @@ struct IslandOverviewView: View {
     @Binding var agentTab: IslandAgentTab
     @ObservedObject private var music: MusicController
     @ObservedObject private var plugins: PluginHost
+    @ObservedObject private var plan: PlanUsageMonitor
     @State private var shown = false
     @State private var showMusic = false
 
@@ -18,6 +19,7 @@ struct IslandOverviewView: View {
         _agentTab = agentTab
         _music = ObservedObject(wrappedValue: store.music)
         _plugins = ObservedObject(wrappedValue: store.plugins)
+        _plan = ObservedObject(wrappedValue: store.plan)
     }
 
     private var isClaude: Bool { agentTab == .claude }
@@ -41,7 +43,9 @@ struct IslandOverviewView: View {
             VStack(alignment: .leading, spacing: 8) {
                 if let loop = store.loopAlert { loopBanner(loop).reveal(0, shown, animated: animated) }
                 if let t = plugins.toast { pluginToast(t) }
+                if let a = plan.alert { planAlertBanner(a) }
                 header.reveal(1, shown, animated: animated)
+                if isClaude, let u = plan.usage { PlanUsageRow(usage: u).reveal(1, shown, animated: animated) }
                 if showMusic && music.nowPlaying != nil {
                     Spacer(minLength: 0)
                     MusicPanelView(music: music, accent: store.musicAccent.map { Color(hex: $0) } ?? .white).transition(.opacity)
@@ -79,6 +83,17 @@ struct IslandOverviewView: View {
     }
 
     /// Aviso que pide un plugin; desaparece solo a los pocos segundos.
+    private func planAlertBanner(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gauge.with.dots.needle.67percent").font(.system(size: 10, weight: .semibold))
+            Text(text).font(.system(size: 11, weight: .medium)).lineLimit(1)
+        }
+        .foregroundColor(.black).padding(.horizontal, 10).padding(.vertical, 4)
+        .background(Capsule().fill(Color(hex: 0xF0A24B)))
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .accessibilityLabel("aviso del plan: \(text)")
+    }
+
     private func pluginToast(_ text: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "puzzlepiece.extension").font(.system(size: 10, weight: .semibold))
