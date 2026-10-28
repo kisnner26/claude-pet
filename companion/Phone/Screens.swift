@@ -52,6 +52,7 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     header
                     if let n = client.notice { notice(n) }
+                    if client.isConnected { hero }
                     if !client.agents.isEmpty {
                         label("AGENTES")
                         VStack(spacing: 14) { ForEach(client.agents) { AgentRow(agent: $0) } }
@@ -88,6 +89,26 @@ struct HomeView: View {
             Spacer()
             Button { showSettings = true } label: { Image(systemName: "gearshape").font(.system(size: 17)).frame(width: 44, height: 44) }.buttonStyle(.glass).clipShape(Circle())
         }
+    }
+
+    private var hero: some View {
+        let lead = client.agents.first(where: \.isBusy) ?? client.agents.first(where: { $0.state == "waiting" }) ?? client.agents.first
+        return VStack(spacing: 0) {
+            PetHero(agent: lead, plan: client.plan, size: 250)
+            HeartbeatLine(state: lead?.state ?? "idle", color: VTFormat.stateColor(lead?.state ?? "idle")).frame(height: 36).padding(.horizontal, 30)
+            Text(lead.map { "\(VTFormat.agentName($0.agent)) · \(VTFormat.state($0.state))" } ?? "Sin agentes activos").font(.system(size: 12, weight: .semibold, design: .monospaced)).tracking(1.2).foregroundStyle(VT.mute).padding(.top, 4)
+            if client.plan?.five != nil || lead?.contextRemaining != nil {
+                HStack(spacing: 14) {
+                    if let f = client.plan?.five { legend("5 h", f.remaining(), VT.blue) }
+                    if let w = client.plan?.week { legend("7 d", w.remaining(), VT.codex) }
+                    if let c = lead?.contextRemaining { legend("ctx", c, VT.claude) }
+                }.padding(.top, 8)
+            }
+        }.frame(maxWidth: .infinity)
+    }
+
+    private func legend(_ t: String, _ v: Int, _ c: Color) -> some View {
+        HStack(spacing: 5) { Circle().fill(c).frame(width: 6, height: 6); Text("\(t) \(v)%").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(VT.mute) }
     }
 
     private func planCard(_ p: PlanSnapshot) -> some View {
@@ -149,6 +170,9 @@ struct HomeView: View {
 struct AskCard: View {
     let ask: Ask
     @ObservedObject var model: PhoneModel
+    @State private var drag: CGFloat = 0
+    @State private var crossed = false
+    private let threshold: CGFloat = 110
 
     private func deny() -> some View {
         Button { model.answer(ask, allow: false) } label: { Text("Denegar").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glass).tint(VT.red)
@@ -182,6 +206,32 @@ struct AskCard: View {
         }
         .padding(18).frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.regular.tint(VT.riskColor(ask.risk).opacity(0.10)), in: .rect(cornerRadius: 26))
+        .overlay(alignment: drag >= 0 ? .leading : .trailing) { swipeLabel }
+        .offset(x: drag).rotationEffect(.degrees(Double(drag) / 14), anchor: .bottom)
+        .gesture(DragGesture(minimumDistance: 18)
+            .onChanged { v in
+                guard abs(v.translation.width) > abs(v.translation.height) else { return }
+                // riesgo alto: a la derecha casi no cede, para que se note que no se puede permitir desde aquí
+                drag = (v.translation.width > 0 && !ask.canAllow) ? v.translation.width / 6 : v.translation.width
+                let now = abs(drag) > threshold
+                if now != crossed { crossed = now; if now { UIImpactFeedbackGenerator(style: .medium).impactOccurred() } }
+            }
+            .onEnded { _ in
+                let d = drag
+                if d > threshold, ask.canAllow { withAnimation(.snappy) { drag = 700 }; model.answer(ask, allow: true) }
+                else if d < -threshold { withAnimation(.snappy) { drag = -700 }; model.answer(ask, allow: false) }
+                else { withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { drag = 0 }; if d > threshold { UINotificationFeedbackGenerator().notificationOccurred(.error) } }
+                crossed = false
+            })
+    }
+
+    @ViewBuilder private var swipeLabel: some View {
+        let p = min(1, abs(drag) / threshold)
+        if abs(drag) > 8 {
+            Text(drag > 0 ? "PERMITIR" : "DENEGAR").font(.system(size: 13, weight: .black, design: .monospaced)).tracking(1.5)
+                .padding(.horizontal, 14).padding(.vertical, 8).foregroundStyle(.white)
+                .background(Capsule().fill(drag > 0 ? VT.blue : VT.red)).opacity(p).scaleEffect(0.8 + 0.2 * p).padding(16)
+        }
     }
 }
 
