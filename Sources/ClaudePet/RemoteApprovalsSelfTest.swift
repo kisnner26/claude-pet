@@ -76,6 +76,45 @@ enum RemoteApprovalsSelfTest {
         spin(2) { client.plan?.five != nil }
         check("el consumo del plan llega al dispositivo", client.plan?.five?.remaining() == 70)
 
+        // preguntas de Claude, agentes, actividad, avisos y modo foco
+        let single = IslandQuestion(id: "i1", header: "Plan", question: "¿Cuál?", options: [("A", "uno"), ("B", "dos"), ("Otra", "libre")], multiSelect: false)
+        let multi = IslandQuestion(id: "i2", header: "Extras", question: "¿Qué más?", options: [("x", ""), ("y", ""), ("z", "")], multiSelect: true)
+        let qask = QuestionAsk(id: "q1", session: "s", project: "proy", questions: [single, multi])
+        check("respuesta valida se convierte en etiquetas", RemoteWire.answers(for: qask, picks: [[1], [0, 2]]) == ["¿Cuál?": "B", "¿Qué más?": "x, z"])
+        check("indice fuera de rango se rechaza", RemoteWire.answers(for: qask, picks: [[7], [0]]) == nil)
+        check("dos opciones en una pregunta simple se rechazan", RemoteWire.answers(for: qask, picks: [[0, 1], [0]]) == nil)
+        check("sin elegir nada se rechaza", RemoteWire.answers(for: qask, picks: [[], [0]]) == nil)
+        check("faltan preguntas por responder", RemoteWire.answers(for: qask, picks: [[0]]) == nil)
+        var qAnswers: [(String, [String: String])] = [], focusSet: [Bool] = [], events: [(String, String, Int)] = []
+        link.onQuestionAnswer = { id, a in DispatchQueue.main.async { qAnswers.append((id, a)) } }
+        link.onFocus = { on in DispatchQueue.main.async { focusSet.append(on) } }
+        client.onEvent = { kind, agent, _, secs in events.append((kind, agent, secs)) }
+        link.syncQuestions([qask])
+        spin(2) { client.questions.count == 1 }
+        check("la pregunta llega con sus opciones", client.questions.first?.items.first?.options == ["A", "B", "Otra"] && client.questions.first?.items.last?.multi == true)
+        client.reply("q1", picks: [[7], [0]])
+        spin(0.8)
+        check("una respuesta con indices invalidos no llega a la app", qAnswers.isEmpty)
+        client.reply("q1", picks: [[1], [0, 2]])
+        spin(2) { qAnswers.count == 1 }
+        check("responder la pregunta llega con etiquetas", qAnswers.first?.0 == "q1" && qAnswers.first?.1 == ["¿Cuál?": "B", "¿Qué más?": "x, z"])
+        link.syncQuestions([])
+        link.sendAgents([RemoteWire.agent("claude", state: .tool, project: "proy", since: Date(), context: 55), RemoteWire.agent("codex", state: .idle, project: "", since: Date(), context: nil)])
+        spin(2) { client.agents.count == 2 }
+        check("los agentes llegan con su estado y contexto", client.agents.first?.state == "tool" && client.agents.first?.isBusy == true && client.agents.first?.contextRemaining == 55)
+        link.sendFeed([RemoteWire.step(IslandStep(agent: "claude", tool: "Edit", target: "Sources/ClaudePet/Algo.swift", added: 3, deleted: 1, workspace: "w", at: Date()))])
+        spin(2) { !client.feed.isEmpty }
+        check("la actividad llega sin contenido de archivos", client.feed.first?.tool == "Edit" && client.feed.first?.delta == "+3 -1")
+        link.sendEvent(kind: "done", agent: "claude", project: "proy", seconds: 90)
+        spin(2) { !events.isEmpty }
+        check("el aviso de terminado llega", events.first?.0 == "done" && events.first?.2 == 90)
+        link.sendFocus(true)
+        spin(2) { client.focus }
+        check("el modo foco se difunde", client.focus)
+        client.setFocus(false)
+        spin(2) { !focusSet.isEmpty }
+        check("pedir el modo foco desde el movil llega a la app", focusSet == [false])
+
         let wrong = VistoClient()
         wrong.configure(code: Pairing.newCode(), deviceName: "intruso")
         wrong.start(direct: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: link.port)!))

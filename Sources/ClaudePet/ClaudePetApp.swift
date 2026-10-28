@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import VistoCore
 
 final class PetPanel: NSPanel {
     override var canBecomeKey: Bool { false }
@@ -394,6 +395,33 @@ final class AppController: NSObject, NSApplicationDelegate {
             guard let self, let c = try? self.remoteLink.regenerateCode() else { return }
             PetStore.shared.remoteCode = c
         }
+        remoteLink.onQuestionAnswer = { id, answers in Task { @MainActor in PetStore.shared.answerQuestion(id, answers) } }
+        remoteLink.onFocus = { on in Task { @MainActor in PetStore.shared.focusManual = on } }
+        PetStore.shared.$questionAsks.sink { [weak self] qs in self?.remoteLink.syncQuestions(qs) }.store(in: &cancellables)
+        PetStore.shared.$focusManual.removeDuplicates().sink { [weak self] on in self?.remoteLink.sendFocus(on) }.store(in: &cancellables)
+        // agentes, actividad y avisos de «termino» / «fallo»: se recalcula con calma y solo viaja lo que cambio
+        var lastStates: [String: PetState] = [:], busySince: [String: Date] = [:]
+        PetStore.shared.objectWillChange.debounce(for: .milliseconds(600), scheduler: DispatchQueue.main).sink { [weak self] _ in
+            guard let self, PetStore.shared.remoteApprovals, self.remoteLink.hasPeers else { return }
+            MainActor.assumeIsolated {
+                let st = PetStore.shared
+                let now = Date()
+                var list: [VistoCore.AgentInfo] = []
+                if st.claudePresent || st.state != .idle { list.append(RemoteWire.agent("claude", state: st.state, project: st.terminalProject, since: st.claudeStateSince, context: st.contextReading?.remainingPercent)) }
+                if st.codexPresent || st.codexState != .idle { list.append(RemoteWire.agent("codex", state: st.codexState, project: st.terminalProject, since: st.codexStateSince, context: st.codexContextReading?.remainingPercent)) }
+                for a in list {
+                    guard let state = PetState(rawValue: a.state) else { continue }
+                    let before = lastStates[a.agent] ?? .idle
+                    if a.isBusy, !(["starting", "thinking", "tool"].contains(before.rawValue)) { busySince[a.agent] = now }
+                    if state != before, state == .done || state == .error, before != .idle, let start = busySince[a.agent] {
+                        self.remoteLink.sendEvent(kind: state == .done ? "done" : "error", agent: a.agent, project: a.project, seconds: Int(now.timeIntervalSince(start)))
+                    }
+                    lastStates[a.agent] = state
+                }
+                self.remoteLink.sendAgents(list)
+                self.remoteLink.sendFeed(st.recentIslandSteps.suffix(6).map(RemoteWire.step))
+            }
+        }.store(in: &cancellables)
         PetStore.shared.plan.$usage.removeDuplicates().sink { [weak self] u in self?.remoteLink.sendPlan(RemoteWire.snapshot(u)) }.store(in: &cancellables)
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }
         PetStore.shared.answerQuestion = { [weak self] id, answers in

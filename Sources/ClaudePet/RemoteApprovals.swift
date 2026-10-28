@@ -27,6 +27,32 @@ enum RemoteWire {
         return nil
     }
 
+    static func wire(_ q: QuestionAsk) -> QAsk {
+        QAsk(id: q.id, project: String(q.project.prefix(40)), items: q.questions.prefix(4).map { item in
+            QItem(header: item.header, question: item.question, options: item.options.prefix(8).map(\.label), descriptions: item.options.prefix(8).map(\.description), multi: item.multiSelect)
+        })
+    }
+
+    /// Convierte los indices elegidos en el dispositivo en las respuestas de la isla (pregunta -> etiquetas). Nunca texto libre del dispositivo.
+    static func answers(for q: QuestionAsk, picks: [[Int]]) -> [String: String]? {
+        guard picks.count == q.questions.count else { return nil }
+        var out: [String: String] = [:]
+        for (item, chosen) in zip(q.questions, picks) {
+            let valid = Set(chosen).filter { item.options.indices.contains($0) }.sorted()
+            guard !valid.isEmpty, item.multiSelect || valid.count == 1 else { return nil }
+            out[item.question] = valid.map { item.options[$0].label }.joined(separator: ", ")
+        }
+        return out
+    }
+
+    static func agent(_ name: String, state: PetState, project: String, since: Date, context: Int?) -> AgentInfo {
+        AgentInfo(agent: name, state: state.rawValue, project: String(project.prefix(40)), since: since, contextRemaining: context)
+    }
+
+    static func step(_ s: IslandStep) -> Step {
+        Step(agent: s.agent, tool: String(s.tool.prefix(30)), target: String(s.target.suffix(60)), at: s.at, delta: s.delta)
+    }
+
     static func snapshot(_ u: PlanUsage?) -> PlanSnapshot? {
         guard let u else { return nil }
         func w(_ x: PlanWindow?) -> VistoCore.PlanWindow? { x.map { VistoCore.PlanWindow(usedPercent: $0.usedPercent, resetsAt: $0.resetsAt) } }
@@ -47,12 +73,20 @@ final class RemoteLink: @unchecked Sendable {
     private var current: [PermissionAsk] = []
     private var sent: Set<String> = []
     private var plan: PlanSnapshot?
+    private var agents: [AgentInfo] = []
+    private var feed: [Step] = []
+    private var focus = false
+    private var currentQuestions: [QuestionAsk] = []
+    private var sentQuestions: Set<String> = []
     private var running = false
     private let advertise: Bool
 
     /// La respuesta ya paso la politica. Se llama en una cola interna.
     var onAnswer: ((String, PermissionDecision) -> Void)?
     var onPeersChanged: (([String]) -> Void)?
+    /// Respuesta a una pregunta de Claude, ya convertida a etiquetas.
+    var onQuestionAnswer: ((String, [String: String]) -> Void)?
+    var onFocus: ((Bool) -> Void)?
 
     init(codePath: String = RemoteLink.codePath, advertise: Bool = true, hostName: String = Host.current().localizedName ?? "Mac") {
         self.codePath = codePath; self.advertise = advertise
@@ -60,9 +94,12 @@ final class RemoteLink: @unchecked Sendable {
         host.onAnswer = { [weak self] id, allow in self?.answered(id, allow) }
         host.onPeerReady = { [weak self] id in self?.greet(id) }
         host.onPeersChanged = { [weak self] peers in self?.onPeersChanged?(peers.map(\.name)) }
+        host.onReply = { [weak self] id, picks in self?.replied(id, picks) }
+        host.onFocus = { [weak self] on in self?.onFocus?(on) }
     }
 
     var port: UInt16 { host.port }
+    var hasPeers: Bool { !host.peers.isEmpty }
     var peers: [String] { host.peers.map(\.name) }
 
     /// El codigo vive en un archivo 0600; se crea la primera vez.
@@ -87,7 +124,7 @@ final class RemoteLink: @unchecked Sendable {
     }
 
     func stop() {
-        lock.lock(); running = false; sent = []; lock.unlock()
+        lock.lock(); running = false; sent = []; sentQuestions = []; lock.unlock()
         host.stop()
     }
 
@@ -111,6 +148,45 @@ final class RemoteLink: @unchecked Sendable {
         for a in fresh { host.broadcast(.ask(RemoteWire.wire(a))) }
     }
 
+    func syncQuestions(_ qs: [QuestionAsk]) {
+        lock.lock()
+        currentQuestions = qs
+        guard running else { lock.unlock(); return }
+        let ids = Set(qs.map(\.id))
+        let gone = sentQuestions.subtracting(ids), fresh = qs.filter { !sentQuestions.contains($0.id) }
+        sentQuestions = ids
+        lock.unlock()
+        for id in gone { host.broadcast(.questionGone(id: id)) }
+        for q in fresh { host.broadcast(.question(RemoteWire.wire(q))) }
+    }
+
+    /// Solo se envia si cambio: el resto del tiempo no cruza nada por la red.
+    func sendAgents(_ a: [AgentInfo]) {
+        lock.lock(); let same = agents == a; agents = a; let on = running; lock.unlock()
+        if on, !same { host.broadcast(.agents(a)) }
+    }
+
+    func sendFeed(_ f: [Step]) {
+        lock.lock(); let same = feed == f; feed = f; let on = running; lock.unlock()
+        if on, !same { host.broadcast(.feed(f)) }
+    }
+
+    func sendFocus(_ on: Bool) {
+        lock.lock(); focus = on; let run = running; lock.unlock()
+        if run { host.broadcast(.focus(on)) }
+    }
+
+    func sendEvent(kind: String, agent: String, project: String, seconds: Int) {
+        lock.lock(); let on = running; lock.unlock()
+        if on { host.broadcast(.event(kind: kind, agent: agent, project: String(project.prefix(40)), seconds: seconds)) }
+    }
+
+    private func replied(_ id: String, _ picks: [[Int]]) {
+        lock.lock(); let q = currentQuestions.first { $0.id == id }; lock.unlock()
+        guard let q, let answers = RemoteWire.answers(for: q, picks: picks) else { return }
+        onQuestionAnswer?(id, answers)
+    }
+
     func sendPlan(_ p: PlanSnapshot?) {
         lock.lock(); plan = p; let on = running; lock.unlock()
         if on { host.broadcast(.plan(p)) }
@@ -118,9 +194,11 @@ final class RemoteLink: @unchecked Sendable {
 
     /// Quien se conecta tarde ve lo que ya espera.
     private func greet(_ id: UUID) {
-        lock.lock(); let asks = current, p = plan; lock.unlock()
+        lock.lock(); let asks = current, p = plan, ag = agents, fd = feed, f = focus, qs = currentQuestions; lock.unlock()
         for a in asks { host.send(.ask(RemoteWire.wire(a)), to: id) }
+        for q in qs { host.send(.question(RemoteWire.wire(q)), to: id) }
         host.send(.plan(p), to: id)
+        host.send(.agents(ag), to: id); host.send(.feed(fd), to: id); host.send(.focus(f), to: id)
     }
 
     private func answered(_ id: String, _ allow: Bool) {

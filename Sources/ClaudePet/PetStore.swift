@@ -334,6 +334,8 @@ final class PetStore: ObservableObject {
         PresenceLogic.visibility(Presence(claude: (claudePresent || pinSession) && !muteClaude,
                                          codex: (codexPresent || pinSession) && !muteCodex), auto: autoVisibility, userHidden: userHidden)
     }
+    var claudeStateSince: Date { stateSince }
+    var codexStateSince: Date { peerStateSince }
     var terminalProject: String { mission.workspace.isEmpty ? project : URL(fileURLWithPath: mission.workspace).lastPathComponent }
     /// Buscar la terminal recorre las ventanas del sistema; las vistas lo preguntan en cada redibujo, asi que se recuerda 5 s.
     private var terminalCache: (project: String, value: Bool, at: Date)?
