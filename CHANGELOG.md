@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Menús dentro de la propia píldora: un riel de iconos a la derecha de la isla abierta cambia entre inicio, cambios, música, plan y datos, herramientas (todas las acciones disponibles) y ajustes rápidos, sin abrir ventanas. La isla estrena un estilo de fibra de vidrio: hebras finas al trasluz, pulsos de luz que las recorren y un borde con destello especular que toma el color de la página.
+- Realidad aumentada en Visto (iPhone): las mascotas en 3D sobre tu mesa con su estado en vivo y los permisos como tarjetas flotantes con «Permitir» y «Denegar».
+- Meta Quest 2 y 3 (opt-in): la Mac sirve una página WebXR por HTTPS con certificado propio; el navegador del visor la abre con el código de Visto y muestra el panel, las mascotas y los permisos con paso de cámara (Quest 3 a color, Quest 2 en blanco y negro) o en realidad virtual. Solo permite o deniega esta vez, nunca riesgo alto, y frena tras cinco códigos erróneos. Probado el servidor y la página en el navegador; sin probar en un visor real.
 - Permitir «siempre» desde Visto: botón con confirmación (y Face ID si está activo) que guarda la regla en la Mac. Nunca con riesgo alto ni fuera del perímetro; la Mac lo vuelve a comprobar. Una Mac anterior no lo ofrece.
 - Mascota en el escritorio: se arrastra fuera de la isla y se queda donde la sueltas, vuelve a su sitio al abrir la app y, si quieres, camina hacia el cursor. Doble toque o soltarla sobre la isla la devuelve. Cada agente por separado, con su armario.
 - Avisos al teléfono con ntfy (apagado de serie): permisos, preguntas y fin de tarea llegan aunque Visto esté cerrada, sin cuenta de pago de Apple. Tema largo y aleatorio con QR, solo si no estás en el Mac, sin el comando salvo que lo pidas y nunca con secretos.

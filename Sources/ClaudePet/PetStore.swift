@@ -142,6 +142,15 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(deskFollow, forKey: "deskFollow") }
     }
     var idleForDesk: TimeInterval { 0 }
+    // MARK: Meta Quest (WebXR)
+    /// Sirve la pagina WebXR por HTTPS en la red local para el navegador del Quest 2 y Quest 3. Apagado de serie.
+    @Published var questEnabled: Bool = UserDefaults.standard.bool(forKey: "questEnabled") {
+        didSet { UserDefaults.standard.set(questEnabled, forKey: "questEnabled") }
+    }
+    @Published var questAddress = ""
+    @Published var questClients = 0
+    @Published var questStatus = ""
+
     // MARK: avisos al telefono (ntfy)
     @Published var phoneAlerts: Bool = UserDefaults.standard.bool(forKey: "phoneAlerts") {
         didSet { UserDefaults.standard.set(phoneAlerts, forKey: "phoneAlerts"); if phoneAlerts, phoneAlertsTopic.isEmpty { phoneAlertsTopic = PhoneAlertRules.newTopic() } }

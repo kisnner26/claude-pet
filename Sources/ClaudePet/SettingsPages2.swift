@@ -33,6 +33,20 @@ struct PermisosPage: View {
                     }
                 }
             }
+            SCard(title: "meta quest 2 y 3", footer: "claude pet sirve una página WebXR por HTTPS en tu red local con un certificado propio: el navegador del Quest avisará una vez de que no lo conoce y hay que aceptar. se entra con el mismo código de Visto y solo se puede permitir o denegar esta vez (nunca riesgo alto). en el Quest 3 se ve con paso de cámara a color; en el Quest 2, en blanco y negro o en realidad virtual. no está probado en un visor real.") {
+                SToggle(title: "servidor para Meta Quest", detail: "escucha en tu red local. sin servidores ni cuentas.", isOn: $store.questEnabled)
+                if store.questEnabled {
+                    SDivider()
+                    SRow(title: store.questAddress.isEmpty ? "sin dirección" : store.questAddress, detail: store.questStatus.isEmpty ? "escríbela en el navegador del Quest, en la misma red wifi." : store.questStatus) {
+                        HStack(spacing: 8) {
+                            if let qr = QRCode.image(store.questAddress, side: 90), !store.questAddress.isEmpty { Image(nsImage: qr).interpolation(.none).resizable().frame(width: 90, height: 90).clipShape(RoundedRectangle(cornerRadius: 8)) }
+                            SButton(title: "copiar", symbol: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.questAddress, forType: .string) }
+                        }
+                    }
+                    SDivider()
+                    SRow(title: "visores conectados", detail: store.questClients == 0 ? "ninguno todavía" : "\(store.questClients) en este momento") { EmptyView() }
+                }
+            }
             SCard(title: "avisos al teléfono", footer: "usa ntfy: una app gratuita para iPhone que entrega avisos aunque Visto esté cerrada. el aviso pasa por el servidor de ntfy (ntfy.sh o el tuyo): por eso lleva solo la herramienta y el proyecto, salvo que pidas el detalle. el tema es largo y aleatorio y hace de contraseña: no lo compartas. apagado de serie.") {
                 SToggle(title: "avisar al teléfono", detail: "permisos, preguntas y fin de tarea, aunque el iPhone esté suspendido.", isOn: $store.phoneAlerts)
                 if store.phoneAlerts {

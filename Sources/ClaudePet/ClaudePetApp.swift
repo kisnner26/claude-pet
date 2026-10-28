@@ -67,6 +67,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let busServer = EventServer(path: PetBus.ownSocket)
     private let askServer = PermissionServer()
     private let remoteLink = RemoteLink()
+    private let questServer = QuestServer()
     private var permissionFlagOn = false
     private var terminationSignals: [DispatchSourceSignal] = []
     private let shortcutMonitor = GlobalShortcutMonitor()
@@ -152,6 +153,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-workshop"), i + 2 < CommandLine.arguments.count { exit(WorkshopSelfTest.run(workshop: CommandLine.arguments[i + 1], evil: CommandLine.arguments[i + 2]) ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-weather") { exit(MainActor.assumeIsolated { WeatherSelfTest.run() } ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--selftest-quest") { exit(QuestSelfTest.run(web: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "quest") ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-phone") { exit(PhoneAlertsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }
@@ -414,6 +416,23 @@ final class AppController: NSObject, NSApplicationDelegate {
                 PetStore.shared.approveWithScope(id, .always)
             }
         }
+        // Meta Quest 2 y 3: la pagina WebXR se sirve por HTTPS en la red local y se entra con el mismo codigo de Visto
+        questServer.code = { [weak self] in self?.remoteLink.code() ?? "" }
+        questServer.snapshot = { [weak self] in self?.remoteLink.questSnapshot() ?? Data("{}".utf8) }
+        questServer.onAnswer = { [weak self] id, allow in self?.remoteLink.answerFromQuest(id, allow: allow) ?? "no disponible" }
+        questServer.onClients = { n in Task { @MainActor in PetStore.shared.questClients = n } }
+        remoteLink.onSnapshotChange = { [weak self] in self?.questServer.push() }
+        PetStore.shared.$questEnabled.removeDuplicates().sink { [weak self] on in
+            guard let self else { return }
+            if on {
+                do {
+                    try self.questServer.start()
+                    let ip = QuestServer.lanAddress() ?? "la-ip-de-tu-mac"
+                    PetStore.shared.questAddress = "https://\(ip):\(self.questServer.port)"
+                    PetStore.shared.questStatus = ""
+                } catch { PetStore.shared.questStatus = "no se pudo abrir: \(error.localizedDescription)"; PetStore.shared.questAddress = "" }
+            } else { self.questServer.stop(); PetStore.shared.questAddress = ""; PetStore.shared.questClients = 0 }
+        }.store(in: &cancellables)
         remoteLink.onPeersChanged = { peers in Task { @MainActor in PetStore.shared.remotePeers = peers } }
         PetStore.shared.regenerateRemoteCode = { [weak self] in
             guard let self, let c = try? self.remoteLink.regenerateCode() else { return }

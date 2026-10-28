@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claude pet · Quest</title>
+<style>
+  :root { color-scheme: dark; --accent: #7c93f0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #05060a; color: #f4f1ea; font: 16px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; overflow: hidden; }
+  canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  main { position: relative; z-index: 2; width: min(560px, 92vw); padding: 28px; border-radius: 28px; background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(18px); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  h1 { font-size: 34px; margin: 0 0 6px; letter-spacing: -.02em; }
+  h1 em { font-style: normal; color: var(--accent); }
+  p { color: rgba(244,241,234,.66); margin: 8px 0 16px; }
+  label { font: 11px ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: rgba(244,241,234,.55); }
+  input { width: 100%; margin: 6px 0 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.4); color: #fff; font: 600 22px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+  button { width: 100%; margin-top: 8px; padding: 15px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: #fff; font: 600 17px system-ui; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: transparent; color: #0b0d18; }
+  button:disabled { opacity: .4; cursor: default; }
+  #status { font: 12px ui-monospace, monospace; color: rgba(244,241,234,.55); margin-top: 14px; min-height: 18px; }
+  #status.bad { color: #e5a05a; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<main id="start">
+  <h1>claude <em>pet</em> en tu visor.</h1>
+  <p>Las mascotas, su estado y los permisos de Claude Code flotando delante de ti. Funciona en Meta Quest 2 y Quest 3.</p>
+  <label for="code">código de emparejamiento</label>
+  <input id="code" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX">
+  <button id="ar" class="primary" disabled>Entrar con paso de cámara</button>
+  <button id="vr" disabled>Entrar en realidad virtual</button>
+  <button id="preview">Ver aquí, sin visor</button>
+  <div id="status">Escribe el código que muestra claude pet en Ajustes → permisos.</div>
+</main>
+<script type="module">
+import * as THREE from '/three.js';
+
+// ---------- arte de las mascotas (el mismo de la app) ----------
+const ART = {
+  claude: { rows: ["................","................","................","................","..cccccccccccc..","..aaaaaaaaaaab..","..aadaaaaaadab..","baaaadaaaadaabab","baaaaadaadaaabab","baaaadaaaadaabab","baaadaaaaaadabab","..aaaaaaaaaaab..","..bbbbbbbbbbbb..","...aa.aa.aa.aa..","...aa.aa.aa.aa..","...bb.bb.bb.bb.."],
+            pal: { a: 0xE0824F, b: 0xB9603A, c: 0xEC9A6E, d: 0x1C1B1A } },
+  codex: { rows: [".....eeeeeeee.....","..ejeeffffffeeee..",".ejjffffffffffffe.",".ejffkkkkkkkkfffe.","ejffkllllllllkfffe","ejffklgllllllkfffe","efffkllglllllkfffe","efffklgllggglkfffe","efffkllllllllkfffe",".efffkkkkkkkkfffe.","..eiiiiiiiiiiiie..","...eeeeeeeeeeee...","..eeeffffffffeee..","..effffghhhffffe..","..eiiffhghhffiie..","..eeeifghggfieee..",".....efieeife.....",".....efe..efe.....",".....eie..eie.....",".....eee..eee.....","................."],
+           pal: { e: 0x223496, f: 0x5270E8, g: 0x96EBFF, h: 0x6E8CF5, i: 0x3E5ACE, j: 0x7E98FF, k: 0x2C346E, l: 0x161B40 } },
+};
+const STATE = { starting: ['Iniciando', '#7c93f0'], thinking: ['Pensando', '#7c93f0'], tool: ['Ejecutando', '#e0824f'], waiting: ['Espera tu respuesta', '#e7b45b'], done: ['Listo', '#6ccb8a'], error: ['Error', '#d85c5c'], idle: ['En reposo', '#8d8a84'] };
+const RISK = { alto: '#d85c5c', medio: '#e7b45b', bajo: '#6ccb8a' };
+
+const $ = (id) => document.getElementById(id);
+const status = (t, bad) => { $('status').textContent = t; $('status').className = bad ? 'bad' : ''; };
+let code = (localStorage.getItem('cp-code') || '').toUpperCase();
+$('code').value = code;
+let state = { asks: [], agents: [], plan: null, host: '' };
+let connected = false, es = null, lastAskIds = '';
+
+// ---------- conexion ----------
+function normalize(s) { return s.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function connect() {
+  const c = normalize($('code').value);
+  if (c.length !== 12) { status('El código tiene 12 caracteres.', true); return false; }
+  localStorage.setItem('cp-code', c);
+  code = c;
+  if (es) es.close();
+  es = new EventSource('/events?c=' + encodeURIComponent(c));
+  es.onopen = () => { connected = true; status('Conectado a ' + (state.host || 'claude pet') + '.'); };
+  es.onmessage = (e) => { try { state = JSON.parse(e.data); } catch { return; } connected = true; onState(); };
+  es.onerror = () => { connected = false; status('Sin conexión. Revisa el código y que la Mac siga encendida.', true); redraw(); };
+  return true;
+}
+async function answer(id, action) {
+  try {
+    const r = await fetch('/answer?c=' + encodeURIComponent(code), { method: 'POST', body: JSON.stringify({ id, action }) });
+    if (!r.ok) { flash(r.status === 409 ? (await r.text()) : 'No se pudo responder'); }
+  } catch { flash('Sin conexión'); }
+}
+let flashText = '', flashUntil = 0;
+function flash(t) { flashText = t; flashUntil = performance.now() + 3500; redraw(); }
+
+// ---------- escena ----------
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 50);
+camera.position.set(0, 1.2, 1.15); camera.lookAt(0, 1.05, -1);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x303040, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(1, 3, 2); scene.add(sun);
+
+// fondo de realidad virtual: cielo oscuro con estrellas (se oculta con paso de camara)
+const sky = new THREE.Group();
+{
+  const g = new THREE.BufferGeometry(); const n = 900, p = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, b = Math.acos(2 * Math.random() - 1), r = 18 + Math.random() * 6; p[i*3] = r*Math.sin(b)*Math.cos(a); p[i*3+1] = r*Math.cos(b) + 1.5; p[i*3+2] = r*Math.sin(b)*Math.sin(a); }
+  g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  sky.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaab4ff, size: 0.06, sizeAttenuation: true })));
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.MeshBasicMaterial({ color: 0x0a0c16 }));
+  floor.rotation.x = -Math.PI / 2; sky.add(floor);
+  const rings = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.22, 96), new THREE.MeshBasicMaterial({ color: 0x7c93f0, transparent: true, opacity: 0.5 }));
+  rings.rotation.x = -Math.PI / 2; rings.position.y = 0.01; sky.add(rings);
+}
+scene.add(sky);
+
+// panel de cristal con el estado y los permisos, dibujado en un canvas 2D
+const PW = 1100, PH = 640, panelCanvas = document.createElement('canvas');
+panelCanvas.width = PW; panelCanvas.height = PH;
+const pctx = panelCanvas.getContext('2d');
+const tex = new THREE.CanvasTexture(panelCanvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 0.768), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+panel.position.set(0, 1.5, -1.15);
+scene.add(panel);
+let buttons = [];   // { x, y, w, h, id, action }
+
+// mascotas en 3D a los lados del panel
+const pets = {};
+function voxel(art) {
+  const rows = art.rows, h = rows.length, w = rows[0].length, cell = 0.026;
+  const geo = new THREE.BoxGeometry(cell, cell, cell * 1.7);
+  const g = new THREE.Group();
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    const col = art.pal[ch]; if (col === undefined) return;
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, metalness: 0.0 }));
+    m.position.set((x - w / 2) * cell, (h - 1 - y) * cell, 0); g.add(m);
+  }));
+  return g;
+}
+function ensurePets() {
+  const names = state.agents.length ? state.agents.map(a => a.agent) : ['claude'];
+  for (const n of Object.keys(pets)) if (!names.includes(n)) { scene.remove(pets[n].g); delete pets[n]; }
+  names.forEach((n, i) => {
+    if (!pets[n]) { const g = voxel(n === 'codex' ? ART.codex : ART.claude); scene.add(g); pets[n] = { g, state: 'idle' }; }
+    const a = state.agents.find(x => x.agent === n); pets[n].state = a ? a.state : 'idle';
+    pets[n].g.position.set(-0.95 + i * 0.0, 1.0, -1.05); pets[n].slot = i; pets[n].count = names.length;
+  });
+  Object.values(pets).forEach(p => { const k = p.slot, c = p.count; p.base = new THREE.Vector3((k - (c - 1) / 2) * 0.62, 0.6, -0.95); });
+}
+
+function glassBackground(c, w, h, accent) {
+  c.clearRect(0, 0, w, h);
+  const r = 46;
+  c.save(); c.beginPath(); c.roundRect(0, 0, w, h, r); c.clip();
+  const bg = c.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, 'rgba(26,28,40,0.94)'); bg.addColorStop(1, 'rgba(4,5,10,0.96)'); c.fillStyle = bg; c.fillRect(0, 0, w, h);
+  // hebras de fibra de vidrio
+  c.lineWidth = 1.2;
+  for (let i = 0; i < 34; i++) { const y0 = h * (0.04 + 0.92 * i / 33), amp = 4 + 10 * ((i * 7919) % 100) / 100; c.strokeStyle = 'rgba(255,255,255,' + (0.03 + 0.05 * ((i * 104729) % 100) / 100) + ')'; c.beginPath(); for (let x = -4; x <= w + 8; x += 14) { const y = y0 + amp * Math.sin(x / (70 + (i % 5) * 18) + i); x === -4 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); }
+  // pulsos de luz
+  const t = performance.now() / 1000;
+  for (let i = 0; i < 5; i++) { const y0 = h * (0.15 + 0.14 * i), head = ((t * (0.10 + 0.03 * i) + i * 0.27) % 1.4 - 0.2) * w; const gr = c.createLinearGradient(head - 190, 0, head, 0); gr.addColorStop(0, 'rgba(124,147,240,0)'); gr.addColorStop(1, 'rgba(210,225,255,0.7)'); c.strokeStyle = gr; c.lineWidth = 2.2; c.beginPath(); for (let x = head - 190; x <= head; x += 8) { const y = y0 + 8 * Math.sin(x / 80 + i); x === head - 190 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); }
+  const sheen = c.createLinearGradient(0, 0, 0, h * 0.5); sheen.addColorStop(0, 'rgba(255,255,255,0.10)'); sheen.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = sheen; c.fillRect(0, 0, w, h * 0.5);
+  c.restore();
+  c.lineWidth = 2.5; const eg = c.createLinearGradient(0, 0, w, h); eg.addColorStop(0, 'rgba(255,255,255,0.55)'); eg.addColorStop(0.5, accent); eg.addColorStop(1, 'rgba(255,255,255,0.15)'); c.strokeStyle = eg; c.beginPath(); c.roundRect(1.5, 1.5, w - 3, h - 3, r); c.stroke();
+}
+
+function sprite(c, art, x, y, size) {
+  const rows = art.rows, h = rows.length, w = rows[0].length, cell = size / Math.max(w, h);
+  rows.forEach((row, j) => [...row].forEach((ch, i) => { const col = art.pal[ch]; if (col === undefined) return; c.fillStyle = '#' + col.toString(16).padStart(6, '0'); c.fillRect(x + i * cell, y + j * cell, cell + 0.6, cell + 0.6); }));
+}
+
+function fmtRemaining(w) { return w ? Math.round(w.remaining) : null; }
+
+function redraw() {
+  const c = pctx; buttons = [];
+  const lead = state.agents.find(a => ['tool', 'thinking', 'starting'].includes(a.state)) || state.agents[0];
+  const accent = lead ? STATE[lead.state]?.[1] || '#7c93f0' : '#7c93f0';
+  glassBackground(c, PW, PH, accent);
+  c.fillStyle = '#f4f1ea'; c.font = '600 34px -apple-system, system-ui, sans-serif'; c.textBaseline = 'top';
+  c.fillText('claude pet', 44, 34);
+  c.font = '500 20px ui-monospace, monospace'; c.fillStyle = connected ? '#6ccb8a' : '#e7b45b';
+  c.fillText((connected ? '● ' + (state.host || 'conectado') : '○ sin conexión').toUpperCase(), 44, 82);
+
+  // agentes
+  let y = 128;
+  const agents = state.agents.length ? state.agents : [];
+  if (!agents.length) { c.fillStyle = 'rgba(244,241,234,.6)'; c.font = '500 26px system-ui'; c.fillText('Todo tranquilo. Cuando Claude o Codex trabajen, los verás aquí.', 44, y + 10); y += 70; }
+  agents.slice(0, 2).forEach(a => {
+    const [label, col] = STATE[a.state] || STATE.idle;
+    c.fillStyle = 'rgba(255,255,255,0.06)'; c.beginPath(); c.roundRect(40, y, PW - 80, 96, 22); c.fill();
+    c.strokeStyle = col; c.globalAlpha = 0.5; c.lineWidth = 1.5; c.stroke(); c.globalAlpha = 1;
+    sprite(c, a.agent === 'codex' ? ART.codex : ART.claude, 58, y + 12, 72);
+    c.fillStyle = '#fff'; c.font = '600 28px system-ui'; c.fillText(a.agent === 'codex' ? 'Codex' : 'Claude', 156, y + 14);
+    c.fillStyle = col; c.font = '500 24px system-ui'; c.fillText(label, 156, y + 52);
+    c.fillStyle = 'rgba(244,241,234,.6)'; c.font = '500 22px ui-monospace, monospace'; c.textAlign = 'right';
+    c.fillText(((a.project || '') + (a.contextRemaining != null ? '   ctx ' + a.contextRemaining + '%' : '')).slice(0, 44), PW - 62, y + 36); c.textAlign = 'left';
+    y += 110;
+  });
+
+  // plan
+  if (state.plan && (state.plan.five || state.plan.week)) {
+    const bars = [['5 h', state.plan.five], ['semana', state.plan.week]].filter(b => b[1]);
+    bars.forEach(([name, w], i) => {
+      const left = Math.round(w.remaining), x = 44 + i * 500;
+      c.fillStyle = 'rgba(244,241,234,.6)'; c.font = '500 20px ui-monospace, monospace'; c.fillText('PLAN ' + name.toUpperCase() + ' · ' + left + '%', x, y + 4);
+      c.fillStyle = 'rgba(255,255,255,0.1)'; c.beginPath(); c.roundRect(x, y + 34, 440, 12, 6); c.fill();
+      c.fillStyle = left < 15 ? '#d85c5c' : left < 35 ? '#e7b45b' : '#7c93f0'; c.beginPath(); c.roundRect(x, y + 34, 440 * left / 100, 12, 6); c.fill();
+    });
+    y += 66;
+  }
+
+  // permisos
+  const asks = state.asks || [];
+  if (asks.length) {
+    const a = asks[0], col = RISK[a.risk] || '#e7b45b', high = a.risk === 'alto';
+    const top = Math.max(y, 300), h = PH - top - 30;
+    c.fillStyle = 'rgba(255,255,255,0.07)'; c.beginPath(); c.roundRect(40, top, PW - 80, h, 24); c.fill();
+    c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#fff'; c.font = '600 28px system-ui'; c.fillText('Pide permiso: ' + a.tool, 62, top + 18);
+    c.fillStyle = col; c.font = '600 20px ui-monospace, monospace'; c.textAlign = 'right'; c.fillText(('riesgo ' + a.risk).toUpperCase(), PW - 62, top + 24); c.textAlign = 'left';
+    c.fillStyle = 'rgba(244,241,234,.7)'; c.font = '500 22px ui-monospace, monospace';
+    c.fillText((a.project ? a.project + ' · ' : '') + (a.detail || '').replace(/\s+/g, ' ').slice(0, 56), 62, top + 62);
+    if (asks.length > 1) { c.fillText('+' + (asks.length - 1) + ' en espera', 62, top + 92); }
+    const by = top + h - 78;
+    const deny = { x: 62, y: by, w: high ? PW - 124 : 300, h: 60, id: a.id, action: 'deny' };
+    buttons.push(deny);
+    c.fillStyle = 'rgba(255,255,255,0.12)'; c.beginPath(); c.roundRect(deny.x, deny.y, deny.w, deny.h, 30); c.fill();
+    c.fillStyle = '#fff'; c.font = '600 26px system-ui'; c.textAlign = 'center'; c.fillText('Denegar', deny.x + deny.w / 2, by + 15);
+    if (!high) {
+      const allow = { x: 380, y: by, w: PW - 380 - 62, h: 60, id: a.id, action: 'allow' };
+      buttons.push(allow);
+      c.fillStyle = '#7c93f0'; c.beginPath(); c.roundRect(allow.x, allow.y, allow.w, allow.h, 30); c.fill();
+      c.fillStyle = '#0b0d18'; c.fillText('Permitir', allow.x + allow.w / 2, by + 15);
+    } else { c.fillStyle = '#e5a05a'; c.font = '500 20px system-ui'; c.fillText('Riesgo alto: para permitirlo, hazlo en la Mac.', PW / 2, by - 30); }
+    c.textAlign = 'left';
+  }
+  if (performance.now() < flashUntil) { c.fillStyle = '#e5a05a'; c.font = '500 22px system-ui'; c.textAlign = 'center'; c.fillText(flashText, PW / 2, PH - 30); c.textAlign = 'left'; }
+  tex.needsUpdate = true;
+}
+
+function onState() {
+  const ids = (state.asks || []).map(a => a.id).join(',');
+  if (ids !== lastAskIds && ids) { beep(); pulse(); }
+  lastAskIds = ids;
+  ensurePets(); redraw();
+}
+
+// ---------- sonido y vibracion ----------
+let audio;
+function beep() {
+  try { audio = audio || new AudioContext(); const o = audio.createOscillator(), g = audio.createGain(); o.type = 'triangle'; o.frequency.value = 660; g.gain.value = 0.08; o.connect(g); g.connect(audio.destination); o.start(); o.frequency.setValueAtTime(880, audio.currentTime + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.4); o.stop(audio.currentTime + 0.42); } catch {}
+}
+function pulse() { const s = renderer.xr.getSession && renderer.xr.getSession(); if (!s) return; for (const src of s.inputSources) { const a = src.gamepad && src.gamepad.hapticActuators && src.gamepad.hapticActuators[0]; if (a && a.pulse) a.pulse(0.7, 120); } }
+
+// ---------- interaccion: rayos de los mandos / manos y raton ----------
+const ray = new THREE.Raycaster();
+const controllers = [0, 1].map(i => {
+  const c = renderer.xr.getController(i);
+  c.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1.6)]), new THREE.LineBasicMaterial({ color: 0x9fb2ff })));
+  c.addEventListener('selectstart', () => hit(c));
+  scene.add(c); return c;
+});
+function hit(controller) {
+  const m = new THREE.Matrix4().extractRotation(controller.matrixWorld);
+  ray.ray.origin.setFromMatrixPosition(controller.matrixWorld); ray.ray.direction.set(0, 0, -1).applyMatrix4(m);
+  press(ray.intersectObject(panel)[0]);
+}
+function press(h) {
+  if (!h || !h.uv) return;
+  const x = h.uv.x * PW, y = (1 - h.uv.y) * PH;
+  const b = buttons.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+  if (b) answer(b.id, b.action);
+}
+canvas.addEventListener('pointerdown', (e) => {
+  if (renderer.xr.isPresenting) return;
+  const r = canvas.getBoundingClientRect(), v = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(v, camera); press(ray.intersectObject(panel)[0]);
+});
+
+// ---------- bucle ----------
+const clock = new THREE.Clock();
+function animate() {
+  const t = clock.getElapsedTime();
+  for (const p of Object.values(pets)) {
+    const b = p.base || new THREE.Vector3(0, 1, -0.8); let y = 0, rot = 0, sy = 1;
+    switch (p.state) { case 'thinking': case 'starting': rot = Math.sin(t * 1.4) * 0.45; break; case 'tool': y = Math.abs(Math.sin(t * 6)) * 0.03; break; case 'waiting': y = Math.abs(Math.sin(t * 4)) * 0.07; break; case 'done': rot = t * 3; break; case 'error': rot = Math.sin(t * 40) * 0.05; break; default: sy = 1 + 0.025 * Math.sin(t * 1.6); }
+    p.g.position.set(b.x, b.y + y, b.z); p.g.rotation.y = rot; p.g.scale.set(1, sy, 1);
+  }
+  if (Math.floor(t * 20) !== animate.last) { animate.last = Math.floor(t * 20); redraw(); }
+  renderer.render(scene, camera);
+}
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+renderer.setAnimationLoop(animate);
+
+// ---------- entrar ----------
+async function enter(mode) {
+  if (!connect()) return;
+  try {
+    const session = await navigator.xr.requestSession(mode, { optionalFeatures: ['local-floor', 'hand-tracking', 'bounded-floor'] });
+    sky.visible = mode === 'immersive-vr';
+    renderer.setClearAlpha(mode === 'immersive-ar' ? 0 : 1);
+    await renderer.xr.setSession(session);
+    $('start').classList.add('hidden');
+    session.addEventListener('end', () => { $('start').classList.remove('hidden'); sky.visible = true; });
+  } catch (e) { status('No se pudo entrar: ' + (e && e.message ? e.message : e), true); }
+}
+$('ar').onclick = () => enter('immersive-ar');
+$('vr').onclick = () => enter('immersive-vr');
+$('preview').onclick = () => { if (connect()) $('start').classList.add('hidden'); };
+$('code').addEventListener('input', () => { const n = normalize($('code').value).slice(0, 12); $('code').value = n.replace(/(.{4})(?=.)/g, '$1-'); });
+
+(async () => {
+  if (!navigator.xr) { status('Este navegador no tiene WebXR: usa el navegador del Quest. Puedes ver una vista previa aquí.', true); return; }
+  const [ar, vr] = await Promise.all([navigator.xr.isSessionSupported('immersive-ar').catch(() => false), navigator.xr.isSessionSupported('immersive-vr').catch(() => false)]);
+  $('ar').disabled = !ar; $('vr').disabled = !vr;
+  if (!ar && vr) status('Tu visor entra en realidad virtual. Escribe el código y pulsa el botón de abajo.');
+  if (code) $('code').value = code.replace(/(.{4})(?=.)/g, '$1-');
+})();
+ensurePets(); redraw();
+</script>
+</body>
+</html>

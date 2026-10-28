@@ -102,6 +102,29 @@ final class RemoteLink: @unchecked Sendable {
     /// Respuesta a una pregunta de Claude, ya convertida a etiquetas.
     var onQuestionAnswer: ((String, [String: String]) -> Void)?
     var onFocus: ((Bool) -> Void)?
+    /// Cambio en permisos, agentes o plan: lo usa el servidor de Meta Quest para refrescar el visor.
+    var onSnapshotChange: (() -> Void)?
+
+    /// El estado que ve el visor, en JSON plano: sin detalle de mas ni nada que no se muestre.
+    func questSnapshot() -> Data {
+        lock.lock(); let asks = current, ag = agents, p = plan; lock.unlock()
+        func win(_ w: VistoCore.PlanWindow?) -> Any { w.map { ["remaining": $0.remaining()] } ?? NSNull() }
+        let obj: [String: Any] = [
+            "host": Host.current().localizedName ?? "Mac",
+            "asks": asks.prefix(4).map { a -> [String: Any] in let w = RemoteWire.wire(a); return ["id": w.id, "tool": w.tool, "project": w.project, "detail": w.detail, "risk": w.risk, "canAllow": w.canAllow] },
+            "agents": ag.prefix(2).map { ["agent": $0.agent, "state": $0.state, "project": $0.project, "contextRemaining": $0.contextRemaining as Any] },
+            "plan": p.map { ["five": win($0.five), "week": win($0.week)] as [String: Any] } ?? NSNull(),
+        ]
+        return (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
+    }
+
+    /// Respuesta desde el visor: mismas reglas que desde Visto (nada de riesgo alto, nada caducado). Devuelve el motivo si se rechaza.
+    func answerFromQuest(_ id: String, allow: Bool) -> String? {
+        lock.lock(); let ask = current.first { $0.id == id }; lock.unlock()
+        if let why = RemoteWire.verdict(allow: allow, ask: ask, now: Date()) { return why }
+        onAnswer?(id, allow ? .allow : .deny)
+        return nil
+    }
 
     init(codePath: String = RemoteLink.codePath, advertise: Bool = true, hostName: String = Host.current().localizedName ?? "Mac") {
         self.codePath = codePath; self.advertise = advertise
@@ -153,6 +176,7 @@ final class RemoteLink: @unchecked Sendable {
     }
 
     func sync(_ asks: [PermissionAsk]) {
+        defer { onSnapshotChange?() }
         lock.lock()
         current = asks
         guard running else { lock.unlock(); return }
@@ -178,6 +202,7 @@ final class RemoteLink: @unchecked Sendable {
 
     /// Solo se envia si cambio: el resto del tiempo no cruza nada por la red.
     func sendAgents(_ a: [AgentInfo]) {
+        defer { onSnapshotChange?() }
         lock.lock(); let same = agents == a; agents = a; let on = running; lock.unlock()
         if on, !same { host.broadcast(.agents(a)) }
     }
@@ -204,6 +229,7 @@ final class RemoteLink: @unchecked Sendable {
     }
 
     func sendPlan(_ p: PlanSnapshot?) {
+        defer { onSnapshotChange?() }
         lock.lock(); plan = p; let on = running; lock.unlock()
         if on { host.broadcast(.plan(p)) }
     }
