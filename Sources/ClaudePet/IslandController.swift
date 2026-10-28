@@ -220,7 +220,10 @@ final class IslandController {
                                 clickedPet: clicked || (dragging && overZone),
                                 dismissFinished: model.dismissRequested)
         clicked = false; model.dismissRequested = false
-        let dizzyLeft = [model.pokes, model.codexPokes].compactMap { PetAnimator.dizzyRemaining(pokes: $0, at: now) }.max().map { Int($0.rounded(.up)) }
+        let claudeDizzy = PetAnimator.dizzyRemaining(pokes: model.pokes, at: now), codexDizzy = PetAnimator.dizzyRemaining(pokes: model.codexPokes, at: now)
+        // la tarjeta de mareo muestra a quien se llevo los golpes: el que mas mareo tiene
+        if let x = codexDizzy, x > (claudeDizzy ?? 0) { model.dizzyAgent = .codex } else if claudeDizzy != nil { model.dizzyAgent = .claude }
+        let dizzyLeft = [claudeDizzy, codexDizzy].compactMap { $0 }.max().map { Int($0.rounded(.up)) }
         if model.dizzyLeft != dizzyLeft { model.dizzyLeft = dizzyLeft }
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.musicPlayer ? store.musicReacting : (store.danceToMusic && music.isPlaying(enabled: true, now: now))
@@ -339,7 +342,10 @@ struct IslandView: View {
         let side: CGFloat = compact ? 20 : 56
         HStack(alignment: compact ? .center : .top, spacing: compact ? 6 : 16) {
             if !ownsMascot {
-            PetFace(store: store, model: model)
+            Group {
+                if model.dizzyLeft != nil, model.dizzyAgent == .codex { CodexMini(store: store, model: model, greet: false) }
+                else { PetFace(store: store, model: model) }
+            }
                 .frame(width: side, height: side)
                 .overlay(Circle().stroke(statusColor, lineWidth: compact ? 1.5 : 2.5).opacity(store.state == .idle ? 0 : 0.9))
                 .overlay {

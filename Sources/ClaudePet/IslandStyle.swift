@@ -46,7 +46,7 @@ struct IslandDizzyNotice: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("demasiados toques").font(.system(size: 16, weight: .semibold)).foregroundColor(.white)
-            Text("dame un segundo: vuelvo al trabajo en \(seconds) \(seconds == 1 ? "segundo" : "segundos").")
+            Text(L.t("dame un segundo: vuelvo al trabajo en \(seconds) \(seconds == 1 ? "segundo" : "segundos").", "give me a second: back to work in \(seconds) \(seconds == 1 ? "second" : "seconds")."))
                 .font(.system(size: 12)).foregroundColor(.white.opacity(0.6))
         }
         .accessibilityElement(children: .combine)

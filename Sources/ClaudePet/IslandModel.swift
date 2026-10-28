@@ -42,6 +42,8 @@ final class IslandModel: ObservableObject {
     @Published var pomodoroLabel: String?
     /// Segundos de mareo que quedan (para el aviso), o nil.
     @Published var dizzyLeft: Int?
+    /// Quien esta mareado (el de la tarjeta de mareo).
+    var dizzyAgent: IslandAgentTab = .claude
     var dismissRequested = false
     @Published var focusActive = false
     /// Hay musica sonando y el usuario activo el baile.

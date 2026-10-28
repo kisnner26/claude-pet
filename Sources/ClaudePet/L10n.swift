@@ -21,6 +21,9 @@ enum L {
         UserDefaults.standard.set(lang.rawValue, forKey: key)
     }
 
+    /// Para frases con datos que no son cifras (nombres, plurales): las dos versiones, escritas enteras.
+    static func t(_ es: String, _ en: String) -> String { current == .en ? en : es }
+
     /// Traduce una frase escrita en espanol. Si no la conoce, devuelve el original.
     /// Las cifras de una frase con datos ("5 sesiones") se sustituyen por `#` para reutilizar la misma traduccion.
     static func tr(_ s: String) -> String {
