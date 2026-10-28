@@ -50,12 +50,19 @@ struct IslandStage: View {
                 .frame(width: 96, height: 14)
                 .offset(y: 4)
             Group {
-                if agent == .claude { PetFace(store: store, model: model) }
+                if store.deskOut.contains(agent) {
+                    // la mascota esta fuera, en el escritorio: aqui queda su sitio
+                    RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.16), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4])).padding(18)
+                        .overlay(Text("en el escritorio").font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.4)))
+                        .onTapGesture(count: 2) { DesktopPets.shared.putBack(agent) }
+                } else if agent == .claude { PetFace(store: store, model: model) }
                 else { CodexMini(store: store, model: model, greet: false) }
             }
             .frame(width: 92, height: 92)
             .contentShape(Rectangle())
             .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
+            // arrastrarla fuera de la isla la suelta por el escritorio
+            .gesture(DragGesture(minimumDistance: 28, coordinateSpace: .global).onChanged { _ in if !store.deskOut.contains(agent) { DesktopPets.shared.pickUp(agent) } })
             .onHover { model.petHoverSince = $0 ? ProcessInfo.processInfo.systemUptime : nil }
             .accessibilityLabel("\(agent.rawValue): toca para saludar")
             .contextMenu {
