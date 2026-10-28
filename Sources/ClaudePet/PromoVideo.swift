@@ -7,13 +7,14 @@ import AVFoundation
 @MainActor
 enum PromoVideo {
     static let width = 1920, height = 1080, fps = 30
-    static let duration = 53.0
-    /// Instantes de corte entre escenas (tambien marcan los golpes del sonido).
-    static let cuts: [Double] = [0, 4, 10, 16, 22, 28, 35, 41, 47]
+    /// 144 pulsos por minuto y 72 pulsos: 30 s. Todo (cortes, destellos, sonido) cuelga de esta rejilla.
+    static let bpm = 144.0, totalBeats = 72
+    static var beat: Double { 60 / bpm }
+    static var duration: Double { Double(totalBeats) * beat }
 
     struct Assets {
-        var islandWorking: NSImage?, islandPermission: NSImage?, visto: NSImage?
-        var montage: [(NSImage?, String)] = []
+        var island: [String: NSImage] = [:]
+        var images: [String: NSImage] = [:]
     }
 
     // MARK: arranque
@@ -70,18 +71,24 @@ enum PromoVideo {
     private static func loadAssets() -> Assets {
         var a = Assets()
         let now = Date()
-        a.islandWorking = islandImage({ _, s in
-            s.permissionAsks = []; s.setSnapshotState(.tool)
-            s.setSnapshotContext(ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude"))
-            s.setSnapshotSteps([IslandStep(agent: "claude", tool: "Read", target: "src/billing.ts", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-42)),
-                                IslandStep(agent: "claude", tool: "Edit", target: "src/billing.ts", added: 3, deleted: 1, workspace: "", at: now.addingTimeInterval(-18)),
-                                IslandStep(agent: "claude", tool: "Bash", target: "npm test", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-3))])
-        }, ask: false)
+        let steps = [IslandStep(agent: "claude", tool: "Read", target: "src/billing.ts", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-42)),
+                     IslandStep(agent: "claude", tool: "Edit", target: "src/billing.ts", added: 3, deleted: 1, workspace: "", at: now.addingTimeInterval(-18)),
+                     IslandStep(agent: "claude", tool: "Bash", target: "npm test", added: 0, deleted: 0, workspace: "", at: now.addingTimeInterval(-3))]
         let ask = PermissionAsk(id: "p", session: "s", tool: "Bash", project: "korus", detail: "git push origin main", canAlways: true, at: now)
-        a.islandPermission = islandImage({ _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }, ask: true)
-        a.visto = NSImage(contentsOfFile: repoPath("docs/img/visto-mascotas.jpg"))
-        a.montage = [("ajustes-plugins.jpg", "plugins y taller"), ("ajustes-guardarropa.jpg", "un guardarropa para cada una"), ("dock.jpg", "acceso rápido según la app"), ("perimetro-permiso.jpg", "un perímetro por proyecto")]
-            .map { (NSImage(contentsOfFile: repoPath("docs/img/" + $0.0)), $0.1) }
+        func working(_ page: IslandPage) -> (IslandModel, PetStore) -> Void {
+            { m, s in s.permissionAsks = []; s.setSnapshotState(.tool); s.setSnapshotContext(ContextReading(usedTokens: 112_000, compactAtTokens: 160_000, model: "claude")); s.setSnapshotSteps(steps); m.page = page }
+        }
+        a.island["trabajando"] = islandImage(working(.home), ask: false)
+        a.island["cambios"] = islandImage(working(.changes), ask: false)
+        a.island["plan"] = islandImage(working(.plan), ask: false)
+        a.island["herramientas"] = islandImage(working(.tools), ask: false)
+        a.island["ajustes"] = islandImage(working(.settings), ask: false)
+        a.island["permiso"] = islandImage({ _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }, ask: true)
+        a.island["terminado"] = islandImage({ mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }, ask: false)
+        for n in ["visto-mascotas.jpg", "plan.png", "dock.jpg", "ajustes-plugins.jpg", "ajustes-guardarropa.jpg", "ajustes-musica.jpg", "baile.jpg", "atuendos.jpg", "companero.png", "hero.png",
+                  "reproductor.jpg", "perimetro-permiso.jpg", "producto.jpg", "vida.png", "emociones.png", "futbol-escena.png", "vinilo.jpg", "ajustes-perimetro.jpg", "resumen-semanal.png", "estilo-mareo.png"] {
+            a.images[n] = NSImage(contentsOfFile: repoPath("docs/img/" + n))
+        }
         return a
     }
 
@@ -124,32 +131,51 @@ enum PromoVideo {
         return writer.status == .completed
     }
 
-    // MARK: sonido: un colchon suave y un golpe grave en cada corte, sintetizado
+    // MARK: sonido: bombo en cada pulso, caja en el 2 y el 4, hi-hat, bajo y arpegio, todo sintetizado sobre la misma rejilla
 
     private static func writeAudio(to path: String) -> Bool {
         let rate = 44_100.0, frames = AVAudioFrameCount(duration * rate)
         guard let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 2, interleaved: false), let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: frames),
               let ch = buf.floatChannelData else { return false }
         buf.frameLength = frames
-        // acordes (Am, F, C, G) como suma de senos con ataque lento
-        let chords: [[Double]] = [[110.0, 164.81, 220.0, 261.63], [87.31, 130.81, 174.61, 220.0], [130.81, 196.0, 261.63, 329.63], [98.0, 146.83, 196.0, 246.94]]
-        var rng = SystemRandomNumberGenerator()
+        var seed: UInt64 = 0x9E3779B97F4A7C15
+        func noise() -> Double { seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17; return Double(seed % 20_001) / 10_000 - 1 }
+        let roots: [Double] = [55.0, 43.65, 65.41, 49.0]          // La, Fa, Do, Sol (bajo)
+        let arps: [[Double]] = [[220, 261.63, 329.63, 440], [174.61, 220, 261.63, 349.23], [261.63, 329.63, 392, 523.25], [196, 246.94, 293.66, 392]]
+        let b = beat
+        var lp = 0.0
         for n in 0..<Int(frames) {
             let t = Double(n) / rate
-            let idx = Int(t / 6.5) % chords.count, nextIdx = (idx + 1) % chords.count
-            let k = min(1, max(0, (t.truncatingRemainder(dividingBy: 6.5) - 5.2) / 1.3))      // fundido entre acordes
-            var pad = 0.0
-            for (i, f) in chords[idx].enumerated() { pad += sin(2 * .pi * f * t + Double(i)) * (1 - k) * (0.5 / Double(i + 1) + 0.15) }
-            for (i, f) in chords[nextIdx].enumerated() { pad += sin(2 * .pi * f * t + Double(i)) * k * (0.5 / Double(i + 1) + 0.15) }
-            let swell = min(1, t / 3) * min(1, (duration - t) / 3)
-            var s = pad * 0.10 * swell
-            for c in cuts where t >= c && t < c + 0.9 {
-                let e = t - c
-                s += sin(2 * .pi * (55 - 12 * e) * e) * exp(-e * 5) * 0.55 + Double.random(in: -1...1, using: &rng) * exp(-e * 40) * 0.08
+            let beatIdx = Int(t / b), ph = t - Double(beatIdx) * b                 // fase dentro del pulso
+            let bar = beatIdx / 4, step = beatIdx % 4
+            let drop = beatIdx >= 8                                                 // los primeros dos compases son la entrada
+            let outro = beatIdx >= totalBeats - 4
+            var s = 0.0
+            // bombo: seno que cae de 130 a 45 Hz
+            if beatIdx >= 2 { s += sin(2 * .pi * (45 * ph + 85 * (1 - exp(-ph * 30)) / 30)) * exp(-ph * 9) * 0.95 }
+            if drop {
+                // caja en 2 y 4: ruido filtrado + un tono
+                if step == 1 || step == 3 { s += (noise() * 0.45 + sin(2 * .pi * 190 * ph) * 0.35) * exp(-ph * 16) }
+                // hi-hat a corcheas
+                let eph = ph.truncatingRemainder(dividingBy: b / 2)
+                let hp = noise() - lp; lp += hp * 0.15
+                s += hp * exp(-eph * 55) * 0.22
+                // arpegio a semicorcheas
+                let sph = ph.truncatingRemainder(dividingBy: b / 4), sIdx = Int(ph / (b / 4)) % 4
+                let f = arps[bar % 4][sIdx] * (bar % 8 >= 4 ? 2 : 1)
+                s += (sin(2 * .pi * f * t) + 0.5 * sin(4 * .pi * f * t) + 0.25 * sin(6 * .pi * f * t)) * exp(-sph * 14) * 0.13
             }
-            ch[0][n] = Float(s * 0.8); ch[1][n] = Float(s * 0.8 + sin(t * 0.3) * pad * 0.01)
+            // bajo continuo con sidechain (se agacha con cada bombo)
+            let duck = 1 - 0.8 * exp(-ph * 10)
+            s += sin(2 * .pi * roots[bar % 4] * t) * 0.34 * duck * (beatIdx >= 2 ? 1 : 0.5)
+            // subida de ruido antes de la entrada y antes del final
+            let toDrop = Double(8) * b - t, toEnd = duration - t
+            if toDrop > 0, toDrop < 2 * b * 2 { s += noise() * 0.05 * (1 - toDrop / (4 * b)) * (1 - toDrop / (4 * b)) }
+            if outro, toEnd > 0 { s *= min(1, toEnd / b) }
+            s = tanh(s * 1.4) * 0.85
+            ch[0][n] = Float(s); ch[1][n] = Float(s)
         }
-        guard let file = try? AVAudioFile(forWriting: URL(fileURLWithPath: path), settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: rate, AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 160_000]) else { return false }
+        guard let file = try? AVAudioFile(forWriting: URL(fileURLWithPath: path), settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: rate, AVNumberOfChannelsKey: 2, AVEncoderBitRateKey: 192_000]) else { return false }
         do { try file.write(from: buf) } catch { return false }
         return true
     }
@@ -172,181 +198,193 @@ enum PromoVideo {
     }
 }
 
-// MARK: cuadro
+// MARK: cuadro: montaje a ritmo
 
 private func smooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c * c * (3 - 2 * c) }
-private func seg(_ t: Double, _ a: Double, _ b: Double) -> Double { smooth((t - a) / max(0.001, b - a)) }
+private func hash(_ n: Int) -> Double { var x = UInt64(bitPattern: Int64(n)) &* 0x9E3779B97F4A7C15; x ^= x >> 29; x = x &* 0xBF58476D1CE4E5B9; x ^= x >> 32; return Double(x % 10_000) / 10_000 }
+
+private enum ShotKind {
+    case island(String), image(String), pets([Set<Outfit>], Bool), rage, word, stat(String, String)
+}
+
+private struct Shot { let at: Double; let beats: Double; let kind: ShotKind; let word: String; var color: UInt32 = 0x000000 }
+
+private let orange: UInt32 = 0xE0824F, blue: UInt32 = 0x5270E8, bone: UInt32 = 0xF4F1EA
+
+/// La lista de planos: cada uno dura uno o dos pulsos (0,42 s), con una palabra que se clava en el golpe.
+private let shots: [Shot] = [
+    Shot(at: 0, beats: 2, kind: .word, word: ""),
+    Shot(at: 2, beats: 2, kind: .pets([[]], false), word: "CLAUDE PET", color: 0x000000),
+    Shot(at: 4, beats: 2, kind: .word, word: "MIRA", color: orange),
+    Shot(at: 6, beats: 2, kind: .word, word: "LO QUE HACEN", color: 0x000000),
+    Shot(at: 8, beats: 2, kind: .island("trabajando"), word: "EN VIVO"),
+    Shot(at: 10, beats: 1, kind: .island("cambios"), word: "CAMBIOS"),
+    Shot(at: 11, beats: 1, kind: .island("plan"), word: "TU PLAN"),
+    Shot(at: 12, beats: 1, kind: .island("herramientas"), word: "TODO A MANO"),
+    Shot(at: 13, beats: 1, kind: .island("ajustes"), word: "SIN SALIR"),
+    Shot(at: 14, beats: 2, kind: .island("permiso"), word: "PERMISOS"),
+    Shot(at: 16, beats: 1, kind: .word, word: "UN TOQUE", color: blue),
+    Shot(at: 17, beats: 1, kind: .image("perimetro-permiso.jpg"), word: "PERÍMETRO"),
+    Shot(at: 18, beats: 1, kind: .stat("100+", "APPS RECONOCIDAS"), word: "", color: 0x000000),
+    Shot(at: 19, beats: 1, kind: .island("terminado"), word: "TERMINÓ"),
+    Shot(at: 20, beats: 2, kind: .pets([[], [.glasses], [.crown], [.bow, .scarf]], true), word: "DOS MASCOTAS"),
+    Shot(at: 22, beats: 1, kind: .pets([[.sunhat, .sunglasses]], false), word: "34°"),
+    Shot(at: 23, beats: 1, kind: .pets([[.umbrella]], false), word: "LLUVIA"),
+    Shot(at: 24, beats: 1, kind: .pets([[.beanie, .scarf, .earmuffs]], false), word: "-2°"),
+    Shot(at: 25, beats: 1, kind: .image("atuendos.jpg"), word: "SE VISTEN"),
+    Shot(at: 26, beats: 1, kind: .image("baile.jpg"), word: "BAILAN"),
+    Shot(at: 27, beats: 5, kind: .rage, word: "SE ENFADAN"),
+    Shot(at: 32, beats: 1, kind: .word, word: "PATEAN", color: orange),
+    Shot(at: 33, beats: 1, kind: .word, word: "VENTANAS", color: 0x000000),
+    Shot(at: 34, beats: 2, kind: .image("visto-mascotas.jpg"), word: "IPHONE · WATCH"),
+    Shot(at: 36, beats: 1, kind: .word, word: "AR", color: blue),
+    Shot(at: 37, beats: 1, kind: .word, word: "QUEST", color: 0x000000),
+    Shot(at: 38, beats: 1, kind: .word, word: "RELAY", color: orange),
+    Shot(at: 39, beats: 1, kind: .image("reproductor.jpg"), word: "MÚSICA"),
+    Shot(at: 40, beats: 1, kind: .image("ajustes-plugins.jpg"), word: "PLUGINS"),
+    Shot(at: 41, beats: 1, kind: .image("dock.jpg"), word: "ACCESO RÁPIDO"),
+    Shot(at: 42, beats: 1, kind: .image("ajustes-guardarropa.jpg"), word: "GUARDARROPA"),
+    Shot(at: 43, beats: 1, kind: .image("vida.png"), word: "VIVAS"),
+    Shot(at: 44, beats: 1, kind: .image("emociones.png"), word: "EXPRESIVAS"),
+    Shot(at: 45, beats: 1, kind: .stat("0", "DEPENDENCIAS"), word: "", color: blue),
+    Shot(at: 46, beats: 1, kind: .stat("MIT", "CÓDIGO ABIERTO"), word: "", color: 0x000000),
+    Shot(at: 47, beats: 1, kind: .stat("2", "AGENTES · 1 ISLA"), word: "", color: orange),
+    Shot(at: 48, beats: 2, kind: .island("trabajando"), word: "CLAUDE"),
+    Shot(at: 50, beats: 2, kind: .pets([[]], true), word: "CODEX"),
+    Shot(at: 52, beats: 1, kind: .word, word: "NOTCH", color: 0x000000),
+    Shot(at: 53, beats: 1, kind: .word, word: "O NO", color: orange),
+    Shot(at: 54, beats: 1, kind: .island("permiso"), word: "APRUEBA"),
+    Shot(at: 55, beats: 1, kind: .island("cambios"), word: "REVISA"),
+    Shot(at: 56, beats: 1, kind: .image("plan.png"), word: "CONTROLA"),
+    Shot(at: 57, beats: 1, kind: .image("ajustes-musica.jpg"), word: "DISFRUTA"),
+    Shot(at: 58, beats: 2, kind: .pets([[], [.crown], [.glasses, .bow], [.headphones]], true), word: "ELLAS"),
+    Shot(at: 60, beats: 2, kind: .rage, word: "OJO"),
+    Shot(at: 62, beats: 1, kind: .word, word: "GRATIS", color: blue),
+    Shot(at: 63, beats: 1, kind: .word, word: "MIT", color: 0x000000),
+    Shot(at: 64, beats: 2, kind: .island("trabajando"), word: "KISNNER26"),
+    Shot(at: 66, beats: 6, kind: .word, word: "CLAUDE PET", color: 0x000000),
+]
 
 @MainActor
 struct PromoFrame: View {
     let t: Double
     let assets: PromoVideo.Assets
-    private let ink = Color(hex: 0xF4F1EA)
+    private let b = PromoVideo.beat
 
-    private var scene: Int { PromoVideo.cuts.lastIndex { t >= $0 } ?? 0 }
-    private func local(_ i: Int) -> Double { t - PromoVideo.cuts[i] }
-    private func len(_ i: Int) -> Double { (i + 1 < PromoVideo.cuts.count ? PromoVideo.cuts[i + 1] : PromoVideo.duration) - PromoVideo.cuts[i] }
+    private var index: Int { shots.lastIndex { t >= $0.at * b } ?? 0 }
+    private var shot: Shot { shots[index] }
+    /// Tiempo desde el golpe del pulso actual y numero de pulso.
+    private var beatPhase: Double { (t / b).truncatingRemainder(dividingBy: 1) * b }
+    private var beatNo: Int { Int(t / b) }
+    private var local: Double { t - shot.at * b }
+    private var punch: Double { exp(-beatPhase * 9) }
 
     var body: some View {
         ZStack {
-            Color.black
-            RadialGradient(colors: [Color(hex: 0x1C2540).opacity(0.55), .clear], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 0, endRadius: 900)
-            content
-            // barras de cine y fundido de cada corte
-            VStack { Color.black.frame(height: 70); Spacer(); Color.black.frame(height: 70) }
-            Color.black.opacity(1 - seg(local(scene), 0, 0.45) + seg(local(scene), len(scene) - 0.35, len(scene)) * (scene == PromoVideo.cuts.count - 1 ? 0 : 1) * 0)
+            background
+            shotView
+                .scaleEffect(1 + 0.085 * punch + 0.00 * local)
+                .rotationEffect(.degrees((hash(beatNo) - 0.5) * 5 * punch))
+                .offset(x: CGFloat((hash(beatNo + 7) - 0.5) * 60 * punch), y: CGFloat((hash(beatNo + 13) - 0.5) * 40 * punch))
+            // destello blanco en cada golpe y marcos de cine
+            Color.white.opacity(0.5 * exp(-beatPhase * 22) * (beatNo >= 2 ? 1 : 0))
+            if beatNo >= 8, hash(beatNo) > 0.55 { glitch }
+            LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.55)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
+            // el fundido final
+            Color.black.opacity(t > PromoVideo.duration - 0.25 ? (t - (PromoVideo.duration - 0.25)) / 0.25 : 0)
         }
         .frame(width: CGFloat(PromoVideo.width), height: CGFloat(PromoVideo.height))
         .clipped()
     }
 
-    @ViewBuilder private var content: some View {
-        switch scene {
-        case 0: intro
-        case 1: islandScene(assets.islandWorking, "Mira lo que hacen\ntus agentes.", "estado en vivo · la tarea exacta · el contexto que queda")
-        case 2: islandScene(assets.islandPermission, "Aprueba sin salir\nde lo que haces.", "riesgo, secretos y perímetro en cada permiso")
-        case 3: pets
-        case 4: weather
-        case 5: rage
-        case 6: companion
-        case 7: montage
-        default: outro
-        }
-    }
-
-    // MARK: texto
-
-    private func title(_ s: String, _ lt: Double, at a: Double, size: CGFloat = 92, y: CGFloat = 0) -> some View {
-        let p = seg(lt, a, a + 0.9)
-        return Text(s).font(.system(size: size, weight: .semibold)).tracking(-size * 0.02).multilineTextAlignment(.center).foregroundColor(ink)
-            .lineSpacing(-4).blur(radius: (1 - p) * 22).opacity(p).scaleEffect(1.04 - 0.04 * p).offset(y: y)
-    }
-
-    private func caption(_ s: String, _ lt: Double, at a: Double) -> some View {
-        let p = seg(lt, a, a + 0.7)
-        return Text(s.uppercased()).font(.system(size: 22, weight: .medium, design: .monospaced)).tracking(4).foregroundColor(ink.opacity(0.62 * p)).offset(y: (1 - p) * 10)
-    }
-
-    // MARK: escenas
-
-    private var intro: some View {
-        let lt = local(0)
+    private var background: some View {
+        let c = shot.color
         return ZStack {
-            PromoPet(agent: .claude, t: t, size: 420, outfits: [], pokes: [], state: .idle)
-                .scaleEffect(0.75 + 0.25 * seg(lt, 0.2, 1.4)).opacity(seg(lt, 0.2, 1.0)).offset(y: -120 - 40 * seg(lt, 1.6, 3.2))
-            VStack(spacing: 18) {
-                Spacer().frame(height: 330)
-                title("claude pet.", lt, at: 1.5, size: 150)
-                caption("dos mascotas para tus agentes de código", lt, at: 2.4)
+            Color(hex: c == 0 ? 0x07080C : c)
+            if c == 0 { RadialGradient(colors: [Color(hex: 0x1C2540).opacity(0.7), .clear], center: .center, startRadius: 0, endRadius: 900) }
+            else { LinearGradient(colors: [.white.opacity(0.18), .clear], startPoint: .topLeading, endPoint: .bottomTrailing) }
+            // franjas que cruzan la pantalla en cada golpe
+            ForEach(0..<3, id: \.self) { i in
+                Rectangle().fill(Color.white.opacity(c == 0 ? 0.05 : 0.12)).frame(width: 2400, height: CGFloat(24 + i * 30))
+                    .rotationEffect(.degrees(-12)).offset(x: CGFloat(-2000 + 2400 * smooth(beatPhase / (b * 0.8))) * (i % 2 == 0 ? 1 : -1), y: CGFloat(i * 280 - 300))
             }
         }
     }
 
-    private func islandScene(_ img: NSImage?, _ head: String, _ cap: String) -> some View {
-        let i = scene, lt = local(i)
-        let rise = seg(lt, 0.2, 1.4)
-        return ZStack {
-            if let img {
-                Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(width: 1500)
-                    .shadow(color: .black.opacity(0.6), radius: 50, y: 20)
-                    .offset(y: 190 - (1 - rise) * 500 + CGFloat(lt) * 5).scaleEffect(1 + lt * 0.006).opacity(rise)
+    /// Desplazamiento horizontal de franjas, como una señal estropeada, en los golpes.
+    private var glitch: some View {
+        ZStack {
+            ForEach(0..<4, id: \.self) { i in
+                Rectangle().fill((i % 2 == 0 ? Color(hex: orange) : Color(hex: blue)).opacity(0.35 * exp(-beatPhase * 18)))
+                    .frame(width: 1920, height: CGFloat(14 + hash(beatNo + i) * 50)).offset(x: CGFloat((hash(beatNo + i * 3) - 0.5) * 300), y: CGFloat((hash(beatNo + i * 5) - 0.5) * 900))
             }
-            VStack(spacing: 22) { title(head, lt, at: 0.5, size: 78); caption(cap, lt, at: 1.4) }.offset(y: -330)
-        }.frame(maxHeight: .infinity, alignment: .center)
-    }
-
-    private var pets: some View {
-        let lt = local(3)
-        let pokes: [Double] = [2.6, 3.1, 3.6].map { PromoVideo.cuts[3] + $0 }
-        let outfits: [Set<Outfit>] = [[], [.glasses], [.crown], [.bow, .scarf]]
-        let o = outfits[min(3, Int(max(0, lt - 0.4) / 1.1))]
-        return ZStack {
-            HStack(spacing: 160) {
-                PromoPet(agent: .claude, t: t, size: 440, outfits: o, pokes: pokes, state: .idle)
-                PromoPet(agent: .codex, t: t + 1.3, size: 440, outfits: outfits[min(3, Int(max(0, lt - 0.9) / 1.1))], pokes: pokes, state: .idle)
-            }.offset(y: 90).opacity(seg(lt, 0.1, 0.8))
-            VStack(spacing: 22) { title("Dos mascotas.\nIguales de vivas.", lt, at: 0.4, size: 78); caption("las mismas expresiones y un guardarropa para cada una", lt, at: 1.2) }.offset(y: -320)
         }
     }
 
-    private var weather: some View {
-        let lt = local(4)
-        let cases: [(String, Set<Outfit>)] = [("34 °C · calor", [.sunhat, .sunglasses]), ("lluvia", [.umbrella]), ("-2 °C · frío", [.beanie, .scarf, .earmuffs])]
-        let i = min(2, Int(lt / 2.0)), (label, o) = cases[i]
-        return ZStack {
-            HStack(spacing: 140) {
-                PromoPet(agent: .claude, t: t, size: 400, outfits: o, pokes: [], state: .idle)
-                PromoPet(agent: .codex, t: t + 0.7, size: 400, outfits: o, pokes: [], state: .idle)
-            }.offset(y: 90).id(i)
-            VStack(spacing: 22) { title("Se visten\ncon el tiempo.", lt, at: 0.3, size: 78); caption(label, lt - Double(i) * 2.0 + 1.0, at: 1.0) }.offset(y: -320)
-        }
-    }
-
-    private var rage: some View {
-        let lt = local(5)
-        let size = CGSize(width: 1920, height: 1080)
-        let target = CGRect(x: 1020, y: 250, width: 700, height: 520)
-        let after = RageChoreography.impactAt + 0.05
-        let gone = seg(lt - 0.6, after, after + 0.5)
-        return ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(hex: 0x23283A), Color(hex: 0x181B27)], startPoint: .top, endPoint: .bottom))
-                .overlay(alignment: .topLeading) {
-                    HStack(spacing: 8) { ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.white.opacity(0.2)).frame(width: 16, height: 16) } }.padding(22)
+    @ViewBuilder private var shotView: some View {
+        let lt = local
+        switch shot.kind {
+        case .word: ZStack { wordView(shot.word, big: 250) }
+        case .stat(let big, let small):
+            VStack(spacing: 10) {
+                Text(big).font(.system(size: 420, weight: .black)).tracking(-12).foregroundColor(Color(hex: shot.color == 0 ? bone : 0x000000)).minimumScaleFactor(0.4)
+                Text(small).font(.system(size: 70, weight: .bold, design: .monospaced)).tracking(6).foregroundColor(Color(hex: shot.color == 0 ? orange : 0x000000).opacity(0.9))
+            }
+        case .island(let name):
+            ZStack {
+                if let img = assets.island[name] {
+                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(width: 1900).offset(y: 40 + CGFloat(lt * 18)).shadow(color: .black.opacity(0.7), radius: 40, y: 20)
                 }
-                .overlay { VStack(alignment: .leading, spacing: 18) { ForEach(0..<6, id: \.self) { i in RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.07)).frame(width: CGFloat(520 - i * 50), height: 18) } }.offset(x: -30, y: 20) }
-                .frame(width: target.width, height: target.height)
-                .scaleEffect(1 - 0.85 * gone, anchor: .bottom).offset(x: target.minX, y: target.minY + 330 * gone).opacity(1 - gone)
-            RageOverlay(store: PetStore.shared, agent: .claude, start: 0, screen: size, target: target, fixedTime: max(0, lt - 0.6))
-            VStack(spacing: 22) { title("Y si las golpeas\nseguido, se enfadan.", lt, at: 0.2, size: 70); caption("nunca cierra nada: solo minimiza la ventana", lt, at: 1.0) }
-                .frame(width: 900).offset(x: 60, y: 150)
-        }.frame(width: size.width, height: size.height, alignment: .topLeading)
-    }
-
-    private var companion: some View {
-        let lt = local(6)
-        return ZStack {
-            if let v = assets.visto {
-                Image(nsImage: v).resizable().aspectRatio(contentMode: .fit).frame(height: 600).clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .shadow(color: .black.opacity(0.6), radius: 40, y: 20).offset(y: 120).scaleEffect(1 + lt * 0.01).opacity(seg(lt, 0.2, 1.0))
+                wordView(shot.word, big: 150).offset(y: 380)
             }
-            VStack(spacing: 22) { title("En tu iPhone\ny en tu reloj.", lt, at: 0.3, size: 78); caption("permitir siempre · realidad aumentada · Meta Quest · fuera de casa con tu relay", lt, at: 1.2) }.offset(y: -335)
+        case .image(let name):
+            ZStack {
+                if let img = assets.images[name] {
+                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(height: 820).clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .shadow(color: .black.opacity(0.7), radius: 50, y: 24).offset(y: -40 + CGFloat(lt * 20))
+                }
+                wordView(shot.word, big: 160).offset(y: 400)
+            }
+        case .pets(let looks, let duo):
+            let k = min(looks.count - 1, Int(lt / b)), o = looks[max(0, k)]
+            let pokes = [t - 0.9, t - 0.55, t - 0.2]
+            ZStack {
+                HStack(spacing: duo ? 140 : 60) {
+                    PromoPet(agent: .claude, t: t, size: duo ? 560 : 640, outfits: o, pokes: duo ? pokes : [], state: .idle)
+                    if duo || looks.count == 1 { PromoPet(agent: .codex, t: t + 0.6, size: duo ? 560 : 640, outfits: o, pokes: duo ? pokes : [], state: .idle) }
+                }.offset(y: -60)
+                if !shot.word.isEmpty { wordView(shot.word, big: shot.word.count > 8 ? 130 : 200).offset(y: 380) }
+            }
+        case .rage:
+            // la coreografia real del enfado a toda velocidad para que quepa en unos pulsos
+            let size = CGSize(width: 1920, height: 1080), target = CGRect(x: 1060, y: 280, width: 640, height: 480)
+            let speed = RageChoreography.duration / (shot.beats * b) * 0.95
+            let rt = min(RageChoreography.duration, lt * speed)
+            let gone = smooth((rt - RageChoreography.impactAt) / 0.4)
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color(hex: 0x2B3250), Color(hex: 0x1B1F30)], startPoint: .top, endPoint: .bottom))
+                    .overlay(alignment: .topLeading) { HStack(spacing: 8) { ForEach(0..<3, id: \.self) { _ in Circle().fill(Color.white.opacity(0.25)).frame(width: 16, height: 16) } }.padding(22) }
+                    .overlay { VStack(alignment: .leading, spacing: 18) { ForEach(0..<6, id: \.self) { i in RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.1)).frame(width: CGFloat(460 - i * 50), height: 18) } }.offset(x: -30, y: 20) }
+                    .frame(width: target.width, height: target.height)
+                    .scaleEffect(1 - 0.9 * gone, anchor: .bottom).offset(x: target.minX, y: target.minY + 320 * gone).opacity(1 - gone)
+                RageOverlay(store: PetStore.shared, agent: .claude, start: 0, screen: size, target: target, fixedTime: rt)
+                wordView(shot.word, big: 150).offset(x: 80, y: 80)
+            }.frame(width: size.width, height: size.height, alignment: .topLeading)
         }
     }
 
-    private var montage: some View {
-        let lt = local(7)
-        let items = assets.montage
-        let i = min(items.count - 1, Int(lt / 1.35)), local1 = lt - Double(i) * 1.35
+    /// Una palabra enorme que se clava en el golpe: entra grande y se asienta, con un duplicado rojo y otro azul desplazados.
+    private func wordView(_ s: String, big: CGFloat) -> some View {
+        let p = exp(-beatPhase * 11)
+        let dark = shot.color == blue || shot.color == orange
+        let ink = Color(hex: dark ? 0x07080C : bone)
         return ZStack {
-            if let img = items[safe: i]?.0 {
-                Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(height: 600).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .shadow(color: .black.opacity(0.6), radius: 40, y: 20).offset(y: 110 + CGFloat((1 - seg(local1, 0, 0.5)) * 40)).opacity(seg(local1, 0, 0.4)).id(i)
-            }
-            VStack(spacing: 22) { title("Hecha para\nampliarse.", lt, at: 0.2, size: 74); caption(items[safe: i]?.1 ?? "", local1, at: 0.2) }.offset(y: -335)
-            if lt > 5.2 { Text("laboratorio incluido: galaxia · ciudad · radar").font(.system(size: 26, weight: .medium, design: .monospaced)).foregroundColor(ink.opacity(0.7)).offset(y: 440).opacity(seg(lt, 5.2, 5.8)) }
-        }
-    }
-
-    private var outro: some View {
-        let lt = local(8)
-        return ZStack {
-            HStack(spacing: 60) {
-                PromoPet(agent: .claude, t: t, size: 260, outfits: [], pokes: [], state: .done)
-                PromoPet(agent: .codex, t: t + 0.5, size: 260, outfits: [], pokes: [], state: .done)
-            }.offset(y: -250).opacity(seg(lt, 0.1, 0.9))
-            VStack(spacing: 20) {
-                Spacer().frame(height: 170)
-                title("claude pet.", lt, at: 0.7, size: 140)
-                caption("macOS · iPhone · Apple Watch", lt, at: 1.5)
-                Text("gratis · código abierto · MIT").font(.system(size: 34, weight: .medium)).foregroundColor(ink.opacity(0.85 * seg(lt, 2.0, 2.6)))
-                Text("github.com/kisnner26/claude-pet").font(.system(size: 40, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F).opacity(seg(lt, 2.4, 3.0)))
-                Text("escenas renderizadas con el código de la propia app").font(.system(size: 18, design: .monospaced)).foregroundColor(ink.opacity(0.4 * seg(lt, 3.2, 3.8))).padding(.top, 30)
-            }
-        }
+            Text(s).font(.system(size: big, weight: .black)).tracking(-big * 0.04).foregroundColor(Color(hex: orange)).offset(x: CGFloat(14 * p), y: CGFloat(-6 * p)).opacity(0.85 * p)
+            Text(s).font(.system(size: big, weight: .black)).tracking(-big * 0.04).foregroundColor(Color(hex: blue)).offset(x: CGFloat(-14 * p), y: CGFloat(6 * p)).opacity(0.85 * p)
+            Text(s).font(.system(size: big, weight: .black)).tracking(-big * 0.04).foregroundColor(ink)
+        }.multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.4).frame(width: 1800).scaleEffect(1 + 0.35 * p)
     }
 }
-
-private extension Array { subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil } }
 
 /// Una mascota animada con el animador de verdad: respira, parpadea, mira, se marea con tres toques y se viste.
 @MainActor
