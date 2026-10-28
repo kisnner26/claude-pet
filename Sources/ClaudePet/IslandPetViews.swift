@@ -51,6 +51,7 @@ struct PetFace: View {
         let hour = Calendar.current.component(.hour, from: Date())
         scene.daytime = hour >= 6 && hour < 21
         scene.music = store.musicPulse(at: ProcessInfo.processInfo.systemUptime)
+        scene.ambient = store.ambient
     }
 
     static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose) {
@@ -67,14 +68,22 @@ struct CodexMini: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
     let greet: Bool
-    private func face(_ tick: Int) -> CodexAvatar.Face {
+    private func face(_ tick: Int, pose: PetPose) -> CodexAvatar.Face {
+        // las expresiones de la pose mandan sobre el estado solo cuando no hay nada urgente que mostrar
+        if pose.dizzy { return .dizzy(tick / 2) }
+        if pose.annoyed { return .annoyed }
         switch store.codexState {
         case .waiting: return .alert(on: tick % 2 == 0)
         case .error: return .cross
         case .done: return .happy
         case .thinking, .starting: return .dots(tick % 4)
         case .tool: return .typing(tick)
-        default: return .prompt(cursor: tick % 2 == 0)
+        default:
+            if pose.sleepy || pose.blink { return .closed }
+            if pose.yawn || pose.happy { return .happy }
+            if pose.wideEyes { return .wide }
+            if pose.worried || pose.impatient { return .worried }
+            return .prompt(cursor: tick % 2 == 0)
         }
     }
     @ViewBuilder var body: some View {
@@ -85,10 +94,12 @@ struct CodexMini: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
-            // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza y saluda con la mano
-            let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true,
-                                                 scene: { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState, dancing: model.dancing); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()) : PetPose()
-            CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose, outfits: store.outfitsNow(at: ctx.date))
+            // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza, se marea y saluda con la mano
+            let now = ProcessInfo.processInfo.systemUptime
+            let scene: PetScene = { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState, dancing: model.dancing); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()
+            let pose = motion ? PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true, scene: scene) : PetPose()
+            CodexMiniFrame(face: face(tick, pose: pose), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose,
+                           outfits: store.outfitsNow(for: .codex, at: ctx.date), particles: motion ? PetAnimator.particles(at: now, pose: pose, scene: scene) : [])
             }
         }
     }
@@ -102,12 +113,15 @@ struct CodexMiniFrame: View {
     let wave: Bool
     var pose = PetPose()
     var outfits: Set<Outfit> = []
+    var particles: [Px] = []
     var body: some View {
         Canvas { gc, size in
             let u = min(size.width / 18, size.height / 21)
             let ox = (size.width - 18 * u) / 2
             let oy = (size.height - 21 * u) / 2
             // la pose mueve el cuerpo entero desde los pies, igual que con claude
+            // las particulas (estrellas del mareo, notas, confeti) no siguen al cuerpo
+            for q in particles { gc.fill(Path(CGRect(x: ox + CGFloat(q.x + 1) * u, y: oy + CGFloat(q.y + 3) * u, width: u + 0.4, height: u + 0.4)), with: .color(q.c)) }
             gc.translateBy(x: size.width / 2 + pose.dx * u, y: oy + 21 * u + pose.dy * u)
             gc.rotate(by: .degrees(pose.rotation))
             gc.scaleBy(x: pose.scaleX, y: pose.scaleY)

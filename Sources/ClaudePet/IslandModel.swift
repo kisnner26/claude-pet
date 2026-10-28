@@ -53,6 +53,7 @@ final class IslandModel: ObservableObject {
         SoundEngine.shared.play(.click)
         codexPokes.append(ProcessInfo.processInfo.systemUptime)
         if codexPokes.count > 6 { codexPokes.removeFirst(codexPokes.count - 6) }
+        onPetClick()
     }
 
     func poke() {

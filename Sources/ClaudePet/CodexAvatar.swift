@@ -12,7 +12,11 @@ enum CodexAvatar {
     enum Arms: Equatable { case rest, wave(Bool), salute, celebrate }
     /// Lo que muestra el visor. `dots(n)`: n puntos (pensando); `typing(k)`: `>_` con el cursor en movimiento;
     /// `alert`: `!` naranja (espera tu aprobacion); `cross`: `x x` (error).
-    enum Face: Equatable { case prompt(cursor: Bool), happy, dots(Int), typing(Int), alert(on: Bool), cross }
+    enum Face: Equatable {
+        case prompt(cursor: Bool), happy, dots(Int), typing(Int), alert(on: Bool), cross
+        /// Las mismas expresiones que la mascota de claude: mareo, enfado, parpadeo/sueno, sorpresa y preocupacion.
+        case dizzy(Int), annoyed, closed, wide, worried
+    }
     /// Globo de atencion sobre la cabeza: lo que Codex piensa de lo que hace Claude.
     enum Emote: Equatable { case dots(Int), bang, question, check }
 
@@ -107,6 +111,16 @@ enum CodexAvatar {
         case .typing(let k): glyph = [(6, 5), (7, 6), (6, 7)] + [(9 + k % 3, 7), (10 + k % 3, 7)]
         case .alert(let on): if on { glyph = [(8, 4), (9, 4), (8, 5), (9, 5), (8, 6), (9, 6), (8, 8), (9, 8)]; tint = orange }
         case .cross: glyph = [(6, 5), (8, 5), (7, 6), (6, 7), (8, 7), (10, 5), (12, 5), (11, 6), (10, 7), (12, 7)]; tint = coral
+        case .dizzy(let k):
+            // dos espirales: un aro con el punto central girando entre cuatro posiciones
+            let ring = [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (1, 2), (0, 2), (0, 1)]
+            let spot = [(1, 0), (2, 1), (1, 2), (0, 1)][k % 4]
+            for ox in [6, 10] { glyph += ring.map { (ox + $0.0, 5 + $0.1) }; glyph.append((ox + spot.0 + (spot.0 == 1 ? 0 : 0), 5 + spot.1)) }
+            tint = Color(hex: 0xE58BB0)
+        case .annoyed: glyph = [(6, 5), (7, 6), (6, 7), (12, 5), (11, 6), (12, 7)]; tint = orange
+        case .closed: glyph = [(6, 7), (7, 7), (8, 7), (10, 7), (11, 7), (12, 7)]
+        case .wide: glyph = [(6, 5), (7, 5), (8, 5), (6, 6), (8, 6), (6, 7), (7, 7), (8, 7), (10, 5), (11, 5), (12, 5), (10, 6), (12, 6), (10, 7), (11, 7), (12, 7)]
+        case .worried: glyph = [(6, 6), (7, 5), (11, 5), (12, 6), (7, 7), (11, 7)]; tint = Color(hex: 0xE7B45B)
         }
         for (x, y) in glyph { out.append((x, y, tint)) }
         return out

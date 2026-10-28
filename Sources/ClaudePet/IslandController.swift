@@ -220,7 +220,7 @@ final class IslandController {
                                 clickedPet: clicked || (dragging && overZone),
                                 dismissFinished: model.dismissRequested)
         clicked = false; model.dismissRequested = false
-        let dizzyLeft = PetAnimator.dizzyRemaining(pokes: model.pokes, at: now).map { Int($0.rounded(.up)) }
+        let dizzyLeft = [model.pokes, model.codexPokes].compactMap { PetAnimator.dizzyRemaining(pokes: $0, at: now) }.max().map { Int($0.rounded(.up)) }
         if model.dizzyLeft != dizzyLeft { model.dizzyLeft = dizzyLeft }
         model.idleSeconds = store.pomodoro.onBreak ? max(idle, PetAnimator.sleepAfter + 1) : idle
         model.dancing = store.musicPlayer ? store.musicReacting : (store.danceToMusic && music.isPlaying(enabled: true, now: now))
@@ -284,7 +284,7 @@ struct IslandView: View {
             island.frame(width: model.size.width, height: model.size.height)
             // gotas de metal liquido que cuelgan del borde al abrirse
             if effectsOn, model.mode == .expanded, model.placement == .top || model.placement == .floating, let start = model.expandStart {
-                GooeyDripsView(width: model.size.width, start: start).offset(y: model.size.height - 6)
+                GooeyDripsView(width: model.size.width, start: start, cornerRadius: NotchGeometry.cornerRadius(.expanded)).offset(y: model.size.height - 6)
             }
         }
         .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: anchor)
@@ -941,15 +941,6 @@ struct GooeyDripsStatic: View {
     let width: CGFloat
     let age: TimeInterval
     var body: some View {
-        Canvas { gc, size in
-            gc.addFilter(.alphaThreshold(min: 0.5, color: .black)); gc.addFilter(.blur(radius: 6))
-            gc.drawLayer { layer in
-                layer.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: size.width, height: 8), cornerRadius: 4), with: .color(.black))
-                for b in Gooey.blobs(age: age) {
-                    let cx = CGFloat(b.x) * size.width, cy = 6 + CGFloat(b.drop), r = CGFloat(b.radius)
-                    layer.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r * 1.15, width: r * 2, height: r * 2.3)), with: .color(.black))
-                }
-            }
-        }.frame(width: width, height: 44)
+        Canvas { gc, size in GooeyPainter.draw(&gc, size: size, blobs: Gooey.blobs(age: age, width: Double(width))) }.frame(width: width, height: GooeyPainter.height)
     }
 }
