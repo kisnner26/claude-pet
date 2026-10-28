@@ -8,6 +8,9 @@ enum RageTrigger {
     static let window: TimeInterval = 1.5
     static let chance = 0.35
 
+    /// No molesta cuando te estas concentrando: ni con el modo foco (manual o programado) ni en mitad de un pomodoro de trabajo.
+    static func allowed(focus: Bool, pomodoroWorking: Bool) -> Bool { !focus && !pomodoroWorking }
+
     /// Al segundo toque en `window` segundos, con una probabilidad, y no antes de `cooldown` desde el ultimo enfado.
     /// `roll` es un numero de 0 a 1 (inyectado para poder probarlo). El tercer toque marea, asi que el enfado tiene que llegar antes.
     static func shouldRage(pokes: [TimeInterval], now: TimeInterval, roll: Double, lastRage: TimeInterval?) -> Bool {
@@ -127,8 +130,10 @@ final class RageController {
     private var panel: NSPanel?
     private(set) var running = false
 
-    func start(agent: IslandAgentTab, store: PetStore) {
+    /// `force` es para el boton de probar de ajustes: ignora el modo foco y el pomodoro.
+    func start(agent: IslandAgentTab, store: PetStore, force: Bool = false) {
         guard store.rageEnabled, !running, store.animationsEnabled, !store.reduceMotion else { return }
+        guard force || RageTrigger.allowed(focus: store.focusMode.isActive(at: Date()), pomodoroWorking: store.pomodoro.phase == .work) else { return }
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         guard let screen else { return }
         let primaryH = NSScreen.screens.first?.frame.height ?? screen.frame.height

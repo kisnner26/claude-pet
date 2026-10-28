@@ -413,7 +413,7 @@ enum L10nEN {
         "nivel 2": "level 2",
         "nivel 3": "level 3",
         "genio": "temper",
-        "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto.": "if you hit it repeatedly it sometimes gets angry, grows giant, walks up to a window and kicks it. The window is only minimized (never closed) and accessibility permission is needed; without it, it's just the animation. It calms down for a minute.",
+        "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto y nunca se enfada con el modo foco ni en mitad de un pomodoro.": "if you hit it repeatedly it sometimes gets angry, grows giant, walks up to a window and kicks it. The window is only minimized (never closed) and accessibility permission is needed; without it, it's just the animation. It calms down for a minute and never gets angry during focus mode or in the middle of a pomodoro.",
         "se enfada si la golpeas": "gets angry if you hit it",
         "una patada a una ventana de otra app, sin cerrarla.": "a kick at another app's window, without closing it.",
         "permiso de accesibilidad": "accessibility permission",

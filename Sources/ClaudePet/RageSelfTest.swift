@@ -15,6 +15,10 @@ enum RageSelfTest {
         check("tres toques marean, no enfadan", !RageTrigger.shouldRage(pokes: [99.0, 99.4, 99.9], now: now, roll: 0, lastRage: nil))
         check("se calma un minuto", !RageTrigger.shouldRage(pokes: [99.2, 99.9], now: now, roll: 0, lastRage: 60) && RageTrigger.shouldRage(pokes: [99.2, 99.9], now: now, roll: 0, lastRage: 30))
 
+        check("con el modo foco no se enfada", !RageTrigger.allowed(focus: true, pomodoroWorking: false))
+        check("en mitad de un pomodoro de trabajo no se enfada", !RageTrigger.allowed(focus: false, pomodoroWorking: true))
+        check("sin foco ni pomodoro si puede enfadarse", RageTrigger.allowed(focus: false, pomodoroWorking: false))
+
         let first = RageChoreography.frame(at: 0), last = RageChoreography.frame(at: RageChoreography.duration)
         check("empieza pequena y sin brillo", abs(first.size - RageChoreography.small) < 0.001 && first.walk == 0 && first.glow == 0)
         check("termina pequena, en casa y sin brillo", abs(last.size - RageChoreography.small) < 0.001 && last.walk == 0 && last.glow == 0)
