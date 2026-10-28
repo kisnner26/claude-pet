@@ -41,7 +41,9 @@ struct PermissionCardView: View {
     /// Permitir recordando la decision. Sin objetivo claro (comando compuesto) o con riesgo alto no hay alcance.
     @ViewBuilder private func scopeMenu(for ask: PermissionAsk, risk: PermissionRisk) -> some View {
         let canRemember = risk != .high && ApprovalRules.key(tool: ask.tool, detail: ask.detail) != nil
-        if canRemember {
+        if canRemember, IslandSnapshot.isRendering {
+            Text("permitir y recordar").font(.system(size: 11, design: .monospaced)).foregroundColor(.white.opacity(0.75))
+        } else if canRemember {
             Menu("permitir y recordar") {
                 ForEach(ApprovalScope.allCases.filter { $0 != .once && $0.isAllowed(for: risk) }, id: \.self) { scope in
                     Button(scope == .project ? "este proyecto, 30 min" : scope == .session ? "esta sesión" : "siempre") { store.approveWithScope(ask.id, scope) }

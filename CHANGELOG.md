@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [Sin publicar]
+
+### añadido
+- Vídeo de presentación hecho con el propio código de la app: `ClaudePet --render-promo salida.mp4` renderiza 53 s a 1080p con las vistas y el animador reales (la isla, las mascotas, los atuendos, el enfado) y lo codifica con AVFoundation, sin ffmpeg. Los menús nativos se sustituyen por su icono en las capturas.
+
 ## [2.11.0] - 2026-10-28
 
 ### cambiado

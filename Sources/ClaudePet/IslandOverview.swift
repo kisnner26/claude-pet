@@ -78,7 +78,9 @@ struct IslandOverviewView: View {
             Spacer(minLength: 8)
             if store.musicPlayer, music.nowPlaying != nil { musicButton }
             if store.codexPresent { agentSwitch.fixedSize() }
-            moreMenu.layoutPriority(2)
+            // las capturas no pueden dibujar menus nativos: en su lugar, el icono quieto
+            if IslandSnapshot.isRendering { Image(systemName: "ellipsis").font(.system(size: 12, weight: .bold)).foregroundColor(.white.opacity(0.7)).frame(width: 26, height: 26).layoutPriority(2) }
+            else { moreMenu.layoutPriority(2) }
         }
     }
 
@@ -184,7 +186,7 @@ struct IslandOverviewView: View {
     // MARK: acciones visibles
 
     private var actions: some View {
-        QuickDock(store: store, music: music, plugins: plugins) { "\(store.sessionSummary) · \(agentTab.rawValue) · \(state.label.lowercased())" }
+        QuickDock(store: store, music: music, plugins: plugins, summary: { "\(store.sessionSummary) · \(agentTab.rawValue) · \(state.label.lowercased())" }, hideOverflow: IslandSnapshot.isRendering)
     }
 
     private func actionButton(_ title: String, symbol: String, prominent: Bool = false, action: @escaping () -> Void) -> some View {

@@ -156,6 +156,12 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-quest") { exit(QuestSelfTest.run(web: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "quest") ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-phone") { exit(PhoneAlertsSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-lab") { exit(MainActor.assumeIsolated { LabSelfTest.run(root: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : "tools") } ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--render-promo-frames"), i + 2 < CommandLine.arguments.count {
+            MainActor.assumeIsolated { PromoVideo.frames(to: CommandLine.arguments[i + 1], times: CommandLine.arguments[i + 2].split(separator: ",").compactMap { Double($0) }) }; exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--render-promo"), i + 1 < CommandLine.arguments.count {
+            MainActor.assumeIsolated { PromoVideo.run(output: CommandLine.arguments[i + 1]) }; exit(0)
+        }
         if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-lang") { exit(L10nSelfTest.run() ? 0 : 1) }
