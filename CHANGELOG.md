@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.4.2] - 2026-10-27
+
+### cambiado
+- los seis atuendos se redibujan con sombreado, tanto para Claude como para las tres variantes de Codex: gorro de punto con pompón y vuelta, corona con joyas, gafas de verdad (marco fino, cristal con tinte, puente y patillas hasta las orejas; en Codex, montura clara alrededor del visor con puente y patillas), bufanda de rayas con cabo y flecos, audífonos con banda, copas y piloto, y lazo con dos lazadas y nudo.
+- los atuendos ahora se definen como pixel-art en ASCII, más fácil de afinar y de revisar.
+- `--dump-grids` imprime las rejillas de las mascotas para dibujar encima con exactitud.
+
+### añadido
+- pruebas del ancho de cada fila de los dibujos, de que cada letra tenga color y de que ninguna montura pise los ojos.
+
 ## [2.4.1] - 2026-10-27
 
 ### corregido
@@ -121,6 +131,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ### añadido
 - primera versión: una mascota pixel-art en la barra de menú que refleja el estado de Claude Code.
 
+[2.4.2]: https://github.com/kisnner26/claude-pet/compare/v2.4.1...v2.4.2
 [2.4.1]: https://github.com/kisnner26/claude-pet/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/kisnner26/claude-pet/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/kisnner26/claude-pet/compare/v2.2.0...v2.3.0
