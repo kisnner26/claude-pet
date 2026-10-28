@@ -148,6 +148,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-settings") { exit(SettingsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-music") { exit(MusicSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--selftest-workshop"), i + 2 < CommandLine.arguments.count { exit(WorkshopSelfTest.run(workshop: CommandLine.arguments[i + 1], evil: CommandLine.arguments[i + 2]) ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-audio") { exit(AudioSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--dump-grids") { MascotGrids.dump(); exit(0) }
