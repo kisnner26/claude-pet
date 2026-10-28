@@ -183,27 +183,36 @@ struct TrailerView: View {
 }
 
 /// Gotas negras que cuelgan del borde de la isla al abrirse. Con desenfoque y umbral alfa se funden con el borde como metal liquido.
+/// Dibuja la franja y las gotas que cuelgan del borde de la isla. La franja respeta las esquinas redondeadas para no asomar por fuera.
+enum GooeyPainter {
+    static let height: CGFloat = 60
+    static func draw(_ gc: inout GraphicsContext, size: CGSize, blobs: [Gooey.Blob], cornerRadius: CGFloat = 30) {
+        let l = Gooey.layout(width: Double(size.width), cornerRadius: Double(cornerRadius))
+        gc.addFilter(.alphaThreshold(min: 0.5, color: .black))
+        gc.addFilter(.blur(radius: 6 * CGFloat(l.scale)))
+        gc.drawLayer { layer in
+            // una franja en el borde de la isla, solo en el tramo recto, para que las gotas cuelguen de algo
+            let inset = CGFloat(l.inset) - 8
+            layer.fill(Path(roundedRect: CGRect(x: inset, y: 0, width: max(0, size.width - inset * 2), height: 8), cornerRadius: 4), with: .color(.black))
+            for b in blobs {
+                let cx = CGFloat(b.x) * size.width, cy = 6 + CGFloat(b.drop), r = CGFloat(b.radius)
+                layer.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r * 1.15, width: r * 2, height: r * 2.3)), with: .color(.black))
+            }
+        }
+    }
+}
+
 struct GooeyDripsView: View {
     let width: CGFloat
     let start: TimeInterval
+    var cornerRadius: CGFloat = 30
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
             let age = ProcessInfo.processInfo.systemUptime - start
-            let blobs = Gooey.blobs(age: age)
+            let blobs = Gooey.blobs(age: age, width: Double(width), cornerRadius: Double(cornerRadius))
             if !blobs.isEmpty {
-                Canvas { gc, size in
-                    gc.addFilter(.alphaThreshold(min: 0.5, color: .black))
-                    gc.addFilter(.blur(radius: 6))
-                    gc.drawLayer { layer in
-                        // una franja en el borde de la isla, para que las gotas cuelguen de algo
-                        layer.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: size.width, height: 8), cornerRadius: 4), with: .color(.black))
-                        for b in blobs {
-                            let cx = CGFloat(b.x) * size.width, cy = 6 + CGFloat(b.drop), r = CGFloat(b.radius)
-                            layer.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r * 1.15, width: r * 2, height: r * 2.3)), with: .color(.black))
-                        }
-                    }
-                }
-                .frame(width: width, height: 44)
+                Canvas { gc, size in GooeyPainter.draw(&gc, size: size, blobs: blobs, cornerRadius: cornerRadius) }
+                    .frame(width: width, height: GooeyPainter.height)
             }
         }
         .allowsHitTesting(false).accessibilityHidden(true)

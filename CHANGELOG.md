@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.10.0] - 2026-10-28
+
+### añadido
+- Paridad entre agentes: codex ahora se marea con tres toques, se enfada, parpadea, se duerme, se sorprende y se preocupa con las mismas expresiones que claude (en el visor), lleva las mismas partículas, y el aviso de mareo de la isla salta con cualquiera de los dos.
+- Guardarropa por agente: cada mascota tiene su armario; quien ya tenía atuendos los conserva en ambas hasta cambiarlos. Clic derecho en la mascota de la isla para vestirla.
+- Clima local (opt-in, apagado de serie): open-meteo con la ubicación del Mac o una ciudad. Las mascotas se visten solas: gafas de sol y sombrero con calor, bufanda, gorro y orejeras con frío, paraguas con lluvia. Cuatro atuendos nuevos: gafas de sol, sombrero, paraguas y orejeras.
+- Sentir el entorno: sudan con calor, tiritan con frío, ven llover o nevar y se preocupan con poca batería.
+- Acceso rápido: seis familias de apps nuevas (herramientas de desarrollo, videollamadas, vídeo y fotos, juegos), unas 150 apps reconocidas y, para las desconocidas, clasificación por la categoría que declara la app. Acciones nuevas: copiar rama y modo foco.
+
+### corregido
+- El goteo al abrir la isla se adapta al ancho: queda entre las esquinas redondeadas, con más gotas y más gruesas en islas grandes y menos y finas en pequeñas.
+
 ## [2.9.0] - 2026-10-28
 
 ### añadido

@@ -88,6 +88,15 @@ enum VisualFxSelfTest {
         check("antes de empezar y despues de acabar no hay gotas", Gooey.blobs(age: 0).isEmpty && Gooey.blobs(age: Gooey.duration).isEmpty && Gooey.blobs(age: 5).isEmpty)
         let mid = Gooey.blobs(age: (Gooey.delay + Gooey.duration) / 2), early = Gooey.blobs(age: Gooey.delay + 0.02)
         check("a mitad de camino las gotas cuelgan mas que al principio", mid.count == 4 && (mid.map(\.drop).max() ?? 0) > (early.map(\.drop).max() ?? 0) && mid.allSatisfy { $0.drop >= 0 && $0.drop <= 26 && $0.radius > 2 && $0.radius < 10 && (0...1).contains($0.x) })
+        for w in [260.0, 340.0, 460.0, 620.0, 800.0] {
+            let l = Gooey.layout(width: w), bs = Gooey.blobs(age: 0.5, width: w)
+            check("gotas a \(Int(w)) pt: hay entre 2 y 7", !bs.isEmpty && bs.count == l.count && (2...7).contains(l.count))
+            check("gotas a \(Int(w)) pt: caen entre las esquinas redondeadas", bs.allSatisfy { $0.x * w - $0.radius >= 30 - 0.5 && $0.x * w + $0.radius <= w - 30 + 0.5 })
+            check("gotas a \(Int(w)) pt: caben en el lienzo", bs.allSatisfy { 6 + $0.drop + $0.radius * 1.15 <= 60 })
+            let sorted = bs.map { $0.x * w }.sorted()
+            check("gotas a \(Int(w)) pt: no se pisan", zip(sorted, sorted.dropFirst()).allSatisfy { $1 - $0 > 8 })
+        }
+        check("una isla muy estrecha no dibuja gotas fuera de sitio", Gooey.blobs(age: 0.5, width: 70).isEmpty)
         check("las gotas son deterministas y se reparten a lo ancho", Gooey.blobs(age: 0.5) == Gooey.blobs(age: 0.5) && Set(mid.map { Int($0.x * 10) }).count >= 3)
 
         // llama de racha
