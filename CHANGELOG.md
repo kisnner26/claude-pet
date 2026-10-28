@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [sin publicar]
 
 ### añadido
+- taller de plugins: catálogo en `workshop/` que se ve e instala desde Ajustes → plugins, con paquetes verificados por sha256 y publicación por pull request (`workshop/build.py`, CI y `tests/workshop.sh`).
 - siete plugins de ejemplo útiles: `git-estado`, `github-rapido`, `diario-de-sesiones`, `puertos`, `contexto-para-agentes`, `abrir-en` y `todos-del-proyecto`.
 - `tests/plugins-utiles.sh` los ejecuta con datos hostiles y comprueba que cada uno devuelva JSON válido y respete sus permisos.
 

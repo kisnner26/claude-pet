@@ -130,6 +130,10 @@ Garantiza:
 
 **No** es una caja de arena. Un plugin es un proceso con **tus mismos privilegios**: si es malicioso, puede leer tus archivos o usar la red aunque no pida ningún permiso, porque los permisos controlan lo que claude-pet le da y acepta de vuelta, no lo que el sistema le deja hacer. Activa solo plugins de gente en la que confíes y léelos antes: son scripts.
 
+## taller
+
+Desde Ajustes → plugins → taller puedes instalar plugins de otros con un clic, y publicar el tuyo con un pull request: [workshop/README.md](../workshop/README.md). Cada paquete se verifica con sha256 y se instala desactivado.
+
 ## plugins incluidos
 
 En `examples/plugins/` hay once plugins listos para copiar a `~/.claude-pet/plugins/`. Ninguno se activa solo: al activarlos desde Ajustes → plugins la app muestra los permisos y tú decides.
