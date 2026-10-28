@@ -66,7 +66,7 @@ struct QuickDock: View {
                      musicAvailable: store.musicPlayer && music.nowPlaying != nil, musicPlaying: music.isPlaying,
                      pomodoroRunning: store.pomodoro.phase != .idle, alertsSnoozed: store.alertsAreSnoozed,
                      hasPerimeter: store.perimeters.contains { $0.root == workspace },
-                     profile: store.quickAppAware ? front.profile : .other, frontAppName: front.name, hasRemote: !workspace.isEmpty && remotes.webURL(for: workspace) != nil)
+                     profile: store.quickAppAware ? front.profile : .other, frontAppName: front.name, hasRemote: !workspace.isEmpty && remotes.webURL(for: workspace) != nil, branch: store.mission.git.branch, focusOn: store.focusManual)
     }
 
     var body: some View {
@@ -149,6 +149,12 @@ struct QuickDock: View {
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(workspace, forType: .string); plugins.show("ruta copiada")
         case .musicPrev: music.send(.previous)
         case .musicNext: music.send(.next)
+        case .copyBranch:
+            let b = store.mission.git.branch
+            guard !b.isEmpty else { NSSound.beep(); return }
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(b, forType: .string); plugins.show("rama copiada")
+        case .focus:
+            store.focusManual.toggle(); plugins.show(store.focusManual ? "modo foco activado" : "modo foco apagado")
         }
     }
 }

@@ -6,7 +6,7 @@ enum QuickActionsSelfTest {
         func check(_ name: String, _ ok: Bool) { if !ok { failures += 1; print("FALLO \(name)") } }
 
         var c = QuickContext()
-        check("sin nada: solo lo que siempre vale", QuickAction.allCases.filter { QuickActions.available($0, c) }.sorted { $0.rawValue < $1.rawValue } == [.mission, .pomodoro, .relay, .settings, .snooze, .summary].sorted { $0.rawValue < $1.rawValue })
+        check("sin nada: solo lo que siempre vale", QuickAction.allCases.filter { QuickActions.available($0, c) }.sorted { $0.rawValue < $1.rawValue } == [.focus, .mission, .pomodoro, .relay, .settings, .snooze, .summary].sorted { $0.rawValue < $1.rawValue })
         c.hasWorkspace = true; c.isRepo = true
         check("con repo: carpeta, punto de restauracion y perimetro", [.folder, .restorePoint, .perimeter].allSatisfy { QuickActions.available($0, c) } && !QuickActions.available(.commit, c))
         c.changeCount = 3; c.agentChanges = 2
@@ -44,6 +44,24 @@ enum QuickActionsSelfTest {
               && AppProfile.classify(bundleID: "com.googlecode.iterm2") == .terminal && AppProfile.classify(bundleID: "com.apple.Terminal") == .terminal && AppProfile.classify(bundleID: "com.apple.Safari") == .browser && AppProfile.classify(bundleID: "company.thebrowser.Browser") == .browser)
         check("clasifica musica, mensajes, notas, diseno y Finder", AppProfile.classify(bundleID: "com.spotify.client") == .music && AppProfile.classify(bundleID: "com.tinyspeck.slackmacgap") == .chat && AppProfile.classify(bundleID: "com.apple.mail") == .chat
               && AppProfile.classify(bundleID: "md.obsidian") == .writing && AppProfile.classify(bundleID: "com.figma.Desktop") == .design && AppProfile.classify(bundleID: "com.adobe.Photoshop") == .design && AppProfile.classify(bundleID: "com.apple.finder") == .finder)
+        let cases: [(String, AppProfile)] = [("com.github.GitHubClient", .devtools), ("com.docker.docker", .devtools), ("com.postmanlabs.mac", .devtools), ("us.zoom.xos", .meeting), ("com.microsoft.teams2", .meeting),
+                                             ("com.apple.FinalCut", .media), ("com.colliderli.iina", .media), ("com.valvesoftware.steam", .game), ("com.microsoft.Excel", .writing), ("org.blenderfoundation.blender", .design),
+                                             ("org.whispersystems.signal-desktop", .chat), ("com.tidal.desktop", .music), ("org.tabby", .terminal), ("com.apple.TextEdit", .editor), ("com.brave.Browser", .browser)]
+        for (id, p) in cases { check("clasifica \(id)", AppProfile.classify(bundleID: id) == p) }
+        check("una app desconocida se clasifica por su categoria", AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.developer-tools") == .devtools
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.productivity") == .writing
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.social-networking") == .chat
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.graphics-design") == .design
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.video") == .media
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.games") == .game
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.action-games") == .game
+              && AppProfile.classify(bundleID: "com.empresa.rara", category: "public.app-category.utilities") == .other)
+        check("lo conocido gana a la categoria", AppProfile.classify(bundleID: "com.apple.Safari", category: "public.app-category.games") == .browser)
+        check("cada familia tiene ejemplos, titulo y acciones que existen", AppProfile.allCases.allSatisfy { !$0.title.isEmpty && !$0.examples.isEmpty && ($0 == .other || !$0.priority.isEmpty) })
+        var ctx = QuickContext(hasWorkspace: true, isRepo: true, profile: .meeting); ctx.branch = "main"
+        check("en una videollamada lo primero es silenciar los avisos", QuickActions.layout(order: QuickActions.defaultEnabled, context: ctx).visible.first == .snooze)
+        check("copiar rama solo con rama conocida", QuickActions.available(.copyBranch, ctx) && !QuickActions.available(.copyBranch, QuickContext(hasWorkspace: true, isRepo: true)))
+        check("el modo foco siempre esta disponible", QuickActions.available(.focus, QuickContext()))
         check("lo desconocido o vacio es 'otras apps'", AppProfile.classify(bundleID: nil) == .other && AppProfile.classify(bundleID: "") == .other && AppProfile.classify(bundleID: "com.empresa.rara") == .other && AppProfile.classify(bundleID: "com.jetbrainsfake.x") == .other)
         check("cada perfil tiene titulo, ejemplos y, salvo 'otras', cinco prioridades distintas", AppProfile.allCases.allSatisfy { !$0.title.isEmpty && !$0.examples.isEmpty } && AppProfile.allCases.filter { $0 != .other }.allSatisfy { Set($0.priority).count == $0.priority.count && $0.priority.count == 5 } && AppProfile.other.priority.isEmpty)
 

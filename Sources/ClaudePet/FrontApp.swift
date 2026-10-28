@@ -9,9 +9,11 @@ final class FrontAppTracker: ObservableObject {
     @Published private(set) var name: String?
     @Published private(set) var icon: NSImage?
     private(set) var appURL: URL?
+    /// Categoria que declara la app en su Info.plist; sirve para clasificar las que no conocemos por nombre.
+    private(set) var category: String?
     private var token: NSObjectProtocol?
 
-    var profile: AppProfile { AppProfile.classify(bundleID: bundleID) }
+    var profile: AppProfile { AppProfile.classify(bundleID: bundleID, category: category) }
 
     func start() {
         guard token == nil else { return }
@@ -23,7 +25,7 @@ final class FrontAppTracker: ObservableObject {
 
     func scan() {
         guard let app = NSWorkspace.shared.frontmostApplication, app.bundleIdentifier != Bundle.main.bundleIdentifier, app.activationPolicy == .regular else { return }
-        if bundleID != app.bundleIdentifier { bundleID = app.bundleIdentifier; name = app.localizedName; icon = app.icon; appURL = app.bundleURL }
+        if bundleID != app.bundleIdentifier { category = app.bundleURL.flatMap { Bundle(url: $0)?.infoDictionary?["LSApplicationCategoryType"] as? String }; bundleID = app.bundleIdentifier; name = app.localizedName; icon = app.icon; appURL = app.bundleURL }
     }
 
     deinit { if let token { NSWorkspace.shared.notificationCenter.removeObserver(token) } }

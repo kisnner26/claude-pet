@@ -4,7 +4,7 @@ import Foundation
 enum QuickAction: String, CaseIterable, Identifiable {
     case commit, terminal, changes, music, mission, summary, folder, restorePoint, pomodoro, snooze, relay, perimeter, settings
     // las que traen los perfiles por app
-    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext
+    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext, copyBranch, focus
     var id: String { rawValue }
 }
 
@@ -27,6 +27,8 @@ struct QuickContext: Equatable {
     var profile: AppProfile = .other
     var frontAppName: String?
     var hasRemote = false
+    var branch = ""
+    var focusOn = false
 }
 
 struct QuickDescriptor: Equatable {
@@ -57,6 +59,8 @@ enum QuickActions {
         case .openRepoWeb: return c.hasWorkspace && c.hasRemote
         case .copyCd, .copyPath: return c.hasWorkspace
         case .musicPrev, .musicNext: return c.musicAvailable
+        case .copyBranch: return c.hasWorkspace && c.isRepo && !c.branch.isEmpty
+        case .focus: return true
         }
     }
 
@@ -81,6 +85,8 @@ enum QuickActions {
         case .copyPath: return QuickDescriptor(title: "copiar la ruta", symbol: "doc.on.doc", when: "hay un proyecto activo")
         case .musicPrev: return QuickDescriptor(title: "anterior", symbol: "backward.fill", when: "suena algo en Spotify o Apple Music")
         case .musicNext: return QuickDescriptor(title: "siguiente", symbol: "forward.fill", when: "suena algo en Spotify o Apple Music")
+        case .copyBranch: return QuickDescriptor(title: "copiar rama", symbol: "arrow.triangle.branch", when: "el proyecto es un repositorio con una rama activa")
+        case .focus: return QuickDescriptor(title: c.focusOn ? "salir del foco" : "modo foco", symbol: c.focusOn ? "moon.fill" : "moon", when: "siempre")
         }
     }
 
