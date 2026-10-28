@@ -25,7 +25,7 @@ struct PetFace: View {
                     return
                 }
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
-                if Sprite.skin == .block { px = Wardrobe.compose(px, outfits: store.outfitsNow(at: ctx.date), state: store.state, tick: tick) }
+                px = store.dress(px, state: store.state, tick: tick, at: ctx.date)
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
                 // las particulas no siguen al cuerpo: se dibujan antes de moverlo
                 var overlay = gc
@@ -87,7 +87,7 @@ struct CodexMini: View {
             // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza y saluda con la mano
             let pose = motion ? PetAnimator.pose(at: ProcessInfo.processInfo.systemUptime, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true,
                                                  scene: { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()) : PetPose()
-            CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose)
+            CodexMiniFrame(face: pose.yawn ? .happy : face(tick), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose, outfits: store.outfitsNow(at: ctx.date))
             }
         }
     }
@@ -100,6 +100,7 @@ struct CodexMiniFrame: View {
     let skin: CodexSkin
     let wave: Bool
     var pose = PetPose()
+    var outfits: Set<Outfit> = []
     var body: some View {
         Canvas { gc, size in
             let u = min(size.width / 18, size.height / 21)
@@ -110,7 +111,7 @@ struct CodexMiniFrame: View {
             gc.rotate(by: .degrees(pose.rotation))
             gc.scaleBy(x: pose.scaleX, y: pose.scaleY)
             gc.translateBy(x: -size.width / 2, y: -(oy + 21 * u))
-            for c in CodexAvatar.cells(legs: legs, face: face, skin: skin) {
+            for c in CodexAvatar.cells(legs: legs, face: face, skin: skin, outfits: outfits) {
                 gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.4, height: u + 0.4)), with: .color(c.c))
             }
             if wave { for c in CodexAvatar.armCells(.wave(tick % 8 < 4), skin: skin) { gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: oy + CGFloat(c.y) * u, width: u + 0.4, height: u + 0.4)), with: .color(c.c)) } }

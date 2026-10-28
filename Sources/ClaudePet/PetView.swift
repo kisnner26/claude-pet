@@ -78,7 +78,7 @@ struct PetView: View {
                             gc.fill(Path(CGRect(x: x, y: y, width: 5, height: 5)), with: .color(i % 2 == 0 ? Pal.dark : Pal.cream))
                         }
                     }
-                    for p in Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date)) {
+                    for p in store.dress(Sprite.pixels(store.state, tick: tick, cue: store.cue(at: ctx.date)), state: store.state, tick: tick, at: ctx.date) {
                         gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u, height: u)), with: .color(p.c))
                     }
                 }

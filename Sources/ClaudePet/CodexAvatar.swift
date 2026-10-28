@@ -90,12 +90,13 @@ enum CodexAvatar {
     }
 
     /// Celdas a pintar, de atras hacia delante: cuerpo, cabeza y glifo del visor.
-    static func cells(legs: Legs, face: Face, skin: CodexSkin = .cloud) -> [(x: Int, y: Int, c: Color)] {
+    static func cells(legs: Legs, face: Face, skin: CodexSkin = .cloud, outfits: Set<Outfit> = []) -> [(x: Int, y: Int, c: Color)] {
         var out: [(x: Int, y: Int, c: Color)] = []
         let body: [String]
         switch legs { case .stand: body = bodyStand; case .step: body = bodyStep; case .kick: body = bodyKick }
         for (y, row) in body.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch, skin: skin) { out.append((x, y + bodyOffset, c)) } } }
         for (y, row) in head.enumerated() { for (x, ch) in row.enumerated() { if let c = color(ch, skin: skin) { out.append((x, y, c)) } } }
+        out += Wardrobe.codexCells(outfits)
         let cyan = color("C", skin: skin)!, orange = Color(hex: 0xE0824F), coral = Color(hex: 0xFF8A7A)
         var glyph: [(Int, Int)] = []
         var tint = cyan

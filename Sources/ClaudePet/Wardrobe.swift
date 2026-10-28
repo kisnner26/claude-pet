@@ -52,6 +52,37 @@ enum Outfit: String, CaseIterable, Identifiable {
     var underEyes: Bool { self == .glasses }
 }
 
+extension Outfit {
+    /// El mismo atuendo sobre la cabeza del avatar de codex (rejilla 18x21, cabeza en las filas 0...11).
+    /// Se pinta encima de la cabeza y debajo del glifo del visor, asi el `>_` sigue viendose.
+    var codexCells: [(x: Int, y: Int, c: Color)] {
+        var out: [(Int, Int, Color)] = []
+        func rect(_ x0: Int, _ y0: Int, _ x1: Int, _ y1: Int, _ c: Color) { for y in y0...y1 { for x in x0...x1 { out.append((x, y, c)) } } }
+        func put(_ x: Int, _ y: Int, _ c: Color) { out.append((x, y, c)) }
+        let red = Color(hex: 0xC84B4B), cream = Color(hex: 0xEDE3DA), gold = Color(hex: 0xE7B45B), ruby = Color(hex: 0xB3304A)
+        let frame = Color(hex: 0xF2D8B0), teal = Color(hex: 0x3E8E8A), tealDark = Color(hex: 0x2C6B68)
+        let grey = Color(hex: 0x555B69), greyLight = Color(hex: 0x7C8394), pink = Color(hex: 0xE58BB0), pinkDark = Color(hex: 0xC4668E)
+        switch self {
+        case .beanie:
+            rect(6, 0, 11, 0, red); rect(4, 1, 13, 1, red); rect(3, 2, 14, 2, red); rect(2, 3, 15, 3, cream)
+        case .crown:
+            rect(4, 1, 13, 1, gold); for x in [5, 7, 10, 12] { put(x, 0, gold) }; put(8, 1, ruby); put(9, 1, ruby)
+        case .glasses:
+            rect(4, 3, 13, 3, frame); rect(4, 9, 13, 9, frame)
+            for y in 4...8 { put(4, y, frame); put(13, y, frame) }
+            rect(2, 6, 3, 6, frame); rect(14, 6, 15, 6, frame)
+        case .scarf:
+            rect(4, 12, 13, 12, teal); rect(4, 13, 13, 13, tealDark); put(12, 14, teal); put(12, 15, tealDark)
+        case .headphones:
+            rect(5, 0, 12, 0, grey); put(4, 1, grey); put(13, 1, grey); put(3, 2, grey); put(14, 2, grey)
+            rect(0, 4, 1, 8, grey); rect(16, 4, 17, 8, grey); put(1, 6, greyLight); put(16, 6, greyLight)
+        case .bow:
+            rect(11, 0, 14, 2, pink); put(12, 1, pinkDark); put(13, 1, pinkDark)
+        }
+        return out
+    }
+}
+
 enum Wardrobe {
     /// Desplazamiento del cuerpo del bloque segun estado y cuadro (el mismo que usa `Sprite.block`).
     static func bodyShift(_ state: PetState, tick t: Int) -> (dx: Int, dy: Int) {
@@ -79,6 +110,11 @@ enum Wardrobe {
         let firstEye = out.firstIndex { NSColor($0.c).usingColorSpace(.sRGB) == eye } ?? out.count
         out.insert(contentsOf: under, at: firstEye)
         return out + over
+    }
+
+    /// Celdas de los atuendos para el avatar de codex, en un orden fijo.
+    static func codexCells(_ outfits: Set<Outfit>) -> [(x: Int, y: Int, c: Color)] {
+        Outfit.allCases.filter(outfits.contains).flatMap(\.codexCells)
     }
 
     /// Atuendos de temporada: gorro de fin de año y bufanda en invierno. nil fuera de temporada.

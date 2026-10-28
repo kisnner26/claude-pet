@@ -125,6 +125,11 @@ final class PetStore: ObservableObject {
         if musicReacting { worn.insert(.headphones) }   // los auriculares no dependen del nivel: son parte de la reaccion
         return worn
     }
+    /// Viste los pixeles de claude con lo que lleva puesto. Los atuendos estan dibujados para el skin bloque.
+    func dress(_ px: [Px], state: PetState, tick: Int, at date: Date = Date()) -> [Px] {
+        guard Sprite.skin == .block else { return px }
+        return Wardrobe.compose(px, outfits: outfitsNow(at: date), state: state, tick: tick)
+    }
     func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
     /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
     /// Reproductor de Spotify y Apple Music en la isla. Lee titulo, artista y portada de lo que suena: por eso es opt-in.

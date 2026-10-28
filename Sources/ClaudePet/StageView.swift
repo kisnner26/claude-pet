@@ -72,7 +72,7 @@ struct CodexPetView: View {
             Canvas { gc, _ in
                 guard !store.hugActive else { return }
                 CodexRenderer.draw(&gc, now: ctx.date, info: store.companionInfo(at: ctx.date), game: store.gameFrame(at: ctx.date),
-                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin)
+                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin, outfits: store.outfitsNow(at: ctx.date))
             }
         }
     }
@@ -87,7 +87,7 @@ enum CodexRenderer {
 
     /// Dibuja a Codex dentro de su propia ventana. `facing` +1: mira a la derecha (Claude esta a su derecha); -1: se refleja.
     /// Con `game`, juega desde su sitio: estira la pierna, salta y celebra, sin moverse de la ventana.
-    static func draw(_ g: inout GraphicsContext, now: Date, info: CompanionInfo, game: GameFrame?, reduceMotion: Bool, animate: Bool, facing: Int, skin: CodexSkin = .cloud) {
+    static func draw(_ g: inout GraphicsContext, now: Date, info: CompanionInfo, game: GameFrame?, reduceMotion: Bool, animate: Bool, facing: Int, skin: CodexSkin = .cloud, outfits: Set<Outfit> = []) {
         let M = StageMetrics.self
         if facing < 0 {
             g.translateBy(x: M.codexSize.width, y: 0)
@@ -111,7 +111,7 @@ enum CodexRenderer {
         // avatar
         let x = M.avatarLeft + pose.shake
         let top = M.codexGround - CGFloat(CodexAvatar.height) * au - lift
-        for c in CodexAvatar.cells(legs: pose.legs, face: pose.face, skin: skin) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
+        for c in CodexAvatar.cells(legs: pose.legs, face: pose.face, skin: skin, outfits: outfits) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
         for c in CodexAvatar.armCells(pose.arms, skin: skin) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) }
         if let e = pose.emote { for c in CodexAvatar.emote(e) { rect(&g, x + Double(c.x) * au, top + Double(c.y) * au, au, au, c.c) } }
         // polvo al patear
