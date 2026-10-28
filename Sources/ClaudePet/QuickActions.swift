@@ -3,6 +3,8 @@ import Foundation
 /// Acciones del dock de la isla. Cada una solo aparece cuando tiene sentido: sin cambios no hay "commitear".
 enum QuickAction: String, CaseIterable, Identifiable {
     case commit, terminal, changes, music, mission, summary, folder, restorePoint, pomodoro, snooze, relay, perimeter, settings
+    // las que traen los perfiles por app
+    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext
     var id: String { rawValue }
 }
 
@@ -21,6 +23,10 @@ struct QuickContext: Equatable {
     var pomodoroRunning = false
     var alertsSnoozed = false
     var hasPerimeter = false
+    /// App en primer plano: decide que herramientas se ensenan primero.
+    var profile: AppProfile = .other
+    var frontAppName: String?
+    var hasRemote = false
 }
 
 struct QuickDescriptor: Equatable {
@@ -47,6 +53,10 @@ enum QuickActions {
         case .folder, .perimeter: return c.hasWorkspace
         case .restorePoint: return c.hasWorkspace && c.isRepo
         case .mission, .summary, .pomodoro, .snooze, .relay, .settings: return true
+        case .openInEditor: return c.hasWorkspace && c.profile == .editor && c.frontAppName != nil
+        case .openRepoWeb: return c.hasWorkspace && c.hasRemote
+        case .copyCd, .copyPath: return c.hasWorkspace
+        case .musicPrev, .musicNext: return c.musicAvailable
         }
     }
 
@@ -65,12 +75,22 @@ enum QuickActions {
         case .relay: return QuickDescriptor(title: "relevo de sesión", symbol: "arrow.left.arrow.right", when: "siempre")
         case .perimeter: return QuickDescriptor(title: c.hasPerimeter ? "perímetro" : "fijar perímetro", symbol: "scope", when: "hay un proyecto activo")
         case .settings: return QuickDescriptor(title: "ajustes", symbol: "gearshape", when: "siempre")
+        case .openInEditor: return QuickDescriptor(title: "abrir en \(c.frontAppName ?? "el editor")", symbol: "arrow.up.forward.app", when: "estás en un editor y hay proyecto activo")
+        case .openRepoWeb: return QuickDescriptor(title: "abrir el repo en la web", symbol: "safari", when: "el proyecto tiene un remoto en GitHub, GitLab, Bitbucket o Codeberg")
+        case .copyCd: return QuickDescriptor(title: "copiar «cd» al proyecto", symbol: "terminal.fill", when: "hay un proyecto activo")
+        case .copyPath: return QuickDescriptor(title: "copiar la ruta", symbol: "doc.on.doc", when: "hay un proyecto activo")
+        case .musicPrev: return QuickDescriptor(title: "anterior", symbol: "backward.fill", when: "suena algo en Spotify o Apple Music")
+        case .musicNext: return QuickDescriptor(title: "siguiente", symbol: "forward.fill", when: "suena algo en Spotify o Apple Music")
         }
     }
 
-    /// Lo que se ve y lo que va al menu "+": respeta el orden del usuario, solo lo activado y disponible, con tope de cinco.
-    static func layout(order: [QuickAction], context c: QuickContext) -> (visible: [QuickAction], overflow: [QuickAction]) {
-        let usable = order.filter { available($0, c) }
+    /// Lo que se ve y lo que va al menu "+": con perfiles por app, primero lo que esa app necesita y luego el orden del usuario;
+    /// solo lo disponible, sin repetir y con tope de cinco.
+    static func layout(order: [QuickAction], context c: QuickContext, appAware: Bool = true) -> (visible: [QuickAction], overflow: [QuickAction]) {
+        var list = order
+        if appAware { let pri = c.profile.priority; list = pri + order.filter { !pri.contains($0) } }
+        var seen = Set<QuickAction>()
+        let usable = list.filter { available($0, c) && seen.insert($0).inserted }
         return (Array(usable.prefix(maxVisible)), Array(usable.dropFirst(maxVisible)))
     }
 

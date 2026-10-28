@@ -163,31 +163,26 @@ extension IslandSnapshot {
 }
 
 extension IslandSnapshot {
-    /// `ClaudePet --snapshot-dock <ruta.png>`: el acceso rapido en reposo sin proyecto, trabajando en un repo, y con un boton expandido.
+    /// `ClaudePet --snapshot-dock <ruta.png>`: el acceso rapido en reposo, con cambios, y siguiendo a la app activa (editor, terminal, navegador, musica, Finder).
     @MainActor static func dock(to path: String) {
         let store = PetStore.shared
-        let rows: [(String, QuickContext, String?)] = [
+        func icon(_ bundle: String) -> NSImage? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle).map { NSWorkspace.shared.icon(forFile: $0.path) } }
+        let base = QuickContext(hasWorkspace: true, isRepo: true, changeCount: 4, agentChanges: 3, commiteroAvailable: true, terminalAvailable: true, musicAvailable: true, hasRemote: true)
+        func ctx(_ p: AppProfile, _ name: String?) -> QuickContext { var c = base; c.profile = p; c.frontAppName = name; return c }
+        let rows: [(String, QuickContext, NSImage?)] = [
             ("en reposo, sin proyecto", QuickContext(), nil),
-            ("en un repo con cambios, sonando música", QuickContext(hasWorkspace: true, isRepo: true, changeCount: 4, agentChanges: 3, commiteroAvailable: true, terminalAvailable: true, musicAvailable: true, musicPlaying: true), nil),
-            ("el cursor sobre «commitear»", QuickContext(hasWorkspace: true, isRepo: true, changeCount: 4, agentChanges: 3, commiteroAvailable: true, terminalAvailable: true, musicAvailable: true), "commitear"),
+            ("otra app (tus acciones de siempre)", base, nil),
+            ("Xcode", ctx(.editor, "Xcode"), icon("com.apple.dt.Xcode")),
+            ("Terminal", ctx(.terminal, "Terminal"), icon("com.apple.Terminal")),
+            ("Safari", ctx(.browser, "Safari"), icon("com.apple.Safari")),
+            ("Spotify", ctx(.music, "Spotify"), icon("com.spotify.client")),
+            ("Finder", ctx(.finder, "Finder"), icon("com.apple.finder")),
         ]
-        let view = VStack(alignment: .leading, spacing: 14) {
+        let view = VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(r.0).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5))
-                    if let hover = r.2 {
-                        // el boton expandido se dibuja a mano: el cursor no existe en una captura
-                        let c = r.1, layout = QuickActions.layout(order: store.quickActions, context: c)
-                        HStack(spacing: 6) {
-                            ForEach(layout.visible) { a in
-                                let d = QuickActions.descriptor(a, c)
-                                DockButton(title: d.title, symbol: d.symbol, prominent: d.prominent, badge: d.badge, previewHover: d.title == hover) {}
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        QuickDock(store: store, music: store.music, plugins: store.plugins, summary: { "" }, contextOverride: r.1)
-                    }
+                    QuickDock(store: store, music: store.music, plugins: store.plugins, summary: { "" }, contextOverride: r.1, iconOverride: r.2, hideOverflow: true)
                 }
             }
         }

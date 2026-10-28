@@ -48,9 +48,14 @@ struct QuickDock: View {
     @ObservedObject var store: PetStore
     @ObservedObject var music: MusicController
     @ObservedObject var plugins: PluginHost
+    @ObservedObject private var front = FrontAppTracker.shared
+    @ObservedObject private var remotes = GitRemoteCache.shared
     let summary: () -> String
     /// Solo para capturas: contexto fijo en vez del real.
     var contextOverride: QuickContext?
+    var iconOverride: NSImage?
+    /// Las capturas no pueden dibujar el menu nativo del +.
+    var hideOverflow = false
 
     private var workspace: String { store.mission.workspace }
 
@@ -60,20 +65,22 @@ struct QuickDock: View {
                      commiteroAvailable: CommiteroLauncher.available(), terminalAvailable: store.terminalTargetAvailable,
                      musicAvailable: store.musicPlayer && music.nowPlaying != nil, musicPlaying: music.isPlaying,
                      pomodoroRunning: store.pomodoro.phase != .idle, alertsSnoozed: store.alertsAreSnoozed,
-                     hasPerimeter: store.perimeters.contains { $0.root == workspace })
+                     hasPerimeter: store.perimeters.contains { $0.root == workspace },
+                     profile: store.quickAppAware ? front.profile : .other, frontAppName: front.name, hasRemote: !workspace.isEmpty && remotes.webURL(for: workspace) != nil)
     }
 
     var body: some View {
         let c = context
-        let layout = QuickActions.layout(order: store.quickActions, context: c)
+        let layout = QuickActions.layout(order: store.quickActions, context: c, appAware: store.quickAppAware)
         let extra = plugins.actions(place: "island")
         HStack(spacing: 6) {
+            if store.quickAppAware, c.profile != .other, let icon = iconOverride ?? front.icon { appBadge(icon, c.profile) }
             ForEach(layout.visible) { a in
                 let d = QuickActions.descriptor(a, c)
                 DockButton(title: d.title, symbol: d.symbol, prominent: d.prominent, badge: d.badge) { perform(a) }
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
-            if !layout.overflow.isEmpty || !extra.isEmpty {
+            if !hideOverflow, !layout.overflow.isEmpty || !extra.isEmpty {
                 Menu {
                     ForEach(layout.overflow) { a in
                         let d = QuickActions.descriptor(a, c)
@@ -94,6 +101,14 @@ struct QuickDock: View {
             Spacer(minLength: 0)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: layout.visible)
+    }
+
+    /// La app donde estas: explica por que las herramientas han cambiado.
+    private func appBadge(_ icon: NSImage, _ profile: AppProfile) -> some View {
+        Image(nsImage: icon).resizable().interpolation(.high).frame(width: 18, height: 18)
+            .padding(4).background(Circle().fill(Color.white.opacity(0.07))).overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+            .help("acceso rápido para \(profile.title): \(front.name ?? "")").accessibilityLabel("acceso rápido para \(profile.title)")
+            .transition(.scale(scale: 0.5).combined(with: .opacity))
     }
 
     private func perform(_ a: QuickAction) {
@@ -119,6 +134,21 @@ struct QuickDock: View {
             if !store.perimeters.contains(where: { $0.root == workspace }) { _ = PerimeterStore.shared.upsert(Perimeter(root: workspace)) }
             AppController.shared.showSettings(page: .perimetro)
         case .settings: AppController.shared.showSettings()
+        case .openInEditor:
+            guard let url = front.appURL, let bid = front.bundleID else { NSSound.beep(); return }
+            let entries = (try? FileManager.default.contentsOfDirectory(atPath: workspace)) ?? []
+            let target = ProjectOpener.target(bundleID: bid, workspace: workspace, entries: entries)
+            NSWorkspace.shared.open([URL(fileURLWithPath: target)], withApplicationAt: url, configuration: NSWorkspace.OpenConfiguration())
+            plugins.show("abriendo el proyecto en \(front.name ?? "el editor")")
+        case .openRepoWeb:
+            if let web = remotes.webURL(for: workspace), let u = URL(string: web) { NSWorkspace.shared.open(u) } else { NSSound.beep() }
+        case .copyCd:
+            guard let q = ShellQuote.single(workspace) else { NSSound.beep(); return }
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString("cd " + q, forType: .string); plugins.show("«cd» copiado")
+        case .copyPath:
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(workspace, forType: .string); plugins.show("ruta copiada")
+        case .musicPrev: music.send(.previous)
+        case .musicNext: music.send(.next)
         }
     }
 }

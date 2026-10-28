@@ -325,6 +325,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.music.onTrack = { n in
             PetStore.shared.plugins.emit(.musicTrack, fields: ["title": n.title, "artist": n.artist, "album": n.album, "app": n.app.title])
         }
+        FrontAppTracker.shared.start()
         PerimeterStore.shared.load()
         PerimeterStore.shared.onChange = { Task { @MainActor in PetStore.shared.perimeters = PerimeterStore.shared.all() } }
         PetStore.shared.perimeters = PerimeterStore.shared.all()

@@ -148,6 +148,10 @@ final class PetStore: ObservableObject {
     @Published var quickActions: [QuickAction] = QuickActions.decode(UserDefaults.standard.string(forKey: "quickActions")) {
         didSet { UserDefaults.standard.set(QuickActions.encode(quickActions), forKey: "quickActions") }
     }
+    /// El dock cambia de herramientas segun la app en primer plano (editor, terminal, navegador...).
+    @Published var quickAppAware: Bool = UserDefaults.standard.object(forKey: "quickAppAware") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(quickAppAware, forKey: "quickAppAware") }
+    }
     /// Los acentos de la musica (progreso, ecualizador, brillo) toman el color de la portada.
     @Published var musicTint: Bool = UserDefaults.standard.object(forKey: "musicTint") as? Bool ?? true {
         didSet { UserDefaults.standard.set(musicTint, forKey: "musicTint") }

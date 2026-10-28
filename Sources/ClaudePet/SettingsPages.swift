@@ -191,6 +191,10 @@ struct QuickActionsCard: View {
     private var off: [QuickAction] { QuickActions.allOrdered.filter { !store.quickActions.contains($0) } }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 18) { actionsCard; appCard }
+    }
+
+    private var actionsCard: some View {
         SCard(title: "acceso rápido", footer: "en la isla se ven hasta cinco a la vez, según el contexto (sin cambios no hay «commitear»); el resto va en el menú +. pasa el cursor sobre un icono para ver su nombre.") {
             ForEach(Array(store.quickActions.enumerated()), id: \.element) { index, a in
                 if index > 0 { SDivider() }
@@ -203,6 +207,25 @@ struct QuickActionsCard: View {
             }
             SDivider()
             SRow(title: "volver a los de siempre") { SButton(title: "restablecer", symbol: "arrow.counterclockwise") { store.quickActions = QuickActions.defaultEnabled } }
+        }
+    }
+
+    private var appCard: some View {
+        SCard(title: "según la app", footer: "como la Touch Bar: el dock enseña primero lo que hace falta en la app donde estás y rellena con tus acciones. solo se lee qué app está al frente (su nombre), nada de su contenido ni de la pantalla.") {
+            SToggle(title: "cambiar de herramientas según la app", detail: "un icono de la app aparece al lado del dock para explicar por qué cambió.", isOn: $store.quickAppAware)
+            if store.quickAppAware {
+                ForEach(AppProfile.allCases.filter { $0 != .other }, id: \.self) { p in
+                    SDivider()
+                    SRow(title: p.title, detail: p.examples) {
+                        HStack(spacing: 6) {
+                            ForEach(p.priority.prefix(4), id: \.self) { a in
+                                Image(systemName: QuickActions.descriptor(a, QuickContext(frontAppName: "editor")).symbol).font(.system(size: 11)).foregroundStyle(SettingsTheme.duo).frame(width: 22, height: 22)
+                                    .background(Circle().fill(Color.white.opacity(0.07))).help(QuickActions.descriptor(a, QuickContext(frontAppName: "editor")).title)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
