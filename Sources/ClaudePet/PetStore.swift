@@ -127,6 +127,10 @@ final class PetStore: ObservableObject {
     }() {
         didSet { UserDefaults.standard.set(Wardrobe.encode(codexWardrobe), forKey: "codexWardrobe") }
     }
+    /// A veces, al golpearla seguido, la mascota se enfada, se hace gigante y patea (minimiza) una ventana.
+    @Published var rageEnabled: Bool = UserDefaults.standard.object(forKey: "rageEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "rageEnabled") {
+        didSet { UserDefaults.standard.set(rageEnabled, forKey: "rageEnabled") }
+    }
     @Published var seasonalOutfits: Bool = UserDefaults.standard.object(forKey: "seasonalOutfits") == nil ? true : UserDefaults.standard.bool(forKey: "seasonalOutfits") {
         didSet { UserDefaults.standard.set(seasonalOutfits, forKey: "seasonalOutfits") }
     }

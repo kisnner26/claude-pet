@@ -50,11 +50,22 @@ final class IslandModel: ObservableObject {
     var dancing = false
     var greetUntil: TimeInterval = 0
     var onPetClick: () -> Void = {}
+    /// Se llama cuando los golpes enfadan a una mascota (a veces, al segundo toque seguido).
+    var onRage: (IslandAgentTab) -> Void = { _ in }
+    private var lastRageAt: TimeInterval?
+
+    private func maybeRage(_ agent: IslandAgentTab, pokes list: inout [TimeInterval]) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard RageTrigger.shouldRage(pokes: list, now: now, roll: Double.random(in: 0..<1), lastRage: lastRageAt) else { return }
+        lastRageAt = now; list = []
+        onRage(agent)
+    }
 
     func pokeCodex() {
         SoundEngine.shared.play(.click)
         codexPokes.append(ProcessInfo.processInfo.systemUptime)
         if codexPokes.count > 6 { codexPokes.removeFirst(codexPokes.count - 6) }
+        maybeRage(.codex, pokes: &codexPokes)
         onPetClick()
     }
 
@@ -62,6 +73,7 @@ final class IslandModel: ObservableObject {
         SoundEngine.shared.play(.click)
         pokes.append(ProcessInfo.processInfo.systemUptime)
         if pokes.count > 6 { pokes.removeFirst(pokes.count - 6) }
+        maybeRage(.claude, pokes: &pokes)
         onPetClick()
     }
 }

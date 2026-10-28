@@ -70,6 +70,7 @@ final class IslandController {
         p.ignoresMouseEvents = true
         panel = p
         model.onPetClick = { [weak self] in self?.clicked = true }
+        model.onRage = { agent in Task { @MainActor in RageController.shared.start(agent: agent, store: PetStore.shared) } }
         model.pokes = []; model.hopStart = nil
         model.greetUntil = ProcessInfo.processInfo.systemUptime + 1.4
         store.applySound(to: SoundEngine.shared)

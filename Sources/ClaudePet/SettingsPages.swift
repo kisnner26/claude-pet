@@ -264,6 +264,22 @@ struct ComportamientoPage: View {
                 SMenu(title: "idioma", detail: "elige el idioma de la interfaz. se aplica al momento.", selection: $store.language,
                       options: Lang.allCases.map { ($0, $0.name) })
             }
+            SCard(title: "genio", footer: "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto.") {
+                SToggle(title: "se enfada si la golpeas", detail: "una patada a una ventana de otra app, sin cerrarla.", isOn: $store.rageEnabled)
+                if store.rageEnabled {
+                    SDivider()
+                    SRow(title: "permiso de accesibilidad", detail: AXIsProcessTrusted() ? "concedido: puede minimizar la ventana" : "sin él la patada es solo la animación") {
+                        SButton(title: "pedir permiso", symbol: "lock.open") {
+                            let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+                            _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+                        }
+                    }
+                    SDivider()
+                    SRow(title: "probar ahora", detail: "lo hace con la ventana de otra app que tengas arriba.") {
+                        SButton(title: "probar", symbol: "figure.kickboxing") { RageController.shared.start(agent: .claude, store: store) }
+                    }
+                }
+            }
             SCard(title: "al acercar el cursor", footer: "con un retraso mayor se evitan aperturas por accidente al pasar por la parte de arriba.") {
                 SSlider(title: "ancho de la zona", detail: "cuánto mide, en puntos, el área que despierta la isla.", value: $store.islandActivationWidth, range: 120...400, step: 20) { "\(Int($0)) pt" }
                 SDivider()

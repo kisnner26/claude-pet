@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [Sin publicar]
+
+### añadido
+- Genio: a veces, al segundo golpe seguido, la mascota (claude o codex) se enfada, se hace gigante, camina hasta una ventana de otra app y la patea. La ventana solo se minimiza, nunca se cierra, y hace falta el permiso de accesibilidad (sin él solo ve la animación). Se calma durante un minuto y se apaga en Ajustes → comportamiento.
+
+### corregido
+- La tarjeta de «demasiados toques» enseña a codex cuando es codex quien se marea, y su texto sigue el idioma elegido.
+
 ## [2.10.0] - 2026-10-28
 
 ### añadido

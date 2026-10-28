@@ -412,5 +412,15 @@ enum L10nEN {
         "el proyecto es un repositorio con una rama activa": "the project is a repository with an active branch",
         "nivel 2": "level 2",
         "nivel 3": "level 3",
+        "genio": "temper",
+        "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto.": "if you hit it repeatedly it sometimes gets angry, grows giant, walks up to a window and kicks it. The window is only minimized (never closed) and accessibility permission is needed; without it, it's just the animation. It calms down for a minute.",
+        "se enfada si la golpeas": "gets angry if you hit it",
+        "una patada a una ventana de otra app, sin cerrarla.": "a kick at another app's window, without closing it.",
+        "permiso de accesibilidad": "accessibility permission",
+        "concedido: puede minimizar la ventana": "granted: it can minimize the window",
+        "sin él la patada es solo la animación": "without it the kick is only the animation",
+        "pedir permiso": "ask for permission",
+        "probar ahora": "try it now",
+        "lo hace con la ventana de otra app que tengas arriba.": "it uses the window of another app that you have on top.",
     ]
 }
