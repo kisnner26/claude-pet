@@ -11,61 +11,39 @@ enum IslandPage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self { case .home: return "pawprint.fill"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.bar.fill"; case .tools: return "square.grid.2x2.fill"; case .settings: return "slider.horizontal.3" }
     }
-    /// Cada pagina tiene su luz: el riel y los bordes la toman.
-    var accent: Color {
-        switch self { case .home: return Color(hex: 0xE0824F); case .changes: return Color(hex: 0x6CCB8A); case .music: return Color(hex: 0xE58BB0); case .plan: return Color(hex: 0x7C93F0); case .tools: return Color(hex: 0x6FD3E8); case .settings: return Color(hex: 0xC4A8FF) }
-    }
+    /// Una sola luz neutra para todas las paginas: blanco frio, sin colores saturados.
+    var accent: Color { Color(hex: 0xD6DEF5) }
     /// Que paginas se muestran: la de musica solo con el reproductor activo.
     static func visible(musicPlayer: Bool) -> [IslandPage] { allCases.filter { $0 != .music || musicPlayer } }
 }
 
-/// Fibra de vidrio: vidrio oscuro con hebras finas que se ven al trasluz, destellos de luz que viajan por ellas y un borde con brillo especular.
-/// Barato a proposito: las hebras se dibujan una sola vez (se rasterizan) y solo los pulsos y el borde se animan, a pocos cuadros por segundo.
+/// Cristal liquido oscuro: carbon con un velo azul muy tenue abajo, brillo especular arriba a la izquierda y hebras finas casi invisibles.
+/// Todo es estatico y neutro (se rasteriza una sola vez): ni colores saturados ni nada en movimiento.
 struct FiberGlassLayer: View {
-    var accent: Color = Color(hex: 0x7C93F0)
+    var accent: Color = Color(hex: 0xD6DEF5)
     var animated = true
-    static let pulseFPS = 10.0
 
     var body: some View {
-        ZStack {
-            // hebras y brillo de la tapa: no cambian, asi que se calculan una vez
-            Canvas { gc, size in
-                gc.fill(Path(CGRect(origin: .zero, size: CGSize(width: size.width, height: size.height * 0.5))),
-                        with: .linearGradient(Gradient(colors: [.white.opacity(0.085), .clear]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.5)))
-                let n = 30
-                for i in 0..<n {
-                    let k = Double(i) / Double(n - 1)
-                    let y0 = size.height * (0.04 + 0.92 * k), amp = 3 + 7 * FiberGlassLayer.rnd(i + 11), ph = FiberGlassLayer.rnd(i + 29) * 6.28
-                    var p = Path(); p.move(to: CGPoint(x: -4, y: y0))
-                    var x = -4.0
-                    while x <= size.width + 8 { p.addLine(to: CGPoint(x: x, y: y0 + amp * sin(x / (60 + 40 * FiberGlassLayer.rnd(i + 3)) + ph))); x += 16 }
-                    gc.stroke(p, with: .color(.white.opacity(0.028 + 0.04 * FiberGlassLayer.rnd(i + 47))), lineWidth: 0.6)
-                }
-            }
-            .drawingGroup()
-            if animated {
-                TimelineView(.animation(minimumInterval: 1.0 / Self.pulseFPS)) { ctx in pulses(t: ctx.date.timeIntervalSinceReferenceDate) }
-            }
-        }
-        .allowsHitTesting(false).accessibilityHidden(true)
-    }
-
-    /// Cuatro pulsos de luz que recorren otras tantas hebras, como en una fibra optica.
-    private func pulses(t: Double) -> some View {
         Canvas { gc, size in
-            for i in 0..<4 {
-                let y0 = size.height * (0.12 + 0.76 * FiberGlassLayer.rnd(i + 71)), amp = 3 + 7 * FiberGlassLayer.rnd(i * 2 + 11)
-                let speed = 0.10 + 0.12 * FiberGlassLayer.rnd(i + 91), head = ((t * speed) + FiberGlassLayer.rnd(i + 13)).truncatingRemainder(dividingBy: 1.4) - 0.2
-                var p = Path(), started = false
-                for s in stride(from: 0.0, through: 1.0, by: 0.05) {
-                    let x = (head - 0.16 * (1 - s)) * size.width
-                    guard x > -2, x < size.width + 2 else { continue }
-                    let pt = CGPoint(x: x, y: y0 + amp * sin(x / 70 + Double(i)))
-                    if started { p.addLine(to: pt) } else { p.move(to: pt); started = true }
-                }
-                gc.stroke(p, with: .color(accent.opacity(0.7)), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+            // velo azul tenue hacia abajo: el borde de arriba sigue negro para fundirse con el notch
+            gc.fill(Path(CGRect(origin: .zero, size: size)),
+                    with: .linearGradient(Gradient(stops: [.init(color: .clear, location: 0.25), .init(color: Color(hex: 0x262B3C).opacity(0.55), location: 1)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+            // reflejo especular suave, como luz sobre cristal curvo
+            gc.fill(Path(ellipseIn: CGRect(x: -size.width * 0.15, y: -size.height * 0.9, width: size.width * 0.9, height: size.height * 1.3)),
+                    with: .radialGradient(Gradient(colors: [.white.opacity(0.10), .clear]), center: CGPoint(x: size.width * 0.3, y: 0), startRadius: 0, endRadius: size.width * 0.45))
+            // hebras muy finas
+            let n = 26
+            for i in 0..<n {
+                let k = Double(i) / Double(n - 1)
+                let y0 = size.height * (0.04 + 0.92 * k), amp = 3 + 7 * FiberGlassLayer.rnd(i + 11), ph = FiberGlassLayer.rnd(i + 29) * 6.28
+                var p = Path(); p.move(to: CGPoint(x: -4, y: y0))
+                var x = -4.0
+                while x <= size.width + 8 { p.addLine(to: CGPoint(x: x, y: y0 + amp * sin(x / (60 + 40 * FiberGlassLayer.rnd(i + 3)) + ph))); x += 16 }
+                gc.stroke(p, with: .color(.white.opacity(0.012 + 0.022 * FiberGlassLayer.rnd(i + 47))), lineWidth: 0.6)
             }
         }
+        .drawingGroup()
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
 
     static func rnd(_ n: Int) -> Double {
@@ -75,27 +53,14 @@ struct FiberGlassLayer: View {
     }
 }
 
-/// Borde de la pildora con un destello especular que da la vuelta despacio. Un borde tenue fijo y un trazo corto que recorre el contorno:
-/// un degradado conico girando cuesta mucho mas, y a 5 cuadros por segundo basta para algo tan lento.
+/// Borde de cristal: un hilo de luz blanca fino, mas claro arriba a la izquierda y casi apagado abajo. Fijo y sin color.
 struct FiberGlassEdge: View {
     let shape: IslandShape
     var accent: Color
     var animated: Bool
     var body: some View {
-        ZStack {
-            shape.stroke(Color.white.opacity(0.10), lineWidth: 2)
-            TimelineView(.animation(minimumInterval: animated ? 0.2 : 3600)) { ctx in
-                let head = animated ? (ctx.date.timeIntervalSinceReferenceDate * 0.06).truncatingRemainder(dividingBy: 1) : 0.12
-                ZStack {
-                    shape.trim(from: head, to: min(1, head + 0.16)).stroke(accent.opacity(0.65), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    shape.trim(from: min(1, head + 0.09), to: min(1, head + 0.16)).stroke(Color.white.opacity(0.85), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    if head + 0.16 > 1 {
-                        shape.trim(from: 0, to: head + 0.16 - 1).stroke(accent.opacity(0.65), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    }
-                }
-            }
-        }
-        .allowsHitTesting(false).accessibilityHidden(true)
+        shape.stroke(LinearGradient(colors: [.white.opacity(0.32), .white.opacity(0.07), .white.opacity(0.14)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.2)
+            .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -104,7 +69,7 @@ extension View {
     func fiberCard(_ accent: Color = .white, padding: CGFloat = 10) -> some View {
         self.padding(padding)
             .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.03)], startPoint: .top, endPoint: .bottom)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(LinearGradient(colors: [accent.opacity(0.45), Color.white.opacity(0.07), accent.opacity(0.18)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 0.8))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(LinearGradient(colors: [Color.white.opacity(0.20), Color.white.opacity(0.05), Color.white.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 0.8))
     }
 }
 
@@ -147,8 +112,7 @@ struct IslandShell: View {
                         .frame(width: 26, height: 26)
                         .background {
                             if page == p {
-                                Circle().fill(p.accent.opacity(0.28)).overlay(Circle().strokeBorder(p.accent.opacity(0.8), lineWidth: 0.8))
-                                    .shadow(color: p.accent.opacity(0.7), radius: 6)
+                                Circle().fill(Color.white.opacity(0.14)).overlay(Circle().strokeBorder(Color.white.opacity(0.30), lineWidth: 0.8))
                                     .matchedGeometryEffect(id: "sel", in: rail)
                             }
                         }
@@ -170,7 +134,7 @@ private struct PageHeader: View {
     var detail: String = ""
     var body: some View {
         HStack(spacing: 6) {
-            Circle().fill(page.accent).frame(width: 6, height: 6).shadow(color: page.accent, radius: 4)
+            Circle().fill(Color.white.opacity(0.55)).frame(width: 5, height: 5)
             Text(page.title).font(.system(size: 12, weight: .semibold)).foregroundColor(.white)
             if !detail.isEmpty { Text(detail).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)).lineLimit(1) }
             Spacer(minLength: 0)
@@ -346,7 +310,7 @@ struct IslandSettingsPage: View {
                 Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).frame(width: 16)
                 Text(title).font(.system(size: 10.5, weight: .medium)).lineLimit(1)
                 Spacer(minLength: 0)
-                Circle().fill(on.wrappedValue ? accent : Color.white.opacity(0.18)).frame(width: 6, height: 6).shadow(color: on.wrappedValue ? accent : .clear, radius: 3)
+                Circle().fill(on.wrappedValue ? accent : Color.white.opacity(0.18)).frame(width: 6, height: 6)
             }
             .foregroundColor(on.wrappedValue ? .white : .white.opacity(0.55)).padding(.horizontal, 9).frame(height: 28)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(on.wrappedValue ? accent.opacity(0.16) : Color.white.opacity(0.05)))

@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 
 ## [Sin publicar]
 
+### cambiado
+- La isla abierta deja los colores saturados: sin los pulsos naranjas ni el borde de color; ahora es cristal líquido oscuro (carbón con un velo azul tenue, reflejo especular y un hilo de luz blanca en el borde), con una sola luz neutra en todas las páginas. El brillo y la aurora de estado se reducen a la mitad o menos.
+
 ### rendimiento
 - La isla abierta gasta alrededor de un 25 % menos de CPU en la medición (de ~28 % a ~21 % con la demo animada): las hebras de fibra de vidrio se dibujan una sola vez y solo los pulsos y un trazo del borde se animan (se quitó el degradado cónico giratorio y la mezcla aditiva), los efectos decorativos pasan de 20-30 a 15 cuadros por segundo y la mascota en reposo respira a 6.
 - La consulta de música (un AppleScript) pasa de cada 3 s a cada 10 s cuando no suena nada.

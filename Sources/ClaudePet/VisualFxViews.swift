@@ -92,9 +92,9 @@ struct AuroraView: View {
                     [0, 0.5 + v], [0.5 - v, 0.5 + w], [1, 0.5 - v],
                     [0, 1], [0.5 - w, 1], [1, 1],
                 ], colors: [
-                    .clear, fxColor(color, 0.30), .clear,
-                    fxColor(color, 0.12), .clear, fxColor(color, 0.22),
-                    .clear, fxColor(color, 0.14), .clear,
+                    .clear, fxColor(color, 0.10), .clear,
+                    fxColor(color, 0.04), .clear, fxColor(color, 0.07),
+                    .clear, fxColor(color, 0.05), .clear,
                 ])
                 .blur(radius: 8)
             }

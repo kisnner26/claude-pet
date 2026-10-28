@@ -6,12 +6,12 @@ enum IslandGlow {
 
     /// El estado que manda: mareo, permiso, error, terminado y trabajando, en ese orden. nil = sin brillo.
     static func glow(state: PetState, codex: PetState, reason: IslandReason, asking: Bool, dizzy: Bool) -> Glow? {
-        if dizzy { return Glow(hex: 0xC25AA0, strength: 0.34) }
-        if asking || state == .waiting || codex == .waiting { return Glow(hex: 0xE7B45B, strength: 0.34) }
-        if state == .error || codex == .error { return Glow(hex: 0xD85C5C, strength: 0.32) }
-        if reason == .finished { return Glow(hex: 0x6CCB8A, strength: 0.34) }
+        if dizzy { return Glow(hex: 0xC25AA0, strength: 0.15) }
+        if asking || state == .waiting || codex == .waiting { return Glow(hex: 0xE7B45B, strength: 0.15) }
+        if state == .error || codex == .error { return Glow(hex: 0xD85C5C, strength: 0.15) }
+        if reason == .finished { return Glow(hex: 0x6CCB8A, strength: 0.15) }
         let working: Set<PetState> = [.thinking, .tool, .starting]
-        if working.contains(state) || working.contains(codex) { return Glow(hex: 0x5270E8, strength: 0.16) }
+        if working.contains(state) || working.contains(codex) { return Glow(hex: 0x5270E8, strength: 0.07) }
         return nil
     }
 }
