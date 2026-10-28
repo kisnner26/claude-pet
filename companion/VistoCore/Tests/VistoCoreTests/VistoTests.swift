@@ -111,3 +111,51 @@ final class VistoTests: XCTestCase {
         XCTAssertEqual(PlanWindow(usedPercent: 250, resetsAt: nil).remaining(), 0)
     }
 }
+
+@MainActor
+final class VistoSyncTests: XCTestCase {
+    func testEcosystemMessages() async throws {
+        let host = VistoHost(hostName: "Mac")
+        try host.start(code: "ABCDEFGHJKMN", advertise: false)
+        let client = VistoClient()
+        client.configure(code: "ABCDEFGHJKMN", deviceName: "iPhone")
+        client.start(direct: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: host.port)!))
+        defer { client.stop(); host.stop() }
+        nonisolated(unsafe) var reply: (String, [[Int]])?
+        nonisolated(unsafe) var focus: Bool?
+        host.onReply = { reply = ($0, $1) }
+        host.onFocus = { focus = $0 }
+        let end = Date().addingTimeInterval(5)
+        while !client.isConnected, Date() < end { try await Task.sleep(nanoseconds: 50_000_000) }
+        XCTAssertTrue(client.isConnected)
+        nonisolated(unsafe) var event: (String, String, String, Int)?
+        client.onEvent = { event = ($0, $1, $2, $3) }
+        let now = Date()
+        host.broadcast(.agents([AgentInfo(agent: "claude", state: "tool", project: "claude-pet", since: now, contextRemaining: 62), AgentInfo(agent: "codex", state: "idle", project: "", since: now, contextRemaining: nil)]))
+        host.broadcast(.feed([Step(agent: "claude", tool: "Edit", target: "Sources/x.swift", at: now, delta: "+3 -1")]))
+        host.broadcast(.question(QAsk(id: "q1", project: "p", items: [QItem(header: "Plan", question: "¿Cuál?", options: ["A", "B"], descriptions: ["", "otra"], multi: false)])))
+        host.broadcast(.event(kind: "done", agent: "claude", project: "p", seconds: 42))
+        host.broadcast(.focus(true))
+        try await Task.sleep(nanoseconds: 700_000_000)
+        XCTAssertEqual(client.agents.first?.contextRemaining, 62); XCTAssertTrue(client.agents.first?.isBusy == true)
+        XCTAssertEqual(client.feed.first?.tool, "Edit")
+        XCTAssertEqual(client.questions.first?.items.first?.options, ["A", "B"])
+        XCTAssertEqual(event?.0, "done"); XCTAssertEqual(event?.3, 42)
+        XCTAssertTrue(client.focus)
+        XCTAssertEqual(client.snapshot.questions.count, 1); XCTAssertEqual(client.snapshot.agents.count, 2)
+        client.reply("q1", picks: [[1]])
+        client.setFocus(false)
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(reply?.0, "q1"); XCTAssertEqual(reply?.1, [[1]])
+        XCTAssertEqual(focus, false)
+        XCTAssertTrue(client.questions.isEmpty)
+        host.broadcast(.questionGone(id: "q1"))
+        // un reply desmedido se descarta
+        client.reply("q2", picks: Array(repeating: [1], count: 9))
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(reply?.0, "q1")
+        let snap = client.snapshot
+        let round = try JSONDecoder().decode(VistoSnapshot.self, from: JSONEncoder().encode(snap))
+        XCTAssertEqual(round, snap)
+    }
+}

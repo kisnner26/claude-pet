@@ -9,11 +9,18 @@ public final class VistoClient: ObservableObject {
     @Published public private(set) var state: State = .idle
     @Published public private(set) var asks: [Ask] = []
     @Published public private(set) var plan: PlanSnapshot?
+    @Published public private(set) var questions: [QAsk] = []
+    @Published public private(set) var agents: [AgentInfo] = []
+    @Published public private(set) var feed: [Step] = []
+    @Published public private(set) var focus = false
     @Published public private(set) var notice: String?
     @Published public private(set) var detail = ""
 
     /// Llega un permiso nuevo (para vibrar o avisar).
     public var onNewAsk: ((Ask) -> Void)?
+    public var onNewQuestion: ((QAsk) -> Void)?
+    /// Un agente terminó («done») o falló («error»).
+    public var onEvent: ((String, String, String, Int) -> Void)?
     public var onChange: (() -> Void)?
 
     private var code: String?
@@ -55,7 +62,7 @@ public final class VistoClient: ObservableObject {
         retry?.cancel(); prune?.cancel()
         teardown()
         state = .idle
-        asks = []; plan = nil
+        asks = []; questions = []; agents = []; feed = []; plan = nil
     }
 
     public func answer(_ id: String, allow: Bool) {
@@ -70,7 +77,7 @@ public final class VistoClient: ObservableObject {
         teardown()
         guard running, let code, Pairing.isValid(code) else { state = .idle; detail = code == nil ? "Falta el código de claude pet" : ""; return }
         state = .searching
-        detail = "Buscando claude pet en la red"
+        if !detail.contains("rechazó") { detail = "Buscando claude pet en la red" }
         if let direct { connect(to: direct, code: code); return }
         let b = NWBrowser(for: .bonjour(type: vistoServiceType, domain: nil), using: .tcp)
         b.browseResultsChangedHandler = { [weak self] results, _ in
@@ -89,7 +96,7 @@ public final class VistoClient: ObservableObject {
         guard channel == nil, running else { return }
         retry?.cancel()
         state = .connecting
-        detail = "claude pet encontrado, conectando"
+        if !detail.contains("rechazó") { detail = "claude pet encontrado, conectando" }
         let ch = VistoChannel(connection: NWConnection(to: endpoint, using: .tcp), code: code, role: .client)
         let name = deviceName
         ch.onReady = { [weak ch] in ch?.send(.hello(device: name)) }
@@ -97,9 +104,12 @@ public final class VistoClient: ObservableObject {
         ch.onClosed = { [weak self, id = ch.id] in
             Task { @MainActor in
                 guard let self, self.channel?.id == id else { return }
+                let wasConnected = self.isConnected
                 self.channel = nil
                 self.state = .idle
-                self.asks = []
+                self.asks = []; self.questions = []; self.agents = []; self.feed = []
+                // claude pet corta en seco a quien no demuestra tener el código: si ocurre antes de saludar, casi siempre es el código
+                self.detail = wasConnected ? "Se perdió la conexión con claude pet" : "claude pet rechazó la conexión: el código no coincide con el de Ajustes → permisos. Olvida el emparejamiento y escríbelo de nuevo."
                 self.scheduleRetry(after: 2)
             }
         }
@@ -126,7 +136,16 @@ public final class VistoClient: ObservableObject {
             onChange?()
         case .plan(let p):
             plan = p; onChange?()
-        case .hello, .answer: break
+        case .agents(let a): agents = a; onChange?()
+        case .feed(let f): feed = f; onChange?()
+        case .event(let kind, let agent, let project, let secs): onEvent?(kind, agent, project, secs)
+        case .question(let q):
+            guard !questions.contains(where: { $0.id == q.id }) else { return }
+            questions.append(q); if questions.count > 6 { questions.removeFirst() }
+            onNewQuestion?(q); onChange?()
+        case .questionGone(let id): questions.removeAll { $0.id == id }; onChange?()
+        case .focus(let on): focus = on; onChange?()
+        case .hello, .answer, .reply: break
         }
     }
 
@@ -134,6 +153,21 @@ public final class VistoClient: ObservableObject {
         let before = asks.count
         asks.removeAll { $0.isExpired() }
         if asks.count != before { onChange?() }
+    }
+
+    public func reply(_ id: String, picks: [[Int]]) {
+        channel?.send(.reply(id: id, picks: picks))
+        questions.removeAll { $0.id == id }
+        onChange?()
+    }
+
+    public func setFocus(_ on: Bool) { channel?.send(.focus(on)); focus = on; onChange?() }
+
+    /// Lo mismo que ve el reloj cuando le llega retransmitido.
+    public var snapshot: VistoSnapshot {
+        var s = VistoSnapshot()
+        s.asks = asks; s.questions = questions; s.agents = agents; s.feed = feed; s.plan = plan; s.host = hostName; s.focus = focus
+        return s
     }
 
     public func clearNotice() { notice = nil }

@@ -18,6 +18,8 @@ public final class VistoHost: @unchecked Sendable {
     /// Una respuesta de un dispositivo. Se llama en la cola del anfitrión.
     public var onAnswer: (@Sendable (String, Bool) -> Void)?
     /// Un dispositivo terminó el saludo: es el momento de enviarle lo que ya está pendiente.
+    public var onReply: (@Sendable (String, [[Int]]) -> Void)?
+    public var onFocus: (@Sendable (Bool) -> Void)?
     public var onPeerReady: (@Sendable (UUID) -> Void)?
     public var onPeersChanged: (@Sendable ([Peer]) -> Void)?
     public private(set) var port: UInt16 = 0
@@ -87,6 +89,12 @@ public final class VistoHost: @unchecked Sendable {
         case .answer(let askID, let allow):
             guard names[id] != nil else { return }
             onAnswer?(askID, allow)
+        case .reply(let qid, let picks):
+            guard names[id] != nil, picks.count <= 4, picks.allSatisfy({ $0.count <= 8 }) else { return }
+            onReply?(qid, picks)
+        case .focus(let on):
+            guard names[id] != nil else { return }
+            onFocus?(on)
         default: break
         }
     }
