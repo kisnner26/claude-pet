@@ -245,6 +245,10 @@ final class PetStore: ObservableObject {
     @Published var remoteApprovals: Bool = UserDefaults.standard.bool(forKey: "remoteApprovals") {
         didSet { UserDefaults.standard.set(remoteApprovals, forKey: "remoteApprovals") }
     }
+    /// Codigo para emparejar Visto y nombres de los dispositivos conectados (solo en memoria).
+    @Published var remoteCode = ""
+    @Published var remotePeers: [String] = []
+    var regenerateRemoteCode: (() -> Void)?
     @Published var permissionAsks: [PermissionAsk] = []
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     /// Permite varias lecturas iguales de una vez; cada una queda en la auditoria.

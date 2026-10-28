@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "ClaudePet",
     platforms: [.macOS(.v13)],
+    dependencies: [.package(path: "companion/VistoCore")],
     targets: [
-        .executableTarget(name: "ClaudePet", path: "Sources/ClaudePet")
+        .executableTarget(name: "ClaudePet", dependencies: [.product(name: "VistoCore", package: "VistoCore")], path: "Sources/ClaudePet")
     ]
 )

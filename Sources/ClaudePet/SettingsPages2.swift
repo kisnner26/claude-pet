@@ -1,4 +1,5 @@
 import SwiftUI
+import VistoCore
 import AppKit
 import UniformTypeIdentifiers
 
@@ -14,9 +15,19 @@ struct PermisosPage: View {
                 SDivider()
                 SToggle(title: "bloquear si el proyecto cambia", detail: "si algo toca el proyecto mientras decides, la petición se detiene.", isOn: $store.blockOnChange)
             }
-            SCard(title: "aprobar desde el iPhone o el Watch", footer: "necesita Nexo en la Mac. los permisos llegan a tus dispositivos y respondes con un toque. desde fuera solo se permite o deniega esta vez, y lo de riesgo alto solo se puede denegar: aprobarlo exige estar en la Mac.") {
-                SToggle(title: "enviar permisos a Nexo", detail: store.islandPermissions ? "abre ~/.claude-pet/remote.sock, solo accesible para tu usuario." : "primero activa «permisos desde la isla».", isOn: $store.remoteApprovals)
+            SCard(title: "aprobar desde el iPhone o el Watch", footer: "la app Visto recibe los permisos por la red local con un canal cifrado cuya clave sale del código. desde fuera solo se permite o deniega esta vez, y lo de riesgo alto solo se puede denegar: aprobarlo exige estar en la Mac.") {
+                SToggle(title: "enviar permisos a Visto", detail: store.islandPermissions ? "escucha en tu red local. sin servidores ni cuentas." : "primero activa «permisos desde la isla».", isOn: $store.remoteApprovals)
                     .disabled(!store.islandPermissions)
+                if store.remoteApprovals, !store.remoteCode.isEmpty {
+                    SDivider()
+                    SRow(title: "código de emparejamiento", detail: store.remotePeers.isEmpty ? "escríbelo en Visto una sola vez. no lo compartas." : "conectado: " + store.remotePeers.joined(separator: ", ")) {
+                        HStack(spacing: 8) {
+                            Text(Pairing.display(store.remoteCode)).font(.system(size: 13, weight: .semibold, design: .monospaced)).textSelection(.enabled)
+                            SButton(title: "copiar", symbol: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(Pairing.display(store.remoteCode), forType: .string) }
+                            SButton(title: "nuevo", symbol: "arrow.clockwise") { store.regenerateRemoteCode?() }
+                        }
+                    }
+                }
             }
             restoreCard
             rulesCard
