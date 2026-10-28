@@ -193,7 +193,8 @@ enum Evolution {
 
     /// Nivel que desbloquea cada atuendo: los primeros desde el principio y la corona para quien lleva tiempo.
     static func unlockLevel(_ outfit: Outfit) -> Int {
-        switch outfit { case .beanie, .scarf: return 1; case .bow: return 2; case .glasses: return 3; case .headphones: return 4; case .crown: return 6 }
+        switch outfit { case .beanie, .scarf: return 1; case .bow: return 2; case .glasses: return 3; case .headphones: return 4; case .crown: return 6
+        case .sunglasses, .sunhat: return 2; case .umbrella, .earmuffs: return 3 }
     }
     static func isUnlocked(_ outfit: Outfit, level: Int) -> Bool { level >= unlockLevel(outfit) }
 }
@@ -255,6 +256,14 @@ enum Gooey {
     static let delay: TimeInterval = 0.12
     struct Blob: Equatable { var x: Double; var drop: Double; var radius: Double }
 
+    /// Como se reparten las gotas segun lo ancha que sea la isla: mas gotas y mas gruesas cuando es grande, menos y finas cuando es pequena.
+    /// `inset` deja libres las esquinas redondeadas, donde el borde de la isla ya no es recto.
+    struct Layout: Equatable { var count: Int; var inset: Double; var scale: Double }
+    static func layout(width: Double, cornerRadius: Double = 30) -> Layout {
+        let scale = min(1.3, max(0.75, width / 420))
+        return Layout(count: min(7, max(2, Int(width / 120))), inset: cornerRadius + 10 * scale, scale: scale)
+    }
+
     /// Gotas que cuelgan del borde inferior de la isla al abrirse y se reabsorben: con desenfoque y umbral se funden con ella.
     /// `age` en segundos desde que empezo a abrirse. Vacio fuera de la ventana de tiempo.
     static func blobs(age: TimeInterval, count: Int = 4) -> [Blob] {
@@ -266,6 +275,22 @@ enum Gooey {
             return Blob(x: 0.14 + 0.72 * (Double(i) + 0.5 * jitter) / Double(count),
                         drop: (9 + 16 * VisualFx.rnd(i + 710)) * swing,
                         radius: (5 + 4 * VisualFx.rnd(i + 720)) * (0.55 + 0.45 * swing))
+        }
+    }
+
+    /// Lo mismo pero adaptado al ancho real de la isla: las gotas quedan entre las esquinas y a escala.
+    /// `x` sigue siendo una fraccion del ancho; `drop` y `radius`, puntos.
+    static func blobs(age: TimeInterval, width: Double, cornerRadius: Double = 30) -> [Blob] {
+        let l = layout(width: width, cornerRadius: cornerRadius)
+        let p = (age - delay) / (duration - delay)
+        guard p >= 0, p < 1, width > l.inset * 2 + 20 else { return [] }
+        let swing = sin(p * .pi)
+        let start = l.inset / width, span = (width - 2 * l.inset) / width
+        return (0..<l.count).map { i in
+            let jitter = VisualFx.rnd(i + 700)
+            return Blob(x: start + span * (Double(i) + 0.15 + 0.7 * jitter) / Double(l.count),
+                        drop: (9 + 16 * VisualFx.rnd(i + 710)) * swing * l.scale,
+                        radius: (5 + 4 * VisualFx.rnd(i + 720)) * (0.55 + 0.45 * swing) * l.scale)
         }
     }
 }

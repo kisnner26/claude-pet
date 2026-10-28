@@ -72,7 +72,7 @@ struct ResumenPage: View {
                 Spacer(minLength: 12)
                 HStack(spacing: -6) {
                     ClaudeSprite(state: store.state, outfits: store.outfitsNow()).frame(width: 104, height: 104).breathing()
-                    CodexSprite(face: store.codexPresent && store.codexState != .idle ? .typing(1) : .prompt(cursor: true), skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 104, height: 104).breathing(delay: 0.5)
+                    CodexSprite(face: store.codexPresent && store.codexState != .idle ? .typing(1) : .prompt(cursor: true), skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 104, height: 104).breathing(delay: 0.5)
                 }
             }
             .padding(.horizontal, 26)

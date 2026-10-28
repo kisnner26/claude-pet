@@ -72,7 +72,7 @@ struct CodexPetView: View {
             Canvas { gc, _ in
                 guard !store.hugActive else { return }
                 CodexRenderer.draw(&gc, now: ctx.date, info: store.companionInfo(at: ctx.date), game: store.gameFrame(at: ctx.date),
-                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin, outfits: store.outfitsNow(at: ctx.date))
+                                   reduceMotion: store.reduceMotion, animate: store.animationsEnabled, facing: store.codexFacing, skin: store.codexSkin, outfits: store.outfitsNow(for: .codex, at: ctx.date))
             }
         }
     }

@@ -58,6 +58,13 @@ struct IslandStage: View {
             .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
             .onHover { model.petHoverSince = $0 ? ProcessInfo.processInfo.systemUptime : nil }
             .accessibilityLabel("\(agent.rawValue): toca para saludar")
+            .contextMenu {
+                let who: PetAgent = agent == .claude ? .claude : .codex
+                ForEach(Outfit.allCases) { outfit in
+                    let unlocked = Evolution.isUnlocked(outfit, level: store.weeklyRecap.level)
+                    Toggle(unlocked ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.worn(outfit, by: who) }, set: { _ in store.toggleOutfit(outfit, for: who) })).disabled(!unlocked)
+                }
+            }
             if animated, let ping = model.pingAt { ActivityPingView(since: ping).frame(width: 110, height: 110) }
             if animated, agent == .claude, let rain = model.lineRain {
                 LineRainView(since: rain.since, added: rain.added, deleted: rain.deleted).frame(width: 104, height: 100)

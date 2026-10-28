@@ -66,7 +66,8 @@ enum WardrobeSelfTest {
         }
         // los ojos de claude (filas 6 a 10) nunca quedan tapados por una montura
         let eyeCells: Set<String> = ["4,6", "5,7", "6,8", "5,9", "4,10", "11,6", "10,7", "9,8", "10,9", "11,10"]
-        for outfit in Outfit.allCases { check("\(outfit.title): no pisa las celdas de los ojos", outfit.pixels.allSatisfy { !eyeCells.contains("\($0.x),\($0.y)") }) }
+        // las gafas de sol tapan los ojos a proposito: son lentes oscuras
+        for outfit in Outfit.allCases where outfit != .sunglasses { check("\(outfit.title): no pisa las celdas de los ojos", outfit.pixels.allSatisfy { !eyeCells.contains("\($0.x),\($0.y)") }) }
         print(failures == 0 ? "ATUENDOS OK" : "ATUENDOS FALLOS: \(failures)")
         return failures == 0
     }

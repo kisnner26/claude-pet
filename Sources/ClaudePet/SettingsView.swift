@@ -98,7 +98,7 @@ struct SettingsView: View {
         HStack(spacing: 10) {
             HStack(spacing: -8) {
                 ClaudeSprite(outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing()
-                CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing(delay: 0.5)
+                CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 34, height: 34).breathing(delay: 0.5)
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text("claude-pet").font(.system(size: 15, weight: .bold)).tracking(-0.2)

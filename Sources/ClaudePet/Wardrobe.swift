@@ -3,8 +3,16 @@ import AppKit
 
 /// Atuendos pixel-art propios para la mascota de claude. Son capas sobre la rejilla 16x16 del bloque:
 /// se dibujan encima del cuerpo, siguen sus saltos y nunca usan el color de los ojos.
+/// A cual de las dos mascotas se refiere una eleccion (atuendos, ajustes).
+enum PetAgent: String, CaseIterable, Identifiable {
+    case claude, codex
+    var id: String { rawValue }
+}
+
 enum Outfit: String, CaseIterable, Identifiable {
     case beanie = "gorro", crown = "corona", glasses = "gafas", scarf = "bufanda", headphones = "audifonos", bow = "lazo"
+    // los que pide el tiempo: se ponen solos, pero tambien se pueden elegir
+    case sunglasses = "gafas de sol", sunhat = "sombrero", umbrella = "paraguas", earmuffs = "orejeras"
     var id: String { rawValue }
     var title: String { rawValue }
 
@@ -44,6 +52,18 @@ enum Outfit: String, CaseIterable, Identifiable {
         case .bow:
             return Art(y0: 2, rows: ["........PP..PP..", ".......PHPppPHP.", "........PP..PP.."],
                        palette: ["P": 0xE58BB0, "p": 0xC4668E, "H": 0xFFC2DA])
+        case .sunglasses:
+            return Art(y0: 6, rows: ["..KKKKKKKKKKKK..", "..KLKKK..KLKKK..", "..KKKKK..KKKKK..", "...KKK....KKK..."],
+                       palette: ["K": 0x1B1F2E, "L": 0x7C8BB8])
+        case .sunhat:
+            return Art(y0: 0, rows: ["......hhhh......", "....hhYYYYhh....", "...hYYYYYYYYh...", "..hhRRRRRRRRhh..", "hhhhhhhhhhhhhhhh"],
+                       palette: ["h": 0xD9B26A, "Y": 0xF0D58C, "R": 0xC84B4B])
+        case .umbrella:
+            return Art(y0: 0, rows: ["......bbbb......", "...bbBBBBBBbb...", "..bBBwBBBBwBBb..", ".bBBBBBBBBBBBBb.", "......bbbb......"],
+                       palette: ["b": 0x2F5FA8, "B": 0x4F86D9, "w": 0xCFE3FF])
+        case .earmuffs:
+            return Art(y0: 2, rows: ["....GGGGGGGG....", "...G........G...", "..G..........G..", "PPG..........GPP", "PPP..........PPP", "PPP..........PPP", "PP............PP"],
+                       palette: ["G": 0x8A93A8, "P": 0xF2C6D8])
         }
     }
 
@@ -87,6 +107,19 @@ extension Outfit {
         case .bow:
             return Art(y0: 0, rows: ["........PP....PP..", "........PHPppPHP..", "........PP....PP.."],
                        palette: ["P": 0xE58BB0, "p": 0xC4668E, "H": 0xFFC2DA])
+        case .sunglasses:
+            // montura oscura y gruesa alrededor del visor, con destellos
+            return Art(y0: 3, rows: ["....KKKKKKKKKK....", "...KK........KK...", "..KKW........WKK..", "...K..........K...", "...K..........K...", "...KK........KK...", "....KKKKKKKKKK...."],
+                       palette: ["K": 0x1B1F2E, "W": 0x9DB0E0])
+        case .sunhat:
+            return Art(y0: 0, rows: [".......hhhh.......", "....hhhYYYYhhh....", "...hYYYYYYYYYYh...", "..hhRRRRRRRRRRhh..", "hhhhhhhhhhhhhhhhhh"],
+                       palette: ["h": 0xD9B26A, "Y": 0xF0D58C, "R": 0xC84B4B])
+        case .umbrella:
+            return Art(y0: 0, rows: [".......bbbb.......", "....bbBBBBBBbb....", "..bBBBwBBBBwBBBb..", ".bBBBBBBBBBBBBBBb.", ".......bbbb......."],
+                       palette: ["b": 0x2F5FA8, "B": 0x4F86D9, "w": 0xCFE3FF])
+        case .earmuffs:
+            return Art(y0: 0, rows: [".....GGGGGGGG.....", "....G........G....", "...G..........G...", "..G............G..", "PPG............GPP", "PPP............PPP", "PPP............PPP", "PPP............PPP", ".PP............PP."],
+                       palette: ["G": 0x8A93A8, "P": 0xF2C6D8])
         }
     }
 

@@ -119,22 +119,78 @@ final class PetStore: ObservableObject {
     @Published var wardrobe: Set<Outfit> = Wardrobe.decode(UserDefaults.standard.string(forKey: "wardrobe") ?? "") {
         didSet { UserDefaults.standard.set(Wardrobe.encode(wardrobe), forKey: "wardrobe") }
     }
+    /// Lo que lleva codex, aparte: cada agente se viste por separado.
+    @Published var codexWardrobe: Set<Outfit> = {
+        // quien ya tenia atuendos los conserva en las dos mascotas hasta que los cambie
+        let d = UserDefaults.standard
+        return Wardrobe.decode(d.string(forKey: "codexWardrobe") ?? d.string(forKey: "wardrobe") ?? "")
+    }() {
+        didSet { UserDefaults.standard.set(Wardrobe.encode(codexWardrobe), forKey: "codexWardrobe") }
+    }
     @Published var seasonalOutfits: Bool = UserDefaults.standard.object(forKey: "seasonalOutfits") == nil ? true : UserDefaults.standard.bool(forKey: "seasonalOutfits") {
         didSet { UserDefaults.standard.set(seasonalOutfits, forKey: "seasonalOutfits") }
     }
-    /// Lo que lleva puesto la mascota: lo elegido mas, si esta activado, el atuendo de temporada.
-    func outfitsNow(at date: Date = Date()) -> Set<Outfit> {
-        let chosen = seasonalOutfits ? wardrobe.union(Wardrobe.seasonal(on: date)) : wardrobe
-        var worn = chosen.filter { Evolution.isUnlocked($0, level: weeklyRecap.level) || Wardrobe.seasonal(on: date).contains($0) }
+
+    // MARK: entorno (tiempo y bateria)
+    /// Pide el tiempo del sitio del usuario. Apagado de serie: es la unica cosa de la app que sale a internet por su cuenta.
+    @Published var weatherEnabled: Bool = UserDefaults.standard.bool(forKey: "weatherEnabled") {
+        didSet { UserDefaults.standard.set(weatherEnabled, forKey: "weatherEnabled"); restartWeather() }
+    }
+    /// Vacio = ubicacion del Mac (pide permiso); con texto = esa ciudad.
+    @Published var weatherCity: String = UserDefaults.standard.string(forKey: "weatherCity") ?? "" {
+        didSet { UserDefaults.standard.set(weatherCity, forKey: "weatherCity") }
+    }
+    /// Las mascotas se visten solas segun el tiempo.
+    @Published var weatherDress: Bool = UserDefaults.standard.object(forKey: "weatherDress") == nil ? true : UserDefaults.standard.bool(forKey: "weatherDress") {
+        didSet { UserDefaults.standard.set(weatherDress, forKey: "weatherDress") }
+    }
+    /// Sudan, tiritan, se preocupan con poca bateria.
+    @Published var ambientReactions: Bool = UserDefaults.standard.object(forKey: "ambientReactions") == nil ? true : UserDefaults.standard.bool(forKey: "ambientReactions") {
+        didSet { UserDefaults.standard.set(ambientReactions, forKey: "ambientReactions") }
+    }
+    @Published private(set) var weather: WeatherReading?
+    @Published private(set) var weatherStatus = ""
+    @Published private(set) var batteryLow = false
+    private let weatherService = WeatherService()
+    private var batteryTimer: Timer?
+
+    func restartWeather() {
+        weatherService.onReading = { [weak self] r in self?.weather = r }
+        weatherService.onStatus = { [weak self] t in self?.weatherStatus = t }
+        if weatherEnabled { weatherService.start(city: weatherCity) } else { weatherService.stop(); weather = nil; weatherStatus = "" }
+    }
+
+    func startAmbient() {
+        restartWeather()
+        batteryTimer?.invalidate()
+        batteryTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in Task { @MainActor in self?.batteryLow = Battery.lowLevel() != nil } }
+        batteryLow = Battery.lowLevel() != nil
+    }
+
+    var ambient: Ambient { ambientReactions ? WeatherRules.ambient(weatherEnabled ? weather : nil, batteryLow: batteryLow) : Ambient() }
+
+    /// Lo que lleva puesta cada mascota: lo que eligio el usuario para ese agente, la temporada y, si esta activado, lo que pide el tiempo.
+    func outfitsNow(for agent: PetAgent = .claude, at date: Date = Date()) -> Set<Outfit> {
+        let own = agent == .claude ? wardrobe : codexWardrobe
+        let season = Wardrobe.seasonal(on: date)
+        var worn = own.filter { Evolution.isUnlocked($0, level: weeklyRecap.level) || season.contains($0) }
+        if seasonalOutfits { worn.formUnion(season) }
+        if weatherEnabled, weatherDress, let w = weather, w.isFresh(date) { worn.formUnion(WeatherRules.outfits(w)) }
         if musicReacting { worn.insert(.headphones) }   // los auriculares no dependen del nivel: son parte de la reaccion
         return worn
     }
     /// Viste los pixeles de claude con lo que lleva puesto. Los atuendos estan dibujados para el skin bloque.
     func dress(_ px: [Px], state: PetState, tick: Int, at date: Date = Date()) -> [Px] {
         guard Sprite.skin == .block else { return px }
-        return Wardrobe.compose(px, outfits: outfitsNow(at: date), state: state, tick: tick)
+        return Wardrobe.compose(px, outfits: outfitsNow(for: .claude, at: date), state: state, tick: tick)
     }
-    func toggleOutfit(_ outfit: Outfit) { if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) } }
+    func toggleOutfit(_ outfit: Outfit, for agent: PetAgent = .claude) {
+        switch agent {
+        case .claude: if wardrobe.contains(outfit) { wardrobe.remove(outfit) } else { wardrobe.insert(outfit) }
+        case .codex: if codexWardrobe.contains(outfit) { codexWardrobe.remove(outfit) } else { codexWardrobe.insert(outfit) }
+        }
+    }
+    func worn(_ outfit: Outfit, by agent: PetAgent) -> Bool { (agent == .claude ? wardrobe : codexWardrobe).contains(outfit) }
     /// La mascota baila cuando suena musica en Music o Spotify (solo lee si esta reproduciendo; nunca titulos).
     /// Reproductor de Spotify y Apple Music en la isla. Lee titulo, artista y portada de lo que suena: por eso es opt-in.
     @Published var musicPlayer: Bool = UserDefaults.standard.bool(forKey: "musicPlayer") {
