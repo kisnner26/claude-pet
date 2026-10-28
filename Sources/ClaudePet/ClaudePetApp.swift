@@ -152,6 +152,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-workshop"), i + 2 < CommandLine.arguments.count { exit(WorkshopSelfTest.run(workshop: CommandLine.arguments[i + 1], evil: CommandLine.arguments[i + 2]) ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-weather") { exit(MainActor.assumeIsolated { WeatherSelfTest.run() } ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-phone") { exit(PhoneAlertsSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-lang") { exit(L10nSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-plan") { exit(MainActor.assumeIsolated { PlanSelfTest.run(file: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : nil) } ? 0 : 1) }
@@ -329,6 +331,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         ActivityStats.shared.load()
         PetStore.shared.refreshWeeklyRecap()
         PetStore.shared.startAmbient()
+        DesktopPets.shared.restore()
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
         PetStore.shared.approvalRules = ApprovalRules.shared.active()
@@ -363,7 +366,10 @@ final class AppController: NSObject, NSApplicationDelegate {
             self?.remoteLink.sync(asks)
             Task { @MainActor in
                 PetStore.shared.permissionAsks = asks
-                for ask in fresh { PetStore.shared.plugins.emit(.permissionAsked, fields: ["tool": ask.tool, "project": ask.project]) }
+                for ask in fresh {
+                    PetStore.shared.plugins.emit(.permissionAsked, fields: ["tool": ask.tool, "project": ask.project])
+                    PetStore.shared.pushToPhone(.permission, agent: "claude", tool: ask.tool, project: ask.project, detail: ask.detail, risky: RemoteWire.risk(of: ask) == .high, key: "p-" + ask.id)
+                }
             }
         }
         PetStore.shared.approveWithScope = { [weak self] id, scope in
@@ -373,7 +379,10 @@ final class AppController: NSObject, NSApplicationDelegate {
             ApprovalRules.shared.add(scope: scope, ask: ask)
             self?.askServer.resolve(id: id, .allow, source: scope == .once ? "isla" : "isla · \(scope.rawValue)")
         }
-        askServer.onQuestionsChange = { asks in Task { @MainActor in PetStore.shared.questionAsks = asks } }
+        askServer.onQuestionsChange = { asks in Task { @MainActor in
+            PetStore.shared.questionAsks = asks
+            for q in asks { PetStore.shared.pushToPhone(.question, agent: "claude", project: q.project, key: "q-" + q.id) }
+        } }
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
@@ -397,6 +406,14 @@ final class AppController: NSObject, NSApplicationDelegate {
                 catch { NSLog("ClaudePet: no se pudo abrir el puente de Visto: \(error)") }
             } else { self.remoteLink.stop(); PetStore.shared.remotePeers = [] }
         }.store(in: &cancellables)
+        remoteLink.onAlways = { [weak self] id in
+            Task { @MainActor in
+                guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }
+                // el perimetro manda: un archivo fuera de zona nunca se aprueba solo, ni siquiera "siempre"
+                if PerimeterStore.shared.check(ask)?.verdict.isViolation == true { self?.remoteLink.refuse(id, "fuera del perímetro: hazlo en la Mac"); return }
+                PetStore.shared.approveWithScope(id, .always)
+            }
+        }
         remoteLink.onPeersChanged = { peers in Task { @MainActor in PetStore.shared.remotePeers = peers } }
         PetStore.shared.regenerateRemoteCode = { [weak self] in
             guard let self, let c = try? self.remoteLink.regenerateCode() else { return }
@@ -423,6 +440,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                     if a.isBusy, !(["starting", "thinking", "tool"].contains(before.rawValue)) { busySince[a.agent] = now }
                     if state != before, state == .done || state == .error, before != .idle, let start = busySince[a.agent] {
                         self.remoteLink.sendEvent(kind: state == .done ? "done" : "error", agent: a.agent, project: a.project, seconds: Int(now.timeIntervalSince(start)))
+                        PetStore.shared.pushToPhone(state == .done ? .done : .error, agent: a.agent, project: a.project, seconds: Int(now.timeIntervalSince(start)), key: nil)
                     }
                     lastStates[a.agent] = state
                 }

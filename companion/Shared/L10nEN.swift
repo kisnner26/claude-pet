@@ -76,5 +76,8 @@ enum L10nEN {
         "Visto no está lista.": "Visto is not ready.",
         "caduca en # s": "expires in # s",
         "rechazó": "refused",
+        "Permitir siempre": "Always allow",
+        "Se guarda una regla en la Mac para esta petición y las iguales. Puedes revocarla en Ajustes → permisos.": "A rule is saved on the Mac for this request and identical ones. You can revoke it in Settings → permissions.",
+        "Cancelar": "Cancel",
     ]
 }

@@ -132,6 +132,17 @@ final class PhoneModel: NSObject, ObservableObject {
         Task { if await authorized(allow) { commit(ask, allow: allow) } else { Feel.shared.denied() } }
     }
 
+    /// «Permitir siempre»: pide Face ID igual que permitir, y la Mac guarda la regla.
+    func answerAlways(_ ask: Ask) {
+        Task {
+            guard await authorized(true) else { Feel.shared.denied(); return }
+            client.answerAlways(ask.id)
+            Feel.shared.allowed()
+            record(DecisionRecord(tool: ask.tool, project: ask.project, allowed: true, at: Date()))
+            clearNotification(ask.id)
+        }
+    }
+
     private func commit(_ ask: Ask, allow: Bool) {
         client.answer(ask.id, allow: allow)
         if allow { Feel.shared.allowed() } else { Feel.shared.denied() }

@@ -20,6 +20,8 @@ enum RemoteApprovalsSelfTest {
         let low = ask("a1", "Read", "README.md"), medium = ask("a2", "Bash", "swift build"), high = ask("a3", "Bash", "rm -rf build")
 
         check("bajo y medio se pueden permitir desde fuera", RemoteWire.verdict(allow: true, ask: low, now: now) == nil && RemoteWire.verdict(allow: true, ask: medium, now: now) == nil)
+        check("siempre desde fuera: solo con riesgo no alto y una clave de regla", RemoteWire.canAlways(medium) && !RemoteWire.canAlways(high) && !RemoteWire.canAlways(medium, violatesPerimeter: true))
+        check("el permiso que se manda al telefono dice si se puede permitir siempre", RemoteWire.wire(medium).canAlways == RemoteWire.canAlways(medium) && !RemoteWire.wire(high).canAlways)
         check("riesgo alto no se permite desde fuera", RemoteWire.verdict(allow: true, ask: high, now: now)?.contains("Mac") == true)
         check("riesgo alto sí se puede denegar desde fuera", RemoteWire.verdict(allow: false, ask: high, now: now) == nil)
         check("permiso caducado se rechaza", RemoteWire.verdict(allow: true, ask: ask("a4", "Read", "x", age: 200), now: now) == "caducó")

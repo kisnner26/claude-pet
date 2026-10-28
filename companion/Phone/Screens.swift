@@ -184,6 +184,7 @@ struct AskCard: View {
     let ask: Ask
     @ObservedObject var model: PhoneModel
     @State private var drag: CGFloat = 0
+    @State private var confirmAlways = false
     @State private var crossed = false
     private let threshold: CGFloat = 110
 
@@ -211,6 +212,13 @@ struct AskCard: View {
                 HStack(spacing: 10) {
                     deny()
                     Button { model.answer(ask, allow: true) } label: { Text("Permitir").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }.buttonStyle(.glassProminent).tint(VT.blue)
+                }
+                if ask.canAlways {
+                    Button { confirmAlways = true } label: { Text("Permitir siempre").font(.system(size: 13, weight: .medium)).frame(maxWidth: .infinity).padding(.vertical, 4) }.buttonStyle(.glass)
+                        .confirmationDialog(L.t("¿Permitir siempre \(ask.tool)?", "Always allow \(ask.tool)?"), isPresented: $confirmAlways, titleVisibility: .visible) {
+                            Button("Permitir siempre", role: .destructive) { model.answerAlways(ask) }
+                            Button("Cancelar", role: .cancel) {}
+                        } message: { Text("Se guarda una regla en la Mac para esta petición y las iguales. Puedes revocarla en Ajustes → permisos.") }
                 }
             } else {
                 Text("Riesgo alto: desde aquí solo puedes denegar. Para permitirlo, hazlo en la Mac.").font(.system(size: 12)).foregroundStyle(VT.amber).fixedSize(horizontal: false, vertical: true)

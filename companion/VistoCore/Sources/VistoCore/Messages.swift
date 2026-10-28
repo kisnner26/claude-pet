@@ -10,8 +10,17 @@ public struct Ask: Codable, Equatable, Sendable, Identifiable {
     public var detail: String
     public var risk: String
     public var expires: Date
-    public init(id: String, tool: String, project: String, detail: String, risk: String, expires: Date) {
-        self.id = id; self.tool = tool; self.project = project; self.detail = detail; self.risk = risk; self.expires = expires
+    /// La Mac dice si esta peticion se puede permitir «siempre» desde fuera: nunca con riesgo alto ni fuera del perímetro.
+    public var canAlways: Bool
+    public init(id: String, tool: String, project: String, detail: String, risk: String, expires: Date, canAlways: Bool = false) {
+        self.id = id; self.tool = tool; self.project = project; self.detail = detail; self.risk = risk; self.expires = expires; self.canAlways = canAlways
+    }
+    enum CodingKeys: String, CodingKey { case id, tool, project, detail, risk, expires, canAlways }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id); tool = try c.decode(String.self, forKey: .tool); project = try c.decode(String.self, forKey: .project)
+        detail = try c.decode(String.self, forKey: .detail); risk = try c.decode(String.self, forKey: .risk); expires = try c.decode(Date.self, forKey: .expires)
+        canAlways = try c.decodeIfPresent(Bool.self, forKey: .canAlways) ?? false      // una Mac más vieja no lo manda
     }
     public var canAllow: Bool { risk != "alto" }
     public func isExpired(_ now: Date = Date()) -> Bool { expires <= now }
@@ -97,6 +106,8 @@ public enum VistoMessage: Codable, Equatable, Sendable {
     case ask(Ask)
     case gone(id: String)
     case answer(id: String, allow: Bool)
+    /// Permitir esta petición y las iguales para siempre (se guarda como regla en la Mac).
+    case always(id: String)
     case refused(id: String, why: String)
     case plan(PlanSnapshot?)
     case host(name: String)

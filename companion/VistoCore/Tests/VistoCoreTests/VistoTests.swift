@@ -62,6 +62,26 @@ final class VistoTests: XCTestCase {
         XCTAssertTrue(client.asks.isEmpty, "un permiso caducado no se muestra")
     }
 
+    func testAlwaysAnswerAndOlderMacs() async throws {
+        let code = Pairing.newCode()
+        let (host, client) = try pair(code: code)
+        defer { client.stop(); host.stop() }
+        let always = expectation(description: "siempre")
+        nonisolated(unsafe) var got: String?
+        host.onAlways = { id in got = id; always.fulfill() }
+        await wait("conecta") { client.isConnected }
+        host.broadcast(.ask(Ask(id: "uno", tool: "Bash", project: "p", detail: "swift build", risk: "medio", expires: Date().addingTimeInterval(60), canAlways: true)))
+        await wait("llega con canAlways") { client.asks.first?.canAlways == true }
+        client.answerAlways("uno")
+        await fulfillment(of: [always], timeout: 3)
+        XCTAssertEqual(got, "uno")
+        XCTAssertTrue(client.asks.isEmpty, "la tarjeta se retira al pedir siempre")
+        // una Mac anterior no manda `canAlways`: se decodifica como falso y nunca se ofrece
+        let old = #"{"id":"v","tool":"Read","project":"p","detail":"a","risk":"bajo","expires":0}"#
+        let ask = try JSONDecoder().decode(Ask.self, from: Data(old.utf8))
+        XCTAssertFalse(ask.canAlways)
+    }
+
     func testWrongCodeNeverConnects() async throws {
         let (host, client) = try pair(code: Pairing.newCode(), clientCode: Pairing.newCode())
         defer { client.stop(); host.stop() }

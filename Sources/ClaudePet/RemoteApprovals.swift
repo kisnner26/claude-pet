@@ -16,7 +16,12 @@ enum RemoteWire {
 
     static func wire(_ ask: PermissionAsk) -> VistoCore.Ask {
         VistoCore.Ask(id: ask.id, tool: String(ask.tool.prefix(40)), project: String(ask.project.prefix(40)), detail: String(ask.detail.prefix(maxDetail)),
-                      risk: risk(of: ask).rawValue, expires: ask.at.addingTimeInterval(lifetime))
+                      risk: risk(of: ask).rawValue, expires: ask.at.addingTimeInterval(lifetime), canAlways: canAlways(ask))
+    }
+
+    /// «Siempre» desde fuera: solo si la isla tambien lo ofreceria (riesgo no alto y una clave de regla clara) y el perimetro no se queja.
+    static func canAlways(_ ask: PermissionAsk, violatesPerimeter: Bool = false) -> Bool {
+        risk(of: ask) != .high && ApprovalRules.key(tool: ask.tool, detail: ask.detail) != nil && !violatesPerimeter
     }
 
     /// Por que se rechaza una respuesta de fuera, o nil si vale. La politica, sin red.
@@ -91,6 +96,8 @@ final class RemoteLink: @unchecked Sendable {
 
     /// La respuesta ya paso la politica. Se llama en una cola interna.
     var onAnswer: ((String, PermissionDecision) -> Void)?
+    /// «Permitir siempre» pedido desde fuera; la Mac ya comprobo que se puede.
+    var onAlways: ((String) -> Void)?
     var onPeersChanged: (([String]) -> Void)?
     /// Respuesta a una pregunta de Claude, ya convertida a etiquetas.
     var onQuestionAnswer: ((String, [String: String]) -> Void)?
@@ -100,6 +107,7 @@ final class RemoteLink: @unchecked Sendable {
         self.codePath = codePath; self.advertise = advertise
         host = VistoHost(hostName: hostName)
         host.onAnswer = { [weak self] id, allow in self?.answered(id, allow) }
+        host.onAlways = { [weak self] id in self?.alwaysAnswered(id) }
         host.onPeerReady = { [weak self] id in self?.greet(id) }
         host.onPeersChanged = { [weak self] peers in self?.onPeersChanged?(peers.map(\.name)) }
         host.onReply = { [weak self] id, picks in self?.replied(id, picks) }
@@ -207,6 +215,16 @@ final class RemoteLink: @unchecked Sendable {
         for q in qs { host.send(.question(RemoteWire.wire(q)), to: id) }
         host.send(.plan(p), to: id)
         host.send(.agents(ag), to: id); host.send(.feed(fd), to: id); host.send(.focus(f), to: id)
+    }
+
+    /// Rechaza una respuesta de fuera con un motivo (lo usa la parte que conoce el perimetro).
+    func refuse(_ id: String, _ why: String) { host.broadcast(.refused(id: id, why: why)) }
+
+    private func alwaysAnswered(_ id: String) {
+        lock.lock(); let ask = current.first { $0.id == id }; lock.unlock()
+        if let why = RemoteWire.verdict(allow: true, ask: ask, now: Date()) { host.broadcast(.refused(id: id, why: why)); return }
+        guard let ask, RemoteWire.canAlways(ask) else { host.broadcast(.refused(id: id, why: "no se puede permitir siempre: hazlo en la Mac")); return }
+        onAlways?(id)
     }
 
     private func answered(_ id: String, _ allow: Bool) {

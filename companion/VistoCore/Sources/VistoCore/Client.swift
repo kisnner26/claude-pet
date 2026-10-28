@@ -73,6 +73,13 @@ public final class VistoClient: ObservableObject {
         onChange?()
     }
 
+    /// Permitir «siempre»: la Mac decide si se puede (nunca riesgo alto) y guarda la regla.
+    public func answerAlways(_ id: String) {
+        channel?.send(.always(id: id))
+        asks.removeAll { $0.id == id }
+        onChange?()
+    }
+
     private func restart() {
         teardown()
         guard running, let code, Pairing.isValid(code) else { state = .idle; detail = code == nil ? "Falta el código de claude pet" : ""; return }
@@ -145,7 +152,7 @@ public final class VistoClient: ObservableObject {
             onNewQuestion?(q); onChange?()
         case .questionGone(let id): questions.removeAll { $0.id == id }; onChange?()
         case .focus(let on): focus = on; onChange?()
-        case .hello, .answer, .reply: break
+        case .hello, .answer, .always, .reply: break
         }
     }
 
