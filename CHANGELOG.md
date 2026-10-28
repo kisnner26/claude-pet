@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
-## [sin publicar]
+## [2.5.0] - 2026-10-27
 
 ### añadido
 - taller de plugins: catálogo en `workshop/` que se ve e instala desde Ajustes → plugins, con paquetes verificados por sha256 y publicación por pull request (`workshop/build.py`, CI y `tests/workshop.sh`).
