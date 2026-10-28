@@ -12,7 +12,11 @@ enum AuditLog {
     private static let lock = NSLock()
     static var path: String { (ProcessInfo.processInfo.environment["CLAUDE_PET_AUDIT"] ?? (NSHomeDirectory() + "/.claude-pet/audit")) + "/decisions.jsonl" }
 
+    /// Quien quiera enterarse de cada decision (los plugins) se engancha aqui; se llama fuera del candado.
+    nonisolated(unsafe) static var onRecord: ((PermissionAsk, String, String) -> Void)?
+
     static func record(ask: PermissionAsk, result: String, source: String = "isla") {
+        defer { onRecord?(ask, result, source) }
         lock.lock(); defer { lock.unlock() }
         let entry = AuditEntry(at: Date(), tool: ask.tool, risk: PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk.rawValue, result: result, source: source)
         guard let data = try? JSONEncoder().encode(entry), let line = String(data: data, encoding: .utf8) else { return }

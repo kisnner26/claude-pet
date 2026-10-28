@@ -42,6 +42,8 @@ final class MusicController: ObservableObject {
     @Published private(set) var cover: NSImage?
     @Published private(set) var recents: [IndexedTrack] = []
     private(set) var trackChangedAt: TimeInterval = -100
+    /// Lo usan los plugins: se avisa al empezar una cancion nueva.
+    var onTrack: ((NowPlaying) -> Void)?
 
     private let runner = ScriptRunner()
     private var lastPosition = 0.0
@@ -112,7 +114,7 @@ final class MusicController: ObservableObject {
         let newTrack = found?.trackID != nowPlaying?.trackID
         nowPlaying = found
         guard newTrack else { return }
-        if let f = found, f.isPlaying { record(f) }
+        if let f = found, f.isPlaying { record(f); onTrack?(f) }
         loadCover(for: found)
     }
 

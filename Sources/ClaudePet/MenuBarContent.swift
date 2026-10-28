@@ -5,11 +5,13 @@ struct MenuBarContent: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var webScout: NativeWebScoutController
     @ObservedObject private var music: MusicController
+    @ObservedObject private var plugins: PluginHost
 
     init(store: PetStore) {
         self.store = store
         _webScout = ObservedObject(wrappedValue: store.webScout)
         _music = ObservedObject(wrappedValue: store.music)
+        _plugins = ObservedObject(wrappedValue: store.plugins)
     }
 
     var body: some View {
@@ -36,6 +38,15 @@ struct MenuBarContent: View {
             Menu("proyecto", systemImage: "folder") { projectMenu }
             Menu("mascotas", systemImage: "pawprint") { petsMenu }
             Menu("web scout", systemImage: "scope") { webScoutMenu }
+            if plugins.hasMenuActions {
+                Menu("plugins", systemImage: "puzzlepiece.extension") {
+                    ForEach(plugins.actions(place: "menu"), id: \.action.id) { item in
+                        Button("\(item.plugin.manifest.name): \(item.action.title)", systemImage: item.action.symbol ?? "puzzlepiece.extension") { plugins.run(item.plugin.id, item.action, name: item.plugin.manifest.name) }
+                    }
+                    Divider()
+                    Button("administrar plugins…", systemImage: "gearshape") { AppController.shared.showSettings(page: .plugins) }
+                }
+            }
             Menu("más", systemImage: "ellipsis.circle") { moreMenu }
         }
         Section {

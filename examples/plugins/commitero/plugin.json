@@ -1,0 +1,13 @@
+{
+  "id": "commitero",
+  "name": "Commitero",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Agrupa los cambios del proyecto activo en commits atómicos con commitero.",
+  "homepage": "https://github.com/kisnner26/commitero",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify"],
+  "actions": [
+    { "id": "commitear", "title": "commitear este proyecto", "symbol": "arrow.triangle.branch", "run": "commitear.sh", "needs": "project", "places": ["menu", "island"] }
+  ]
+}

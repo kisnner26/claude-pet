@@ -160,6 +160,7 @@ final class PluginRegistry {
         guard status(pluginID) == .enabled, let p = plugin(pluginID), let a = p.manifest.actions.first(where: { $0.id == actionID }),
               let exe = PluginSecurity.resolveExecutable(a.run, in: p.dir) else { return nil }
         if a.needs == "project" && project == nil { return nil }
+        PluginSecurity.ensureDataDirectory(pluginID)
         let env = PluginSecurity.environment(plugin: p, settings: state(pluginID).settings, project: project, event: nil)
         let r = await PluginRunner.run(executable: exe, args: a.args ?? [], env: env, cwd: p.dir)
         return (r, PluginEffects.parse(stdout: r.stdout, permissions: Set(p.manifest.permissions)))
@@ -168,6 +169,7 @@ final class PluginRegistry {
     func runEvent(_ event: PluginEvent, plugin p: LoadedPlugin, executable: URL, fields: [String: String], project: (path: String, name: String)?) async -> (result: PluginResult, effects: PluginEffects) {
         let perms = Set(p.manifest.permissions)
         let payload = PluginEvents.payload(event, fields: fields, permissions: perms, project: project)
+        PluginSecurity.ensureDataDirectory(p.id)
         let env = PluginSecurity.environment(plugin: p, settings: state(p.id).settings, project: project, event: event.rawValue)
         let r = await PluginRunner.run(executable: executable, args: [], env: env, cwd: p.dir, stdin: payload)
         return (r, PluginEffects.parse(stdout: r.stdout, permissions: perms))

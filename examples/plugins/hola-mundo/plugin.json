@@ -1,0 +1,15 @@
+{
+  "id": "hola-mundo",
+  "name": "Hola mundo",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "El plugin más pequeño posible: un botón que saluda con el nombre que elijas en sus ajustes.",
+  "permissions": ["notify"],
+  "actions": [
+    { "id": "saludar", "title": "saludar", "symbol": "hand.wave", "run": "saludar.sh" }
+  ],
+  "settings": [
+    { "key": "nombre", "type": "text", "title": "a quién saludar", "default": "mundo" },
+    { "key": "grito", "type": "toggle", "title": "en mayúsculas" }
+  ]
+}

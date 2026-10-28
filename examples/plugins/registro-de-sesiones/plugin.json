@@ -1,0 +1,9 @@
+{
+  "id": "registro-de-sesiones",
+  "name": "Registro de sesiones",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Anota en un archivo cada vez que un agente termina una tarea: fecha, agente y duración.",
+  "permissions": ["events"],
+  "events": { "session.done": "anotar.sh" }
+}

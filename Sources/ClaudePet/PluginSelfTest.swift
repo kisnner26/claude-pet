@@ -238,4 +238,44 @@ enum PluginSelfTest {
         print(failures == 0 ? "PLUGINS OK" : "PLUGINS \(failures) FALLOS")
         return failures == 0
     }
+
+    /// `ClaudePet --selftest-plugin-examples <carpeta>`: los ejemplos del repositorio se instalan, son validos y funcionan.
+    static func runExamples(_ examples: String) -> Bool {
+        setvbuf(stdout, nil, _IONBF, 0)
+        var failures = 0
+        func check(_ name: String, _ ok: Bool) { if !ok { failures += 1; print("FALLO \(name)") } }
+        let fm = FileManager.default
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("plugin-examples-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: tmp) }
+        setenv("CLAUDE_PET_PLUGIN_DATA", tmp.appendingPathComponent("data").path, 1)
+        let reg = PluginRegistry(root: tmp.appendingPathComponent("plugins"), statePath: nil)
+        let names = ((try? fm.contentsOfDirectory(atPath: examples)) ?? []).sorted()
+        check("hay ejemplos", names.count >= 3)
+        for n in names { check("instala \(n)", (try? reg.install(from: URL(fileURLWithPath: examples).appendingPathComponent(n))) != nil) }
+        for n in names { check("\(n): sin problemas tras instalar", reg.plugin(n)?.problems.isEmpty == true && reg.status(n) == .disabled) }
+        for n in names { reg.setEnabled(n, true, approving: true) }
+        let sem = DispatchSemaphore(value: 0)
+        var hola: (result: PluginResult, effects: PluginEffects)?, holaGrito: (result: PluginResult, effects: PluginEffects)?, commitero: (result: PluginResult, effects: PluginEffects)?
+        var logged = ""
+        reg.setSetting("hola-mundo", key: "nombre", value: "Ana \"la\" \\ grande")
+        let project = tmp.appendingPathComponent("no-es-git"); try? fm.createDirectory(at: project, withIntermediateDirectories: true)
+        Task.detached {
+            hola = await reg.runAction("hola-mundo", "saludar", project: nil)
+            reg.setSetting("hola-mundo", key: "grito", value: "true")
+            holaGrito = await reg.runAction("hola-mundo", "saludar", project: nil)
+            commitero = await reg.runAction("commitero", "commitear", project: (path: project.path, name: "no-es-git"))
+            if let h = reg.handlers(for: .sessionDone).first(where: { $0.plugin.id == "registro-de-sesiones" }) {
+                _ = await reg.runEvent(.sessionDone, plugin: h.plugin, executable: h.executable, fields: ["agent": "claude", "seconds": "30"], project: nil)
+            }
+            sem.signal()
+        }
+        sem.wait()
+        check("hola-mundo: saluda y escapa comillas y barras", hola?.effects.toast == "hola, Ana \"la\" \\ grande")
+        check("hola-mundo: respeta el ajuste de mayusculas", holaGrito?.effects.toast == "HOLA, ANA \"LA\" \\ GRANDE")
+        check("commitero: con un proyecto que no es git no lanza nada y avisa", commitero?.result.ok == true && commitero?.effects.toast?.isEmpty == false && commitero?.effects.toast?.contains("commitero abierto") == false)
+        logged = (try? String(contentsOf: tmp.appendingPathComponent("data/registro-de-sesiones/sesiones.log"))) ?? ""
+        check("registro-de-sesiones: anota el evento en su carpeta de datos", logged.hasPrefix("session.done\t") && logged.contains("\"agent\":\"claude\""))
+        print(failures == 0 ? "EJEMPLOS OK" : "EJEMPLOS \(failures) FALLOS")
+        return failures == 0
+    }
 }

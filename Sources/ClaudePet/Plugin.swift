@@ -215,11 +215,22 @@ enum PluginSecurity {
         return file
     }
 
+    /// Donde un plugin guarda lo suyo (registros, cache): la carpeta del plugin queda de solo lectura para los demas.
+    static func dataDirectory(_ id: String) -> URL {
+        let base = ProcessInfo.processInfo.environment["CLAUDE_PET_PLUGIN_DATA"] ?? (NSHomeDirectory() + "/.claude-pet/plugin-data")
+        return URL(fileURLWithPath: base).appendingPathComponent(id)
+    }
+
+    static func ensureDataDirectory(_ id: String) {
+        guard id.range(of: "^[a-z0-9][a-z0-9-]{1,39}$", options: .regularExpression) != nil else { return }
+        try? FileManager.default.createDirectory(at: dataDirectory(id), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    }
+
     /// Entorno minimo: nada de las variables del usuario (claves, tokens). Solo lo que el plugin tiene permiso de ver.
     static func environment(plugin: LoadedPlugin, settings: [String: String], project: (path: String, name: String)?, event: String?) -> [String: String] {
         var env: [String: String] = [
-            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin", "HOME": NSHomeDirectory(), "LANG": "es_ES.UTF-8", "TMPDIR": NSTemporaryDirectory(),
-            "CLAUDE_PET": "1", "CLAUDE_PET_VERSION": PluginManifest.appVersion, "CLAUDE_PET_PLUGIN_ID": plugin.manifest.id, "CLAUDE_PET_PLUGIN_DIR": plugin.dir.path,
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:" + NSHomeDirectory() + "/.local/bin", "HOME": NSHomeDirectory(), "LANG": "es_ES.UTF-8", "TMPDIR": NSTemporaryDirectory(),
+            "CLAUDE_PET": "1", "CLAUDE_PET_VERSION": PluginManifest.appVersion, "CLAUDE_PET_PLUGIN_ID": plugin.manifest.id, "CLAUDE_PET_PLUGIN_DIR": plugin.dir.path, "CLAUDE_PET_DATA_DIR": dataDirectory(plugin.manifest.id).path,
         ]
         let perms = Set(plugin.manifest.permissions)
         if perms.contains("project"), let p = project { env["CLAUDE_PET_PROJECT"] = p.path; env["CLAUDE_PET_PROJECT_NAME"] = p.name }

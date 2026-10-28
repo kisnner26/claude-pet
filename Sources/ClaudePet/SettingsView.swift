@@ -15,6 +15,7 @@ extension SettingsPage {
         case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
         case .musica: return "reproductor de Spotify y Apple Music en la isla, y cómo reacciona la mascota."
         case .foco: return "silencia lo que no importa y trabaja por ciclos."
+        case .plugins: return "complementos creados por la comunidad que añaden acciones y ajustes a claude-pet."
         case .atajos: return "combinaciones globales. siempre con control y opción más la letra que elijas."
         case .copia: return "exporta tus ajustes, impórtalos en otro Mac o vuelve a empezar."
         case .acerca: return "versión, herramientas relacionadas y dónde vive cada dato."
@@ -165,6 +166,7 @@ struct SettingsView: View {
         case .sonidos: SonidosPage(store: store)
         case .musica: MusicaPage(store: store)
         case .foco: FocoPage(store: store)
+        case .plugins: PluginsPage(store: store)
         case .atajos: AtajosPage(store: store)
         case .copia: CopiaPage(store: store)
         case .acerca: AcercaPage()

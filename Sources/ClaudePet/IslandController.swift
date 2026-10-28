@@ -180,8 +180,8 @@ final class IslandController {
             // solo cuentan las tareas que duraron de verdad, no cada turno corto
             let ran = taskStartedAt.map { now - $0 } ?? 0
             if ActivityStats.countsAsTask(duration: ran) {
-                if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject) }
-                if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject) }
+                if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject); store.plugins.emit(.sessionDone, fields: ["agent": "claude", "seconds": String(Int(ran))]) }
+                if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject); store.plugins.emit(.sessionDone, fields: ["agent": "codex", "seconds": String(Int(ran))]) }
             }
             ActivityStats.shared.save()
             store.refreshWeeklyRecap()

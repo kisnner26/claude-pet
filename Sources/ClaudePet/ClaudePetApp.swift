@@ -149,6 +149,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-music") { exit(MusicSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--selftest-plugin-examples"), i + 1 < CommandLine.arguments.count { exit(PluginSelfTest.runExamples(CommandLine.arguments[i + 1]) ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-polling") { exit(IslandPollingSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-resistance") { exit(IslandResistanceSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-demo") { exit(DemoModeSelfTest.run() ? 0 : 1) }
@@ -304,6 +305,14 @@ final class AppController: NSObject, NSApplicationDelegate {
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
         PetStore.shared.approvalRules = ApprovalRules.shared.active()
+        // eventos para plugins: nunca llevan la ruta ni el comando, solo la herramienta y el proyecto
+        var announced = Set<String>()
+        AuditLog.onRecord = { ask, result, source in
+            Task { @MainActor in PetStore.shared.plugins.emit(.permissionDecided, fields: ["tool": ask.tool, "project": ask.project, "decision": result, "source": source]) }
+        }
+        PetStore.shared.music.onTrack = { n in
+            PetStore.shared.plugins.emit(.musicTrack, fields: ["title": n.title, "artist": n.artist, "album": n.album, "app": n.app.title])
+        }
         PerimeterStore.shared.load()
         PerimeterStore.shared.onChange = { Task { @MainActor in PetStore.shared.perimeters = PerimeterStore.shared.all() } }
         PetStore.shared.perimeters = PerimeterStore.shared.all()
@@ -320,7 +329,11 @@ final class AppController: NSObject, NSApplicationDelegate {
                 if self?.askServer.resolve(id: id, .allow, source: "regla") == true { return }
             case .none: break
             }
-            Task { @MainActor in PetStore.shared.permissionAsks = asks }
+            let fresh = asks.filter { announced.insert($0.id).inserted }
+            Task { @MainActor in
+                PetStore.shared.permissionAsks = asks
+                for ask in fresh { PetStore.shared.plugins.emit(.permissionAsked, fields: ["tool": ask.tool, "project": ask.project]) }
+            }
         }
         PetStore.shared.approveWithScope = { [weak self] id, scope in
             guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }

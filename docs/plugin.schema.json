@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "claude-pet plugin.json",
+  "type": "object",
+  "required": ["id", "name", "version", "author", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,39}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "version": { "type": "string", "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$" },
+    "author": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "homepage": { "type": "string", "pattern": "^https://", "maxLength": 200 },
+    "minApp": { "type": "string", "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}$" },
+    "permissions": {
+      "type": "array", "uniqueItems": true,
+      "items": { "enum": ["project", "events", "clipboard", "notify", "open-url", "music"] }
+    },
+    "actions": {
+      "type": "array", "maxItems": 12,
+      "items": {
+        "type": "object", "required": ["id", "title", "run"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "symbol": { "type": "string", "pattern": "^[a-z0-9.]{1,40}$" },
+          "run": { "type": "string", "maxLength": 120, "description": "ruta relativa dentro del plugin, sin .. ni barra inicial" },
+          "args": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 200 } },
+          "needs": { "const": "project" },
+          "places": { "type": "array", "items": { "enum": ["menu", "island"] } }
+        }
+      }
+    },
+    "settings": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "required": ["key", "type", "title"], "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+          "type": { "enum": ["toggle", "text", "choice"] },
+          "title": { "type": "string", "maxLength": 60 },
+          "detail": { "type": "string" },
+          "default": { "type": "string", "maxLength": 200 },
+          "options": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string", "maxLength": 40 } }
+        }
+      }
+    },
+    "events": {
+      "type": "object",
+      "propertyNames": { "enum": ["session.done", "permission.asked", "permission.decided", "music.track"] },
+      "additionalProperties": { "type": "string", "maxLength": 120 }
+    }
+  }
+}
