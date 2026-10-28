@@ -18,13 +18,29 @@ Las consultas a Spotify y Music van por AppleScript en una cola propia, de una e
 
 ## cómo reacciona la mascota
 
-No oye el audio. Reacciona a lo que dicen las apps, que es lo que se puede saber sin pedir permisos de captura:
+Claude **y Codex** reaccionan a lo que suena. Hay dos niveles:
 
-- **suena o no**: se pone los auriculares y baila mientras suena; al pausar, se los quita.
-- **volumen**: sueltan notas que suben de ella, de dos a seis según el volumen.
-- **cambio de tema**: un anillo de destellos.
+**Sin permisos extra** (lo que dicen las apps): se ponen auriculares, saltan al empezar la música, suspiran al pausar, sueltan notas (más volumen, más notas) y hay un destello al cambiar de tema. Bailan a un ritmo fijo, con la fuerza del volumen.
 
-Sin el reproductor activado queda el modo anterior, "bailar cuando suena algo", que solo pregunta si Spotify o Apple Music están reproduciendo y no lee títulos.
+**Siguiendo el ritmo de verdad** (opt-in, Ajustes → música → "seguir el ritmo de verdad"): claude-pet oye el audio del Mac y calcula graves, medios, agudos y los pulsos.
+
+- **salta con el bombo**: más alto cuanto más graves.
+- **cabecea al compás**, alternando de lado en cada pulso, y se aplasta un poco al caer.
+- **ojos contentos** (`^ ^`) cuando suena fuerte.
+- **ecualizador** de tres barras (graves, medios y agudos) a un lado y un **aro** que se abre en cada pulso.
+- estima el tempo (BPM) a partir de los pulsos.
+
+![baile](img/baile.jpg)
+
+*De izquierda a derecha: el pulso, 80 ms y 170 ms después, el pulso siguiente (cabecea hacia el otro lado), sin escucha y al pausar.*
+
+### cómo funciona la escucha
+
+Usa ScreenCaptureKit solo para el audio del sistema (el vídeo se reduce a 2×2 píxeles y se ignora; el audio de claude-pet se excluye). macOS lo llama "grabación de pantalla y audio del sistema", te pide permiso y muestra su indicador en la barra de menú mientras escucha. La captura **solo corre mientras suena algo** y el ajuste está activado; al pausar se apaga.
+
+Un analizador sin FFT separa tres bandas con filtros de un polo (graves bajo 150 Hz, medios bajo 2 kHz, agudos el resto), mide la energía cada 10 ms, normaliza con una referencia común y detecta los pulsos con un umbral adaptativo. El audio no se guarda ni sale del Mac: de él solo quedan unos números.
+
+Límites honestos: el detector sigue el bombo y la percusión fuerte, así que con música sin graves marcados (ambient, voz sola) dará pocos pulsos y la mascota se moverá poco. No distingue géneros ni sigue la melodía.
 
 ## privacidad
 
@@ -35,5 +51,7 @@ Sin el reproductor activado queda el modo anterior, "bailar cuando suena algo", 
 - Los scripts son texto fijo; lo único que se interpola son números acotados (posición y volumen).
 
 ## pruebas
+
+`ClaudePet --selftest-audio` prueba el analizador con señales sintéticas (bombos a 90, 100, 120 y 150 BPM a 44,1 y 48 kHz, una mezcla con hi-hat, caja y colchón armónico, silencio, tono constante, ruido, muestras hostiles), el baile, el mezclador a mono y la caducidad de la escucha. La captura real con permiso de pantalla no se puede probar sin una persona que lo conceda.
 
 `ClaudePet --selftest-music` cubre el parseo de ambas apps (comas decimales, milisegundos de Spotify, estado parado, datos corruptos, texto largo o con controles), la lista blanca de portadas, los comandos, la escala de notas y **compila los scripts contra el diccionario real de cada app instalada**. Esa última prueba existe porque una variable llamada `st` no compilaba en Music.

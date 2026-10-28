@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.2.0] - 2026-10-27
+
+### añadido
+- **seguir el ritmo de verdad** (opt-in): la mascota oye el audio del Mac con ScreenCaptureKit, calcula graves, medios, agudos, pulsos y tempo, y salta con el bombo, cabecea al compás y enseña un ecualizador y un aro en cada pulso. La captura solo corre mientras suena algo. Ver `docs/MUSICA.md`.
+- **Codex también baila** (antes solo bailaba Claude), con la misma lógica de compás.
+- reacciones sin permisos extra: salta al empezar la música, suspira al pausar y la fuerza del baile sigue al volumen de la app.
+- `--selftest-audio` y `--snapshot-dance`.
+
+### cambiado
+- el baile ya no es un balanceo fijo de 2 Hz: sin escucha sigue el volumen; con ella, el compás.
+- los corazones de la caricia no salen mientras baila.
+
 ## [2.1.0] - 2026-10-27
 
 ### añadido
@@ -85,6 +97,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ### añadido
 - primera versión: una mascota pixel-art en la barra de menú que refleja el estado de Claude Code.
 
+[2.2.0]: https://github.com/kisnner26/claude-pet/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kisnner26/claude-pet/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/kisnner26/claude-pet/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/kisnner26/claude-pet/compare/v1.1.0...v1.2.0
