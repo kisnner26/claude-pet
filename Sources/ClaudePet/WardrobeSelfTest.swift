@@ -47,6 +47,16 @@ enum WardrobeSelfTest {
         check("invierno: solo bufanda", Wardrobe.seasonal(on: day(2, 10), calendar: cal) == [.scarf])
         check("fuera de temporada no hay nada", Wardrobe.seasonal(on: day(10, 27), calendar: cal).isEmpty)
 
+        // avatar de codex: rejilla 18x21, cabeza en las filas 0...11
+        for outfit in Outfit.allCases {
+            let cells = outfit.codexCells
+            check("codex \(outfit.title): tiene celdas y caben en la rejilla 18x21", !cells.isEmpty && cells.allSatisfy { $0.x >= 0 && $0.x < CodexAvatar.width && $0.y >= 0 && $0.y < CodexAvatar.height })
+        }
+        let bare = CodexAvatar.cells(legs: .stand, face: .prompt(cursor: true))
+        let glasses = CodexAvatar.cells(legs: .stand, face: .prompt(cursor: true), outfits: [.glasses])
+        check("codex: sin atuendos no se añade nada", CodexAvatar.cells(legs: .stand, face: .prompt(cursor: true), outfits: []).count == bare.count)
+        check("codex: el atuendo se pinta antes del glifo, que sigue encima", glasses.count > bare.count && glasses.last.map { l in bare.last.map { $0.x == l.x && $0.y == l.y } ?? false } == true)
+        check("codex: el orden del conjunto no cambia el dibujo", Wardrobe.codexCells([.bow, .crown, .scarf]).map { "\($0.x),\($0.y)" } == Wardrobe.codexCells([.scarf, .bow, .crown]).map { "\($0.x),\($0.y)" })
         print(failures == 0 ? "ATUENDOS OK" : "ATUENDOS FALLOS: \(failures)")
         return failures == 0
     }
