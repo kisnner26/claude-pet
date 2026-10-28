@@ -1,0 +1,13 @@
+{
+  "id": "diario-de-sesiones",
+  "name": "Diario de sesiones",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Anota cada tarea que termina un agente (hora, agente, proyecto y duración) y te resume el día.",
+  "minApp": "2.1.0",
+  "permissions": ["events", "project", "notify", "clipboard"],
+  "events": { "session.done": "anotar.sh" },
+  "actions": [
+    { "id": "hoy", "title": "resumen de hoy", "symbol": "calendar", "run": "hoy.sh", "places": ["menu", "island"] }
+  ]
+}

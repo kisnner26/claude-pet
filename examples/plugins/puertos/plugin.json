@@ -1,0 +1,12 @@
+{
+  "id": "puertos",
+  "name": "Puertos en uso",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Qué servidores locales están escuchando (3000, 5173, 8080…) y qué proceso los tiene, para no pelearte con «address already in use».",
+  "minApp": "2.1.0",
+  "permissions": ["notify", "clipboard"],
+  "actions": [
+    { "id": "listar", "title": "puertos en escucha", "symbol": "network", "run": "listar.sh", "places": ["menu", "island"] }
+  ]
+}

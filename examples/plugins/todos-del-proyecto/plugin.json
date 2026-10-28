@@ -1,0 +1,12 @@
+{
+  "id": "todos-del-proyecto",
+  "name": "TODOs del proyecto",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Cuenta los TODO y FIXME de los archivos versionados y copia la lista con archivo y línea.",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify", "clipboard"],
+  "actions": [
+    { "id": "buscar", "title": "buscar TODO y FIXME", "symbol": "checklist", "run": "buscar.sh", "needs": "project", "places": ["menu", "island"] }
+  ]
+}

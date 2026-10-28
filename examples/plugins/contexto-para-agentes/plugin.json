@@ -1,0 +1,12 @@
+{
+  "id": "contexto-para-agentes",
+  "name": "Contexto para agentes",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Copia un resumen del proyecto (rama, cambios, últimos commits y estructura) para pegarlo en cualquier agente o chat.",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify", "clipboard"],
+  "actions": [
+    { "id": "copiar", "title": "copiar el contexto del proyecto", "symbol": "doc.text", "run": "copiar.sh", "needs": "project", "places": ["menu", "island"] }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "git-estado",
+  "name": "Git al instante",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Rama, cambios y adelanto/atraso del proyecto en un toque, y copia la rama o el último commit.",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify", "clipboard"],
+  "actions": [
+    { "id": "estado", "title": "estado de git", "symbol": "arrow.triangle.branch", "run": "estado.sh", "needs": "project", "places": ["menu", "island"] },
+    { "id": "rama", "title": "copiar la rama", "symbol": "doc.on.doc", "run": "rama.sh", "needs": "project" },
+    { "id": "commit", "title": "copiar el último commit", "symbol": "number", "run": "commit.sh", "needs": "project" }
+  ]
+}

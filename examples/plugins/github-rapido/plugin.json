@@ -1,0 +1,15 @@
+{
+  "id": "github-rapido",
+  "name": "GitHub rápido",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Abre en el navegador el PR de tu rama, los pull requests, los issues o las acciones del repo del proyecto.",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify", "open-url"],
+  "actions": [
+    { "id": "pr", "title": "abrir el PR de esta rama", "symbol": "arrow.triangle.pull", "run": "abrir.sh", "args": ["pr"], "needs": "project", "places": ["menu", "island"] },
+    { "id": "pulls", "title": "pull requests", "symbol": "arrow.triangle.merge", "run": "abrir.sh", "args": ["pulls"], "needs": "project" },
+    { "id": "issues", "title": "issues", "symbol": "exclamationmark.circle", "run": "abrir.sh", "args": ["issues"], "needs": "project" },
+    { "id": "acciones", "title": "acciones (CI)", "symbol": "play.circle", "run": "abrir.sh", "args": ["actions"], "needs": "project" }
+  ]
+}

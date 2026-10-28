@@ -1,0 +1,16 @@
+{
+  "id": "abrir-en",
+  "name": "Abrir en…",
+  "version": "1.0.0",
+  "author": "kisnner26",
+  "description": "Abre el proyecto activo en el editor que elijas o en una terminal nueva.",
+  "minApp": "2.1.0",
+  "permissions": ["project", "notify"],
+  "settings": [
+    { "key": "editor", "type": "choice", "title": "editor", "options": ["Visual Studio Code", "Cursor", "Xcode", "Zed", "Sublime Text", "Nova"], "default": "Visual Studio Code" }
+  ],
+  "actions": [
+    { "id": "editor", "title": "abrir en el editor", "symbol": "chevron.left.forwardslash.chevron.right", "run": "editor.sh", "needs": "project", "places": ["menu", "island"] },
+    { "id": "terminal", "title": "abrir en una terminal", "symbol": "terminal", "run": "terminal.sh", "needs": "project" }
+  ]
+}
