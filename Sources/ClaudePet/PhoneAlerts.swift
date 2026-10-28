@@ -35,7 +35,7 @@ enum PhoneAlertRules {
         return "ntfy://" + s.dropFirst("https://".count) + "/" + topic
     }
 
-    enum Kind: Equatable { case permission, question, done, error }
+    enum Kind: Equatable { case permission, question, done, error, plan }
     struct Message: Equatable { var title: String; var body: String; var priority: Int }
 
     /// El texto del aviso. `detail` solo entra si el usuario lo pidio y no parece contener un secreto.
@@ -57,6 +57,9 @@ enum PhoneAlertRules {
             return Message(title: "claude pet", body: p.isEmpty ? t("\(name) terminó", "\(name) finished") + mins : t("\(name) terminó en \(p)", "\(name) finished in \(p)") + mins, priority: 3)
         case .error:
             return Message(title: "claude pet", body: p.isEmpty ? t("\(name) falló", "\(name) failed") : t("\(name) falló en \(p)", "\(name) failed in \(p)"), priority: 4)
+        case .plan:
+            // el texto ya es el del aviso de la isla (solo porcentajes y tiempos): no lleva nada del proyecto
+            return Message(title: "claude pet", body: language == .en ? L.trEnglish(detail) : detail, priority: 4)
         }
     }
 

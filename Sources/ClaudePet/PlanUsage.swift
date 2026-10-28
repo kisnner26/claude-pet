@@ -84,6 +84,8 @@ struct PlanAlertPolicy {
 final class PlanUsageMonitor: ObservableObject {
     @Published private(set) var usage: PlanUsage?
     @Published private(set) var alert: String?
+    /// Cada aviso nuevo del plan (80 % y 95 %): lo usa claude pet para avisar tambien al telefono.
+    var onAlert: ((String) -> Void)?
     private var policy = PlanAlertPolicy()
     private var timer: Timer?
     private var lastModified: Date?
@@ -121,6 +123,7 @@ final class PlanUsageMonitor: ObservableObject {
         guard let u, !u.isStale(now: now) else { return }
         if let first = policy.alerts(for: u, now: now).first {
             alert = first
+            onAlert?(first)
             alertTask?.cancel()
             alertTask = Task { [weak self] in try? await Task.sleep(nanoseconds: 12_000_000_000); if !Task.isCancelled { self?.alert = nil } }
         }

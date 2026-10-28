@@ -47,6 +47,14 @@ enum L {
         return s
     }
 
+    /// Traduce al ingles sin mirar el idioma elegido: para textos que se mandan fuera de la interfaz (avisos al telefono).
+    static func trEnglish(_ s: String) -> String {
+        let saved = current
+        current = .en
+        defer { current = saved }
+        return tr(s)
+    }
+
     private static func shapeOf(_ s: String) -> (String, [String]) {
         var out = "", digits: [String] = [], run = ""
         for ch in s {

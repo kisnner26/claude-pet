@@ -480,5 +480,11 @@ enum L10nEN {
         "ahorro automático": "automatic saving",
         "activo ahora: efectos reducidos": "on now: reduced effects",
         "se activa solo cuando hace falta": "turns on only when needed",
+        "límite 5 horas: queda el #%": "5-hour limit: #% left",
+        "límite semanal: queda el #%": "weekly limit: #% left",
+        "se reinicia en # h # m": "resets in # h # m",
+        "se reinicia en # h": "resets in # h",
+        "se reinicia en # m": "resets in # m",
+        "se reinicia en # d": "resets in # d",
     ]
 }

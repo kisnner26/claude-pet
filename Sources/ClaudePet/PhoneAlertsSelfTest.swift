@@ -28,6 +28,10 @@ enum PhoneAlertsSelfTest {
         check("fin de tarea con minutos", R.message(.done, agent: "codex", project: "api", seconds: 300, language: .es).body == "Codex terminó en api (5 min)")
         check("fallo y pregunta", R.message(.error, agent: "claude", project: "api", language: .es).body == "Claude falló en api" && R.message(.question, agent: "claude", project: "api", language: .es).body == "Claude te hace una pregunta en api")
         check("en ingles", R.message(.done, agent: "claude", project: "api", language: .en).body == "Claude finished in api")
+        let planEs = R.message(.plan, agent: "claude", project: "secreto-interno", detail: "límite 5 horas: queda el 14% · se reinicia en 2 h 10 m", language: .es)
+        check("plan: el aviso es el de la isla y no menciona el proyecto", planEs.body == "límite 5 horas: queda el 14% · se reinicia en 2 h 10 m" && !planEs.body.contains("secreto") && planEs.priority == 4)
+        check("plan en ingles", R.message(.plan, agent: "claude", project: "", detail: "límite semanal: queda el 5% · se reinicia en 45 m", language: .en).body == "weekly limit: 5% left · resets in 45 m")
+        check("plan: llega aunque se haya apagado el detalle", R.shouldSend(enabled: true, onlyAway: false, idleSeconds: 0, vistoConnected: false, kind: .plan))
         check("nunca lleva emojis ni etiquetas", !p.body.unicodeScalars.contains { $0.properties.isEmojiPresentation })
 
         check("apagado no envia", !R.shouldSend(enabled: false, onlyAway: false, idleSeconds: 999, vistoConnected: false, kind: .permission))

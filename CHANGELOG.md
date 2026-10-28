@@ -17,6 +17,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Nuevos modos de medición `--cpu-island-expanded` y `--cpu-island-idle`.
 
 ### añadido
+- Los avisos al teléfono (ntfy) incluyen ahora los del plan: al cruzar el 80 % y el 95 % del límite de 5 horas o semanal llega el mismo aviso que ves en la isla, sin nombre de proyecto.
 - El clima recuerda la última lectura entre arranques: si es de hace menos de tres horas, las mascotas ya salen vestidas para el tiempo sin esperar a la red.
 - Meta Quest: como mucho cuatro visores a la vez; el quinto recibe un 429 en lugar de agotar la app.
 - Realidad aumentada interactiva: tocar una mascota la hace saltar y soltar corazones (cuatro toques seguidos la marean); mantener el dedo la acaricia con vibración y corazones; se arrastran por la mesa y se cambian de tamaño pellizcando. Te miran y giran hacia ti, y tocar el suelo lanza una pelota que persiguen y se pasan. Botones para llamarlas, darles un premio, lanzar la pelota y hacerlas saltar. Celebran con confeti cuando un agente termina, se sacuden con chispas si falla y muestran lo que están haciendo (herramienta y archivo).

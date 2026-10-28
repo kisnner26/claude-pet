@@ -333,6 +333,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         ActivityStats.shared.load()
         PetStore.shared.refreshWeeklyRecap()
         PetStore.shared.startAmbient()
+        PetStore.shared.plan.onAlert = { text in PetStore.shared.pushToPhone(.plan, agent: "claude", project: "", detail: text, key: "plan-" + text) }
         DesktopPets.shared.restore()
         ApprovalRules.shared.load()
         ApprovalRules.shared.onChange = { Task { @MainActor in PetStore.shared.approvalRules = ApprovalRules.shared.active() } }
