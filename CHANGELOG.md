@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.4.1] - 2026-10-27
+
+### corregido
+- la escucha del audio se quedaba «en espera» aunque sonara algo: el aviso de «empezó a sonar» se enviaba antes de guardar ese estado, así que la escucha seguía viendo «no suena nada»; al pausar pasaba lo contrario y no se apagaba. Ahora el aviso llega con el estado ya guardado, con una prueba que cubre empezar, pausar, reanudar y parar.
+
 ## [2.4.0] - 2026-10-27
 
 ### añadido
@@ -116,6 +121,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ### añadido
 - primera versión: una mascota pixel-art en la barra de menú que refleja el estado de Claude Code.
 
+[2.4.1]: https://github.com/kisnner26/claude-pet/compare/v2.4.0...v2.4.1
 [2.4.0]: https://github.com/kisnner26/claude-pet/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/kisnner26/claude-pet/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/kisnner26/claude-pet/compare/v2.1.0...v2.2.0
