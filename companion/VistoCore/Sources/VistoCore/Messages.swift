@@ -2,6 +2,27 @@ import Foundation
 
 public let vistoServiceType = "_claudepet-visto._tcp"
 
+/// Relay opcional para usar Visto fuera de la red local: tu propio servidor (ver `relay/`). Solo copia bytes ya cifrados de extremo a extremo.
+public struct RelayEndpoint: Equatable, Codable, Sendable {
+    public var host: String
+    public var port: UInt16
+    public var tls: Bool
+    public init(host: String, port: UInt16, tls: Bool) { self.host = host; self.port = port; self.tls = tls }
+
+    /// "mi.servidor.com:7777" (o solo el nombre, con 7777 sin TLS o 443 con TLS). Nada de rutas, usuarios ni espacios.
+    public static func parse(_ raw: String, tls: Bool) -> RelayEndpoint? {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !t.isEmpty, t.count <= 253, t.range(of: #"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]{1,5})?$"#, options: .regularExpression) != nil else { return nil }
+        let parts = t.split(separator: ":", maxSplits: 1).map(String.init)
+        let port = parts.count == 2 ? UInt16(parts[1]) : (tls ? 443 : 7777)
+        guard let port, port > 0 else { return nil }
+        return RelayEndpoint(host: parts[0], port: port, tls: tls)
+    }
+    public var display: String { "\(host):\(port)" }
+}
+
+public enum RelayState: Equatable, Sendable { case off, connecting, ready, failed(String) }
+
 /// Un permiso que Claude Code espera. `detail` ya llega recortado; `risk` es «bajo», «medio» o «alto»: el alto solo se puede denegar desde fuera.
 public struct Ask: Codable, Equatable, Sendable, Identifiable {
     public var id: String

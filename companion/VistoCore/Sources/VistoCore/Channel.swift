@@ -7,11 +7,15 @@ import Network
 /// que solo sube, de modo que una trama repetida, reordenada o de la otra dirección no descifra.
 public final class VistoChannel: @unchecked Sendable {
     public enum Role: UInt8, Sendable { case client = 1, host = 2 }
+    /// Saludo previo cuando la conexion pasa por un relay: el relay solo copia bytes y el apreton cifrado va por dentro, sin cambios.
+    public enum Preamble: Equatable, Sendable { case none, relayJoin(room: String), relayHost(room: String) }
+    static let relayReady = Data("RELAYRDY".utf8), relayPair = Data("RELAYPAR".utf8), relayOK = Data("RELAYOK!".utf8)
 
     public let id = UUID()
     private let connection: NWConnection
     private let role: Role
     private let code: String
+    private let preamble: Preamble
     private let queue = DispatchQueue(label: "visto.channel")
     private var buffer = Data()
     private var myRandom = Data()
@@ -24,12 +28,16 @@ public final class VistoChannel: @unchecked Sendable {
     /// Se llama cuando el apretón termina y ya se puede enviar.
     public var onReady: (@Sendable () -> Void)?
     public var onClosed: (@Sendable () -> Void)?
+    /// Anfitrion en un relay: la Mac quedo registrada y espera.
+    public var onRelayReady: (@Sendable () -> Void)?
+    /// Anfitrion en un relay: un movil acaba de unirse a esta conexion.
+    public var onPaired: (@Sendable () -> Void)?
 
     static let maxFrame = 64 * 1024
     static let handshakeLength = 16
 
-    public init(connection: NWConnection, code: String, role: Role) {
-        self.connection = connection; self.code = code; self.role = role
+    public init(connection: NWConnection, code: String, role: Role, preamble: Preamble = .none) {
+        self.connection = connection; self.code = code; self.role = role; self.preamble = preamble
     }
 
     public func start() {
@@ -46,6 +54,34 @@ public final class VistoChannel: @unchecked Sendable {
     }
 
     private func begin() {
+        switch preamble {
+        case .none: handshake()
+        case .relayJoin(let room):
+            connection.send(content: Data("JOIN \(room)\n".utf8), completion: .contentProcessed { _ in })
+            expect(8) { [self] in $0 == Self.relayOK ? handshake() : { connection.cancel(); finish() }() }
+        case .relayHost(let room):
+            connection.send(content: Data("HOST \(room)\n".utf8), completion: .contentProcessed { _ in })
+            expect(8) { [self] first in
+                guard first == Self.relayReady else { connection.cancel(); finish(); return }
+                onRelayReady?()
+                expect(8) { [self] second in
+                    guard second == Self.relayPair else { connection.cancel(); finish(); return }
+                    onPaired?()
+                    handshake()
+                }
+            }
+        }
+    }
+
+    /// Lee exactamente `count` bytes; cualquier otra cosa cierra la conexion.
+    private func expect(_ count: Int, _ then: @escaping @Sendable (Data) -> Void) {
+        connection.receive(minimumIncompleteLength: count, maximumLength: count) { [weak self] data, _, _, error in
+            guard let self, !self.closed else { return }
+            if let data, data.count == count, error == nil { then(data) } else { self.connection.cancel(); self.finish() }
+        }
+    }
+
+    private func handshake() {
         var rnd = SystemRandomNumberGenerator()
         myRandom = Data((0..<Self.handshakeLength).map { _ in UInt8.random(in: 0...255, using: &rnd) })
         if role == .client { connection.send(content: myRandom, completion: .contentProcessed { _ in }) }

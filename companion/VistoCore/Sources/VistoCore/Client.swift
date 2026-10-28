@@ -30,6 +30,12 @@ public final class VistoClient: ObservableObject {
     private var channel: VistoChannel?
     private var retry: Task<Void, Never>?
     private var direct: NWEndpoint?
+    private var relay: RelayEndpoint?
+    private var viaRelay = false
+    /// Cuanto espera buscando en la red local antes de probar el relay.
+    public var relayFallbackDelay: TimeInterval = 2.5
+    /// Buscar la Mac por Bonjour en la red local. Se apaga en pruebas para que una Mac real de la red no se cuele.
+    public var searchesLocalNetwork = true
     private var prune: Task<Void, Never>?
 
     public init() {}
@@ -37,10 +43,10 @@ public final class VistoClient: ObservableObject {
     public var isConnected: Bool { if case .connected = state { return true } else { return false } }
     public var hostName: String? { if case .connected(let n) = state { return n } else { return nil } }
 
-    public func configure(code: String?, deviceName: String) {
+    public func configure(code: String?, deviceName: String, relay: RelayEndpoint? = nil) {
         let c = code.flatMap { Pairing.isValid($0) ? Pairing.normalize($0) : nil }
-        let changed = c != self.code
-        self.code = c; self.deviceName = deviceName
+        let changed = c != self.code || relay != self.relay
+        self.code = c; self.deviceName = deviceName; self.relay = relay
         if changed && running { restart() }
     }
 
@@ -86,25 +92,47 @@ public final class VistoClient: ObservableObject {
         state = .searching
         if !detail.contains("rechazó") { detail = "Buscando claude pet en la red" }
         if let direct { connect(to: direct, code: code); return }
-        let b = NWBrowser(for: .bonjour(type: vistoServiceType, domain: nil), using: .tcp)
-        b.browseResultsChangedHandler = { [weak self] results, _ in
-            guard let first = results.first else { return }
-            Task { @MainActor in self?.connect(to: first.endpoint, code: code) }
+        if searchesLocalNetwork {
+            let b = NWBrowser(for: .bonjour(type: vistoServiceType, domain: nil), using: .tcp)
+            b.browseResultsChangedHandler = { [weak self] results, _ in
+                guard let first = results.first else { return }
+                Task { @MainActor in self?.connect(to: first.endpoint, code: code) }
+            }
+            b.stateUpdateHandler = { [weak self] s in
+                if case .failed = s { Task { @MainActor in self?.detail = "No se pudo buscar en la red. Revisa el permiso de red local." } }
+            }
+            b.start(queue: .main)
+            browser = b
         }
-        b.stateUpdateHandler = { [weak self] s in
-            if case .failed = s { Task { @MainActor in self?.detail = "No se pudo buscar en la red. Revisa el permiso de red local." } }
-        }
-        b.start(queue: .main)
-        browser = b
         scheduleRetry()
+        // si en la red local no aparece la Mac, se prueba por el relay
+        if relay != nil {
+            Task { [weak self] in
+                guard let wait = self?.relayFallbackDelay else { return }
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+                guard let self, self.running, self.channel == nil, self.state == .searching, let code = self.code else { return }
+                self.connectViaRelay(code: code)
+            }
+        }
+    }
+
+    private func connectViaRelay(code: String) {
+        guard let relay, let port = NWEndpoint.Port(rawValue: relay.port) else { return }
+        let conn = NWConnection(host: NWEndpoint.Host(relay.host), port: port, using: relay.tls ? .tls : .tcp)
+        connect(connection: conn, code: code, preamble: .relayJoin(room: Pairing.relayRoom(code: code)), relayed: true)
     }
 
     private func connect(to endpoint: NWEndpoint, code: String) {
-        guard channel == nil, running else { return }
+        connect(connection: NWConnection(to: endpoint, using: .tcp), code: code, preamble: .none, relayed: false)
+    }
+
+    private func connect(connection: NWConnection, code: String, preamble: VistoChannel.Preamble, relayed: Bool) {
+        guard channel == nil, running else { connection.cancel(); return }
         retry?.cancel()
         state = .connecting
-        if !detail.contains("rechazó") { detail = "claude pet encontrado, conectando" }
-        let ch = VistoChannel(connection: NWConnection(to: endpoint, using: .tcp), code: code, role: .client)
+        viaRelay = relayed
+        if !detail.contains("rechazó") { detail = relayed ? "Conectando por el relay" : "claude pet encontrado, conectando" }
+        let ch = VistoChannel(connection: connection, code: code, role: .client, preamble: preamble)
         let name = deviceName
         ch.onReady = { [weak ch] in ch?.send(.hello(device: name)) }
         ch.onMessage = { [weak self] m in Task { @MainActor in self?.handle(m) } }
@@ -116,7 +144,8 @@ public final class VistoClient: ObservableObject {
                 self.state = .idle
                 self.asks = []; self.questions = []; self.agents = []; self.feed = []
                 // claude pet corta en seco a quien no demuestra tener el código: si ocurre antes de saludar, casi siempre es el código
-                self.detail = wasConnected ? "Se perdió la conexión con claude pet" : "claude pet rechazó la conexión: el código no coincide con el de Ajustes → permisos. Olvida el emparejamiento y escríbelo de nuevo."
+                if self.viaRelay { self.detail = wasConnected ? "Se perdió la conexión con claude pet" : "No encuentro tu Mac por el relay: ¿está encendida y con el acceso remoto activado?" }
+                else { self.detail = wasConnected ? "Se perdió la conexión con claude pet" : "claude pet rechazó la conexión: el código no coincide con el de Ajustes → permisos. Olvida el emparejamiento y escríbelo de nuevo." }
                 self.scheduleRetry(after: 2)
             }
         }
