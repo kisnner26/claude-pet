@@ -86,5 +86,10 @@ enum L10nEN {
         "Apunta a una mesa o al suelo y toca para colocar las mascotas.": "Point at a table or the floor and tap to place the pets.",
         "Denegar": "Deny",
         "Permitir": "Allow",
+        "Llamar": "Call",
+        "Premio": "Treat",
+        "Pelota": "Ball",
+        "Saltar": "Jump",
+        "Toca una mascota, mantén para acariciarla, arrástrala o pellizca para cambiar el tamaño.": "Tap a pet, hold to pet it, drag it or pinch to resize.",
     ]
 }

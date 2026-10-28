@@ -181,6 +181,11 @@ final class Feel: ObservableObject {
 
     func allowed() { buzz([Tap(t: 0, intensity: 0.6, sharp: 1), Tap(t: 0.07, intensity: 0.9, sharp: 1)]); chime([Note(f: 784, f2: 1568, t: 0, d: 0.12, g: 0.3)]); glow(VT.blue) }
     func denied() { buzz([Tap(t: 0, intensity: 1, sharp: 0.1, dur: 0.12)]); chime([Note(f: 140, f2: 60, t: 0, d: 0.22, g: 0.5)]); glow(VT.red) }
+    // la realidad aumentada: tocar, acariciar y jugar con la mascota
+    func boop() { buzz([Tap(t: 0, intensity: 0.5, sharp: 0.9)]); chime([Note(f: 520, f2: 780, t: 0, d: 0.09, g: 0.25)]) }
+    func purr() { buzz([Tap(t: 0, intensity: 0.22, sharp: 0.1, dur: 0.3)]) }
+    func cuddle() { buzz([Tap(t: 0, intensity: 0.35, sharp: 0.2, dur: 0.2), Tap(t: 0.22, intensity: 0.5, sharp: 0.5)]); chime([Note(f: 880, f2: 1320, t: 0, d: 0.14, g: 0.18), Note(f: 1175, t: 0.13, d: 0.2, g: 0.16)]) }
+    func cheer() { buzz([Tap(t: 0, intensity: 0.5, sharp: 0.6), Tap(t: 0.1, intensity: 0.7, sharp: 0.8), Tap(t: 0.2, intensity: 0.9, sharp: 1)]); chime([Note(f: 523, t: 0, d: 0.12), Note(f: 659, t: 0.1, d: 0.12), Note(f: 784, t: 0.2, d: 0.12), Note(f: 1047, t: 0.3, d: 0.3)]) }
     func threshold() { buzz([Tap(t: 0, intensity: 0.55, sharp: 0.7)]) }
 
     /// Mientras un agente ejecuta herramientas, cada paso se nota: un tic casi imperceptible.
