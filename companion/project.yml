@@ -1,0 +1,60 @@
+name: Visto
+options:
+  bundleIdPrefix: com.kisnner26
+  deploymentTarget:
+    iOS: "26.0"
+    watchOS: "26.0"
+packages:
+  VistoCore:
+    path: VistoCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "$(VISTO_TEAM_ID)"
+targets:
+  Visto:
+    type: application
+    platform: iOS
+    sources: [Phone, Shared]
+    dependencies:
+      - package: VistoCore
+      - target: VistoWatch
+    info:
+      path: Phone/Info.plist
+      properties:
+        CFBundleDisplayName: Visto
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocalNetworkUsageDescription: Visto encuentra claude pet en tu Mac por la red local para que apruebes permisos.
+        NSBonjourServices: [_claudepet-visto._tcp]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kisnner26.visto
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  VistoWatch:
+    type: application
+    platform: watchOS
+    sources: [Watch, Shared]
+    dependencies:
+      - package: VistoCore
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: Visto
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: com.kisnner26.visto
+        NSLocalNetworkUsageDescription: Visto encuentra claude pet por Wi-Fi para que apruebes permisos desde el reloj.
+        NSBonjourServices: [_claudepet-visto._tcp]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kisnner26.visto.watchkitapp
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
