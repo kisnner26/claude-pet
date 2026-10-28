@@ -4,7 +4,7 @@ App de iPhone y Apple Watch para aprobar los permisos de Claude Code desde claud
 
 - claude pet escucha en tu red local y se anuncia por Bonjour (`_claudepet-visto._tcp`). No hay servidores ni cuentas.
 - el canal va cifrado y autenticado (ChaCha20-Poly1305). La clave sale de un código de 12 caracteres que se muestra en claude pet (Ajustes → seguridad) y se escribe una vez en el móvil. Cambiar el código desconecta a todos los dispositivos.
-- desde fuera solo se puede permitir o denegar esta vez, nunca «siempre»; lo de riesgo alto solo se puede denegar. El perímetro y las reglas ya se aplicaron antes de que un permiso llegue al móvil.
+- desde fuera se puede permitir esta vez, permitir «siempre» (con confirmación, nunca con riesgo alto ni fuera del perímetro) o denegar; lo de riesgo alto solo se puede denegar. El perímetro y las reglas ya se aplicaron antes de que un permiso llegue al móvil.
 - además de los permisos, Visto sincroniza: estado en vivo de Claude y Codex (pensando, ejecutando, esperando) con su contexto restante, las últimas acciones, las preguntas de Claude con opciones (se responden con un toque; solo viajan los índices elegidos), avisos de «terminó» y «falló» con vibración distinta, el consumo del plan y el modo foco, que también se puede activar desde el móvil o el reloj. El iPhone guarda un historial corto de tus decisiones (herramienta, proyecto y resultado; nunca el comando).
 - el iPhone avisa con botones Permitir y Denegar en la notificación y retransmite al reloj. Sin servidor de notificaciones, los avisos llegan mientras la app está activa o iOS la despierta por la red local.
 

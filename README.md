@@ -9,12 +9,13 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 ## qué hace
 
 - **estado real**: inactivo, pensando, ejecutando, esperando tu aprobación, listo o error, con una burbuja que dice la tarea exacta («editando PetStore.swift»). la de claude sale si usas claude code y la de codex si usas codex.
-- **isla en el notch**: se despliega solo cuando hace falta. permisos con `permitir`, `siempre` y `denegar`, preguntas con opciones, ticker de pasos, contexto restante y mission control. detalle en [docs/ISLAND.md](docs/ISLAND.md).
+- **isla en el notch**: se despliega solo cuando hace falta. permisos con `permitir`, `siempre` y `denegar`, preguntas con opciones, ticker de pasos, contexto restante y mission control. un riel de iconos abre los menús dentro de la propia píldora (cambios, música, plan, herramientas y ajustes rápidos), en cristal líquido oscuro. detalle en [docs/ISLAND.md](docs/ISLAND.md).
 - **aprobar con criterio**: riesgo y secretos en cada permiso, reglas con caducidad, [perímetro](docs/PERIMETRO.md) por proyecto, puntos de restauración con git y registro de auditoría local.
 - **consumo del plan**: barras del límite de 5 horas y semanal en la isla, con aviso al 80 y al 95 %.
 - **visto**: app de iPhone y Apple Watch para aprobar permisos con un toque. [más abajo](#visto).
 - **plugins y taller**: acciones, ajustes y eventos con una carpeta y un `plugin.json`, y un catálogo para instalar los de otros.
-- **más**: reproductor de música con la mascota bailando al compás, guardarropa, acceso rápido que cambia según la app activa, traspaso entre claude y codex, modo foco y pomodoro.
+- **vivas**: claude y codex tienen las mismas expresiones y su propio guardarropa; se visten según el tiempo (opcional), sudan, tiritan, se mosquean si las golpeas seguido y se pueden sacar al escritorio, donde te siguen el cursor.
+- **más**: reproductor de música con la mascota bailando al compás, acceso rápido que cambia según la app activa (más de cien apps y por categoría), traspaso entre claude y codex, modo foco y pomodoro, español e inglés.
 
 ![claude pet hoy](docs/img/producto.jpg)
 
@@ -32,13 +33,13 @@ menú de la barra → «ajustes…» (⌘,). quince páginas con buscador y vidr
 
 carpeta [companion/](companion/README.md). claude pet escucha en tu red local y habla con la app por un canal cifrado (ChaCha20-Poly1305) cuya clave sale de un código que se muestra en Ajustes → permisos, o de un QR. sin servidores ni cuentas.
 
-- permisos y preguntas de claude en el iPhone y el reloj; desde fuera solo se permite o deniega esta vez, y lo de riesgo alto solo se puede denegar.
+- permisos y preguntas de claude en el iPhone y el reloj; desde fuera se puede permitir esta vez, permitir siempre (con confirmación, nunca con riesgo alto ni fuera del perímetro) o denegar, y lo de riesgo alto solo se puede denegar.
 - estado en vivo de claude y codex con su mascota, tres anillos (plan de 5 h, semanal y contexto) y avisos de terminado o fallo.
 - isla dinámica con botones, face id opcional, botón de acción, siri, giroscopio, háptica y sonidos sintetizados; en el reloj, double tap para permitir y girar la muñeca para denegar.
 
 ![visto](docs/img/visto-mascotas.jpg)
 
-los permisos llegan mientras la app está activa o iOS la despierta; sin notificaciones push, no hay más.
+visto recibe mientras está activa o iOS la despierta. para avisos con la app cerrada hay una opción con [ntfy](https://ntfy.sh) (apagada de serie): permisos, preguntas, fin de tarea y plan por agotarse, sin el comando salvo que lo pidas. también hay realidad aumentada en el iPhone y una página WebXR para Meta Quest 2 y 3, servida por la propia Mac por https en tu red.
 
 ## instalación
 
@@ -61,7 +62,8 @@ desinstalar: `./install-hooks.sh --uninstall`, `pkill -x ClaudePet` y `rm -rf bu
 - el detalle de la burbuja nunca sale por el pet bus: solo viaja el nombre del proyecto, y solo si lo activas.
 - los hooks de la isla fallan abiertos: ante cualquier error o plazo agotado, claude code pregunta en la terminal como siempre.
 - el traspaso es la única función que envía contenido a un tercero (el diff, al agente que elijas), y solo tras confirmarlo en un diálogo.
-- visto solo habla con tu Mac por la red local y con tu código.
+- visto y la página de Meta Quest solo hablan con tu Mac por la red local y con tu código.
+- lo único que sale a internet por su cuenta es opcional y viene apagado: el clima (open-meteo, con tu posición aproximada o una ciudad) y los avisos al teléfono (ntfy, con un tema aleatorio que hace de contraseña).
 
 detalle completo en [docs/FUNCIONES.md](docs/FUNCIONES.md).
 
@@ -85,6 +87,8 @@ tests/workshop.sh     # catálogo del taller y paquetes manipulados
 tests/plan.sh         # consumo del plan
 tests/remote.sh       # visto: política, canal y respuestas
 tests/cpu.sh          # cpu medio en reposo durante 30 s (falla sobre 5 %)
+.build/debug/ClaudePet --selftest-quest quest   # servidor de Meta Quest con tls real
+# también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang
 ```
 
 las imágenes de este readme son renders con el propio código de dibujo de la app, no capturas de pantalla.

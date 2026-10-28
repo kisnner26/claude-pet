@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### cambiado
+- README y README de Visto al día: menús en la isla, clima, mascota en el escritorio, avisos con ntfy, realidad aumentada, Meta Quest y lo que sale a internet (solo si lo activas).
 - El genio no se enfada con el modo foco ni en mitad de un pomodoro de trabajo (el botón de probar sigue funcionando).
 - La isla abierta deja los colores saturados: sin los pulsos naranjas ni el borde de color; ahora es cristal líquido oscuro (carbón con un velo azul tenue, reflejo especular y un hilo de luz blanca en el borde), con una sola luz neutra en todas las páginas. El brillo y la aurora de estado se reducen a la mitad o menos.
 
