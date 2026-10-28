@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
-## [sin publicar]
+## [2.6.0] - 2026-10-27
 
 ### añadido
 - consumo del plan en la isla: barras del límite de 5 horas y del semanal, con aviso al 80 y al 95 por ciento. Usa los datos que Claude Code entrega a su statusline; `install-hooks.sh` lo instala y encadena el statusline que ya tuvieras.
