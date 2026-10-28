@@ -503,5 +503,7 @@ enum L10nEN {
         "la carpeta ya no existe": "the folder no longer exists",
         "no hay un puerto libre": "no free port",
         "no respondió a tiempo": "didn't respond in time",
+        "píldora invisible": "invisible pill",
+        "se oculta del todo y aparece al pasar el cursor por encima de su sitio. los permisos, preguntas y avisos de terminado siguen saliendo.": "hides completely and appears when you move the cursor over its spot. Permissions, questions and finished alerts still show up.",
     ]
 }

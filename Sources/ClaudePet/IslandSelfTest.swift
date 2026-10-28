@@ -13,6 +13,15 @@ enum IslandSelfTest {
                         finishedPending: finished, idleSeconds: idle, clickedPet: click)
         }
 
+        // 0. pildora invisible: con tareas corriendo tampoco se ve compacta, pero asoma con el cursor y las alertas siguen saliendo
+        var h = IslandMachine(); h.hideCompact = true
+        check("pildora invisible: con tareas corriendo sigue oculta", h.tick(input(0, tasks: true)) == .hidden && h.tick(input(5, tasks: true)) == .hidden)
+        check("pildora invisible: el cursor encima la hace asomar y abrirse", h.tick(input(6, notch: true, tasks: true)) == .peek && h.tick(input(6.8, notch: true, tasks: true)) == .expanded)
+        check("pildora invisible: al irse el cursor vuelve a desaparecer, no a compacta", { var x = IslandMachine(); x.hideCompact = true; _ = x.tick(input(0, notch: true, tasks: true)); _ = x.tick(input(1.0, tasks: true)); return x.tick(input(1.8, tasks: true)) == .hidden }())
+        check("pildora invisible: un permiso la abre igualmente", { var x = IslandMachine(); x.hideCompact = true; return x.tick(input(0, tasks: true, alert: true)) == .expanded }())
+        check("pildora invisible: tras responder el permiso vuelve a ocultarse", { var x = IslandMachine(); x.hideCompact = true; _ = x.tick(input(0, tasks: true, alert: true)); return x.tick(input(1, tasks: true)) == .hidden }())
+        check("sin la opcion, con tareas corriendo se ve compacta", { var x = IslandMachine(); return x.tick(input(0, tasks: true)) == .compact }())
+
         // 1. nada corre: invisible
         var m = IslandMachine()
         check("sin tareas la isla esta oculta", m.tick(input(0)) == .hidden)

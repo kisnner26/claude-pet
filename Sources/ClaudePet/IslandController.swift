@@ -155,6 +155,7 @@ final class IslandController {
         }
         if model.placement != placement || moved { relocate(); m = metrics ?? m }
         machine.activationDelay = store.islandActivationDelay
+        machine.hideCompact = store.islandHideCompact
         machine.closeDelay = store.islandCloseDelay > 0 ? store.islandCloseDelay : nil
         let now = ProcessInfo.processInfo.systemUptime
         let mouse = NSEvent.mouseLocation

@@ -55,6 +55,9 @@ struct IslandMachine {
     var awayAfter: TimeInterval = IslandMachine.away
     /// Tiempo que el cursor debe permanecer sobre la zona de activacion antes de asomar (0 = de inmediato).
     var activationDelay: TimeInterval = 0
+    /// La pildora compacta nunca se muestra: en reposo la isla es invisible y solo aparece al pasar el cursor por encima
+    /// (o cuando un permiso, una pregunta o el fin de una tarea piden atencion).
+    var hideCompact = false
     private var approachSince: TimeInterval?
     /// Segundos que la isla abierta por hover o clic espera, con el cursor fuera, antes de plegarse. nil = solo el plazo de 60 s.
     var closeDelay: TimeInterval?
@@ -69,7 +72,7 @@ struct IslandMachine {
 
     /// Modo en reposo cuando no hay nada que mostrar.
     private func resting(_ i: IslandInput) -> IslandMode {
-        guard i.tasksRunning, i.idleSeconds < awayAfter else { return .hidden }
+        guard !hideCompact, i.tasksRunning, i.idleSeconds < awayAfter else { return .hidden }
         return .compact
     }
 

@@ -310,6 +310,8 @@ struct ComportamientoPage: View {
             }
             QuickActionsCard(store: store)
             SCard(title: "visibilidad") {
+                SToggle(title: "píldora invisible", detail: "se oculta del todo y aparece al pasar el cursor por encima de su sitio. los permisos, preguntas y avisos de terminado siguen saliendo.", isOn: $store.islandHideCompact)
+                SDivider()
                 SToggle(title: "aparición automática", detail: "la isla se muestra sola cuando un agente empieza a trabajar.", isOn: $store.autoVisibility)
                 SDivider()
                 SToggle(title: "mantener las mascotas visibles", detail: "no se ocultan al terminar la sesión.", isOn: $store.pinSession)

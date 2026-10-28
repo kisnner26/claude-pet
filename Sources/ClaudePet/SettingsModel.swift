@@ -177,7 +177,7 @@ enum SettingsBackup {
         Entry(key: "islandActivationWidth", kind: .number(120, 400)), Entry(key: "islandActivationDelay", kind: .number(0, 1)),
         Entry(key: "islandCloseDelay", kind: .number(0, 10)),
         Entry(key: "islandCompactMode", kind: .choice(IslandCompactMode.allCases.map(\.rawValue))),
-        Entry(key: "islandShowClock", kind: .bool), Entry(key: "islandFixedScreenID", kind: .text(120)),
+        Entry(key: "islandShowClock", kind: .bool), Entry(key: "islandHideCompact", kind: .bool), Entry(key: "islandFixedScreenID", kind: .text(120)),
         Entry(key: "islandPermissions", kind: .bool), Entry(key: "globalShortcutsEnabled", kind: .bool),
         Entry(key: "autoRestorePoints", kind: .bool), Entry(key: "blockOnChange", kind: .bool),
         Entry(key: "soundsEnabled", kind: .bool), Entry(key: "soundVolume", kind: .number(0, 1)),

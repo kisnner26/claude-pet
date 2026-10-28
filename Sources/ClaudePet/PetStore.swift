@@ -88,6 +88,10 @@ final class PetStore: ObservableObject {
     @Published var islandCompactMode: IslandCompactMode = IslandCompactMode(rawValue: UserDefaults.standard.string(forKey: "islandCompactMode") ?? "") ?? .normal {
         didSet { UserDefaults.standard.set(islandCompactMode.rawValue, forKey: "islandCompactMode") }
     }
+    /// Pildora invisible: sin notch, la isla compacta se queda siempre en la barra; con esto se oculta del todo y solo asoma al pasar el cursor.
+    @Published var islandHideCompact: Bool = UserDefaults.standard.bool(forKey: "islandHideCompact") {
+        didSet { UserDefaults.standard.set(islandHideCompact, forKey: "islandHideCompact") }
+    }
     @Published var islandShowClock: Bool = UserDefaults.standard.bool(forKey: "islandShowClock") {
         didSet { UserDefaults.standard.set(islandShowClock, forKey: "islandShowClock") }
     }
