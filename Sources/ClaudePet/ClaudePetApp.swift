@@ -175,6 +175,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-dock"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.dock(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-vinyl"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.vinyl(to: CommandLine.arguments[i + 1]); exit(0)
         }

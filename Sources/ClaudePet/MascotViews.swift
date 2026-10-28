@@ -161,3 +161,40 @@ extension IslandSnapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 }
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-dock <ruta.png>`: el acceso rapido en reposo sin proyecto, trabajando en un repo, y con un boton expandido.
+    @MainActor static func dock(to path: String) {
+        let store = PetStore.shared
+        let rows: [(String, QuickContext, String?)] = [
+            ("en reposo, sin proyecto", QuickContext(), nil),
+            ("en un repo con cambios, sonando música", QuickContext(hasWorkspace: true, isRepo: true, changeCount: 4, agentChanges: 3, commiteroAvailable: true, terminalAvailable: true, musicAvailable: true, musicPlaying: true), nil),
+            ("el cursor sobre «commitear»", QuickContext(hasWorkspace: true, isRepo: true, changeCount: 4, agentChanges: 3, commiteroAvailable: true, terminalAvailable: true, musicAvailable: true), "commitear"),
+        ]
+        let view = VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(r.0).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.5))
+                    if let hover = r.2 {
+                        // el boton expandido se dibuja a mano: el cursor no existe en una captura
+                        let c = r.1, layout = QuickActions.layout(order: store.quickActions, context: c)
+                        HStack(spacing: 6) {
+                            ForEach(layout.visible) { a in
+                                let d = QuickActions.descriptor(a, c)
+                                DockButton(title: d.title, symbol: d.symbol, prominent: d.prominent, badge: d.badge, previewHover: d.title == hover) {}
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    } else {
+                        QuickDock(store: store, music: store.music, plugins: store.plugins, summary: { "" }, contextOverride: r.1)
+                    }
+                }
+            }
+        }
+        .padding(18).frame(width: 420, alignment: .leading).background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.black)).padding(14).background(Color(hex: 0x1A1B22))
+        let r = ImageRenderer(content: view); r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}

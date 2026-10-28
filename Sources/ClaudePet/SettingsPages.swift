@@ -184,6 +184,52 @@ struct AparienciaPage: View {
     }
 }
 
+/// Elegir y ordenar las acciones del dock de la isla.
+struct QuickActionsCard: View {
+    @ObservedObject var store: PetStore
+
+    private var off: [QuickAction] { QuickActions.allOrdered.filter { !store.quickActions.contains($0) } }
+
+    var body: some View {
+        SCard(title: "acceso rápido", footer: "en la isla se ven hasta cinco a la vez, según el contexto (sin cambios no hay «commitear»); el resto va en el menú +. pasa el cursor sobre un icono para ver su nombre.") {
+            ForEach(Array(store.quickActions.enumerated()), id: \.element) { index, a in
+                if index > 0 { SDivider() }
+                row(a, on: true, index: index)
+            }
+            if !store.quickActions.isEmpty && !off.isEmpty { SDivider() }
+            ForEach(Array(off.enumerated()), id: \.element) { index, a in
+                if index > 0 { SDivider() }
+                row(a, on: false, index: -1)
+            }
+            SDivider()
+            SRow(title: "volver a los de siempre") { SButton(title: "restablecer", symbol: "arrow.counterclockwise") { store.quickActions = QuickActions.defaultEnabled } }
+        }
+    }
+
+    private func row(_ a: QuickAction, on: Bool, index: Int) -> some View {
+        let d = QuickActions.descriptor(a, QuickContext())
+        return SRow(title: d.title, detail: "aparece cuando: " + d.when) {
+            HStack(spacing: 10) {
+                if on {
+                    Button { move(index, by: -1) } label: { Image(systemName: "chevron.up").font(.system(size: 10, weight: .bold)) }.buttonStyle(.plain).disabled(index == 0)
+                    Button { move(index, by: 1) } label: { Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold)) }.buttonStyle(.plain).disabled(index == store.quickActions.count - 1)
+                }
+                Image(systemName: d.symbol).font(.system(size: 12)).frame(width: 18).foregroundStyle(on ? AnyShapeStyle(SettingsTheme.duo) : AnyShapeStyle(SettingsTheme.mute))
+                Toggle(d.title, isOn: Binding(get: { on }, set: { newValue in
+                    if newValue { if !store.quickActions.contains(a) { store.quickActions.append(a) } } else { store.quickActions.removeAll { $0 == a } }
+                })).labelsHidden().toggleStyle(GlassToggleStyle())
+            }
+            .foregroundStyle(SettingsTheme.mute)
+        }
+    }
+
+    private func move(_ i: Int, by d: Int) {
+        let j = i + d
+        guard store.quickActions.indices.contains(i), store.quickActions.indices.contains(j) else { return }
+        store.quickActions.swapAt(i, j)
+    }
+}
+
 // MARK: comportamiento
 
 struct ComportamientoPage: View {
@@ -200,6 +246,7 @@ struct ComportamientoPage: View {
                 SMenu(title: "plegar la isla", selection: $store.islandCloseDelay,
                       options: [(0.6, "rápido"), (1.2, "normal"), (2.5, "lento"), (0.0, "solo a los 60 s")])
             }
+            QuickActionsCard(store: store)
             SCard(title: "visibilidad") {
                 SToggle(title: "aparición automática", detail: "la isla se muestra sola cuando un agente empieza a trabajar.", isOn: $store.autoVisibility)
                 SDivider()

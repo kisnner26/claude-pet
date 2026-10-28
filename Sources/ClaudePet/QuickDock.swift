@@ -7,8 +7,11 @@ struct DockButton: View {
     let symbol: String
     var prominent = false
     var badge: Int?
+    /// Solo para capturas: fuerza el estado expandido.
+    var previewHover = false
     let action: () -> Void
-    @State private var hover = false
+    @State private var hovering = false
+    private var hover: Bool { hovering || previewHover }
 
     var body: some View {
         Button(action: action) {
@@ -28,7 +31,7 @@ struct DockButton: View {
             }
         }
         .buttonStyle(DockButtonStyle())
-        .onHover { hover = $0 }
+        .onHover { hovering = $0 }
         .animation(.spring(response: 0.28, dampingFraction: 0.78), value: hover)
         .help(title).accessibilityLabel(title)
     }
@@ -46,11 +49,14 @@ struct QuickDock: View {
     @ObservedObject var music: MusicController
     @ObservedObject var plugins: PluginHost
     let summary: () -> String
+    /// Solo para capturas: contexto fijo en vez del real.
+    var contextOverride: QuickContext?
 
     private var workspace: String { store.mission.workspace }
 
     private var context: QuickContext {
-        QuickContext(hasWorkspace: !workspace.isEmpty, isRepo: store.mission.git.available, changeCount: store.mission.git.affected, agentChanges: store.mission.changes.count,
+        if let o = contextOverride { return o }
+        return QuickContext(hasWorkspace: !workspace.isEmpty, isRepo: store.mission.git.available, changeCount: store.mission.git.affected, agentChanges: store.mission.changes.count,
                      commiteroAvailable: CommiteroLauncher.available(), terminalAvailable: store.terminalTargetAvailable,
                      musicAvailable: store.musicPlayer && music.nowPlaying != nil, musicPlaying: music.isPlaying,
                      pomodoroRunning: store.pomodoro.phase != .idle, alertsSnoozed: store.alertsAreSnoozed,
