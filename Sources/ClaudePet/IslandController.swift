@@ -338,8 +338,8 @@ struct IslandView: View {
                         }
                     }
                 }
-                .opacity(model.mode == .hidden && (model.hasNotch || model.menuBarHidden) ? 0 : 1)
-            if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden) {
+                .opacity(IslandRestingLook.pillVisible(mode: model.mode, hasNotch: model.hasNotch, menuBarHidden: model.menuBarHidden, hideCompact: store.islandHideCompact) ? 1 : 0)
+            if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden && !store.islandHideCompact) {
                 // el recorte deja visible solo la mitad interior del trazo
                 shape.stroke(Color.white.opacity(highContrast ? 0.7 : 0.14), lineWidth: highContrast ? 2 : 1)
             }

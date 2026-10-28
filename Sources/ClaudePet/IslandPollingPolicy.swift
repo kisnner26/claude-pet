@@ -1,6 +1,15 @@
 import Foundation
 import CoreGraphics
 
+/// Si la isla en reposo se ve como una pastilla negra. Con notch real o con la barra de menus oculta no se dibuja nada;
+/// sin notch se dibuja una pastilla del tamano del notch, salvo que el usuario haya pedido la pildora invisible.
+enum IslandRestingLook {
+    static func pillVisible(mode: IslandMode, hasNotch: Bool, menuBarHidden: Bool, hideCompact: Bool) -> Bool {
+        guard mode == .hidden else { return true }
+        return !(hasNotch || menuBarHidden || hideCompact)
+    }
+}
+
 enum IslandPollingPolicy {
     /// treinta actualizaciones por segundo mantienen el seguimiento fluido sin forzar
     /// una reevaluación de toda la isla a 60 hz.

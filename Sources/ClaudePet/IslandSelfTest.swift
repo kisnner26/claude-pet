@@ -13,6 +13,11 @@ enum IslandSelfTest {
                         finishedPending: finished, idleSeconds: idle, clickedPet: click)
         }
 
+        check("sin notch y sin la opcion, en reposo se dibuja la pastilla", IslandRestingLook.pillVisible(mode: .hidden, hasNotch: false, menuBarHidden: false, hideCompact: false))
+        check("sin notch y con la pildora invisible, en reposo no se dibuja nada", !IslandRestingLook.pillVisible(mode: .hidden, hasNotch: false, menuBarHidden: false, hideCompact: true))
+        check("con notch real o barra oculta tampoco se dibuja", !IslandRestingLook.pillVisible(mode: .hidden, hasNotch: true, menuBarHidden: false, hideCompact: false) && !IslandRestingLook.pillVisible(mode: .hidden, hasNotch: false, menuBarHidden: true, hideCompact: false))
+        check("asomando o abierta siempre se ve, aunque sea invisible en reposo", IslandRestingLook.pillVisible(mode: .peek, hasNotch: false, menuBarHidden: false, hideCompact: true) && IslandRestingLook.pillVisible(mode: .expanded, hasNotch: false, menuBarHidden: false, hideCompact: true))
+
         // 0. pildora invisible: con tareas corriendo tampoco se ve compacta, pero asoma con el cursor y las alertas siguen saliendo
         var h = IslandMachine(); h.hideCompact = true
         check("pildora invisible: con tareas corriendo sigue oculta", h.tick(input(0, tasks: true)) == .hidden && h.tick(input(5, tasks: true)) == .hidden)
