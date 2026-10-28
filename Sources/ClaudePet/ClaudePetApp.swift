@@ -65,6 +65,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private let server = EventServer()
     private let busServer = EventServer(path: PetBus.ownSocket)
     private let askServer = PermissionServer()
+    private let remoteServer = RemoteApprovalServer()
     private var permissionFlagOn = false
     private var terminationSignals: [DispatchSourceSignal] = []
     private let shortcutMonitor = GlobalShortcutMonitor()
@@ -149,6 +150,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-music") { exit(MusicSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-perimeter") { exit(PerimeterSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-workshop"), i + 2 < CommandLine.arguments.count { exit(WorkshopSelfTest.run(workshop: CommandLine.arguments[i + 1], evil: CommandLine.arguments[i + 2]) ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--selftest-plan") { exit(MainActor.assumeIsolated { PlanSelfTest.run(file: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : nil) } ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-remote") { exit(RemoteApprovalsSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-audio") { exit(AudioSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--dump-grids") { MascotGrids.dump(); exit(0) }
@@ -176,6 +179,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-plan"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.plan(to: CommandLine.arguments[i + 1]); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-dock"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.dock(to: CommandLine.arguments[i + 1]); exit(0)
@@ -346,6 +352,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             }
             if announced.count > 400 { announced = Set(asks.map(\.id)) }      // acotado: solo importan los pendientes
             let fresh = asks.filter { announced.insert($0.id).inserted }
+            self?.remoteServer.sync(asks)
             Task { @MainActor in
                 PetStore.shared.permissionAsks = asks
                 for ask in fresh { PetStore.shared.plugins.emit(.permissionAsked, fields: ["tool": ask.tool, "project": ask.project]) }
@@ -366,6 +373,20 @@ final class AppController: NSObject, NSApplicationDelegate {
             ActivityStats.shared.recordPermission()
             self?.askServer.resolve(id: id, decision)
         }
+        remoteServer.onAnswer = { [weak self] id, decision in
+            Task { @MainActor in
+                if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
+                SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
+                PetStore.shared.lastDecision = (decision != .deny, ProcessInfo.processInfo.systemUptime)
+                ActivityStats.shared.recordPermission()
+                self?.askServer.resolve(id: id, decision, source: "remoto")
+            }
+        }
+        PetStore.shared.$remoteApprovals.removeDuplicates().sink { [weak self] on in
+            guard let self else { return }
+            if on { do { try self.remoteServer.start(); self.remoteServer.sync(self.askServer.asks) } catch { NSLog("ClaudePet: no se pudo abrir remote.sock: \(error)") } }
+            else { self.remoteServer.stop() }
+        }.store(in: &cancellables)
         PetStore.shared.dismissPermission = { [weak self] id in _ = self?.askServer.dismissPermission(id: id) }
         PetStore.shared.answerQuestion = { [weak self] id, answers in
             guard self?.askServer.resolveQuestion(id: id, answers: answers) == true else { return }
@@ -708,7 +729,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private func cleanupIsland() {
         shortcutMonitor.stop()
         setPermissionFlag(false)
-        askServer.stop(); server.stop(); busServer.stop()
+        askServer.stop(); remoteServer.stop(); server.stop(); busServer.stop()
         terminationSignals.forEach { $0.cancel() }; terminationSignals.removeAll()
     }
 

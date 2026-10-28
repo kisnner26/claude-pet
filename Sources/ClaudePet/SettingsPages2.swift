@@ -14,6 +14,10 @@ struct PermisosPage: View {
                 SDivider()
                 SToggle(title: "bloquear si el proyecto cambia", detail: "si algo toca el proyecto mientras decides, la petición se detiene.", isOn: $store.blockOnChange)
             }
+            SCard(title: "aprobar desde el iPhone o el Watch", footer: "necesita Nexo en la Mac. los permisos llegan a tus dispositivos y respondes con un toque. desde fuera solo se permite o deniega esta vez, y lo de riesgo alto solo se puede denegar: aprobarlo exige estar en la Mac.") {
+                SToggle(title: "enviar permisos a Nexo", detail: store.islandPermissions ? "abre ~/.claude-pet/remote.sock, solo accesible para tu usuario." : "primero activa «permisos desde la isla».", isOn: $store.remoteApprovals)
+                    .disabled(!store.islandPermissions)
+            }
             restoreCard
             rulesCard
         }
