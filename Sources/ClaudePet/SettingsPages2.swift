@@ -21,7 +21,7 @@ struct PermisosPage: View {
                 if store.remoteApprovals, !store.remoteCode.isEmpty {
                     SDivider()
                     SRow(title: "emparejar con la cámara", detail: "en Visto, pulsa «Escanear código» y apunta a este cuadro.") {
-                        if let qr = QRCode.image("visto://pair?c=\(store.remoteCode)", side: 120) { Image(nsImage: qr).interpolation(.none).resizable().frame(width: 120, height: 120).clipShape(RoundedRectangle(cornerRadius: 8)) }
+                        if let qr = QRCode.image("visto://pair?c=\(store.remoteCode)" + (store.relayEndpoint.map { "&r=\($0.display)&t=\($0.tls ? 1 : 0)" } ?? ""), side: 120) { Image(nsImage: qr).interpolation(.none).resizable().frame(width: 120, height: 120).clipShape(RoundedRectangle(cornerRadius: 8)) }
                     }
                     SDivider()
                     SRow(title: "código de emparejamiento", detail: store.remotePeers.isEmpty ? "escríbelo en Visto una sola vez. no lo compartas." : "conectado: " + store.remotePeers.joined(separator: ", ")) {
@@ -31,6 +31,19 @@ struct PermisosPage: View {
                             SButton(title: "nuevo", symbol: "arrow.clockwise") { store.regenerateRemoteCode?() }
                         }
                     }
+                }
+            }
+            SCard(title: "acceso remoto (relay)", footer: "para usar Visto fuera de la red local hace falta un relay: un servidor tuyo con node 20+ (`relay/relay.js`, ver relay/README.md). tanto la Mac como el móvil se conectan a él y solo copia bytes cifrados de extremo a extremo con la clave del código; no puede leer nada, pero sí ve que hay una Mac y un móvil conectados. el QR de arriba ya trae su dirección.") {
+                SToggle(title: "conectar con un relay", detail: store.remoteApprovals ? "solo mientras «enviar permisos a Visto» esté activado." : "primero activa «enviar permisos a Visto».", isOn: $store.relayEnabled)
+                    .disabled(!store.remoteApprovals)
+                if store.relayEnabled {
+                    SDivider()
+                    SRow(title: "servidor", detail: store.relayAddress.isEmpty || store.relayEndpoint != nil ? "dirección y puerto de tu relay" : "dirección no válida") {
+                        TextField("mi.servidor.com:7777", text: $store.relayAddress).textFieldStyle(.roundedBorder).frame(width: 220)
+                    }
+                    SDivider()
+                    SToggle(title: "TLS", detail: "actívalo si tu relay está detrás de https (puerto 443 por defecto).", isOn: $store.relayTLS)
+                    if !store.relayStatus.isEmpty { SDivider(); SRow(title: store.relayStatus) { EmptyView() } }
                 }
             }
             SCard(title: "meta quest 2 y 3", footer: "claude pet sirve una página WebXR por HTTPS en tu red local con un certificado propio: el navegador del Quest avisará una vez de que no lo conoce y hay que aceptar. se entra con el mismo código de Visto y solo se puede permitir o denegar esta vez (nunca riesgo alto). en el Quest 3 se ve con paso de cámara a color; en el Quest 2, en blanco y negro o en realidad virtual. no está probado en un visor real.") {

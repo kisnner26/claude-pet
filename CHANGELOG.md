@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### cambiado
+- Cambio de protocolo: la clave del canal de Visto se deriva ahora del código con PBKDF2 (120 000 vueltas) en lugar de un HKDF rápido, para encarecer el adivinar el código. Hay que actualizar la Mac y Visto a la vez; con una sola de las dos no se conectan.
 - README y README de Visto al día: menús en la isla, clima, mascota en el escritorio, avisos con ntfy, realidad aumentada, Meta Quest y lo que sale a internet (solo si lo activas).
 - El genio no se enfada con el modo foco ni en mitad de un pomodoro de trabajo (el botón de probar sigue funcionando).
 - La isla abierta deja los colores saturados: sin los pulsos naranjas ni el borde de color; ahora es cristal líquido oscuro (carbón con un velo azul tenue, reflejo especular y un hilo de luz blanca en el borde), con una sola luz neutra en todas las páginas. El brillo y la aurora de estado se reducen a la mitad o menos.
@@ -18,6 +19,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Nuevos modos de medición `--cpu-island-expanded` y `--cpu-island-idle`.
 
 ### añadido
+- Acceso remoto: Visto funciona fuera de la red local por un relay propio (`relay/relay.js`, node 20+, sin dependencias). La Mac y el móvil se conectan a él y solo copia bytes cifrados de extremo a extremo; la sala es un hash de una clave derivada del código. Ajustes → permisos → acceso remoto; el QR ya trae la dirección y Visto la guarda (también se escribe a mano). Si la Mac no aparece por Bonjour, Visto prueba el relay.
 - Píldora invisible (Ajustes → comportamiento → visibilidad): para Macs sin notch, la isla compacta se oculta del todo y solo asoma al pasar el cursor por su sitio. Los permisos, las preguntas y los avisos de terminado siguen abriéndola.
 - Laboratorio: galaxia, ciudad y radar vienen incluidos en la app (carpeta `tools/`, copiados al paquete). Se abren con un clic desde Ajustes → resumen o desde las herramientas de la isla; claude pet los lanza con node 20+, elige un puerto libre, espera a que respondan, abre la página y los cierra al salir. Solo escuchan en 127.0.0.1.
 - Los avisos al teléfono (ntfy) incluyen ahora los del plan: al cruzar el 80 % y el 95 % del límite de 5 horas o semanal llega el mismo aviso que ves en la isla, sin nombre de proyecto.

@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import VistoCore
 
 enum AlertDisplayMode: String, CaseIterable, Identifiable {
     case all = "todos los avisos"
@@ -146,6 +147,20 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(deskFollow, forKey: "deskFollow") }
     }
     var idleForDesk: TimeInterval { 0 }
+    // MARK: acceso remoto (relay)
+    /// Usar Visto fuera de la red local por un relay propio (ver `relay/`). Apagado de serie.
+    @Published var relayEnabled: Bool = UserDefaults.standard.bool(forKey: "relayEnabled") {
+        didSet { UserDefaults.standard.set(relayEnabled, forKey: "relayEnabled") }
+    }
+    @Published var relayAddress: String = UserDefaults.standard.string(forKey: "relayAddress") ?? "" {
+        didSet { UserDefaults.standard.set(relayAddress, forKey: "relayAddress") }
+    }
+    @Published var relayTLS: Bool = UserDefaults.standard.bool(forKey: "relayTLS") {
+        didSet { UserDefaults.standard.set(relayTLS, forKey: "relayTLS") }
+    }
+    @Published var relayStatus = ""
+    var relayEndpoint: RelayEndpoint? { relayEnabled ? RelayEndpoint.parse(relayAddress, tls: relayTLS) : nil }
+
     // MARK: Meta Quest (WebXR)
     /// Sirve la pagina WebXR por HTTPS en la red local para el navegador del Quest 2 y Quest 3. Apagado de serie.
     @Published var questEnabled: Bool = UserDefaults.standard.bool(forKey: "questEnabled") {

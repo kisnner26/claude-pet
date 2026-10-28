@@ -40,7 +40,7 @@ carpeta [companion/](companion/README.md). claude pet escucha en tu red local y 
 
 ![visto](docs/img/visto-mascotas.jpg)
 
-visto recibe mientras está activa o iOS la despierta. para avisos con la app cerrada hay una opción con [ntfy](https://ntfy.sh) (apagada de serie): permisos, preguntas, fin de tarea y plan por agotarse, sin el comando salvo que lo pidas. también hay realidad aumentada en el iPhone y una página WebXR para Meta Quest 2 y 3, servida por la propia Mac por https en tu red.
+visto recibe mientras está activa o iOS la despierta. fuera de casa funciona con un [relay](relay/README.md) propio (un archivo de node sin dependencias): solo copia bytes cifrados de extremo a extremo. para avisos con la app cerrada hay una opción con [ntfy](https://ntfy.sh) (apagada de serie): permisos, preguntas, fin de tarea y plan por agotarse, sin el comando salvo que lo pidas. también hay realidad aumentada en el iPhone y una página WebXR para Meta Quest 2 y 3, servida por la propia Mac por https en tu red.
 
 ## instalación
 
@@ -88,6 +88,7 @@ tests/workshop.sh     # catálogo del taller y paquetes manipulados
 tests/plan.sh         # consumo del plan
 tests/remote.sh       # visto: política, canal y respuestas
 tests/cpu.sh          # cpu medio en reposo durante 30 s (falla sobre 5 %)
+node --test relay/test # relay de visto
 .build/debug/ClaudePet --selftest-quest quest   # servidor de Meta Quest con tls real
 # también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang
 ```

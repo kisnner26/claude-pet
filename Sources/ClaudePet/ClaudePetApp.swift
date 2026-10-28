@@ -410,6 +410,21 @@ final class AppController: NSObject, NSApplicationDelegate {
                 catch { NSLog("ClaudePet: no se pudo abrir el puente de Visto: \(error)") }
             } else { self.remoteLink.stop(); PetStore.shared.remotePeers = [] }
         }.store(in: &cancellables)
+        // relay: la Mac se registra en tu servidor y Visto la encuentra fuera de casa
+        remoteLink.onRelayState = { state in
+            Task { @MainActor in
+                switch state {
+                case .off: PetStore.shared.relayStatus = ""
+                case .connecting: PetStore.shared.relayStatus = "conectando con el relay…"
+                case .ready: PetStore.shared.relayStatus = "conectada al relay: Visto puede entrar desde fuera"
+                case .failed(let why): PetStore.shared.relayStatus = why
+                }
+            }
+        }
+        Publishers.CombineLatest4(PetStore.shared.$remoteApprovals, PetStore.shared.$relayEnabled, PetStore.shared.$relayAddress, PetStore.shared.$relayTLS)
+            .debounce(for: .milliseconds(400), scheduler: DispatchQueue.main)
+            .sink { [weak self] on, _, _, _ in self?.remoteLink.setRelay(on ? PetStore.shared.relayEndpoint : nil) }
+            .store(in: &cancellables)
         remoteLink.onAlways = { [weak self] id in
             Task { @MainActor in
                 guard let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) else { return }

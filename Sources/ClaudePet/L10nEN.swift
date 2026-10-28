@@ -505,5 +505,17 @@ enum L10nEN {
         "no respondió a tiempo": "didn't respond in time",
         "píldora invisible": "invisible pill",
         "se oculta del todo y aparece al pasar el cursor por encima de su sitio. los permisos, preguntas y avisos de terminado siguen saliendo.": "hides completely and appears when you move the cursor over its spot. Permissions, questions and finished alerts still show up.",
+        "acceso remoto (relay)": "remote access (relay)",
+        "conectar con un relay": "connect through a relay",
+        "solo mientras «enviar permisos a Visto» esté activado.": "only while «send permissions to Visto» is on.",
+        "primero activa «enviar permisos a Visto».": "first turn on «send permissions to Visto».",
+        "dirección y puerto de tu relay": "your relay's address and port",
+        "dirección no válida": "invalid address",
+        "actívalo si tu relay está detrás de https (puerto 443 por defecto).": "turn it on if your relay is behind https (port 443 by default).",
+        "conectando con el relay…": "connecting to the relay…",
+        "conectada al relay: Visto puede entrar desde fuera": "connected to the relay: Visto can come in from outside",
+        "no se pudo conectar con el relay": "couldn't connect to the relay",
+        "para usar Visto fuera de la red local hace falta un relay: un servidor tuyo con node 20+ (`relay/relay.js`, ver relay/README.md). tanto la Mac como el móvil se conectan a él y solo copia bytes cifrados de extremo a extremo con la clave del código; no puede leer nada, pero sí ve que hay una Mac y un móvil conectados. el QR de arriba ya trae su dirección.": "to use Visto outside the local network you need a relay: a server of yours with node 20+ (`relay/relay.js`, see relay/README.md). Both the Mac and the phone connect to it and it only copies end-to-end encrypted bytes with the code's key; it can't read anything, but it does see that a Mac and a phone are connected. The QR above already carries its address.",
+        "TLS": "TLS",
     ]
 }

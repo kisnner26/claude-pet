@@ -137,6 +137,10 @@ final class RemoteLink: @unchecked Sendable {
         host.onFocus = { [weak self] on in self?.onFocus?(on) }
     }
 
+    /// Registra la Mac en el relay (o la quita con nil). Solo hace falta que el servidor sea tuyo: el relay no lee nada.
+    func setRelay(_ endpoint: RelayEndpoint?) { if let e = endpoint { host.startRelay(e) } else { host.stopRelay() } }
+    var onRelayState: ((RelayState) -> Void)? { didSet { host.onRelayState = onRelayState } }
+
     var port: UInt16 { host.port }
     var hasPeers: Bool { !host.peers.isEmpty }
     var peers: [String] { host.peers.map(\.name) }
