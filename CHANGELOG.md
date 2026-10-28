@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.4.0] - 2026-10-27
+
+### añadido
+- **el dock cambia según la app en primer plano**, como la Touch Bar: editores (Xcode, VS Code, Cursor, JetBrains, Zed, Sublime, Nova), terminales, navegadores, música, mensajes y correo, notas y documentos, diseño y Finder tienen cada uno sus herramientas, que se enseñan primero y se completan con tus acciones. Un icono de la app aparece junto al dock. Se puede apagar. Solo se lee el nombre de la app al frente.
+- seis acciones nuevas: abrir el proyecto en el editor activo (Xcode prefiere el workspace, luego el paquete), abrir el repo en la web (GitHub, GitLab, Bitbucket y Codeberg; nunca con credenciales), copiar `cd` al proyecto (entre comillas seguras), copiar la ruta, anterior y siguiente de la música.
+- tabla de perfiles en Ajustes → comportamiento.
+
 ## [2.3.0] - 2026-10-27
 
 ### añadido
@@ -109,6 +116,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ### añadido
 - primera versión: una mascota pixel-art en la barra de menú que refleja el estado de Claude Code.
 
+[2.4.0]: https://github.com/kisnner26/claude-pet/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/kisnner26/claude-pet/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/kisnner26/claude-pet/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kisnner26/claude-pet/compare/v2.0.0...v2.1.0
