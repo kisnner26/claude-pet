@@ -95,6 +95,17 @@ enum QuestSelfTest {
         check("el codigo viejo ya no entra y el nuevo si", fetch("/answer?c=\(code)", method: "POST", body: #"{"id":"z","action":"allow"}"#).0 == 403 && fetch("/answer?c=\(newCode)", method: "POST", body: #"{"id":"z","action":"allow"}"#).0 == 200)
         task.cancel()
 
+        // tope de visores: el quinto flujo se rechaza y, al cerrar uno, vuelve a haber sitio
+        let extra = (0..<QuestHTTP.maxViewers).map { _ -> URLSessionDataTask in
+            let t = session.dataTask(with: URLRequest(url: URL(string: base + "/events?c=\(newCode)")!)); t.resume(); return t
+        }
+        for _ in extra { _ = trust.got.wait(timeout: .now() + 4) }
+        check("el quinto visor se rechaza con 429", fetch("/events?c=\(newCode)").0 == 429)
+        check("al llegar al tope las respuestas siguen funcionando", fetch("/answer?c=\(newCode)", method: "POST", body: #"{"id":"z","action":"deny"}"#).0 == 200)
+        extra.forEach { $0.cancel() }
+        server.disconnectAll()
+        _ = trust.finished.wait(timeout: .now() + 2)
+
         // intentos de adivinar el codigo
         for _ in 0..<5 { _ = fetch("/events?c=AAAAAAAAAAAA") }
         check("tras cinco codigos malos se frena (429), incluso con el bueno", fetch("/events?c=\(newCode)").0 == 429)

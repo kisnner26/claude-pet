@@ -12,6 +12,8 @@ enum QuestHTTP {
     enum Parsed: Equatable { case request(Request), needMore, bad }
 
     static let maxHead = 8 * 1024, maxBody = 4 * 1024
+    /// Visores simultaneos: cuatro bastan para una casa y evitan que una conexion perdida o un abuso agote la app.
+    static let maxViewers = 4
 
     /// Interpreta lo recibido de un golpe: cabecera, longitud del cuerpo y consulta. Todo lo raro es `bad`.
     static func parse(_ data: Data) -> Parsed {
@@ -212,6 +214,7 @@ final class QuestServer: @unchecked Sendable {
         if r.path == "/events", r.method == "GET" {
             if tooManyFailures() { return finish(c, QuestHTTP.response(429)) }
             guard authorized(r) else { return finish(c, QuestHTTP.response(403)) }
+            guard streams.count < QuestHTTP.maxViewers else { return finish(c, QuestHTTP.response(429, body: Data("demasiados visores conectados".utf8))) }
             let head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\nConnection: keep-alive\r\nX-Accel-Buffering: no\r\n\r\n"
             let first = Data(head.utf8) + Data("retry: 2000\ndata: ".utf8) + snapshot() + Data("\n\n".utf8)
             streams[ObjectIdentifier(c)] = c
