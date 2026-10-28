@@ -28,7 +28,7 @@ targets:
       path: Phone/Info.plist
       properties:
         NSSupportsLiveActivities: true
-        NSCameraUsageDescription: Visto lee el código QR de claude pet para emparejarse, y usa la linterna si activas el destello.
+        NSCameraUsageDescription: Visto lee el código QR de claude pet para emparejarse, usa la linterna si activas el destello y la cámara para mostrar las mascotas en realidad aumentada.
         NSFaceIDUsageDescription: Visto puede pedir Face ID antes de permitir algo desde el móvil.
         CFBundleDisplayName: Visto
         CFBundleShortVersionString: $(MARKETING_VERSION)

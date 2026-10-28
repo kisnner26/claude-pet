@@ -79,5 +79,12 @@ enum L10nEN {
         "Permitir siempre": "Always allow",
         "Se guarda una regla en la Mac para esta petición y las iguales. Puedes revocarla en Ajustes → permisos.": "A rule is saved on the Mac for this request and identical ones. You can revoke it in Settings → permissions.",
         "Cancelar": "Cancel",
+        "Ver en realidad aumentada": "View in augmented reality",
+        "Las mascotas sobre tu mesa, con su estado y los permisos.": "The pets on your table, with their state and permissions.",
+        "Reubicar": "Reposition",
+        "Cerrar": "Close",
+        "Apunta a una mesa o al suelo y toca para colocar las mascotas.": "Point at a table or the floor and tap to place the pets.",
+        "Denegar": "Deny",
+        "Permitir": "Allow",
     ]
 }

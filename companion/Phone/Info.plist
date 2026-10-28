@@ -25,7 +25,7 @@
 		<string>_claudepet-visto._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Visto lee el código QR de claude pet para emparejarse, y usa la linterna si activas el destello.</string>
+	<string>Visto lee el código QR de claude pet para emparejarse, usa la linterna si activas el destello y la cámara para mostrar las mascotas en realidad aumentada.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Visto puede pedir Face ID antes de permitir algo desde el móvil.</string>
 	<key>NSLocalNetworkUsageDescription</key>

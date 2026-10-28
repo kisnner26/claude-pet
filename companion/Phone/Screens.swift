@@ -1,4 +1,5 @@
 import SwiftUI
+import ARKit
 import VistoCore
 
 struct PairView: View {
@@ -50,6 +51,7 @@ struct HomeView: View {
     @ObservedObject var client: VistoClient
     @ObservedObject private var feel = Feel.shared
     @State private var showSettings = false
+    @State private var showAR = false
 
     private func label(_ t: String) -> some View {
         Text(t).font(.system(size: 10, weight: .semibold, design: .monospaced)).tracking(1.6).foregroundStyle(VT.mute).padding(.top, 6)
@@ -75,7 +77,7 @@ struct HomeView: View {
                     } else if client.agents.isEmpty { empty }
                     if let p = client.plan, p.five != nil || p.week != nil { label("TU PLAN"); planCard(p) }
                     if !client.feed.isEmpty { label("ACTIVIDAD"); feedCard }
-                    if client.isConnected { controls }
+                    if client.isConnected { controls; if ARWorldTrackingConfiguration.isSupported { arButton } }
                     if !model.history.isEmpty { label("TUS DECISIONES"); historyCard }
                 }
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 30)
@@ -85,6 +87,7 @@ struct HomeView: View {
         .onAppear { feel.startMotion() }
         .onDisappear { feel.stopMotion() }
         .sheet(isPresented: $showSettings) { SettingsView(model: model, client: client) }
+        .fullScreenCover(isPresented: $showAR) { ARScreen(model: model, client: client) }
     }
 
     private var header: some View {
@@ -140,6 +143,19 @@ struct HomeView: View {
                 }
             }
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    private var arButton: some View {
+        Button { showAR = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "arkit").font(.system(size: 20, weight: .semibold))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ver en realidad aumentada").font(.system(size: 15, weight: .semibold))
+                    Text("Las mascotas sobre tu mesa, con su estado y los permisos.").font(.system(size: 12)).foregroundStyle(VT.mute)
+                }
+                Spacer()
+            }.padding(18).frame(maxWidth: .infinity).glassEffect(.regular, in: .rect(cornerRadius: 24))
+        }.buttonStyle(.plain)
     }
 
     private var controls: some View {
