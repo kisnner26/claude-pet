@@ -40,6 +40,23 @@ enum WeatherSelfTest {
         check("ambiente: poca bateria sin tiempo", WeatherRules.ambient(nil, batteryLow: true).lowBattery)
         check("ambiente: lectura vieja se ignora", !WeatherRules.ambient(w(40, age: 5 * 3600), batteryLow: false).hot)
 
+        // la ultima lectura sobrevive al reinicio, pero solo si es reciente y sensata
+        let suite = UserDefaults(suiteName: "weather-selftest-\(UUID().uuidString)")!
+        defer { suite.removePersistentDomain(forName: suite.dictionaryRepresentation().keys.first ?? "") }
+        WeatherCache.save(w(31, .clear, age: 600), to: suite)
+        let back = WeatherCache.load(from: suite)
+        check("la lectura guardada se recupera", back?.tempC == 31 && back?.sky == .clear && back?.place == "Managua")
+        WeatherCache.save(w(31, .clear, age: 4 * 3600), to: suite)
+        check("una lectura de hace cuatro horas no vale", WeatherCache.load(from: suite) == nil)
+        suite.set(Data("no es json".utf8), forKey: WeatherCache.key)
+        check("basura guardada se ignora", WeatherCache.load(from: suite) == nil)
+        WeatherCache.save(WeatherReading(tempC: 999, sky: .clear, isDay: true, windKmh: 0, place: "x", at: Date()), to: suite)
+        check("una temperatura imposible no se acepta", WeatherCache.load(from: suite) == nil)
+        WeatherCache.save(WeatherReading(tempC: 20, sky: .clear, isDay: true, windKmh: 0, place: "x", at: Date().addingTimeInterval(3600)), to: suite)
+        check("una lectura del futuro no se acepta", WeatherCache.load(from: suite) == nil)
+        WeatherCache.save(nil, to: suite)
+        check("al apagar el clima se borra", WeatherCache.load(from: suite) == nil)
+
         // el entorno cambia la pose: tirita con frio, suda con calor, se preocupa con poca bateria
         var cold = PetScene(); cold.ambient = Ambient(cold: true)
         check("pose: tirita", PetAnimator.pose(at: 1, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: cold).shivering)

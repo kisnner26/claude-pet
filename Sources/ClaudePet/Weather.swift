@@ -3,8 +3,8 @@ import CoreLocation
 import IOKit.ps
 
 /// Lo que se sabe del tiempo en el sitio del usuario.
-struct WeatherReading: Equatable {
-    enum Sky: String { case clear, cloudy, fog, rain, snow, storm }
+struct WeatherReading: Equatable, Codable {
+    enum Sky: String, Codable { case clear, cloudy, fog, rain, snow, storm }
     var tempC: Double
     var sky: Sky
     var isDay: Bool
@@ -19,6 +19,21 @@ struct WeatherReading: Equatable {
         switch sky { case .clear: return "despejado"; case .cloudy: return "nublado"; case .fog: return "niebla"; case .rain: return "lluvia"; case .snow: return "nieve"; case .storm: return "tormenta" }
     }
     var summary: String { "\(Int(tempC.rounded())) °C · \(skyName)" + (place.isEmpty ? "" : " · \(place)") }
+}
+
+/// La ultima lectura se guarda para que, al abrir la app, las mascotas ya vayan vestidas para el tiempo de hace un rato
+/// sin esperar a la red. Solo vale si es reciente (menos de tres horas) y se descarta cualquier cosa rara.
+enum WeatherCache {
+    static let key = "weatherLast"
+    static func save(_ r: WeatherReading?, to d: UserDefaults = .standard) {
+        guard let r, let data = try? JSONEncoder().encode(r) else { d.removeObject(forKey: key); return }
+        d.set(data, forKey: key)
+    }
+    static func load(from d: UserDefaults = .standard, now: Date = Date()) -> WeatherReading? {
+        guard let data = d.data(forKey: key), data.count < 2_000, let r = try? JSONDecoder().decode(WeatherReading.self, from: data),
+              r.tempC > -90, r.tempC < 70, r.isFresh(now), r.at <= now.addingTimeInterval(60) else { return nil }
+        return r
+    }
 }
 
 enum WeatherRules {

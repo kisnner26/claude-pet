@@ -16,6 +16,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Nuevos modos de medición `--cpu-island-expanded` y `--cpu-island-idle`.
 
 ### añadido
+- El clima recuerda la última lectura entre arranques: si es de hace menos de tres horas, las mascotas ya salen vestidas para el tiempo sin esperar a la red.
 - Meta Quest: como mucho cuatro visores a la vez; el quinto recibe un 429 en lugar de agotar la app.
 - Realidad aumentada interactiva: tocar una mascota la hace saltar y soltar corazones (cuatro toques seguidos la marean); mantener el dedo la acaricia con vibración y corazones; se arrastran por la mesa y se cambian de tamaño pellizcando. Te miran y giran hacia ti, y tocar el suelo lanza una pelota que persiguen y se pasan. Botones para llamarlas, darles un premio, lanzar la pelota y hacerlas saltar. Celebran con confeti cuando un agente termina, se sacuden con chispas si falla y muestran lo que están haciendo (herramienta y archivo).
 - Menús dentro de la propia píldora: un riel de iconos a la derecha de la isla abierta cambia entre inicio, cambios, música, plan y datos, herramientas (todas las acciones disponibles) y ajustes rápidos, sin abrir ventanas. La isla estrena un estilo de fibra de vidrio: hebras finas al trasluz, pulsos de luz que las recorren y un borde con destello especular que toma el color de la página.

@@ -201,7 +201,7 @@ final class PetStore: ObservableObject {
     @Published var ambientReactions: Bool = UserDefaults.standard.object(forKey: "ambientReactions") == nil ? true : UserDefaults.standard.bool(forKey: "ambientReactions") {
         didSet { UserDefaults.standard.set(ambientReactions, forKey: "ambientReactions") }
     }
-    @Published private(set) var weather: WeatherReading?
+    @Published private(set) var weather: WeatherReading? = WeatherCache.load()
     @Published private(set) var weatherStatus = ""
     @Published private(set) var batteryLow = false
     /// Modo ahorro de bateria de macOS: sin efectos de cristal ni brillos animados.
@@ -215,9 +215,9 @@ final class PetStore: ObservableObject {
     private var batteryTimer: Timer?
 
     func restartWeather() {
-        weatherService.onReading = { [weak self] r in self?.weather = r }
+        weatherService.onReading = { [weak self] r in self?.weather = r; WeatherCache.save(r) }
         weatherService.onStatus = { [weak self] t in self?.weatherStatus = t }
-        if weatherEnabled { weatherService.start(city: weatherCity) } else { weatherService.stop(); weather = nil; weatherStatus = "" }
+        if weatherEnabled { weatherService.start(city: weatherCity) } else { weatherService.stop(); weather = nil; weatherStatus = ""; WeatherCache.save(nil) }
     }
 
     func startAmbient() {
