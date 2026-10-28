@@ -101,6 +101,31 @@ enum MusicSelfTest {
         CoverCache.prune(in: dir, maxFiles: 80, maxBytes: 1)
         check("cache-prune-bytes", ((try? FileManager.default.contentsOfDirectory(atPath: dir.path))?.count ?? 99) == 0)
 
+        // el aviso de reproduccion llega con el estado ya guardado (la escucha de audio consulta isPlaying al recibirlo)
+        setenv("CLAUDE_PET_MUSIC_INDEX", NSTemporaryDirectory() + "music-index-test-\(UUID().uuidString).json", 1)
+        setenv("CLAUDE_PET_COVERS", NSTemporaryDirectory() + "covers-test-\(UUID().uuidString)", 1)
+        MainActor.assumeIsolated {
+            let c = MusicController(enabled: false)
+            var seen: [(callback: Bool, isPlaying: Bool)] = []
+            c.onPlayback = { v in seen.append((v, c.isPlaying)) }
+            var song = NowPlaying(app: .spotify, isPlaying: true, title: "Prueba", artist: "A", album: "B", position: 3, duration: 200, volume: 50, artworkURL: nil, uri: nil)
+            c.apply(song)
+            check("empezar a sonar: el aviso ve isPlaying == true", seen.count == 1 && seen[0].callback && seen[0].isPlaying)
+            c.apply(song)
+            check("sin cambios no se avisa de nuevo", seen.count == 1)
+            song.position = 40
+            c.apply(song)
+            check("avanzar la posicion no es un cambio de reproduccion", seen.count == 1)
+            song.isPlaying = false
+            c.apply(song)
+            check("pausar: el aviso ve isPlaying == false", seen.count == 2 && !seen[1].callback && !seen[1].isPlaying)
+            song.isPlaying = true
+            c.apply(song)
+            check("reanudar: vuelve a avisar con isPlaying == true", seen.count == 3 && seen[2].callback && seen[2].isPlaying)
+            c.apply(nil)
+            check("parar del todo avisa con isPlaying == false", seen.count == 4 && !seen[3].callback && !seen[3].isPlaying)
+        }
+
         // paleta de la portada
         func solid(_ r: Double, _ g: Double, _ b: Double, n: Int = 100) -> [(r: Double, g: Double, b: Double)] { Array(repeating: (r, g, b), count: n) }
         func hueOf(_ hex: UInt32) -> Double { CoverPalette.hsv(Double(hex >> 16 & 0xFF) / 255, Double(hex >> 8 & 0xFF) / 255, Double(hex & 0xFF) / 255).h }

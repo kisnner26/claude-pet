@@ -119,14 +119,18 @@ final class MusicController: ObservableObject {
         }
     }
 
-    private func apply(_ found: NowPlaying?) {
+    /// Interno (no privado) para poder probarlo sin Spotify ni Music.
+    func apply(_ found: NowPlaying?) {
         let now = ProcessInfo.processInfo.systemUptime
         if let f = found { preferred = f.app; lastPosition = f.position; polledAt = now }
         guard found?.withoutPosition != nowPlaying?.withoutPosition else { return }
         if let f = found, let old = nowPlaying, f.trackID != old.trackID { trackChangedAt = now }
-        markPlayback(was: nowPlaying?.isPlaying == true, now: found?.isPlaying == true, at: now)
+        let wasPlaying = nowPlaying?.isPlaying == true, isNowPlaying = found?.isPlaying == true
+        markPlayback(was: wasPlaying, now: isNowPlaying, at: now)
         let newTrack = found?.trackID != nowPlaying?.trackID
         nowPlaying = found
+        // el aviso va DESPUES de guardar el estado nuevo: quien lo reciba (la escucha de audio) consulta `isPlaying`
+        if wasPlaying != isNowPlaying { onPlayback?(isNowPlaying) }
         guard newTrack else { return }
         if let f = found, f.isPlaying { record(f); onTrack?(f) }
         loadCover(for: found)
@@ -135,7 +139,6 @@ final class MusicController: ObservableObject {
     private func markPlayback(was: Bool, now isPlaying: Bool, at t: TimeInterval) {
         if isPlaying && !was { playStartedAt = t }
         if was && !isPlaying { pausedAt = t }
-        if was != isPlaying { onPlayback?(isPlaying) }
     }
 
     // MARK: indice
@@ -203,7 +206,7 @@ final class MusicController: ObservableObject {
         guard let app = nowPlaying?.app ?? preferred else { return }
         runner.run(MusicScript.command(command, app: app))
         let now = ProcessInfo.processInfo.systemUptime
-        if command == .playPause, var n = nowPlaying { markPlayback(was: n.isPlaying, now: !n.isPlaying, at: now); n.isPlaying.toggle(); lastPosition = position(at: now); polledAt = now; nowPlaying = n }
+        if command == .playPause, var n = nowPlaying { markPlayback(was: n.isPlaying, now: !n.isPlaying, at: now); n.isPlaying.toggle(); lastPosition = position(at: now); polledAt = now; nowPlaying = n; onPlayback?(n.isPlaying) }
         if case .seek(let s) = command { lastPosition = Double(s); polledAt = now }
         if case .volume(let v) = command, var n = nowPlaying { n.volume = v; nowPlaying = n }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in MainActor.assumeIsolated { self?.poll() } }
