@@ -160,7 +160,13 @@ final class AppController: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { PromoVideo.frames(to: CommandLine.arguments[i + 1], times: CommandLine.arguments[i + 2].split(separator: ",").compactMap { Double($0) }) }; exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--render-promo"), i + 1 < CommandLine.arguments.count {
-            MainActor.assumeIsolated { PromoVideo.run(output: CommandLine.arguments[i + 1]) }; exit(0)
+            MainActor.assumeIsolated {
+                let args = CommandLine.arguments
+                if let m = args.firstIndex(of: "--music"), m + 1 < args.count { PromoVideo.musicPath = args[m + 1] }
+                if let m = args.firstIndex(of: "--music-start"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.musicStart = v }
+                if let m = args.firstIndex(of: "--bpm"), m + 1 < args.count, let v = Double(args[m + 1]) { PromoVideo.bpm = v }
+                PromoVideo.run(output: args[i + 1])
+            }; exit(0)
         }
         if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }

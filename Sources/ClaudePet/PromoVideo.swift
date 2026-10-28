@@ -7,8 +7,12 @@ import AVFoundation
 @MainActor
 enum PromoVideo {
     static let width = 1920, height = 1080, fps = 30
-    /// 144 pulsos por minuto y 72 pulsos: 30 s. Todo (cortes, destellos, sonido) cuelga de esta rejilla.
-    static let bpm = 144.0, totalBeats = 72
+    /// Todo (cortes, destellos, sonido) cuelga de esta rejilla: por defecto 121,9 pulsos por minuto, el tempo medido de la cancion.
+    static var bpm = 121.9
+    static let totalBeats = 72
+    /// Cancion libre (CC0): ruta y segundo del audio donde cae un pulso, para que el primer corte coincida con el primer golpe.
+    nonisolated(unsafe) static var musicPath: String?
+    nonisolated(unsafe) static var musicStart = 0.0
     static var beat: Double { 60 / bpm }
     static var duration: Double { Double(totalBeats) * beat }
 
@@ -88,7 +92,7 @@ enum PromoVideo {
         a.island["permiso"] = islandImage({ _, s in s.setSnapshotState(.waiting); s.permissionAsks = [ask] }, ask: true)
         a.island["terminado"] = islandImage({ mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }, ask: false)
         for n in ["visto-mascotas.jpg", "plan.png", "dock.jpg", "ajustes-plugins.jpg", "ajustes-guardarropa.jpg", "ajustes-musica.jpg", "baile.jpg", "atuendos.jpg", "companero.png", "hero.png",
-                  "reproductor.jpg", "perimetro-permiso.jpg", "producto.jpg", "vida.png", "emociones.png", "futbol-escena.png", "vinilo.jpg", "ajustes-perimetro.jpg", "resumen-semanal.png", "estilo-mareo.png"] {
+                  "reproductor.jpg", "perimetro-permiso.jpg", "producto.jpg", "vida.png", "emociones.png", "futbol-escena.png", "vinilo.jpg", "ajustes-perimetro.jpg", "resumen-semanal.png", "estilo-mareo.png", "lab-galaxia.jpg", "lab-ciudad.jpg", "lab-radar.jpg"] {
             a.images[n] = NSImage(contentsOfFile: repoPath("docs/img/" + n))
         }
         return a
@@ -135,7 +139,30 @@ enum PromoVideo {
 
     // MARK: sonido: bombo en cada pulso, caja en el 2 y el 4, hi-hat, bajo y arpegio, todo sintetizado sobre la misma rejilla
 
+    /// Recorta la cancion libre desde el pulso elegido, con entrada y salida suaves, y la deja en m4a.
+    private static func writeSong(to path: String, from song: String, start: Double) -> Bool {
+        guard let src = try? AVAudioFile(forReading: URL(fileURLWithPath: song)) else { return false }
+        let rate = src.processingFormat.sampleRate, from = AVAudioFramePosition(start * rate), count = AVAudioFrameCount(duration * rate)
+        guard from < src.length, let buf = AVAudioPCMBuffer(pcmFormat: src.processingFormat, frameCapacity: count) else { return false }
+        src.framePosition = from
+        do { try src.read(into: buf, frameCount: min(count, AVAudioFrameCount(src.length - from))) } catch { return false }
+        guard let ch = buf.floatChannelData else { return false }
+        let n = Int(buf.frameLength), fadeIn = Int(0.12 * rate), fadeOut = Int(1.4 * rate)
+        for c in 0..<Int(buf.format.channelCount) {
+            for i in 0..<n {
+                var g: Float = 1
+                if i < fadeIn { g = Float(i) / Float(fadeIn) }
+                if i > n - fadeOut { g = min(g, Float(n - i) / Float(fadeOut)) }
+                ch[c][i] *= g * 0.95
+            }
+        }
+        guard let out = try? AVAudioFile(forWriting: URL(fileURLWithPath: path), settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: rate, AVNumberOfChannelsKey: Int(buf.format.channelCount), AVEncoderBitRateKey: 192_000]) else { return false }
+        do { try out.write(from: buf) } catch { return false }
+        return true
+    }
+
     private static func writeAudio(to path: String) -> Bool {
+        if let song = musicPath { return writeSong(to: path, from: song, start: musicStart) }
         let rate = 44_100.0, frames = AVAudioFrameCount(duration * rate)
         guard let fmt = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: rate, channels: 2, interleaved: false), let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: frames),
               let ch = buf.floatChannelData else { return false }
@@ -206,48 +233,37 @@ private func smooth(_ x: Double) -> Double { let c = min(1, max(0, x)); return c
 private func hash(_ n: Int) -> Double { var x = UInt64(bitPattern: Int64(n)) &* 0x9E3779B97F4A7C15; x ^= x >> 29; x = x &* 0xBF58476D1CE4E5B9; x ^= x >> 32; return Double(x % 10_000) / 10_000 }
 
 private enum ShotKind {
-    case island(String), image(String), pets([Set<Outfit>], Bool), rage, word, stat(String, String), table, waiting
+    case island(String), image(String), pets([Set<Outfit>], Bool), rage, word, stat(String, String), table, waiting, crawler
 }
 
 private struct Shot { let at: Double; let beats: Double; let kind: ShotKind; let word: String; var color: UInt32 = 0x000000 }
 
 private let orange: UInt32 = 0xE0824F, blue: UInt32 = 0x5270E8, bone: UInt32 = 0xF4F1EA
 
-/// El guion: solo lo que diferencia a claude pet y se entiende de un vistazo. Pocos planos, grandes y de 2 a 6 pulsos.
-private let shots: [Shot] = [
-    // 1. el problema y la solucion: aprobar sin salir de lo que haces
-    Shot(at: 0, beats: 2, kind: .word, word: "TU AGENTE", color: 0x000000),
-    Shot(at: 2, beats: 2, kind: .waiting, word: "TE ESPERA", color: orange),
-    Shot(at: 4, beats: 4, kind: .island("permiso"), word: "APRUEBA DESDE LA ISLA"),
-    Shot(at: 8, beats: 2, kind: .word, word: "UN TOQUE", color: blue),
-    Shot(at: 10, beats: 2, kind: .island("terminado"), word: "Y SIGUE"),
-    // 2. no aprueba a ciegas
-    Shot(at: 12, beats: 2, kind: .word, word: "NO APRUEBA\nA CIEGAS", color: 0x000000),
-    Shot(at: 14, beats: 4, kind: .island("riesgo"), word: "RIESGO + SECRETOS"),
-    Shot(at: 18, beats: 4, kind: .image("perimetro-permiso.jpg"), word: "TU PERÍMETRO"),
-    // 3. mascotas vivas que reaccionan, se enfadan y pateantu ventana
-    Shot(at: 22, beats: 4, kind: .pets([[], [.crown], [.glasses, .bow], [.beanie, .scarf]], true), word: "DOS AGENTES · DOS MASCOTAS"),
-    Shot(at: 26, beats: 1, kind: .pets([[.sunhat, .sunglasses]], false), word: "34°"),
-    Shot(at: 27, beats: 1, kind: .pets([[.umbrella]], false), word: "LLUVIA"),
-    Shot(at: 28, beats: 1, kind: .pets([[.beanie, .scarf, .earmuffs]], false), word: "-2°"),
-    Shot(at: 29, beats: 1, kind: .word, word: "SI LAS GOLPEAS…", color: orange),
-    Shot(at: 30, beats: 6, kind: .rage, word: "PATEAN TUS VENTANAS"),
-    // 4. todo tu ecosistema
-    Shot(at: 36, beats: 3, kind: .image("visto-mascotas.jpg"), word: "IPHONE + WATCH"),
-    Shot(at: 39, beats: 3, kind: .table, word: "REALIDAD AUMENTADA"),
-    Shot(at: 42, beats: 2, kind: .word, word: "META QUEST", color: blue),
-    Shot(at: 44, beats: 2, kind: .word, word: "FUERA DE CASA", color: 0x000000),
-    Shot(at: 46, beats: 2, kind: .word, word: "SIN NOTCH", color: orange),
-    Shot(at: 48, beats: 2, kind: .stat("0", "CUENTAS · 0 TELEMETRÍA"), word: "", color: 0x000000),
-    // 5. recapitulacion rapida y cierre
-    Shot(at: 50, beats: 2, kind: .island("trabajando"), word: "CLAUDE"),
-    Shot(at: 52, beats: 2, kind: .pets([[]], true), word: "CODEX"),
-    Shot(at: 54, beats: 2, kind: .island("riesgo"), word: "TÚ DECIDES"),
-    Shot(at: 56, beats: 2, kind: .table, word: "Y ELLAS VIVEN"),
-    Shot(at: 58, beats: 2, kind: .word, word: "GRATIS", color: blue),
-    Shot(at: 60, beats: 2, kind: .word, word: "CÓDIGO ABIERTO", color: 0x000000),
-    Shot(at: 62, beats: 10, kind: .word, word: "CLAUDE PET", color: 0x000000),
-]
+/// El guion: lo que diferencia a claude pet y se entiende de un vistazo, con la isla, el rastreador, las mascotas, la musica, los plugins y el laboratorio.
+/// Cada plano se define por su duracion en pulsos; las posiciones salen de ir sumando.
+private let shots: [Shot] = {
+    let plan: [(Double, ShotKind, String, UInt32)] = [
+        (2, .word, "TU AGENTE", 0x000000), (2, .waiting, "TE ESPERA", orange),
+        (4, .island("permiso"), "APRUEBA DESDE LA ISLA", 0), (2, .word, "UN TOQUE", blue), (2, .island("terminado"), "Y SIGUE", 0),
+        (2, .word, "NO APRUEBA\nA CIEGAS", 0x000000), (4, .island("riesgo"), "RIESGO + SECRETOS", 0), (3, .image("perimetro-permiso.jpg"), "TU PERÍMETRO", 0),
+        (6, .crawler, "UNA ARAÑA CAZA TUS ENLACES ROTOS", 0),
+        (3, .pets([[], [.crown], [.glasses, .bow]], true), "DOS AGENTES · DOS MASCOTAS", 0),
+        (1, .pets([[.sunhat, .sunglasses]], false), "34°", 0), (1, .pets([[.umbrella]], false), "LLUVIA", 0), (1, .pets([[.beanie, .scarf, .earmuffs]], false), "-2°", 0),
+        (1, .word, "SI LAS GOLPEAS…", orange), (5, .rage, "PATEAN TUS VENTANAS", 0),
+        (2, .image("reproductor.jpg"), "TU MÚSICA", 0), (2, .image("baile.jpg"), "Y BAILAN AL COMPÁS", 0),
+        (2, .image("ajustes-plugins.jpg"), "PLUGINS", 0), (2, .word, "TUS MODS\nTU TALLER", blue),
+        (2, .image("lab-galaxia.jpg"), "GALAXIA: TU REPO ES UNA GALAXIA", 0), (2, .image("lab-ciudad.jpg"), "CIUDAD: TUS REPOS, EDIFICIOS", 0), (2, .image("lab-radar.jpg"), "RADAR DE RED", 0),
+        (2, .image("visto-mascotas.jpg"), "IPHONE + WATCH", 0), (2, .table, "REALIDAD AUMENTADA", 0), (1, .word, "META QUEST", blue), (1, .word, "FUERA DE CASA", 0x000000),
+        (2, .stat("0", "CUENTAS · 0 TELEMETRÍA"), "", 0x000000), (2, .word, "GRATIS", orange), (2, .word, "CÓDIGO ABIERTO", 0x000000),
+    ]
+    var out: [Shot] = []
+    var at = 0.0
+    for (beats, kind, word, color) in plan { out.append(Shot(at: at, beats: beats, kind: kind, word: word, color: color)); at += beats }
+    // el cierre ocupa los pulsos que queden hasta el final
+    out.append(Shot(at: at, beats: Double(PromoVideo.totalBeats) - at, kind: .word, word: "CLAUDE PET", color: 0x000000))
+    return out
+}()
 
 @MainActor
 struct PromoFrame: View {
@@ -308,7 +324,17 @@ struct PromoFrame: View {
     @ViewBuilder private var shotView: some View {
         let lt = local
         switch shot.kind {
-        case .word: ZStack { wordView(shot.word, big: 250) }
+        case .word:
+            ZStack {
+                wordView(shot.word, big: 250)
+                if shot.word == "CLAUDE PET" {
+                    VStack(spacing: 14) {
+                        Text("github.com/kisnner26/claude-pet").font(.system(size: 44, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: orange)).opacity(smooth(lt / (b * 2)))
+                        Text("música: Techno_2 · Pro Sensory (Alex McCulloch) · CC0 · opengameart.org").font(.system(size: 22, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.5 * smooth(lt / (b * 3))))
+                        Text("escenas renderizadas con el código de la propia app").font(.system(size: 22, design: .monospaced)).foregroundColor(Color(hex: bone).opacity(0.4 * smooth(lt / (b * 3))))
+                    }.offset(y: 250)
+                }
+            }
         case .stat(let big, let small):
             VStack(spacing: 10) {
                 Text(big).font(.system(size: 420, weight: .black)).tracking(-12).foregroundColor(Color(hex: shot.color == 0 ? bone : 0x000000)).minimumScaleFactor(0.4)
@@ -324,7 +350,7 @@ struct PromoFrame: View {
         case .image(let name):
             ZStack {
                 if let img = assets.images[name] {
-                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(height: 820).clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).frame(height: 860).clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .shadow(color: .black.opacity(0.7), radius: 50, y: 24).offset(y: -40 + CGFloat(lt * 20))
                 }
                 wordView(shot.word, big: 160).offset(y: 400)
@@ -339,6 +365,8 @@ struct PromoFrame: View {
                 }.offset(y: -60)
                 if !shot.word.isEmpty { wordView(shot.word, big: shot.word.count > 8 ? 130 : 200).offset(y: 380) }
             }
+        case .crawler:
+            crawlerScene(lt)
         case .waiting:
             ZStack {
                 PromoPet(agent: .claude, t: t, size: 760, outfits: [], pokes: [], state: .waiting).offset(y: -40)
@@ -393,6 +421,44 @@ struct PromoFrame: View {
                 wordView(shot.word, big: 150).offset(x: 80, y: 80)
             }.frame(width: size.width, height: size.height, alignment: .topLeading)
         }
+    }
+
+    /// El rastreador de verdad (la arana de claudwler) recorriendo los enlaces de una pagina: verdes, uno que redirige y uno roto.
+    private func crawlerScene(_ lt: Double) -> some View {
+        let rects: [CGRect] = [
+            CGRect(x: 330, y: 190, width: 110, height: 30), CGRect(x: 480, y: 190, width: 130, height: 30), CGRect(x: 650, y: 190, width: 100, height: 30), CGRect(x: 790, y: 190, width: 150, height: 30),
+            CGRect(x: 300, y: 330, width: 200, height: 24), CGRect(x: 300, y: 390, width: 170, height: 24), CGRect(x: 300, y: 450, width: 210, height: 24),
+            CGRect(x: 640, y: 340, width: 300, height: 26), CGRect(x: 1020, y: 340, width: 260, height: 26), CGRect(x: 700, y: 470, width: 340, height: 26),
+            CGRect(x: 1120, y: 560, width: 220, height: 26), CGRect(x: 660, y: 640, width: 300, height: 26),
+            CGRect(x: 330, y: 790, width: 120, height: 24), CGRect(x: 500, y: 790, width: 140, height: 24), CGRect(x: 690, y: 790, width: 120, height: 24)]
+        let n = rects.count
+        let progress = min(0.999, lt / (shot.beats * b) * 1.02)
+        let stepF = progress * Double(n), step = Int(stepF), frac = stepF - Double(step)
+        let warnAt = 5, brokenAt = 10
+        let targets = rects.enumerated().map { i, r -> WebCrawlerTarget in
+            let tone: CrawlerTone = i == warnAt ? .warn : i == brokenAt ? .broken : .ok
+            return WebCrawlerTarget(id: i, rect: r, visited: i < step, current: i == step, tone: i < step || i == step ? tone : .pending, badge: i == warnAt ? "301" : i == brokenAt ? "404" : nil)
+        }
+        func center(_ i: Int) -> CGPoint { CGPoint(x: rects[max(0, min(n - 1, i))].midX, y: rects[max(0, min(n - 1, i))].midY) }
+        let a = center(step - 1), c = center(step), e = frac * frac * (3 - 2 * frac)
+        let pos = CGPoint(x: a.x + (c.x - a.x) * e, y: a.y + (c.y - a.y) * e)
+        let contacts = (0..<min(n, 8)).map { center((step + $0 - 3 + n) % n) }
+        let ok = max(0, step - (step > warnAt ? 1 : 0) - (step > brokenAt ? 1 : 0)), warn = step > warnAt ? 1 : 0, broken = step > brokenAt ? 1 : 0
+        let scene = WebCrawlerScene(agent: .claude, targets: targets, from: pos, to: pos, contacts: contacts, step: min(n, step + 1), total: n, startedAt: Date(), duration: 1, reduceMotion: true, ok: ok, warn: warn, broken: broken, verifying: false)
+        return ZStack(alignment: .topLeading) {
+            ZStack(alignment: .topLeading) {
+            // una pagina web de mentira: barra de navegador, menu, texto y pie
+            RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Color(hex: 0x11151F)).overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 2))
+                .frame(width: 1260, height: 800).offset(x: 220, y: 130)
+            RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.07)).frame(width: 760, height: 36).offset(x: 480, y: 150)
+            ForEach(0..<rects.count, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.10)).frame(width: rects[i].width, height: rects[i].height - 8).offset(x: rects[i].minX, y: rects[i].minY + 4)
+            }
+            ForEach(0..<9, id: \.self) { i in RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.05)).frame(width: CGFloat(520 + (i * 37) % 260), height: 12).offset(x: 640, y: CGFloat(390 + i * 28 + (i > 4 ? 90 : 0))) }
+            WebCrawlerOverlay(scene: scene).frame(width: 1920, height: 1080, alignment: .topLeading)
+            }.frame(width: 1920, height: 1080, alignment: .topLeading).scaleEffect(1.2, anchor: UnitPoint(x: 0.5, y: 0.55))
+            wordView(shot.word, big: 120).offset(x: 160, y: 40)
+        }.frame(width: 1920, height: 1080, alignment: .topLeading)
     }
 
     /// Una palabra enorme que se clava en el golpe: entra grande y se asienta, con un duplicado rojo y otro azul desplazados.
