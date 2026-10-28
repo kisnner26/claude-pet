@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "plugins": [
+    {
+      "id": "abrir-en",
+      "name": "Abrir en…",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Abre el proyecto activo en el editor que elijas o en una terminal nueva.",
+      "permissions": [
+        "project",
+        "notify"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/abrir-en-1.0.0.zip",
+      "sha256": "c990d57766867c1a2bc5c794251576b098216ea95847b549fce44c76b67c2042",
+      "size": 1684
+    },
+    {
+      "id": "commitero",
+      "name": "Commitero",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Agrupa los cambios del proyecto activo en commits atómicos con commitero.",
+      "permissions": [
+        "project",
+        "notify"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/commitero-1.0.0.zip",
+      "sha256": "2b2e70663cabd584d88e5fcf4201a43c0b1a69911a33aa85b9bbb4f00802fd6b",
+      "size": 912,
+      "homepage": "https://github.com/kisnner26/commitero"
+    },
+    {
+      "id": "contexto-para-agentes",
+      "name": "Contexto para agentes",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Copia un resumen del proyecto (rama, cambios, últimos commits y estructura) para pegarlo en cualquier agente o chat.",
+      "permissions": [
+        "project",
+        "notify",
+        "clipboard"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/contexto-para-agentes-1.0.0.zip",
+      "sha256": "fc67edf986d5c4f4b58d0fc621be56c09c92d81cb1fe46b490ebc352a4b247b6",
+      "size": 1369
+    },
+    {
+      "id": "diario-de-sesiones",
+      "name": "Diario de sesiones",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Anota cada tarea que termina un agente (hora, agente, proyecto y duración) y te resume el día.",
+      "permissions": [
+        "events",
+        "project",
+        "notify",
+        "clipboard"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/diario-de-sesiones-1.0.0.zip",
+      "sha256": "14e29942d7c25d46b8557a695bda201e82b25fd699258618473032c06eed4633",
+      "size": 1999
+    },
+    {
+      "id": "git-estado",
+      "name": "Git al instante",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Rama, cambios y adelanto/atraso del proyecto en un toque, y copia la rama o el último commit.",
+      "permissions": [
+        "project",
+        "notify",
+        "clipboard"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/git-estado-1.0.0.zip",
+      "sha256": "2f7633bd4501c115b07c7fc288666dfcf17902022bf0b6cbc9397a3dc5304c2b",
+      "size": 2014
+    },
+    {
+      "id": "github-rapido",
+      "name": "GitHub rápido",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Abre en el navegador el PR de tu rama, los pull requests, los issues o las acciones del repo del proyecto.",
+      "permissions": [
+        "project",
+        "notify",
+        "open-url"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/github-rapido-1.0.0.zip",
+      "sha256": "c38ee9f8bb55cfe5d51df4ef5c42102b2a56abca12ec3512ab8bcdda5ef1b118",
+      "size": 1529
+    },
+    {
+      "id": "hola-mundo",
+      "name": "Hola mundo",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "El plugin más pequeño posible: un botón que saluda con el nombre que elijas en sus ajustes.",
+      "permissions": [
+        "notify"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/hola-mundo-1.0.0.zip",
+      "sha256": "0627e2a7b5490cc4e4a5c48acf8c877f5a024024adc27cd7a5e01ba47ddc56f8",
+      "size": 908
+    },
+    {
+      "id": "puertos",
+      "name": "Puertos en uso",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Qué servidores locales están escuchando (3000, 5173, 8080…) y qué proceso los tiene, para no pelearte con «address already in use».",
+      "permissions": [
+        "notify",
+        "clipboard"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/puertos-1.0.0.zip",
+      "sha256": "ae4c9715838e5fee67efe47a1209e79d6fc23910659b66229317b977ff6d3913",
+      "size": 1023
+    },
+    {
+      "id": "registro-de-sesiones",
+      "name": "Registro de sesiones",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Anota en un archivo cada vez que un agente termina una tarea: fecha, agente y duración.",
+      "permissions": [
+        "events"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/registro-de-sesiones-1.0.0.zip",
+      "sha256": "15ee04f70b7e78a03bbbe080f933c63d15e02eec4cd9e595bbdda8522fe7b14b",
+      "size": 659
+    },
+    {
+      "id": "todos-del-proyecto",
+      "name": "TODOs del proyecto",
+      "version": "1.0.0",
+      "author": "kisnner26",
+      "description": "Cuenta los TODO y FIXME de los archivos versionados y copia la lista con archivo y línea.",
+      "permissions": [
+        "project",
+        "notify",
+        "clipboard"
+      ],
+      "official": true,
+      "url": "https://raw.githubusercontent.com/kisnner26/claude-pet/main/workshop/packages/todos-del-proyecto-1.0.0.zip",
+      "sha256": "d5d34d7266aac388728d810f647c8e2f61f2efbee48cc15f5613b8e798885989",
+      "size": 1174
+    }
+  ]
+}

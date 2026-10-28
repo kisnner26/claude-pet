@@ -1,0 +1,10 @@
+name: taller
+on:
+  pull_request:
+    paths: ['workshop/**', 'examples/plugins/**']
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 workshop/build.py --check
