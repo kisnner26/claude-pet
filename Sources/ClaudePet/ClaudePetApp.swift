@@ -399,9 +399,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         remoteLink.onFocus = { on in Task { @MainActor in PetStore.shared.focusManual = on } }
         PetStore.shared.$questionAsks.sink { [weak self] qs in self?.remoteLink.syncQuestions(qs) }.store(in: &cancellables)
         PetStore.shared.$focusManual.removeDuplicates().sink { [weak self] on in self?.remoteLink.sendFocus(on) }.store(in: &cancellables)
-        // agentes, actividad y avisos de «termino» / «fallo»: se recalcula con calma y solo viaja lo que cambio
+        // agentes, actividad y avisos de «termino» / «fallo»: se recalcula con calma y solo viaja lo que cambio.
+        // throttle y no debounce: la mascota publica cambios sin parar y un debounce nunca llegaria a disparar
         var lastStates: [String: PetState] = [:], busySince: [String: Date] = [:]
-        PetStore.shared.objectWillChange.debounce(for: .milliseconds(600), scheduler: DispatchQueue.main).sink { [weak self] _ in
+        PetStore.shared.objectWillChange.throttle(for: .milliseconds(700), scheduler: DispatchQueue.main, latest: true).sink { [weak self] _ in
             guard let self, PetStore.shared.remoteApprovals, self.remoteLink.hasPeers else { return }
             MainActor.assumeIsolated {
                 let st = PetStore.shared

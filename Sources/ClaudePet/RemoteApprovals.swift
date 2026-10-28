@@ -53,6 +53,14 @@ enum RemoteWire {
         Step(agent: s.agent, tool: String(s.tool.prefix(30)), target: String(s.target.suffix(60)), at: s.at, delta: s.delta)
     }
 
+    /// Los agentes tal como se muestran en Visto, a partir del estado de la mascota.
+    @MainActor static func agents(from st: PetStore) -> [VistoCore.AgentInfo] {
+        var list: [VistoCore.AgentInfo] = []
+        if st.claudePresent || st.state != .idle { list.append(agent("claude", state: st.state, project: st.terminalProject, since: st.claudeStateSince, context: st.contextReading?.remainingPercent)) }
+        if st.codexPresent || st.codexState != .idle { list.append(agent("codex", state: st.codexState, project: st.terminalProject, since: st.codexStateSince, context: st.codexContextReading?.remainingPercent)) }
+        return list
+    }
+
     static func snapshot(_ u: PlanUsage?) -> PlanSnapshot? {
         guard let u else { return nil }
         func w(_ x: PlanWindow?) -> VistoCore.PlanWindow? { x.map { VistoCore.PlanWindow(usedPercent: $0.usedPercent, resetsAt: $0.resetsAt) } }

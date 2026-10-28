@@ -115,6 +115,13 @@ enum RemoteApprovalsSelfTest {
         spin(2) { !focusSet.isEmpty }
         check("pedir el modo foco desde el movil llega a la app", focusSet == [false])
 
+        // el estado real de la mascota llega a Visto como agentes
+        let st = PetStore.shared
+        if let e = PetEvent.parse("thinking\tselftest-visto\t\tproy\t\tterminal\t\t/tmp") { st.apply(e) }
+        let agentsNow = RemoteWire.agents(from: st)
+        check("un evento de Claude se convierte en un agente en Visto", agentsNow.contains { $0.agent == "claude" && $0.state == "thinking" && $0.project == "tmp" })
+        if let e = PetEvent.parse("end\tselftest-visto") { st.apply(e) }
+
         let wrong = VistoClient()
         wrong.configure(code: Pairing.newCode(), deviceName: "intruso")
         wrong.start(direct: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: link.port)!))
