@@ -317,6 +317,15 @@ struct IslandView: View {
                 .overlay(alignment: .topLeading) {
                     IslandGlowView(glow: glow).animation(store.reduceMotion ? nil : .easeInOut(duration: 0.45), value: glow)
                 }
+                // fibra de vidrio: hebras con destellos y un borde con brillo especular; la luz toma el color de la pagina abierta
+                .overlay {
+                    if model.mode == .expanded {
+                        ZStack {
+                            FiberGlassLayer(accent: model.page.accent, animated: effectsOn)
+                            FiberGlassEdge(shape: shape, accent: model.page.accent, animated: effectsOn)
+                        }.clipShape(shape)
+                    }
+                }
                 // nivel de contexto como liquido y aurora de luz: solo con la isla abierta y con animaciones
                 .overlay {
                     if model.mode == .expanded && effectsOn {
@@ -480,7 +489,7 @@ struct IslandView: View {
         } else if model.reason == .finished {
             IslandFinishedCard(store: store) { model.dismissRequested = true }
         } else {
-            IslandOverviewView(store: store, model: model, agentTab: $agentTab)
+            IslandShell(store: store, model: model, agentTab: $agentTab)
         }
     }
 
@@ -802,6 +811,10 @@ extension IslandSnapshot {
             ("terminado", { mo, s in s.permissionAsks = []; s.setSnapshotState(.done); mo.reason = .finished }),
             ("mareo", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dizzyLeft = 3 }),
             ("archivos", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dropHover = true }),
+            ("pagina-cambios", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .changes }),
+            ("pagina-plan", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .plan }),
+            ("pagina-herramientas", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .tools }),
+            ("pagina-ajustes", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .settings }),
         ]
         // una imagen por escena: todas comparten el PetStore, asi que se dibujan de una en una
         for (name, apply) in scenes {

@@ -56,6 +56,8 @@ struct QuickDock: View {
     var iconOverride: NSImage?
     /// Las capturas no pueden dibujar el menu nativo del +.
     var hideOverflow = false
+    /// En la pagina de herramientas: todas las acciones disponibles en una rejilla, sin el menu "+".
+    var showAll = false
 
     private var workspace: String { store.mission.workspace }
 
@@ -73,6 +75,27 @@ struct QuickDock: View {
         let c = context
         let layout = QuickActions.layout(order: store.quickActions, context: c, appAware: store.quickAppAware)
         let extra = plugins.actions(place: "island")
+        if showAll {
+            let all = QuickActions.layout(order: QuickActions.allOrdered, context: c, appAware: store.quickAppAware)
+            let every = all.visible + all.overflow
+            // filas de tres: sin LazyVGrid, para que tambien se pueda dibujar en las capturas
+            let items: [(String, String, Int?, Bool, () -> Void)] = every.map { a in
+                let d = QuickActions.descriptor(a, c)
+                return (d.title, d.symbol, d.badge, d.prominent, { perform(a) })
+            } + extra.map { item in
+                (item.action.title, item.action.symbol ?? "puzzlepiece.extension", nil, false, { plugins.run(item.plugin.id, item.action, name: item.plugin.manifest.name) })
+            }
+            VStack(spacing: 6) {
+                ForEach(Array(stride(from: 0, to: items.count, by: 3)), id: \.self) { start in
+                    HStack(spacing: 6) {
+                        ForEach(Array(items[start..<min(start + 3, items.count)].enumerated()), id: \.offset) { _, it in
+                            toolChip(it.0, it.1, badge: it.2, prominent: it.3, action: it.4)
+                        }
+                        ForEach(0..<(3 - min(3, items.count - start)), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, maxHeight: 1) }
+                    }
+                }
+            }
+        } else {
         HStack(spacing: 6) {
             if store.quickAppAware, c.profile != .other, let icon = iconOverride ?? front.icon { appBadge(icon, c.profile) }
             ForEach(layout.visible) { a in
@@ -101,6 +124,21 @@ struct QuickDock: View {
             Spacer(minLength: 0)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: layout.visible)
+        }
+    }
+
+    private func toolChip(_ title: String, _ symbol: String, badge: Int?, prominent: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).frame(width: 16)
+                Text(title).font(.system(size: 10.5, weight: .medium)).lineLimit(1)
+                Spacer(minLength: 0)
+                if let badge, badge > 0 { Text("\(badge)").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(.black).padding(.horizontal, 4).background(Capsule().fill(Color.white)) }
+            }
+            .foregroundColor(.white.opacity(0.9)).padding(.horizontal, 9).frame(maxWidth: .infinity).frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(prominent ? AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xE0824F).opacity(0.8), Color(hex: 0x8E6BE0).opacity(0.8)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(Color.white.opacity(0.06))))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(0.1), lineWidth: 0.8))
+        }.buttonStyle(.plain)
     }
 
     /// La app donde estas: explica por que las herramientas han cambiado.
