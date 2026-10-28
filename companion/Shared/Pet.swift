@@ -97,6 +97,8 @@ struct PetHero: View {
     let agent: AgentInfo?
     let plan: PlanSnapshot?
     var size: CGFloat = 220
+    /// Inclinación del dispositivo (-1...1): mueve cada capa a distinta profundidad, como un diorama.
+    var tilt: CGSize = .zero
 
     private func ring(_ remaining: Int?, _ radius: CGFloat, _ width: CGFloat, _ base: Color) -> some View {
         let left = Double(remaining ?? 0) / 100
@@ -116,16 +118,17 @@ struct PetHero: View {
         let tint = VTFormat.stateColor(state)
         ZStack {
             Circle().fill(RadialGradient(colors: [tint.opacity(state == "idle" ? 0.10 : 0.30), .clear], center: .center, startRadius: 4, endRadius: size * 0.5))
-            ring(plan?.five?.remaining(), size * 0.47, size * 0.045, VT.blue)
-            ring(plan?.week?.remaining(), size * 0.40, size * 0.035, VT.codex.opacity(0.8))
-            ring(agent?.contextRemaining, size * 0.34, size * 0.028, VT.claude)
+                .offset(x: -tilt.width * size * 0.03, y: -tilt.height * size * 0.03)
+            ring(plan?.five?.remaining(), size * 0.47, size * 0.045, VT.blue).offset(x: tilt.width * size * 0.012, y: tilt.height * size * 0.012)
+            ring(plan?.week?.remaining(), size * 0.40, size * 0.035, VT.codex.opacity(0.8)).offset(x: tilt.width * size * 0.024, y: tilt.height * size * 0.024)
+            ring(agent?.contextRemaining, size * 0.34, size * 0.028, VT.claude).offset(x: tilt.width * size * 0.036, y: tilt.height * size * 0.036)
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
                 let t = ctx.date.timeIntervalSinceReferenceDate
                 let pose = PetMotion.pose(state, t)
                 ZStack {
                     PixelSprite(art: art, blink: agent?.agent != "codex" && PetMotion.blink(t) && state == "idle")
                         .frame(width: size * 0.40, height: size * 0.40)
-                        .scaleEffect(x: pose.sx, y: pose.sy).rotationEffect(.degrees(pose.tilt)).offset(x: pose.dx, y: pose.dy)
+                        .scaleEffect(x: pose.sx, y: pose.sy).rotationEffect(.degrees(pose.tilt)).offset(x: pose.dx + tilt.width * size * 0.07, y: pose.dy + tilt.height * size * 0.07)
                     overlay(state, t)
                 }
             }

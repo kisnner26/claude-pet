@@ -39,6 +39,7 @@ struct PairView: View {
 struct HomeView: View {
     @ObservedObject var model: PhoneModel
     @ObservedObject var client: VistoClient
+    @ObservedObject private var feel = Feel.shared
     @State private var showSettings = false
 
     private func label(_ t: String) -> some View {
@@ -71,6 +72,9 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 30)
             }
         }
+        .overlay { EdgeGlow(pending: !client.asks.isEmpty || !client.questions.isEmpty, feel: feel) }
+        .onAppear { feel.startMotion() }
+        .onDisappear { feel.stopMotion() }
         .sheet(isPresented: $showSettings) { SettingsView(model: model, client: client) }
     }
 
@@ -94,7 +98,7 @@ struct HomeView: View {
     private var hero: some View {
         let lead = client.agents.first(where: \.isBusy) ?? client.agents.first(where: { $0.state == "waiting" }) ?? client.agents.first
         return VStack(spacing: 0) {
-            PetHero(agent: lead, plan: client.plan, size: 250)
+            PetHero(agent: lead, plan: client.plan, size: 250, tilt: feel.tiltOffset)
             HeartbeatLine(state: lead?.state ?? "idle", color: VTFormat.stateColor(lead?.state ?? "idle")).frame(height: 36).padding(.horizontal, 30)
             Text(lead.map { "\(VTFormat.agentName($0.agent)) · \(VTFormat.state($0.state))" } ?? "Sin agentes activos").font(.system(size: 12, weight: .semibold, design: .monospaced)).tracking(1.2).foregroundStyle(VT.mute).padding(.top, 4)
             if client.plan?.five != nil || lead?.contextRemaining != nil {
@@ -214,13 +218,13 @@ struct AskCard: View {
                 // riesgo alto: a la derecha casi no cede, para que se note que no se puede permitir desde aquí
                 drag = (v.translation.width > 0 && !ask.canAllow) ? v.translation.width / 6 : v.translation.width
                 let now = abs(drag) > threshold
-                if now != crossed { crossed = now; if now { UIImpactFeedbackGenerator(style: .medium).impactOccurred() } }
+                if now != crossed { crossed = now; if now { Feel.shared.threshold() } }
             }
             .onEnded { _ in
                 let d = drag
                 if d > threshold, ask.canAllow { withAnimation(.snappy) { drag = 700 }; model.answer(ask, allow: true) }
                 else if d < -threshold { withAnimation(.snappy) { drag = -700 }; model.answer(ask, allow: false) }
-                else { withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { drag = 0 }; if d > threshold { UINotificationFeedbackGenerator().notificationOccurred(.error) } }
+                else { withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) { drag = 0 }; if d > threshold { Feel.shared.denied() } }
                 crossed = false
             })
     }
@@ -285,6 +289,7 @@ struct QuestionCard: View {
 struct SettingsView: View {
     @ObservedObject var model: PhoneModel
     @ObservedObject var client: VistoClient
+    @ObservedObject private var feel = Feel.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -295,6 +300,14 @@ struct SettingsView: View {
                     LabeledContent("Apple Watch", value: model.watchPaired ? "Emparejado" : "No encontrado")
                     Button("Reintentar") { model.retry() }
                 }
+                Section {
+                    Toggle("Sonidos", isOn: $feel.sounds)
+                    Toggle("Háptica", isOn: $feel.haptics)
+                    Toggle("Voz: lee los permisos en voz alta", isOn: $feel.voice)
+                    Toggle("Destello de linterna al pedir permiso", isOn: $feel.torch)
+                    Toggle("Inclinar la mascota con el giroscopio", isOn: $feel.tilt)
+                    Button("Probar") { Feel.shared.ask(tool: "Bash", project: "claude-pet", risky: false) }
+                } header: { Text("Sensaciones") } footer: { Text("Los sonidos se sintetizan en el teléfono y respetan el interruptor de silencio. La voz y la linterna empiezan apagadas.") }
                 Section("Historial") {
                     Button("Borrar mis decisiones guardadas", role: .destructive) { model.clearHistory() }
                 }

@@ -32,8 +32,8 @@ final class PhoneModel: NSObject, ObservableObject {
             UNNotificationCategory(identifier: Self.categoryDenyOnly, actions: [deny], intentIdentifiers: [], options: []),
         ])
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
-        client.onNewAsk = { [weak self] a in self?.notify(a); UINotificationFeedbackGenerator().notificationOccurred(.warning) }
-        client.onNewQuestion = { [weak self] q in self?.notify(question: q); UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+        client.onNewAsk = { [weak self] a in self?.notify(a); Feel.shared.ask(tool: a.tool, project: a.project, risky: !a.canAllow) }
+        client.onNewQuestion = { [weak self] q in self?.notify(question: q); Feel.shared.question(project: q.project) }
         client.onEvent = { [weak self] kind, agent, project, secs in self?.notify(event: kind, agent: agent, project: project, seconds: secs) }
         client.onChange = { [weak self] in self?.changed() }
         client.configure(code: code, deviceName: UIDevice.current.name)
@@ -82,7 +82,7 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func notify(event kind: String, agent: String, project: String, seconds: Int) {
         let ok = kind == "done"
-        UINotificationFeedbackGenerator().notificationOccurred(ok ? .success : .error)
+        if ok { Feel.shared.done(agent: agent, project: project) } else { Feel.shared.failed(agent: agent, project: project) }
         let c = UNMutableNotificationContent()
         c.title = ok ? "\(VTFormat.agentName(agent)) terminó" : "\(VTFormat.agentName(agent)) falló"
         c.subtitle = project
@@ -92,8 +92,16 @@ final class PhoneModel: NSObject, ObservableObject {
         if let s = session, s.isReachable { s.sendMessage(["event": [kind, agent, project, seconds]], replyHandler: nil, errorHandler: nil) }
     }
 
+    private var lastFeedCount = 0
+    private var lastLeadState = "idle"
+
     private func changed() {
         pushToWatch()
+        // cada paso nuevo de un agente se nota; y se nota cuando empieza a pensar
+        if client.feed.count != lastFeedCount { if client.agents.contains(where: { $0.state == "tool" }) { Feel.shared.tick() }; lastFeedCount = client.feed.count }
+        let lead = client.agents.first(where: \.isBusy)?.state ?? "idle"
+        if lead == "thinking", lastLeadState != "thinking" { Feel.shared.thinking() }
+        lastLeadState = lead
         UNUserNotificationCenter.current().setBadgeCount(client.asks.count + client.questions.count) { _ in }
     }
 
@@ -101,12 +109,14 @@ final class PhoneModel: NSObject, ObservableObject {
 
     func answer(_ ask: Ask, allow: Bool) {
         client.answer(ask.id, allow: allow)
+        if allow { Feel.shared.allowed() } else { Feel.shared.denied() }
         record(DecisionRecord(tool: ask.tool, project: ask.project, allowed: allow, at: Date()))
         clearNotification(ask.id)
     }
 
     func reply(_ q: QAsk, picks: [[Int]]) {
         client.reply(q.id, picks: picks)
+        Feel.shared.allowed()
         record(DecisionRecord(tool: "Pregunta", project: q.project, allowed: true, at: Date()))
         clearNotification(q.id)
     }
