@@ -17,6 +17,9 @@ final class PhoneModel: NSObject, ObservableObject {
     private var started = false
     private let live = LiveManager()
     @Published var requireFaceID: Bool = UserDefaults.standard.bool(forKey: "auth.faceid") { didSet { UserDefaults.standard.set(requireFaceID, forKey: "auth.faceid") } }
+    @Published var language: Lang = L.current {
+        didSet { L.set(language); registerCategories(); pushCode() }
+    }
     private var session: WCSession?
     private var sub: AnyCancellable?
 
@@ -28,23 +31,27 @@ final class PhoneModel: NSObject, ObservableObject {
         started = true
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let allow = UNNotificationAction(identifier: "allow", title: "Permitir", options: [])
-        let deny = UNNotificationAction(identifier: "deny", title: "Denegar", options: [.destructive])
-        center.setNotificationCategories([
-            UNNotificationCategory(identifier: Self.categoryAllow, actions: [allow, deny], intentIdentifiers: [], options: []),
-            UNNotificationCategory(identifier: Self.categoryDenyOnly, actions: [deny], intentIdentifiers: [], options: []),
-        ])
+        registerCategories()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         client.onNewAsk = { [weak self] a in self?.notify(a); Feel.shared.ask(tool: a.tool, project: a.project, risky: !a.canAllow) }
         client.onNewQuestion = { [weak self] q in self?.notify(question: q); Feel.shared.question(project: q.project) }
         client.onEvent = { [weak self] kind, agent, project, secs in self?.notify(event: kind, agent: agent, project: project, seconds: secs) }
         client.onChange = { [weak self] in self?.changed() }
         QuickDecision.decide = { allow in await PhoneModel.shared.quickDecide(allow: allow) }
-        QuickDecision.focus = { on in await MainActor.run { PhoneModel.shared.client.setFocus(on) }; return on ? "Modo foco activado." : "Modo foco apagado." }
+        QuickDecision.focus = { on in await MainActor.run { PhoneModel.shared.client.setFocus(on) }; return on ? L.tr("Modo foco activado.") : L.tr("Modo foco apagado.") }
         LiveBridge.decide = { id, allow in await PhoneModel.shared.decideByID(id, allow: allow) }
         client.configure(code: code, deviceName: UIDevice.current.name)
         client.start()
         if WCSession.isSupported() { let s = WCSession.default; s.delegate = self; s.activate(); session = s }
+    }
+
+    private func registerCategories() {
+        let allow = UNNotificationAction(identifier: "allow", title: L.tr("Permitir"), options: [])
+        let deny = UNNotificationAction(identifier: "deny", title: L.tr("Denegar"), options: [.destructive])
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: Self.categoryAllow, actions: [allow, deny], intentIdentifiers: [], options: []),
+            UNNotificationCategory(identifier: Self.categoryDenyOnly, actions: [deny], intentIdentifiers: [], options: []),
+        ])
     }
 
     func pair(_ raw: String) -> Bool {
@@ -68,9 +75,9 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func notify(_ a: Ask) {
         let c = UNMutableNotificationContent()
-        c.title = "Claude pide permiso: \(a.tool)"
+        c.title = L.t("Claude pide permiso: \(a.tool)", "Claude asks for permission: \(a.tool)")
         c.subtitle = a.project
-        c.body = a.detail.isEmpty ? "Sin detalle" : String(a.detail.prefix(160))
+        c.body = a.detail.isEmpty ? L.tr("Sin detalle") : String(a.detail.prefix(160))
         c.sound = .default
         c.categoryIdentifier = a.canAllow ? Self.categoryAllow : Self.categoryDenyOnly
         c.userInfo = ["id": a.id]
@@ -79,7 +86,7 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func notify(question q: QAsk) {
         let c = UNMutableNotificationContent()
-        c.title = "Claude pregunta"
+        c.title = L.tr("Claude pregunta")
         c.subtitle = q.project
         c.body = String((q.items.first?.question ?? "").prefix(160))
         c.sound = .default
@@ -90,9 +97,9 @@ final class PhoneModel: NSObject, ObservableObject {
         let ok = kind == "done"
         if ok { Feel.shared.done(agent: agent, project: project) } else { Feel.shared.failed(agent: agent, project: project) }
         let c = UNMutableNotificationContent()
-        c.title = ok ? "\(VTFormat.agentName(agent)) terminó" : "\(VTFormat.agentName(agent)) falló"
+        c.title = ok ? L.t("\(VTFormat.agentName(agent)) terminó", "\(VTFormat.agentName(agent)) finished") : L.t("\(VTFormat.agentName(agent)) falló", "\(VTFormat.agentName(agent)) failed")
         c.subtitle = project
-        c.body = ok ? "Trabajó \(VTFormat.duration(seconds))." : "Se detuvo con un error después de \(VTFormat.duration(seconds))."
+        c.body = ok ? L.t("Trabajó \(VTFormat.duration(seconds)).", "Worked for \(VTFormat.duration(seconds)).") : L.t("Se detuvo con un error después de \(VTFormat.duration(seconds)).", "Stopped with an error after \(VTFormat.duration(seconds)).")
         c.sound = ok ? .default : UNNotificationSound.defaultCritical
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
         if let s = session, s.isReachable { s.sendMessage(["event": [kind, agent, project, seconds]], replyHandler: nil, errorHandler: nil) }
@@ -118,7 +125,7 @@ final class PhoneModel: NSObject, ObservableObject {
     private func authorized(_ allow: Bool) async -> Bool {
         guard allow, requireFaceID else { return true }
         let ctx = LAContext()
-        return (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Permitir lo que pide Claude")) ?? false
+        return (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L.tr("Permitir lo que pide Claude"))) ?? false
     }
 
     func answer(_ ask: Ask, allow: Bool) {
@@ -136,13 +143,13 @@ final class PhoneModel: NSObject, ObservableObject {
     func quickDecide(allow: Bool) async -> String {
         start()
         for _ in 0..<50 where !(client.isConnected && !client.asks.isEmpty) { try? await Task.sleep(nanoseconds: 100_000_000) }
-        guard client.isConnected else { return "No encuentro claude pet en la red." }
+        guard client.isConnected else { return L.tr("No encuentro claude pet en la red.") }
         guard let ask = client.asks.last(where: { allow ? $0.canAllow : true }) else {
-            return client.asks.isEmpty ? "No hay permisos pendientes." : "Lo pendiente es de riesgo alto: apruébalo en la Mac."
+            return client.asks.isEmpty ? L.tr("No hay permisos pendientes.") : L.tr("Lo pendiente es de riesgo alto: apruébalo en la Mac.")
         }
-        guard await authorized(allow) else { return "No se confirmó con Face ID." }
+        guard await authorized(allow) else { return L.tr("No se confirmó con Face ID.") }
         commit(ask, allow: allow)
-        return allow ? "Permitido: \(ask.tool) en \(ask.project)." : "Denegado: \(ask.tool) en \(ask.project)."
+        return allow ? L.t("Permitido: \(ask.tool) en \(ask.project).", "Allowed: \(ask.tool) in \(ask.project).") : L.t("Denegado: \(ask.tool) en \(ask.project).", "Denied: \(ask.tool) in \(ask.project).")
     }
 
     func decideByID(_ id: String, allow: Bool) async {
@@ -174,7 +181,7 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func pushCode() {
         guard let s = session, s.activationState == .activated else { return }
-        var ctx = s.applicationContext; ctx["code"] = code ?? ""
+        var ctx = s.applicationContext; ctx["code"] = code ?? ""; ctx["lang"] = language.rawValue
         try? s.updateApplicationContext(ctx)
     }
 

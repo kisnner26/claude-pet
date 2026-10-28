@@ -152,7 +152,7 @@ final class Feel: ObservableObject {
         buzz([Tap(t: 0, intensity: 0.7, sharp: 0.6), Tap(t: 0.14, intensity: 1, sharp: 0.9)] + (risky ? [Tap(t: 0.3, intensity: 1, sharp: 1), Tap(t: 0.42, intensity: 1, sharp: 1)] : []))
         chime(risky ? [Note(f: 659, t: 0, d: 0.16, w: .triangle), Note(f: 622, t: 0.15, d: 0.16, w: .triangle), Note(f: 659, t: 0.3, d: 0.3, w: .triangle)]
                     : [Note(f: 659, t: 0, d: 0.14, w: .triangle), Note(f: 880, t: 0.12, d: 0.34, w: .triangle)])
-        speak("Claude pide permiso para \(tool) en \(project)")
+        speak(L.t("Claude pide permiso para \(tool) en \(project)", "Claude asks permission for \(tool) in \(project)"))
         pulseTorch(risky ? 3 : 2)
         glow(VT.amber)
     }
@@ -160,21 +160,21 @@ final class Feel: ObservableObject {
     func question(project: String) {
         buzz([Tap(t: 0, intensity: 0.5, sharp: 0.4), Tap(t: 0.1, intensity: 0.7, sharp: 0.5), Tap(t: 0.2, intensity: 0.9, sharp: 0.7)])
         chime([Note(f: 523, t: 0, d: 0.12), Note(f: 659, t: 0.1, d: 0.12), Note(f: 784, t: 0.2, d: 0.3)])
-        speak("Claude te hace una pregunta en \(project)")
+        speak(L.t("Claude te hace una pregunta en \(project)", "Claude has a question in \(project)"))
         glow(VT.codex)
     }
 
     func done(agent: String, project: String) {
         buzz([Tap(t: 0, intensity: 0.4, sharp: 0.3, dur: 0.25), Tap(t: 0.28, intensity: 1, sharp: 0.8), Tap(t: 0.4, intensity: 0.8, sharp: 0.7), Tap(t: 0.52, intensity: 0.6, sharp: 0.6)])
         chime([Note(f: 523, t: 0, d: 0.5, g: 0.28), Note(f: 659, t: 0.09, d: 0.5, g: 0.28), Note(f: 784, t: 0.18, d: 0.5, g: 0.28), Note(f: 1047, t: 0.27, d: 0.7, g: 0.3)])
-        speak("\(VTFormat.agentName(agent)) terminó en \(project)")
+        speak(L.t("\(VTFormat.agentName(agent)) terminó en \(project)", "\(VTFormat.agentName(agent)) finished in \(project)"))
         glow(VT.green)
     }
 
     func failed(agent: String, project: String) {
         buzz([Tap(t: 0, intensity: 1, sharp: 0.2, dur: 0.35), Tap(t: 0.4, intensity: 1, sharp: 1), Tap(t: 0.5, intensity: 1, sharp: 1)])
         chime([Note(f: 220, f2: 110, t: 0, d: 0.45, g: 0.3, w: .square), Note(f: 165, f2: 82, t: 0.18, d: 0.5, g: 0.25, w: .square)])
-        speak("\(VTFormat.agentName(agent)) falló en \(project)")
+        speak(L.t("\(VTFormat.agentName(agent)) falló en \(project)", "\(VTFormat.agentName(agent)) failed in \(project)"))
         pulseTorch(3)
         glow(VT.red)
     }

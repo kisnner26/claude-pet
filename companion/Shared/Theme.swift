@@ -68,8 +68,8 @@ struct RiskChip: View {
 enum VTFormat {
     static func state(_ raw: String) -> String {
         switch raw {
-        case "starting": return "Iniciando"; case "thinking": return "Pensando"; case "tool": return "Ejecutando"
-        case "waiting": return "Espera tu respuesta"; case "done": return "Listo"; case "error": return "Error"; default: return "En reposo"
+        case "starting": return L.tr("Iniciando"); case "thinking": return L.tr("Pensando"); case "tool": return L.tr("Ejecutando")
+        case "waiting": return L.tr("Espera tu respuesta"); case "done": return L.tr("Listo"); case "error": return L.tr("Error"); default: return L.tr("En reposo")
         }
     }
     static func stateColor(_ raw: String) -> Color {

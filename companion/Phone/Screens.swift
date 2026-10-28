@@ -93,7 +93,7 @@ struct HomeView: View {
                 Text("VISTO").font(.system(size: 12, weight: .semibold, design: .monospaced)).tracking(3).foregroundStyle(VT.mute)
                 HStack(spacing: 6) {
                     Circle().fill(client.isConnected ? VT.green : VT.amber).frame(width: 7, height: 7)
-                    Text(client.isConnected ? "Conectado · \(client.hostName ?? "Mac")" : "Buscando claude pet").font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(client.isConnected ? .white : VT.mute)
+                    Text(client.isConnected ? L.tr("Conectado") + " · \(client.hostName ?? "Mac")" : L.tr("Buscando claude pet")).font(.system(size: 12, weight: .medium, design: .monospaced)).foregroundStyle(client.isConnected ? .white : VT.mute)
                 }
                 if !client.isConnected, client.detail.contains("rechazó") {
                     Text(client.detail).font(.system(size: 12)).foregroundStyle(VT.amber).fixedSize(horizontal: false, vertical: true)
@@ -305,9 +305,12 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section("Conexión") {
-                    LabeledContent("Estado", value: client.isConnected ? "Conectado a \(client.hostName ?? "Mac")" : "Sin conexión")
+                    LabeledContent("Estado", value: client.isConnected ? L.t("Conectado a \(client.hostName ?? "Mac")", "Connected to \(client.hostName ?? "Mac")") : "Sin conexión")
                     LabeledContent("Apple Watch", value: model.watchPaired ? "Emparejado" : "No encontrado")
                     Button("Reintentar") { model.retry() }
+                }
+                Section {
+                    Picker(selection: $model.language) { ForEach(Lang.allCases) { Text(verbatim: $0.name).tag($0) } } label: { Text("Idioma") }
                 }
                 Section {
                     Toggle("Pedir Face ID para permitir", isOn: $model.requireFaceID)

@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.9.0] - 2026-10-28
+
+### añadido
+- Idioma español o inglés: selector en Ajustes → comportamiento (por defecto sigue el idioma del sistema) y se aplica al momento. Todo `Text`, `Button` y `Label` pasa por un traductor central, así que cada frase nueva solo necesita su entrada en `L10nEN.swift`.
+- Visto: selector de idioma en el iPhone; el reloj lo hereda del teléfono. Voz, avisos y estados siguen el idioma elegido.
+
+### pendiente
+- Frases armadas con nombres propios (proyectos, agentes) y los textos de los widgets, Siri y Atajos siguen en español.
+
 ## [2.8.0] - 2026-10-28
 
 ### añadido

@@ -16,6 +16,7 @@ final class WatchModel: NSObject, ObservableObject {
     private var flicks: [Date] = []
     private var lastSign = 0.0
     @Published var code: String? = VistoStore.code
+    @Published var language: Lang = L.current
     @Published private(set) var relayed = VistoSnapshot()
     @Published private(set) var reachable = false
     private var session: WCSession?
@@ -36,15 +37,15 @@ final class WatchModel: NSObject, ObservableObject {
         client.start()
         let s = WCSession.default; s.delegate = self; s.activate(); session = s
         QuickDecision.decide = { allow in await WatchModel.shared.quickDecide(allow: allow) }
-        QuickDecision.focus = { on in await MainActor.run { WatchModel.shared.setFocus(on) }; return on ? "Modo foco activado." : "Modo foco apagado." }
+        QuickDecision.focus = { on in await MainActor.run { WatchModel.shared.setFocus(on) }; return on ? L.tr("Modo foco activado.") : L.tr("Modo foco apagado.") }
     }
 
     func quickDecide(allow: Bool) async -> String {
         start()
         for _ in 0..<60 where asks.isEmpty { try? await Task.sleep(nanoseconds: 100_000_000) }
-        guard let ask = asks.last(where: { allow ? $0.canAllow : true }) else { return asks.isEmpty ? "No hay permisos pendientes." : "Lo pendiente es de riesgo alto: apruébalo en la Mac." }
+        guard let ask = asks.last(where: { allow ? $0.canAllow : true }) else { return asks.isEmpty ? L.tr("No hay permisos pendientes.") : L.tr("Lo pendiente es de riesgo alto: apruébalo en la Mac.") }
         answer(ask, allow: allow)
-        return allow ? "Permitido: \(ask.tool)." : "Denegado: \(ask.tool)."
+        return allow ? L.t("Permitido: \(ask.tool).", "Allowed: \(ask.tool).") : L.t("Denegado: \(ask.tool).", "Denied: \(ask.tool).")
     }
 
     // MARK: gesto de muñeca
@@ -90,6 +91,7 @@ final class WatchModel: NSObject, ObservableObject {
     }
 
     private func apply(_ ctx: [String: Any]) {
+        if let l = ctx["lang"] as? String, let lang = Lang(rawValue: l), lang != L.current { L.set(lang); language = lang }
         if let c = ctx["code"] as? String {
             let v = c.isEmpty ? nil : c
             VistoStore.code = v; code = v
