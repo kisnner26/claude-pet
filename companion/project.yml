@@ -19,13 +19,17 @@ targets:
   Visto:
     type: application
     platform: iOS
-    sources: [Phone, Shared]
+    sources: [Phone, Shared, Intents, LiveShared]
     dependencies:
       - package: VistoCore
       - target: VistoWatch
+      - target: VistoLive
     info:
       path: Phone/Info.plist
       properties:
+        NSSupportsLiveActivities: true
+        NSCameraUsageDescription: Visto lee el código QR de claude pet para emparejarse, y usa la linterna si activas el destello.
+        NSFaceIDUsageDescription: Visto puede pedir Face ID antes de permitir algo desde el móvil.
         CFBundleDisplayName: Visto
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -38,10 +42,28 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.kisnner26.visto
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  VistoLive:
+    type: app-extension
+    platform: iOS
+    sources: [Live, Shared, LiveShared]
+    dependencies:
+      - package: VistoCore
+    info:
+      path: Live/Info.plist
+      properties:
+        CFBundleDisplayName: Visto
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kisnner26.visto.live
+        TARGETED_DEVICE_FAMILY: "1"
   VistoWatch:
     type: application
     platform: watchOS
-    sources: [Watch, Shared]
+    sources: [Watch, Shared, Intents]
     dependencies:
       - package: VistoCore
     info:

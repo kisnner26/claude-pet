@@ -99,6 +99,8 @@ struct PetHero: View {
     var size: CGFloat = 220
     /// Inclinación del dispositivo (-1...1): mueve cada capa a distinta profundidad, como un diorama.
     var tilt: CGSize = .zero
+    /// Pantalla siempre encendida del reloj: la mascota se queda quieta y tenue para gastar poco.
+    @Environment(\.isLuminanceReduced) private var dim
 
     private func ring(_ remaining: Int?, _ radius: CGFloat, _ width: CGFloat, _ base: Color) -> some View {
         let left = Double(remaining ?? 0) / 100
@@ -122,18 +124,19 @@ struct PetHero: View {
             ring(plan?.five?.remaining(), size * 0.47, size * 0.045, VT.blue).offset(x: tilt.width * size * 0.012, y: tilt.height * size * 0.012)
             ring(plan?.week?.remaining(), size * 0.40, size * 0.035, VT.codex.opacity(0.8)).offset(x: tilt.width * size * 0.024, y: tilt.height * size * 0.024)
             ring(agent?.contextRemaining, size * 0.34, size * 0.028, VT.claude).offset(x: tilt.width * size * 0.036, y: tilt.height * size * 0.036)
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
-                let t = ctx.date.timeIntervalSinceReferenceDate
-                let pose = PetMotion.pose(state, t)
+            TimelineView(.animation(minimumInterval: dim ? 5 : 1.0 / 30)) { ctx in
+                let t = dim ? 0 : ctx.date.timeIntervalSinceReferenceDate
+                let pose = PetMotion.pose(dim ? "idle" : state, t)
                 ZStack {
                     PixelSprite(art: art, blink: agent?.agent != "codex" && PetMotion.blink(t) && state == "idle")
                         .frame(width: size * 0.40, height: size * 0.40)
                         .scaleEffect(x: pose.sx, y: pose.sy).rotationEffect(.degrees(pose.tilt)).offset(x: pose.dx + tilt.width * size * 0.07, y: pose.dy + tilt.height * size * 0.07)
-                    overlay(state, t)
+                    if !dim { overlay(state, t) }
                 }
             }
         }
         .frame(width: size, height: size)
+        .opacity(dim ? 0.55 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(agent.map { "\(VTFormat.agentName($0.agent)): \(VTFormat.state($0.state))" } ?? "Sin agentes activos")
     }

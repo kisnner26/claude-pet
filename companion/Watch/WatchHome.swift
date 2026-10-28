@@ -41,6 +41,7 @@ struct WatchHome: View {
                                 Text("\(last.tool) · \(last.target)").font(.system(size: 10, design: .monospaced)).foregroundStyle(VT.mute).lineLimit(1).truncationMode(.head)
                             }
                             if model.connected {
+                                Toggle("Girar muñeca: denegar", isOn: $model.wristDeny).font(.system(size: 12, weight: .medium)).tint(VT.red)
                                 Toggle("Modo foco", isOn: Binding(get: { snap.focus }, set: { model.setFocus($0) })).font(.system(size: 13, weight: .medium)).tint(VT.blue)
                             }
                         }

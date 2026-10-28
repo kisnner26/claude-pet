@@ -1,4 +1,5 @@
 import Combine
+import CoreMotion
 import Foundation
 import VistoCore
 import WatchConnectivity
@@ -7,7 +8,13 @@ import WatchKit
 /// El reloj intenta hablar directo con claude pet por Wi-Fi; si no puede, usa lo que le retransmite el iPhone.
 @MainActor
 final class WatchModel: NSObject, ObservableObject {
+    static let shared = WatchModel()
     let client = VistoClient()
+    /// Girar la muñeca dos veces con fuerza deniega el permiso que tengas delante. Solo deniega: es lo seguro. Empieza apagado.
+    @Published var wristDeny: Bool = UserDefaults.standard.bool(forKey: "wristDeny") { didSet { UserDefaults.standard.set(wristDeny, forKey: "wristDeny"); syncMotion() } }
+    private let motion = CMMotionManager()
+    private var flicks: [Date] = []
+    private var lastSign = 0.0
     @Published var code: String? = VistoStore.code
     @Published private(set) var relayed = VistoSnapshot()
     @Published private(set) var reachable = false
@@ -28,6 +35,37 @@ final class WatchModel: NSObject, ObservableObject {
         client.configure(code: code, deviceName: "Apple Watch")
         client.start()
         let s = WCSession.default; s.delegate = self; s.activate(); session = s
+        QuickDecision.decide = { allow in await WatchModel.shared.quickDecide(allow: allow) }
+        QuickDecision.focus = { on in await MainActor.run { WatchModel.shared.setFocus(on) }; return on ? "Modo foco activado." : "Modo foco apagado." }
+    }
+
+    func quickDecide(allow: Bool) async -> String {
+        start()
+        for _ in 0..<60 where asks.isEmpty { try? await Task.sleep(nanoseconds: 100_000_000) }
+        guard let ask = asks.last(where: { allow ? $0.canAllow : true }) else { return asks.isEmpty ? "No hay permisos pendientes." : "Lo pendiente es de riesgo alto: apruébalo en la Mac." }
+        answer(ask, allow: allow)
+        return allow ? "Permitido: \(ask.tool)." : "Denegado: \(ask.tool)."
+    }
+
+    // MARK: gesto de muñeca
+
+    /// El giroscopio solo corre mientras hay algo que denegar y el gesto está activo: no gasta batería el resto del tiempo.
+    func syncMotion() {
+        let want = wristDeny && !asks.isEmpty
+        if want, !motion.isGyroActive, motion.isGyroAvailable {
+            motion.gyroUpdateInterval = 1.0 / 30
+            motion.startGyroUpdates(to: .main) { [weak self] d, _ in
+                guard let self, let r = d?.rotationRate else { return }
+                // giro de muñeca: velocidad angular fuerte sobre el eje del antebrazo, de ida y de vuelta
+                let v = r.y
+                guard abs(v) > 4.5 else { return }
+                let sign: Double = v > 0 ? 1 : -1
+                let now = Date()
+                if sign != self.lastSign { self.flicks.append(now); self.lastSign = sign }
+                self.flicks.removeAll { now.timeIntervalSince($0) > 0.8 }
+                if self.flicks.count >= 3, let ask = self.asks.first { self.flicks = []; self.answer(ask, allow: false) }
+            }
+        } else if !want, motion.isGyroActive { motion.stopGyroUpdates(); flicks = []; lastSign = 0 }
     }
 
     func answer(_ ask: Ask, allow: Bool) {
@@ -35,6 +73,7 @@ final class WatchModel: NSObject, ObservableObject {
         if client.isConnected { client.answer(ask.id, allow: allow) }
         else if let s = session, s.isReachable { s.sendMessage(["answer": [ask.id, allow]], replyHandler: nil, errorHandler: nil) }
         relayed.asks.removeAll { $0.id == ask.id }
+        syncMotion()
     }
 
     func reply(_ q: QAsk, picks: [[Int]]) {
@@ -60,6 +99,7 @@ final class WatchModel: NSObject, ObservableObject {
         if let d = ctx["snap"] as? Data, let new = try? JSONDecoder().decode(VistoSnapshot.self, from: d) {
             let old = Set(relayed.asks.map(\.id) + relayed.questions.map(\.id))
             relayed = new
+            syncMotion()
             if !client.isConnected, (new.asks.map(\.id) + new.questions.map(\.id)).contains(where: { !old.contains($0) }) { WKInterfaceDevice.current().play(.notification) }
         }
         if let e = ctx["event"] as? [Any], let kind = e.first as? String, !client.isConnected { WKInterfaceDevice.current().play(kind == "done" ? .success : .failure) }

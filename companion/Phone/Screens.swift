@@ -5,6 +5,7 @@ struct PairView: View {
     @ObservedObject var model: PhoneModel
     @State private var text = ""
     @State private var wrong = false
+    @State private var scanning = false
 
     var body: some View {
         ZStack {
@@ -27,11 +28,19 @@ struct PairView: View {
                     if wrong { Text("Ese código no es válido. Tiene 12 caracteres.").font(.system(size: 12)).foregroundStyle(VT.red) }
                     Text("En claude pet: Ajustes → seguridad → enviar permisos a Visto.").font(.system(size: 12)).foregroundStyle(VT.mute)
                 }
+                Button { scanning = true } label: { Label("Escanear código de claude pet", systemImage: "qrcode.viewfinder").font(.system(size: 16, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                    .buttonStyle(.glass)
                 Button { wrong = !model.pair(text) } label: { Text("Emparejar").font(.system(size: 17, weight: .semibold)).frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glassProminent).tint(VT.blue).disabled(!Pairing.isValid(text))
                 Spacer()
             }
             .padding(.horizontal, 24)
+        }
+        .fullScreenCover(isPresented: $scanning) {
+            ZStack(alignment: .topTrailing) {
+                QRScanner { code in scanning = false; _ = model.pair(code) }.ignoresSafeArea()
+                Button("Cerrar") { scanning = false }.buttonStyle(.glass).padding(20)
+            }.overlay(alignment: .bottom) { Text("Apunta al cuadro de Ajustes → permisos en la Mac").font(.system(size: 14, weight: .medium)).padding(12).glassEffect(.regular, in: .capsule).padding(.bottom, 50) }
         }
     }
 }
@@ -301,6 +310,7 @@ struct SettingsView: View {
                     Button("Reintentar") { model.retry() }
                 }
                 Section {
+                    Toggle("Pedir Face ID para permitir", isOn: $model.requireFaceID)
                     Toggle("Sonidos", isOn: $feel.sounds)
                     Toggle("Háptica", isOn: $feel.haptics)
                     Toggle("Voz: lee los permisos en voz alta", isOn: $feel.voice)

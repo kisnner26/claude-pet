@@ -1,4 +1,5 @@
 import Combine
+import LocalAuthentication
 import Foundation
 import UIKit
 import UserNotifications
@@ -14,6 +15,8 @@ final class PhoneModel: NSObject, ObservableObject {
     @Published var watchPaired = false
     @Published private(set) var history: [DecisionRecord] = DecisionRecord.load()
     private var started = false
+    private let live = LiveManager()
+    @Published var requireFaceID: Bool = UserDefaults.standard.bool(forKey: "auth.faceid") { didSet { UserDefaults.standard.set(requireFaceID, forKey: "auth.faceid") } }
     private var session: WCSession?
     private var sub: AnyCancellable?
 
@@ -36,6 +39,9 @@ final class PhoneModel: NSObject, ObservableObject {
         client.onNewQuestion = { [weak self] q in self?.notify(question: q); Feel.shared.question(project: q.project) }
         client.onEvent = { [weak self] kind, agent, project, secs in self?.notify(event: kind, agent: agent, project: project, seconds: secs) }
         client.onChange = { [weak self] in self?.changed() }
+        QuickDecision.decide = { allow in await PhoneModel.shared.quickDecide(allow: allow) }
+        QuickDecision.focus = { on in await MainActor.run { PhoneModel.shared.client.setFocus(on) }; return on ? "Modo foco activado." : "Modo foco apagado." }
+        LiveBridge.decide = { id, allow in await PhoneModel.shared.decideByID(id, allow: allow) }
         client.configure(code: code, deviceName: UIDevice.current.name)
         client.start()
         if WCSession.isSupported() { let s = WCSession.default; s.delegate = self; s.activate(); session = s }
@@ -97,6 +103,7 @@ final class PhoneModel: NSObject, ObservableObject {
 
     private func changed() {
         pushToWatch()
+        live.update(client)
         // cada paso nuevo de un agente se nota; y se nota cuando empieza a pensar
         if client.feed.count != lastFeedCount { if client.agents.contains(where: { $0.state == "tool" }) { Feel.shared.tick() }; lastFeedCount = client.feed.count }
         let lead = client.agents.first(where: \.isBusy)?.state ?? "idle"
@@ -107,11 +114,42 @@ final class PhoneModel: NSObject, ObservableObject {
 
     // MARK: acciones (con historial)
 
+    /// Permitir puede pedir Face ID (ajuste). Denegar nunca lo pide: es siempre lo seguro.
+    private func authorized(_ allow: Bool) async -> Bool {
+        guard allow, requireFaceID else { return true }
+        let ctx = LAContext()
+        return (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Permitir lo que pide Claude")) ?? false
+    }
+
     func answer(_ ask: Ask, allow: Bool) {
+        Task { if await authorized(allow) { commit(ask, allow: allow) } else { Feel.shared.denied() } }
+    }
+
+    private func commit(_ ask: Ask, allow: Bool) {
         client.answer(ask.id, allow: allow)
         if allow { Feel.shared.allowed() } else { Feel.shared.denied() }
         record(DecisionRecord(tool: ask.tool, project: ask.project, allowed: allow, at: Date()))
         clearNotification(ask.id)
+    }
+
+    /// Para Siri, el botón de acción y la Isla Dinámica: espera a conectar un momento (la app puede acabar de despertar).
+    func quickDecide(allow: Bool) async -> String {
+        start()
+        for _ in 0..<50 where !(client.isConnected && !client.asks.isEmpty) { try? await Task.sleep(nanoseconds: 100_000_000) }
+        guard client.isConnected else { return "No encuentro claude pet en la red." }
+        guard let ask = client.asks.last(where: { allow ? $0.canAllow : true }) else {
+            return client.asks.isEmpty ? "No hay permisos pendientes." : "Lo pendiente es de riesgo alto: apruébalo en la Mac."
+        }
+        guard await authorized(allow) else { return "No se confirmó con Face ID." }
+        commit(ask, allow: allow)
+        return allow ? "Permitido: \(ask.tool) en \(ask.project)." : "Denegado: \(ask.tool) en \(ask.project)."
+    }
+
+    func decideByID(_ id: String, allow: Bool) async {
+        start()
+        for _ in 0..<30 where !client.isConnected { try? await Task.sleep(nanoseconds: 100_000_000) }
+        guard let ask = client.asks.first(where: { $0.id == id }), await authorized(allow) else { return }
+        commit(ask, allow: allow)
     }
 
     func reply(_ q: QAsk, picks: [[Int]]) {

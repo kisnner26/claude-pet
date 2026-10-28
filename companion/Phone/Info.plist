@@ -24,8 +24,14 @@
 	<array>
 		<string>_claudepet-visto._tcp</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Visto lee el código QR de claude pet para emparejarse, y usa la linterna si activas el destello.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Visto puede pedir Face ID antes de permitir algo desde el móvil.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Visto encuentra claude pet en tu Mac por la red local para que apruebes permisos.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

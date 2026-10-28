@@ -20,6 +20,10 @@ struct PermisosPage: View {
                     .disabled(!store.islandPermissions)
                 if store.remoteApprovals, !store.remoteCode.isEmpty {
                     SDivider()
+                    SRow(title: "emparejar con la cámara", detail: "en Visto, pulsa «Escanear código» y apunta a este cuadro.") {
+                        if let qr = QRCode.image("visto://pair?c=\(store.remoteCode)", side: 120) { Image(nsImage: qr).interpolation(.none).resizable().frame(width: 120, height: 120).clipShape(RoundedRectangle(cornerRadius: 8)) }
+                    }
+                    SDivider()
                     SRow(title: "código de emparejamiento", detail: store.remotePeers.isEmpty ? "escríbelo en Visto una sola vez. no lo compartas." : "conectado: " + store.remotePeers.joined(separator: ", ")) {
                         HStack(spacing: 8) {
                             Text(Pairing.display(store.remoteCode)).font(.system(size: 13, weight: .semibold, design: .monospaced)).textSelection(.enabled)
