@@ -120,3 +120,44 @@ extension IslandSnapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 }
+
+extension IslandSnapshot {
+    /// `ClaudePet --snapshot-vinyl <ruta.png>`: el escenario con vinilo, resplandor y colores de una portada; sonando, pausado y sin portada.
+    @MainActor static func vinyl(to path: String) {
+        func cover(_ a: NSColor, _ b: NSColor) -> NSImage {
+            NSImage(size: NSSize(width: 96, height: 96), flipped: false) { r in
+                NSGradient(starting: a, ending: b)?.draw(in: r, angle: 55)
+                NSColor.white.withAlphaComponent(0.85).setFill(); NSBezierPath(ovalIn: NSRect(x: 30, y: 30, width: 36, height: 36)).fill(); return true
+            }
+        }
+        let covers: [(String, NSImage?, String, Bool, Double)] = [
+            ("sonando, en el pulso", cover(NSColor(calibratedRed: 0.1, green: 0.55, blue: 0.85, alpha: 1), NSColor(calibratedRed: 0.05, green: 0.1, blue: 0.4, alpha: 1)), "Heathens", true, 1),
+            ("sonando, otra canción", cover(NSColor(calibratedRed: 0.9, green: 0.25, blue: 0.3, alpha: 1), NSColor(calibratedRed: 0.4, green: 0.05, blue: 0.1, alpha: 1)), "Ride", true, 0.2),
+            ("pausado", cover(NSColor(calibratedRed: 0.2, green: 0.75, blue: 0.45, alpha: 1), NSColor(calibratedRed: 0.05, green: 0.3, blue: 0.2, alpha: 1)), "Holding On", false, 0),
+            ("sin portada aún", nil, "Nico", true, 0),
+        ]
+        let view = HStack(spacing: 14) {
+            ForEach(Array(covers.enumerated()), id: \.offset) { _, c in
+                let hex = c.1.flatMap { CoverPalette.from($0) } ?? CoverPalette.fallback(seed: c.2)
+                let colors = CoverPalette.palette(tint: hex)
+                VStack(spacing: 6) {
+                    ZStack(alignment: .bottom) {
+                        if c.3 { Circle().fill(Color(hex: hex)).frame(width: 96, height: 96).blur(radius: 26).opacity(0.16 + 0.34 * c.4) }
+                        FxCanvas(pixels: c.3 ? MusicFx.notes(at: 3.3, level: 0.7, trackAge: 9, colors: colors) + MusicFx.beat(pulse: MusicPulse(playing: true, listening: true, level: 0.9, bass: c.4, mid: 0.5, treble: 0.3, beatAge: 0.04), colors: colors) : [], unit: 3).frame(width: 104, height: 100)
+                        ClaudeSprite(outfits: [.headphones]).frame(width: 84, height: 84)
+                        VinylDisc(cover: c.1, seed: c.2, tint: Color(hex: hex), playing: c.3, beat: c.4)
+                            .frame(width: 104, height: 100, alignment: .topTrailing).offset(x: 2, y: -2)
+                    }.frame(width: 104, height: 100)
+                    Text(c.0).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.55))
+                    MusicPanelContent(now: NowPlaying(app: .spotify, isPlaying: c.3, title: c.2, artist: "twenty one pilots", album: "", position: 74, duration: 262, volume: 70, artworkURL: nil, uri: nil), cover: c.1, fixedPosition: 74, accent: Color(hex: hex))
+                        .frame(width: 330)
+                }
+            }
+        }
+        .padding(16).background(Color(hex: 0x15161C))
+        let r = ImageRenderer(content: view); r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}

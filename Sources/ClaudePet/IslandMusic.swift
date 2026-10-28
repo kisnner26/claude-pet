@@ -31,6 +31,8 @@ struct MusicPanelContent: View {
     let cover: NSImage?
     /// En vivo la posicion se interpola; en las capturas se fija.
     var fixedPosition: Double?
+    /// Acento de la cancion (progreso y boton); sin el, blanco.
+    var accent: Color = .white
     var position: (TimeInterval) -> Double = { _ in 0 }
     var onToggle: () -> Void = {}
     var onPrevious: () -> Void = {}
@@ -64,7 +66,7 @@ struct MusicPanelContent: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color.white.opacity(0.16))
-                        Capsule().fill(Color.white).frame(width: max(4, geo.size.width * CGFloat(max(0, min(1, f)))))
+                        Capsule().fill(accent).frame(width: max(4, geo.size.width * CGFloat(max(0, min(1, f)))))
                     }
                     .frame(height: 4).frame(maxHeight: .infinity)
                     .contentShape(Rectangle())
@@ -82,7 +84,7 @@ struct MusicPanelContent: View {
             Button(action: onPrevious) { Image(systemName: "backward.fill").font(.system(size: 13)) }.buttonStyle(.plain)
             Button(action: onToggle) {
                 Image(systemName: now.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 13, weight: .bold)).foregroundColor(.black)
-                    .frame(width: 30, height: 30).background(Circle().fill(Color.white))
+                    .frame(width: 30, height: 30).background(Circle().fill(accent))
             }.buttonStyle(.plain)
             Button(action: onNext) { Image(systemName: "forward.fill").font(.system(size: 13)) }.buttonStyle(.plain)
             Spacer(minLength: 6)
@@ -90,7 +92,7 @@ struct MusicPanelContent: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.16))
-                    Capsule().fill(Color.white.opacity(0.85)).frame(width: max(3, geo.size.width * CGFloat(volume / 100)))
+                    Capsule().fill(accent.opacity(0.85)).frame(width: max(3, geo.size.width * CGFloat(volume / 100)))
                 }
                 .frame(height: 4).frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
@@ -107,9 +109,10 @@ struct MusicPanelContent: View {
 /// El panel conectado al controlador real.
 struct MusicPanelView: View {
     @ObservedObject var music: MusicController
+    var accent: Color = .white
     var body: some View {
         if let now = music.nowPlaying {
-            MusicPanelContent(now: now, cover: music.cover, position: { music.position(at: $0) },
+            MusicPanelContent(now: now, cover: music.cover, accent: accent, position: { music.position(at: $0) },
                               onToggle: { music.send(.playPause) }, onPrevious: { music.send(.previous) }, onNext: { music.send(.next) },
                               onSeek: { music.seek(toFraction: $0) }, onVolume: { music.send(.volume($0)) })
                 .id(now.trackID)
@@ -118,16 +121,19 @@ struct MusicPanelView: View {
 }
 
 /// Notas que suben de la mascota mientras suena algo; con la escucha activada, ademas un ecualizador y un aro en cada pulso.
+/// Con el tinte activado, los colores salen de la portada.
 struct MusicNotesLayer: View {
     @ObservedObject var music: MusicController
     let store: PetStore
     var body: some View {
         if music.isPlaying {
+            let colors = store.musicAccent.map(CoverPalette.palette)
             TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { ctx in
                 let now = ProcessInfo.processInfo.systemUptime
                 let pulse = store.musicPulse(at: now)
-                FxCanvas(pixels: MusicFx.notes(at: ctx.date.timeIntervalSinceReferenceDate, level: pulse?.listening == true ? max(0.15, pulse?.level ?? 0.5) : Double(music.nowPlaying?.volume ?? 50) / 100,
-                                               trackAge: now - music.trackChangedAt) + (pulse.map(MusicFx.beat) ?? []), unit: 3)
+                let level = pulse?.listening == true ? max(0.15, pulse?.level ?? 0.5) : Double(music.nowPlaying?.volume ?? 50) / 100
+                FxCanvas(pixels: MusicFx.notes(at: ctx.date.timeIntervalSinceReferenceDate, level: level, trackAge: now - music.trackChangedAt, colors: colors)
+                         + (pulse.map { MusicFx.beat(pulse: $0, colors: colors) } ?? []), unit: 3)
             }
             .allowsHitTesting(false).accessibilityHidden(true)
         }

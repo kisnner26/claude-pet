@@ -172,7 +172,8 @@ enum MusicDance {
 extension MusicFx {
     static let bandColors: [UInt32] = [0x7FD1FF, 0xFF9FD0, 0xFFD166]
 
-    static func beat(pulse m: MusicPulse) -> [FxPixel] {
+    static func beat(pulse m: MusicPulse, colors: [UInt32]? = nil) -> [FxPixel] {
+        let bandColors = colors ?? Self.bandColors
         guard m.listening else { return [] }
         var out: [FxPixel] = []
         // tres barras de ecualizador a los pies

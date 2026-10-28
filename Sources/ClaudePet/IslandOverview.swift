@@ -44,7 +44,7 @@ struct IslandOverviewView: View {
                 header.reveal(1, shown, animated: animated)
                 if showMusic && music.nowPlaying != nil {
                     Spacer(minLength: 0)
-                    MusicPanelView(music: music).transition(.opacity)
+                    MusicPanelView(music: music, accent: store.musicAccent.map { Color(hex: $0) } ?? .white).transition(.opacity)
                     Spacer(minLength: 0)
                 } else {
                     speech.reveal(2, shown, animated: animated)

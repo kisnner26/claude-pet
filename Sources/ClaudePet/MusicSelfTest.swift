@@ -101,6 +101,24 @@ enum MusicSelfTest {
         CoverCache.prune(in: dir, maxFiles: 80, maxBytes: 1)
         check("cache-prune-bytes", ((try? FileManager.default.contentsOfDirectory(atPath: dir.path))?.count ?? 99) == 0)
 
+        // paleta de la portada
+        func solid(_ r: Double, _ g: Double, _ b: Double, n: Int = 100) -> [(r: Double, g: Double, b: Double)] { Array(repeating: (r, g, b), count: n) }
+        func hueOf(_ hex: UInt32) -> Double { CoverPalette.hsv(Double(hex >> 16 & 0xFF) / 255, Double(hex >> 8 & 0xFF) / 255, Double(hex & 0xFF) / 255).h }
+        let red = CoverPalette.dominant(solid(0.8, 0.1, 0.1)), teal = CoverPalette.dominant(solid(0.1, 0.7, 0.7))
+        check("paleta: rojo y verde azulado", red.map { hueOf($0) < 0.03 || hueOf($0) > 0.97 } == true && teal.map { abs(hueOf($0) - 0.5) < 0.04 } == true)
+        check("paleta: grises, blancos, negros y vacio no dan color", CoverPalette.dominant(solid(0.5, 0.5, 0.5)) == nil && CoverPalette.dominant(solid(1, 1, 1)) == nil && CoverPalette.dominant(solid(0, 0, 0)) == nil && CoverPalette.dominant([]) == nil)
+        check("paleta: manda el color que mas pesa", { let hex = CoverPalette.dominant(solid(0.1, 0.2, 0.9, n: 70) + solid(0.1, 0.9, 0.2, n: 30)); return hex.map { abs(hueOf($0) - 0.65) < 0.05 } ?? false }())
+        check("paleta: un fondo gris no tapa el color", CoverPalette.dominant(solid(0.4, 0.4, 0.4, n: 90) + solid(0.9, 0.5, 0.1, n: 30)).map { abs(hueOf($0) - 0.08) < 0.04 } ?? false)
+        check("paleta: ruido de color suelto no cuenta", CoverPalette.dominant(solid(0.4, 0.4, 0.4, n: 990) + solid(0.9, 0.1, 0.1, n: 5)) == nil)
+        check("paleta: el acento sale vivo y claro", [red, teal].compactMap { $0 }.allSatisfy { h in let c = CoverPalette.hsv(Double(h >> 16 & 0xFF) / 255, Double(h >> 8 & 0xFF) / 255, Double(h & 0xFF) / 255); return c.s >= 0.55 && c.v >= 0.85 })
+        let tealImage = NSImage(size: NSSize(width: 60, height: 60), flipped: false) { r in NSColor(calibratedRed: 0.1, green: 0.7, blue: 0.7, alpha: 1).setFill(); r.fill(); return true }
+        let grayImage = NSImage(size: NSSize(width: 60, height: 60), flipped: false) { r in NSColor.gray.setFill(); r.fill(); return true }
+        check("paleta: de una imagen real", CoverPalette.from(tealImage).map { abs(hueOf($0) - 0.5) < 0.05 } == true && CoverPalette.from(grayImage) == nil)
+        check("paleta: fallback estable por titulo", CoverPalette.fallback(seed: "Taxi Cab") == CoverPalette.fallback(seed: "Taxi Cab") && CoverPalette.fallback(seed: "Taxi Cab") != CoverPalette.fallback(seed: "Heathens"))
+        check("paleta: tres tonos validos y distintos", { let p = CoverPalette.palette(tint: 0xE0824F); return p.count == 3 && Set(p).count == 3 && p.allSatisfy { $0 <= 0xFFFFFF } && p[0] == 0xE0824F }())
+        let c0 = CoverPalette.rgb(h: 0.33, s: 0.7, v: 0.8), c1 = CoverPalette.hsv(c0.r, c0.g, c0.b)
+        check("paleta: hsv y rgb son inversos", abs(c1.h - 0.33) < 0.002 && abs(c1.s - 0.7) < 0.002 && abs(c1.v - 0.8) < 0.002)
+
         // los scripts tienen que compilar contra el diccionario real de cada app instalada (compilar no abre la app)
         for app in MusicApp.allCases where NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundle) != nil {
             for (label, source) in [("query", MusicScript.query(app)), ("playpause", MusicScript.command(.playPause, app: app)), ("seek", MusicScript.command(.seek(30), app: app)), ("volume", MusicScript.command(.volume(40), app: app)), ("play", MusicScript.play(id: app == .spotify ? "spotify:track:6rqhFgbbKwnb9MLmUQDhG6" : "A1B2C3D4E5F60789", app: app) ?? "")] {

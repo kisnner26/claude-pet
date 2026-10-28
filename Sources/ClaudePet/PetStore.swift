@@ -144,6 +144,16 @@ final class PetStore: ObservableObject {
     @Published var musicListens: Bool = UserDefaults.standard.bool(forKey: "musicListens") {
         didSet { UserDefaults.standard.set(musicListens, forKey: "musicListens"); syncAudio() }
     }
+    /// Los acentos de la musica (progreso, ecualizador, brillo) toman el color de la portada.
+    @Published var musicTint: Bool = UserDefaults.standard.object(forKey: "musicTint") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(musicTint, forKey: "musicTint") }
+    }
+    /// Un vinilo con la portada gira junto a la mascota mientras suena la musica.
+    @Published var musicVinyl: Bool = UserDefaults.standard.object(forKey: "musicVinyl") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(musicVinyl, forKey: "musicVinyl") }
+    }
+    /// Color de acento de lo que suena (nil si el tinte esta apagado o no suena nada).
+    var musicAccent: UInt32? { musicTint ? music.tint : nil }
     /// La captura solo corre mientras suena algo, el reproductor esta activo y el usuario lo ha pedido.
     func syncAudio() { AudioReactor.shared.setActive(musicPlayer && musicReacts && musicListens && music.isPlaying) }
 

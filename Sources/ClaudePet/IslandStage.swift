@@ -40,7 +40,9 @@ struct IslandStage: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             if animated { StageSceneView(state: state, idleSeconds: model.idleSeconds).frame(width: 104, height: 100) }      // el clima y los detalles del estado
+            if animated, store.musicPlayer, store.musicReacts { MusicGlow(music: store.music, store: store).frame(width: 104, height: 100) }      // resplandor con el color de la portada
             if animated, store.musicPlayer, store.musicReacts { MusicNotesLayer(music: store.music, store: store).frame(width: 104, height: 100) }   // notas al ritmo del volumen
+            if animated, store.musicPlayer, store.musicVinyl { VinylCorner(music: store.music, store: store) }      // el vinilo gira en una esquina
             EvolutionView(level: store.weeklyRecap.level).frame(width: 104, height: 100)       // halo y estrellitas por nivel
             // suelo: un disco de luz tenue bajo los pies
             Ellipse()
@@ -154,3 +156,20 @@ struct Reveal: ViewModifier {
     }
 }
 extension View { func reveal(_ index: Int, _ shown: Bool, animated: Bool) -> some View { modifier(Reveal(index: index, shown: shown, animated: animated)) } }
+
+/// El vinilo en la esquina del escenario: aparece al sonar la musica y se hincha con el bombo.
+struct VinylCorner: View {
+    @ObservedObject var music: MusicController
+    let store: PetStore
+    var body: some View {
+        if music.nowPlaying != nil {
+            TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+                let pulse = store.musicPulse(at: ProcessInfo.processInfo.systemUptime)
+                let beat = pulse?.listening == true ? MusicDance.envelope(beatAge: pulse?.beatAge ?? 9) : 0
+                VinylDisc(cover: music.cover, seed: music.nowPlaying?.title ?? "", tint: Color(hex: store.musicAccent ?? 0xFFFFFF), playing: music.isPlaying, beat: beat)
+            }
+            .frame(width: 104, height: 100, alignment: .topTrailing).offset(x: 2, y: -2)
+            .transition(.opacity)
+        }
+    }
+}

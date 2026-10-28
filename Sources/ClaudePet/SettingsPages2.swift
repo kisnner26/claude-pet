@@ -233,6 +233,10 @@ struct MusicaPage: View {
                 if store.musicPlayer {
                     SToggle(title: "reaccionar a la música", detail: "se pone auriculares, baila y suelta notas; al cambiar de tema hay un destello.", isOn: $store.musicReacts)
                     SDivider()
+                    SToggle(title: "colores de la portada", detail: "el progreso, el ecualizador y el brillo toman el color dominante de la portada.", isOn: $store.musicTint)
+                    SDivider()
+                    SToggle(title: "vinilo", detail: "un disco con la portada gira junto a la mascota; un brazo baja al sonar y sube al pausar.", isOn: $store.musicVinyl)
+                    SDivider()
                     SToggle(title: "seguir el ritmo de verdad", detail: "oye el audio del Mac para saltar con el bombo, mover la cabeza al compás y enseñar graves, medios y agudos. el audio no se guarda ni sale del Mac: solo se calculan unos números.",
                             isOn: Binding(get: { store.musicListens }, set: { on in if on && !AudioReactor.hasPermission { AudioReactor.requestPermission() }; store.musicListens = on }))
                     if store.musicListens {

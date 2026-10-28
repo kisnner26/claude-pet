@@ -129,7 +129,8 @@ enum MusicFx {
 
     static func noteCount(level: Double) -> Int { 2 + Int((max(0, min(1, level)) * 4).rounded()) }
 
-    static func notes(at t: TimeInterval, level: Double, trackAge: TimeInterval) -> [FxPixel] {
+    static func notes(at t: TimeInterval, level: Double, trackAge: TimeInterval, colors: [UInt32]? = nil) -> [FxPixel] {
+        let colors = colors ?? Self.colors
         let n = noteCount(level: level)
         var out: [FxPixel] = []
         for i in 0..<n {

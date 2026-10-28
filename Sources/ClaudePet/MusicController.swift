@@ -40,6 +40,8 @@ final class MusicController: ObservableObject {
     /// Solo se republica cuando cambia algo que no sea la posicion: la barra de progreso se interpola con `position(at:)`.
     @Published private(set) var nowPlaying: NowPlaying?
     @Published private(set) var cover: NSImage?
+    /// Color de acento de la cancion: sale de la portada o, mientras no hay, del titulo.
+    @Published private(set) var tint: UInt32?
     @Published private(set) var recents: [IndexedTrack] = []
     private(set) var trackChangedAt: TimeInterval = -100
     /// Lo usan los plugins: se avisa al empezar una cancion nueva.
@@ -95,6 +97,13 @@ final class MusicController: ObservableObject {
         coverTask?.cancel()
         if nowPlaying != nil { nowPlaying = nil }
         if cover != nil { cover = nil }
+        tint = nil
+    }
+
+    private func setCover(_ img: NSImage?, seed: String) {
+        cover = img
+        let t = img.flatMap { CoverPalette.from($0) } ?? CoverPalette.fallback(seed: seed)
+        if tint != t { tint = t }
     }
 
     private func running(_ app: MusicApp) -> Bool { NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == app.bundle } }
@@ -165,10 +174,11 @@ final class MusicController: ObservableObject {
     }
 
     private func loadCover(for n: NowPlaying?) {
-        coverTask?.cancel(); cover = nil
-        guard let n else { return }
+        coverTask?.cancel()
+        guard let n else { cover = nil; tint = nil; return }
+        setCover(nil, seed: n.title)
         let key = CoverCache.key(n.trackID), trackID = n.trackID
-        if let hit = cachedCover(for: key) { cover = hit; return }
+        if let hit = cachedCover(for: key) { setCover(hit, seed: n.title); return }
         coverTask = Task { [weak self] in
             var data: Data?
             if n.app == .appleMusic {
@@ -182,7 +192,7 @@ final class MusicController: ObservableObject {
             await MainActor.run {
                 guard let self, let img = stored else { return }
                 self.memory.setObject(img, forKey: key as NSString)
-                if self.nowPlaying?.trackID == trackID { self.cover = img }
+                if self.nowPlaying?.trackID == trackID { self.setCover(img, seed: n.title) }
             }
         }
     }
