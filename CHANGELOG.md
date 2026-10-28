@@ -8,7 +8,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - **seguir el ritmo de verdad** (opt-in): la mascota oye el audio del Mac con ScreenCaptureKit, calcula graves, medios, agudos, pulsos y tempo, y salta con el bombo, cabecea al compás y enseña un ecualizador y un aro en cada pulso. La captura solo corre mientras suena algo. Ver `docs/MUSICA.md`.
 - **Codex también baila** (antes solo bailaba Claude), con la misma lógica de compás.
 - reacciones sin permisos extra: salta al empezar la música, suspira al pausar y la fuerza del baile sigue al volumen de la app.
-- `--selftest-audio` y `--snapshot-dance`.
+- **colores de la portada**: el acento de cada canción sale de su portada y tiñe el progreso, el volumen, el ecualizador, las notas y un resplandor que late con el bombo.
+- **vinilo** con la portada de etiqueta que gira junto a la mascota, con brazo de tocadiscos que baja al sonar y sube al pausar.
+- `--selftest-audio`, `--snapshot-dance` y `--snapshot-vinyl`.
 
 ### cambiado
 - el baile ya no es un balanceo fijo de 2 Hz: sin escucha sigue el volumen; con ella, el compás.

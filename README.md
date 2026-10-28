@@ -83,6 +83,10 @@ Defines por dónde puede moverse el agente en un proyecto (carpetas permitidas y
 
 ![baile](docs/img/baile.jpg)
 
+![vinilo](docs/img/vinilo.jpg)
+
+Los acentos toman el color de la portada y un vinilo con brazo de tocadiscos gira junto a la mascota.
+
 Reproductor de Spotify y Apple Music en la isla (portada indexada en caché, progreso, anterior, pausa, siguiente y volumen) y una tira de recientes para volver a ponerlas. Claude y Codex se ponen auriculares, saltan al empezar, suspiran al pausar y sueltan notas según el volumen. Con la escucha opcional del audio del Mac siguen el compás de verdad: saltan con el bombo, cabecean alternando de lado y enseñan un ecualizador de graves, medios y agudos. Detalle en [docs/MUSICA.md](docs/MUSICA.md).
 
 ### menú de la barra

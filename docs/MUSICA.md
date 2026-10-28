@@ -16,6 +16,14 @@ En Ajustes → música, **recientes** muestra las últimas canciones con su port
 
 Las consultas a Spotify y Music van por AppleScript en una cola propia, de una en una, y cada orden lleva `with timeout of 3 seconds`. Si una app no responde, el script falla a los tres segundos y la interfaz sigue fluida; no se encadenan consultas si la anterior no ha vuelto.
 
+## colores y vinilo
+
+El color de la canción sale de su portada: se reduce a 24×24 píxeles, se descartan grises, blancos y negros, y manda el tono vivo que más pesa (con un mínimo de presencia, para que cuatro píxeles sueltos no cuenten). Ese acento tiñe la barra de progreso, el botón y el volumen, el ecualizador, el aro y las notas, y un resplandor detrás de la mascota que late con el bombo (o respira despacio si no hay escucha). Sin portada se usa un tono estable por título.
+
+Junto a la mascota gira un **vinilo** con la portada de etiqueta: un brazo de tocadiscos se apoya sobre el disco al sonar y se levanta al pausar, y con la escucha activada el disco se hincha en cada pulso. Los dos se apagan por separado en Ajustes → música ("colores de la portada" y "vinilo").
+
+![vinilo](img/vinilo.jpg)
+
 ## cómo reacciona la mascota
 
 Claude **y Codex** reaccionan a lo que suena. Hay dos niveles:
