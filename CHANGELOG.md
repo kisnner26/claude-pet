@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones anteriores a la 2.0 se etiquetaron a posteriori sobre los commits donde cada hito quedó completo.
 
+## [2.8.0] - 2026-10-28
+
+### añadido
+- Visto: Isla Dinámica y pantalla bloqueada con el agente que trabaja y botones para permitir o denegar; Face ID opcional para permitir; atajos para Siri, el botón de acción y Atajos; emparejar escaneando un QR que claude pet muestra en Ajustes → permisos; sonidos, háptica, voz, linterna y giroscopio en el iPhone; en el reloj, gesto de girar la muñeca para denegar y pantalla siempre encendida tenue.
+
 ## [2.7.1] - 2026-10-28
 
 ### corregido
