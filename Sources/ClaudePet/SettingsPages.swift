@@ -264,6 +264,21 @@ struct ComportamientoPage: View {
                 SMenu(title: "idioma", detail: "elige el idioma de la interfaz. se aplica al momento.", selection: $store.language,
                       options: Lang.allCases.map { ($0, $0.name) })
             }
+            SCard(title: "en el escritorio", footer: "arrastra la mascota fuera de la isla y se queda donde la sueltes (vuelve a su sitio al abrir la app). doble toque, o soltarla sobre la isla, la devuelve.") {
+                SToggle(title: "seguir el cursor", detail: "camina hacia el cursor cuando te alejas de ella.", isOn: $store.deskFollow)
+                SDivider()
+                SRow(title: "claude", detail: store.deskOut.contains(.claude) ? "está en el escritorio" : "en la isla") {
+                    SButton(title: store.deskOut.contains(.claude) ? "volver" : "sacar", symbol: store.deskOut.contains(.claude) ? "arrow.uturn.backward" : "arrow.up.right") {
+                        if store.deskOut.contains(.claude) { DesktopPets.shared.putBack(.claude) } else { DesktopPets.shared.show(.claude) }
+                    }
+                }
+                SDivider()
+                SRow(title: "codex", detail: store.deskOut.contains(.codex) ? "está en el escritorio" : "en la isla") {
+                    SButton(title: store.deskOut.contains(.codex) ? "volver" : "sacar", symbol: store.deskOut.contains(.codex) ? "arrow.uturn.backward" : "arrow.up.right") {
+                        if store.deskOut.contains(.codex) { DesktopPets.shared.putBack(.codex) } else { DesktopPets.shared.show(.codex) }
+                    }
+                }
+            }
             SCard(title: "genio", footer: "si la golpeas seguido, a veces se enfada, se hace gigante, camina hasta una ventana y la patea. la ventana solo se minimiza (nunca se cierra) y hace falta el permiso de accesibilidad; sin él solo hace la animación. se calma durante un minuto.") {
                 SToggle(title: "se enfada si la golpeas", detail: "una patada a una ventana de otra app, sin cerrarla.", isOn: $store.rageEnabled)
                 if store.rageEnabled {

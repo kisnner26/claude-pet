@@ -131,6 +131,46 @@ final class PetStore: ObservableObject {
     @Published var rageEnabled: Bool = UserDefaults.standard.object(forKey: "rageEnabled") == nil ? true : UserDefaults.standard.bool(forKey: "rageEnabled") {
         didSet { UserDefaults.standard.set(rageEnabled, forKey: "rageEnabled") }
     }
+    /// Mascotas sueltas por el escritorio y donde estan (se guardan para el siguiente arranque).
+    @Published var deskOut: Set<IslandAgentTab> = []
+    var deskSpots: String {
+        get { UserDefaults.standard.string(forKey: "deskSpots") ?? "{}" }
+        set { UserDefaults.standard.set(newValue, forKey: "deskSpots") }
+    }
+    /// La de escritorio camina hacia el cursor cuando se aleja.
+    @Published var deskFollow: Bool = UserDefaults.standard.object(forKey: "deskFollow") == nil ? true : UserDefaults.standard.bool(forKey: "deskFollow") {
+        didSet { UserDefaults.standard.set(deskFollow, forKey: "deskFollow") }
+    }
+    var idleForDesk: TimeInterval { 0 }
+    // MARK: avisos al telefono (ntfy)
+    @Published var phoneAlerts: Bool = UserDefaults.standard.bool(forKey: "phoneAlerts") {
+        didSet { UserDefaults.standard.set(phoneAlerts, forKey: "phoneAlerts"); if phoneAlerts, phoneAlertsTopic.isEmpty { phoneAlertsTopic = PhoneAlertRules.newTopic() } }
+    }
+    @Published var phoneAlertsServer: String = UserDefaults.standard.string(forKey: "phoneAlertsServer") ?? PhoneAlertRules.defaultServer {
+        didSet { UserDefaults.standard.set(phoneAlertsServer, forKey: "phoneAlertsServer") }
+    }
+    @Published var phoneAlertsTopic: String = UserDefaults.standard.string(forKey: "phoneAlertsTopic") ?? "" {
+        didSet { UserDefaults.standard.set(phoneAlertsTopic, forKey: "phoneAlertsTopic") }
+    }
+    /// Solo cuando llevas un minuto sin tocar el Mac: si estas delante, ya lo ves.
+    @Published var phoneAlertsOnlyAway: Bool = UserDefaults.standard.object(forKey: "phoneAlertsOnlyAway") == nil ? true : UserDefaults.standard.bool(forKey: "phoneAlertsOnlyAway") {
+        didSet { UserDefaults.standard.set(phoneAlertsOnlyAway, forKey: "phoneAlertsOnlyAway") }
+    }
+    /// Incluir el comando o archivo en el aviso (pasa por el servidor de ntfy). Apagado de serie.
+    @Published var phoneAlertsDetail: Bool = UserDefaults.standard.bool(forKey: "phoneAlertsDetail") {
+        didSet { UserDefaults.standard.set(phoneAlertsDetail, forKey: "phoneAlertsDetail") }
+    }
+    @Published var phoneAlertsStatus = ""
+    func regenerateAlertTopic() { phoneAlertsTopic = PhoneAlertRules.newTopic() }
+
+    /// Publica un aviso si procede segun los ajustes. Se llama desde donde nacen los permisos, preguntas y fines de tarea.
+    func pushToPhone(_ kind: PhoneAlertRules.Kind, agent: String, tool: String = "", project: String, detail: String = "", seconds: Int = 0, risky: Bool = false, key: String?) {
+        guard PhoneAlertRules.shouldSend(enabled: phoneAlerts, onlyAway: phoneAlertsOnlyAway, idleSeconds: PhoneAlerts.idleSeconds(), vistoConnected: !remotePeers.isEmpty, kind: kind) else { return }
+        let m = PhoneAlertRules.message(kind, agent: agent, tool: tool, project: project, detail: detail, includeDetail: phoneAlertsDetail, seconds: seconds, risky: risky)
+        PhoneAlerts.shared.onStatus = { [weak self] s in Task { @MainActor in self?.phoneAlertsStatus = s } }
+        PhoneAlerts.shared.send(m, key: key, server: phoneAlertsServer, topic: phoneAlertsTopic)
+    }
+
     @Published var seasonalOutfits: Bool = UserDefaults.standard.object(forKey: "seasonalOutfits") == nil ? true : UserDefaults.standard.bool(forKey: "seasonalOutfits") {
         didSet { UserDefaults.standard.set(seasonalOutfits, forKey: "seasonalOutfits") }
     }

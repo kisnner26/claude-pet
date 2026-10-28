@@ -15,7 +15,7 @@ struct PermisosPage: View {
                 SDivider()
                 SToggle(title: "bloquear si el proyecto cambia", detail: "si algo toca el proyecto mientras decides, la petición se detiene.", isOn: $store.blockOnChange)
             }
-            SCard(title: "aprobar desde el iPhone o el Watch", footer: "la app Visto recibe los permisos por la red local con un canal cifrado cuya clave sale del código. desde fuera solo se permite o deniega esta vez, y lo de riesgo alto solo se puede denegar: aprobarlo exige estar en la Mac.") {
+            SCard(title: "aprobar desde el iPhone o el Watch", footer: "la app Visto recibe los permisos por la red local con un canal cifrado cuya clave sale del código. desde fuera se puede permitir esta vez, permitir siempre (con confirmación, nunca riesgo alto ni fuera de tu perímetro) o denegar; lo de riesgo alto solo se puede denegar: aprobarlo exige estar en la Mac.") {
                 SToggle(title: "enviar permisos a Visto", detail: store.islandPermissions ? "escucha en tu red local. sin servidores ni cuentas." : "primero activa «permisos desde la isla».", isOn: $store.remoteApprovals)
                     .disabled(!store.islandPermissions)
                 if store.remoteApprovals, !store.remoteCode.isEmpty {
@@ -29,6 +29,41 @@ struct PermisosPage: View {
                             Text(Pairing.display(store.remoteCode)).font(.system(size: 13, weight: .semibold, design: .monospaced)).textSelection(.enabled)
                             SButton(title: "copiar", symbol: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(Pairing.display(store.remoteCode), forType: .string) }
                             SButton(title: "nuevo", symbol: "arrow.clockwise") { store.regenerateRemoteCode?() }
+                        }
+                    }
+                }
+            }
+            SCard(title: "avisos al teléfono", footer: "usa ntfy: una app gratuita para iPhone que entrega avisos aunque Visto esté cerrada. el aviso pasa por el servidor de ntfy (ntfy.sh o el tuyo): por eso lleva solo la herramienta y el proyecto, salvo que pidas el detalle. el tema es largo y aleatorio y hace de contraseña: no lo compartas. apagado de serie.") {
+                SToggle(title: "avisar al teléfono", detail: "permisos, preguntas y fin de tarea, aunque el iPhone esté suspendido.", isOn: $store.phoneAlerts)
+                if store.phoneAlerts {
+                    SDivider()
+                    SRow(title: "servidor", detail: PhoneAlertRules.normalizedServer(store.phoneAlertsServer) == nil ? "debe ser https://…" : "https://ntfy.sh o el tuyo") {
+                        TextField("https://ntfy.sh", text: $store.phoneAlertsServer).textFieldStyle(.roundedBorder).frame(width: 210)
+                    }
+                    SDivider()
+                    SRow(title: "suscribir el iPhone", detail: "instala ntfy, escanea este cuadro con la cámara o escribe el tema.") {
+                        if let link = PhoneAlertRules.subscribeLink(server: store.phoneAlertsServer, topic: store.phoneAlertsTopic), let qr = QRCode.image(link, side: 120) {
+                            Image(nsImage: qr).interpolation(.none).resizable().frame(width: 120, height: 120).clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    SDivider()
+                    SRow(title: "tema", detail: store.phoneAlertsStatus.isEmpty ? "cámbialo si crees que alguien lo vio" : store.phoneAlertsStatus) {
+                        HStack(spacing: 8) {
+                            Text(store.phoneAlertsTopic).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                            SButton(title: "copiar", symbol: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.phoneAlertsTopic, forType: .string) }
+                            SButton(title: "nuevo", symbol: "arrow.clockwise") { store.regenerateAlertTopic() }
+                        }
+                    }
+                    SDivider()
+                    SToggle(title: "solo si no estás en el Mac", detail: "avisa cuando llevas un minuto sin tocarlo. si Visto está conectada, avisa ella.", isOn: $store.phoneAlertsOnlyAway)
+                    SDivider()
+                    SToggle(title: "incluir el detalle", detail: "añade el comando o archivo (sin secretos) al aviso; pasa por el servidor.", isOn: $store.phoneAlertsDetail)
+                    SDivider()
+                    SRow(title: "aviso de prueba", detail: "llega al teléfono si está suscrito.") {
+                        SButton(title: "enviar", symbol: "paperplane") {
+                            let m = PhoneAlertRules.message(.done, agent: "claude", project: "prueba")
+                            PhoneAlerts.shared.onStatus = { s in Task { @MainActor in store.phoneAlertsStatus = s } }
+                            PhoneAlerts.shared.send(m, key: nil, server: store.phoneAlertsServer, topic: store.phoneAlertsTopic)
                         }
                     }
                 }

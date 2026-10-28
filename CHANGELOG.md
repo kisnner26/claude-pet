@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Permitir «siempre» desde Visto: botón con confirmación (y Face ID si está activo) que guarda la regla en la Mac. Nunca con riesgo alto ni fuera del perímetro; la Mac lo vuelve a comprobar. Una Mac anterior no lo ofrece.
+- Mascota en el escritorio: se arrastra fuera de la isla y se queda donde la sueltas, vuelve a su sitio al abrir la app y, si quieres, camina hacia el cursor. Doble toque o soltarla sobre la isla la devuelve. Cada agente por separado, con su armario.
+- Avisos al teléfono con ntfy (apagado de serie): permisos, preguntas y fin de tarea llegan aunque Visto esté cerrada, sin cuenta de pago de Apple. Tema largo y aleatorio con QR, solo si no estás en el Mac, sin el comando salvo que lo pidas y nunca con secretos.
 - Genio: a veces, al segundo golpe seguido, la mascota (claude o codex) se enfada, se hace gigante, camina hasta una ventana de otra app y la patea. La ventana solo se minimiza, nunca se cierra, y hace falta el permiso de accesibilidad (sin él solo ve la animación). Se calma durante un minuto y se apaga en Ajustes → comportamiento.
 
 ### corregido
