@@ -24,6 +24,9 @@ struct PetPose: Equatable {
     var impatient = false
     /// Ojos contentos (^ ^) mientras la acarician.
     var happy = false
+    /// Suda (calor) o tirita (frio): vienen del entorno, no del trabajo.
+    var sweating = false
+    var shivering = false
 }
 
 /// Lo que la mascota sabe de su entorno para elegir una emocion. Todo llega ya calculado por el controlador.
@@ -46,6 +49,7 @@ struct PetScene: Equatable {
     var daytime = true
     /// Lo que suena y como; nil si la musica no cuenta.
     var music: MusicPulse?
+    var ambient = Ambient()
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -243,9 +247,14 @@ enum PetAnimator {
             } else if scene.state == .error {
                 p.worried = true
                 p.dx += CGFloat(sin(t * 50)) * 0.25                              // tiembla de preocupacion
+            } else if scene.ambient.lowBattery, scene.state == .idle || scene.state == .done {
+                p.worried = true
             } else if scene.dancing, scene.state == .idle || scene.state == .done {
                 MusicDance.apply(&p, t: t, music: scene.music ?? MusicPulse(playing: true, volume: 1))
             }
+            // el entorno: con frio tirita, con calor suda y respira mas rapido
+            if scene.ambient.cold || scene.ambient.snow { p.shivering = true; p.dx += CGFloat(sin(t * 55)) * 0.16 }
+            if scene.ambient.hot { p.sweating = true; p.scaleY *= 1 + 0.012 * CGFloat(sin(t * 6)) }
             // un salto al empezar y un suspiro al pausar, aunque no se baile
             if let m = scene.music, scene.state == .idle || scene.state == .done { MusicDance.transients(&p, music: m) }
         }
@@ -265,6 +274,24 @@ enum PetAnimator {
                 let x = 10 + Int(k * 4) + i % 2, y = 3 - Int(k * 3)
                 let cells: [(Int, Int)] = size == 2 ? [(0, 0), (1, 0), (0, 1), (1, 1)] : [(0, 0), (1, 0), (2, 0), (1, 1), (0, 2), (1, 2), (2, 2)]
                 for (cx, cy) in cells where clip(x + cx, max(0, y) + cy) && k < 0.9 { out.append(Px(x: x + cx, y: max(0, y) + cy, c: cream)) }
+            }
+        }
+        if pose.sweating {
+            // gotas de calor que resbalan por la frente
+            for i in 0..<2 {
+                let k = (t * 0.8 + Double(i) * 0.5).truncatingRemainder(dividingBy: 1)
+                let x = i == 0 ? 2 : 13, y = 3 + Int(k * 5)
+                for (cx, cy) in [(0, 0), (0, 1)] where clip(x + cx, y + cy) && k < 0.9 { out.append(Px(x: x + cx, y: y + cy, c: Color(hex: 0x8CC8F0))) }
+            }
+        }
+        if scene.ambient.rain || scene.ambient.snow {
+            // lluvia (gotas azules rapidas) o nieve (copos blancos lentos) a los lados
+            let flake = scene.ambient.snow
+            for i in 0..<5 {
+                let k = (t * (flake ? 0.35 : 1.1) + jitter(i + 500)).truncatingRemainder(dividingBy: 1)
+                let x = i * 3 + Int(jitter(i + 600) * 2), y = Int(k * 16)
+                out.append(Px(x: x, y: y, c: flake ? Color(hex: 0xF4F8FF) : Color(hex: 0x6FA8E0)))
+                if !flake, clip(x, y + 1) { out.append(Px(x: x, y: y + 1, c: Color(hex: 0x6FA8E0))) }
             }
         }
         if pose.worried {

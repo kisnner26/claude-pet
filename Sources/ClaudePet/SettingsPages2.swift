@@ -116,18 +116,27 @@ struct PrivacidadPage: View {
 
 struct GuardarropaPage: View {
     @ObservedObject var store: PetStore
+    /// A quien se esta vistiendo: cada mascota tiene su propio armario.
+    @State private var agent: PetAgent = .claude
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
+    private func preview(_ outfit: Outfit) -> some View {
+        Group {
+            if agent == .claude { ClaudeSprite(outfits: [outfit], skin: .block).frame(width: 46, height: 46) }
+            else { CodexSprite(skin: store.codexSkin, outfits: [outfit]).frame(width: 46, height: 46) }
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             SCard(title: "así se ven ahora") {
                 HStack(spacing: 28) {
                     VStack(spacing: 6) {
-                        ClaudeSprite(outfits: store.outfitsNow()).frame(width: 120, height: 120).breathing()
+                        ClaudeSprite(outfits: store.outfitsNow(for: .claude)).frame(width: 120, height: 120).breathing()
                         Text("claude").font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.claude)
                     }
                     VStack(spacing: 6) {
-                        CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow()).frame(width: 120, height: 120).breathing(delay: 0.5)
+                        CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 120, height: 120).breathing(delay: 0.5)
                         Text("codex").font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.codexLight)
                     }
                 }
@@ -139,16 +148,15 @@ struct GuardarropaPage: View {
                     }
                 }
             }
-            SCard(title: "atuendos", footer: "se llevan en las dos mascotas. subes de nivel con la actividad de la semana: sesiones, herramientas y racha.") {
+            SCard(title: "atuendos", footer: "cada mascota tiene su armario: lo que elijas para una no se pone en la otra. subes de nivel con la actividad de la semana: sesiones, herramientas y racha.") {
+                SMenu(title: "vistiendo a", selection: $agent, options: PetAgent.allCases.map { ($0, $0.rawValue) })
+                SDivider()
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(Outfit.allCases) { outfit in
                         let unlocked = Evolution.isUnlocked(outfit, level: store.weeklyRecap.level)
-                        SpriteTile(title: outfit.title, detail: unlocked ? nil : "nivel \(Evolution.unlockLevel(outfit))", selected: store.wardrobe.contains(outfit), locked: !unlocked,
-                                   action: { store.toggleOutfit(outfit) }) {
-                            HStack(spacing: 2) {
-                                ClaudeSprite(outfits: [outfit], skin: .block).frame(width: 46, height: 46)
-                                CodexSprite(skin: store.codexSkin, outfits: [outfit]).frame(width: 46, height: 46)
-                            }
+                        SpriteTile(title: outfit.title, detail: unlocked ? nil : "nivel \(Evolution.unlockLevel(outfit))", selected: store.worn(outfit, by: agent), locked: !unlocked,
+                                   action: { store.toggleOutfit(outfit, for: agent) }) {
+                            preview(outfit)
                         }
                     }
                 }
@@ -156,6 +164,23 @@ struct GuardarropaPage: View {
             }
             SCard(title: "temporadas") {
                 SToggle(title: "atuendos de temporada", detail: "se visten solos en fechas señaladas: bufanda en invierno y gorro a fin de año.", isOn: $store.seasonalOutfits)
+            }
+            SCard(title: "clima y entorno", footer: "el tiempo se pide a open-meteo con tu posición aproximada (dos decimales) o con la ciudad que escribas; no hay cuenta ni clave y no se guarda nada. es lo único que claude pet pide a internet por su cuenta, por eso empieza apagado.") {
+                SToggle(title: "consultar el clima local", detail: "usa la ubicación del Mac (pide permiso) o una ciudad.", isOn: $store.weatherEnabled)
+                if store.weatherEnabled {
+                    SDivider()
+                    SRow(title: "ciudad", detail: "vacío = ubicación del Mac") {
+                        TextField("ciudad", text: $store.weatherCity, onCommit: { store.restartWeather() }).textFieldStyle(.roundedBorder).frame(width: 170)
+                    }
+                    SDivider()
+                    SRow(title: store.weather?.summary ?? "sin lectura todavía", detail: store.weatherStatus.isEmpty ? "se actualiza cada 30 minutos" : store.weatherStatus) {
+                        SButton(title: "actualizar", symbol: "arrow.clockwise") { store.restartWeather() }
+                    }
+                    SDivider()
+                    SToggle(title: "vestirse según el tiempo", detail: "calor: gafas de sol y sombrero. frío: bufanda, gorro y orejeras. lluvia: paraguas.", isOn: $store.weatherDress)
+                }
+                SDivider()
+                SToggle(title: "sentir el entorno", detail: "sudan con calor, tiritan con frío, ven llover o nevar, y se preocupan si al Mac le queda poca batería.", isOn: $store.ambientReactions)
             }
         }
         .onAppear { store.refreshWeeklyRecap() }

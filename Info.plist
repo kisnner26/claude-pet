@@ -8,12 +8,16 @@
     <key>CFBundleExecutable</key><string>ClaudePet</string>
     <key>CFBundleIconFile</key><string>ClaudePet</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>2.9.0</string>
-    <key>CFBundleVersion</key><string>9</string>
+    <key>CFBundleShortVersionString</key><string>2.10.0</string>
+    <key>CFBundleVersion</key><string>10</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>claude pet solo pregunta si Música o Spotify están reproduciendo, para que la mascota baile. No lee títulos ni artistas.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>claude pet usa tu ubicación aproximada solo para saber qué tiempo hace y vestir a las mascotas. Si lo prefieres, escribe una ciudad en su lugar.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>claude pet usa tu ubicación aproximada solo para saber qué tiempo hace y vestir a las mascotas.</string>
 </dict>
 </plist>
