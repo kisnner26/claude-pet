@@ -329,6 +329,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                 if self?.askServer.resolve(id: id, .allow, source: "regla") == true { return }
             case .none: break
             }
+            if announced.count > 400 { announced = Set(asks.map(\.id)) }      // acotado: solo importan los pendientes
             let fresh = asks.filter { announced.insert($0.id).inserted }
             Task { @MainActor in
                 PetStore.shared.permissionAsks = asks
