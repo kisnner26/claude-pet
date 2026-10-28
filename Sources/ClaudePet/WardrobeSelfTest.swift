@@ -57,6 +57,16 @@ enum WardrobeSelfTest {
         check("codex: sin atuendos no se añade nada", CodexAvatar.cells(legs: .stand, face: .prompt(cursor: true), outfits: []).count == bare.count)
         check("codex: el atuendo se pinta antes del glifo, que sigue encima", glasses.count > bare.count && glasses.last.map { l in bare.last.map { $0.x == l.x && $0.y == l.y } ?? false } == true)
         check("codex: el orden del conjunto no cambia el dibujo", Wardrobe.codexCells([.bow, .crown, .scarf]).map { "\($0.x),\($0.y)" } == Wardrobe.codexCells([.scarf, .bow, .crown]).map { "\($0.x),\($0.y)" })
+        // los dibujos en ASCII: ancho exacto, todo dentro de la rejilla y cada letra con su color
+        for outfit in Outfit.allCases {
+            for (name, art, w, h) in [("claude", outfit.claudeArt, 16, 16), ("codex", outfit.codexArt, CodexAvatar.width, CodexAvatar.height)] {
+                check("\(outfit.title) \(name): todas las filas miden \(w) y caben en \(h) filas", art.rows.allSatisfy { $0.count == w } && art.y0 >= 0 && art.y0 + art.rows.count <= h)
+                check("\(outfit.title) \(name): cada letra tiene color", art.rows.joined().allSatisfy { $0 == "." || art.palette[$0] != nil })
+            }
+        }
+        // los ojos de claude (filas 6 a 10) nunca quedan tapados por una montura
+        let eyeCells: Set<String> = ["4,6", "5,7", "6,8", "5,9", "4,10", "11,6", "10,7", "9,8", "10,9", "11,10"]
+        for outfit in Outfit.allCases { check("\(outfit.title): no pisa las celdas de los ojos", outfit.pixels.allSatisfy { !eyeCells.contains("\($0.x),\($0.y)") }) }
         print(failures == 0 ? "ATUENDOS OK" : "ATUENDOS FALLOS: \(failures)")
         return failures == 0
     }

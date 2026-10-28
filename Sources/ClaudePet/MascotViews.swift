@@ -193,3 +193,29 @@ extension IslandSnapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 }
+
+/// Herramienta de diseno: imprime las rejillas de las mascotas en ASCII para dibujar atuendos encima con exactitud.
+enum MascotGrids {
+    static func hex(_ c: Color) -> UInt32 {
+        let n = NSColor(c).usingColorSpace(.sRGB) ?? .black
+        func b(_ v: CGFloat) -> UInt32 { UInt32((v * 255).rounded()) }
+        return b(n.redComponent) << 16 | b(n.greenComponent) << 8 | b(n.blueComponent)
+    }
+
+    static func dump() {
+        let letters = Array("abcdefghijklmnopqrstuvwxyz")
+        var legend: [UInt32: Character] = [:]
+        func ch(_ h: UInt32) -> Character { if let c = legend[h] { return c }; let c = legend.count < letters.count ? letters[legend.count] : "?"; legend[h] = c; return c }
+        func grid(_ title: String, _ w: Int, _ hgt: Int, _ cells: [(Int, Int, UInt32)]) {
+            var rows = Array(repeating: Array(repeating: Character("."), count: w), count: hgt)
+            for (x, y, h) in cells where x >= 0 && x < w && y >= 0 && y < hgt { rows[y][x] = ch(h) }
+            print("== \(title) \(w)x\(hgt)")
+            print("    " + (0..<w).map { String($0 % 10) }.joined())
+            for (y, r) in rows.enumerated() { print(String(format: "%2d  ", y) + String(r)) }
+        }
+        grid("claude block idle", 16, 16, Sprite.block(.idle, tick: 3).map { ($0.x, $0.y, hex($0.c)) })
+        grid("codex cloud", CodexAvatar.width, CodexAvatar.height, CodexAvatar.cells(legs: .stand, face: .prompt(cursor: true)).map { ($0.x, $0.y, hex($0.c)) })
+        print("== leyenda")
+        for (h, c) in legend.sorted(by: { $0.value < $1.value }) { print("\(c) = #" + String(h, radix: 16, uppercase: true)) }
+    }
+}
