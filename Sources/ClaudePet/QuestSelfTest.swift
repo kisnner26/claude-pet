@@ -6,6 +6,8 @@ enum QuestSelfTest {
     final class Trust: NSObject, URLSessionDelegate, URLSessionDataDelegate {
         var stream = Data()
         let got = DispatchSemaphore(value: 0)
+        let finished = DispatchSemaphore(value: 0)
+        func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) { finished.signal() }
         func urlSession(_ s: URLSession, didReceive c: URLAuthenticationChallenge, completionHandler h: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
             if let t = c.protectionSpace.serverTrust { h(.useCredential, URLCredential(trust: t)) } else { h(.performDefaultHandling, nil) }
         }
@@ -83,11 +85,19 @@ enum QuestSelfTest {
         server.push()
         _ = trust.got.wait(timeout: .now() + 4)
         check("push entrega el cambio", String(data: trust.stream, encoding: .utf8)?.contains("x1") == true)
+        // al cambiar el codigo, el visor conectado se corta y el codigo viejo deja de valer
+        nonisolated(unsafe) var current = code
+        server.code = { current }
+        let newCode = Pairing.newCode()
+        current = newCode
+        server.disconnectAll()
+        check("al cambiar el codigo se corta el visor conectado", trust.finished.wait(timeout: .now() + 4) == .success)
+        check("el codigo viejo ya no entra y el nuevo si", fetch("/answer?c=\(code)", method: "POST", body: #"{"id":"z","action":"allow"}"#).0 == 403 && fetch("/answer?c=\(newCode)", method: "POST", body: #"{"id":"z","action":"allow"}"#).0 == 200)
         task.cancel()
 
         // intentos de adivinar el codigo
         for _ in 0..<5 { _ = fetch("/events?c=AAAAAAAAAAAA") }
-        check("tras cinco codigos malos se frena (429), incluso con el bueno", fetch("/events?c=\(code)").0 == 429)
+        check("tras cinco codigos malos se frena (429), incluso con el bueno", fetch("/events?c=\(newCode)").0 == 429)
 
         print(failures == 0 ? "QUEST OK" : "QUEST \(failures) FALLOS")
         return failures == 0

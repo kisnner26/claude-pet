@@ -437,6 +437,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.regenerateRemoteCode = { [weak self] in
             guard let self, let c = try? self.remoteLink.regenerateCode() else { return }
             PetStore.shared.remoteCode = c
+            self.questServer.disconnectAll()      // el codigo viejo ya no vale: los visores conectados se cortan
         }
         remoteLink.onQuestionAnswer = { id, answers in Task { @MainActor in PetStore.shared.answerQuestion(id, answers) } }
         remoteLink.onFocus = { on in Task { @MainActor in PetStore.shared.focusManual = on } }

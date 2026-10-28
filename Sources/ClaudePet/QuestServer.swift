@@ -134,6 +134,16 @@ final class QuestServer: @unchecked Sendable {
         queue.async { [weak self] in self?.streams.values.forEach { $0.cancel() }; self?.streams = [:]; self?.onClients(0) }
     }
 
+    /// Corta a todos los visores conectados sin parar el servidor: se usa al cambiar el codigo, para que quien lo tenia no siga viendo nada.
+    func disconnectAll() {
+        queue.async { [weak self] in
+            guard let self else { return }
+            self.streams.values.forEach { $0.cancel() }
+            self.streams = [:]
+            self.onClients(0)
+        }
+    }
+
     /// Empuja el estado actual a los visores conectados.
     func push() {
         queue.async { [weak self] in
