@@ -56,6 +56,7 @@ struct IslandDizzyNotice: View {
 /// Tarjeta de "terminó": proyecto, ultimo paso y dos botones.
 struct IslandFinishedCard: View {
     @ObservedObject var store: PetStore
+    let agent: IslandAgentTab
     var onDismiss: () -> Void
     @State private var started = Date()
     @State private var trailerDone = false
@@ -76,12 +77,12 @@ struct IslandFinishedCard: View {
     }
 
     private var card: some View {
-        let agent = store.state == .done ? "claude code" : "codex"
+        let agentName = agent == .claude ? "claude code" : "codex"
         let step = store.recentIslandSteps.last
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Text(store.terminalProject.isEmpty ? "proyecto" : store.terminalProject).font(.system(size: 11, weight: .bold)).foregroundColor(.white)
-                Text("\(agent) terminó").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))
+                Text("\(agentName) terminó").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))
             }
             Text(step.map { $0.label } ?? "tarea completada").font(.system(size: 15, weight: .semibold)).foregroundColor(.white).lineLimit(1)
             HStack(spacing: 8) {

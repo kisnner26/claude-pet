@@ -162,7 +162,9 @@ final class IslandController {
 
         // transiciones de estado: terminar de trabajar dispara la vista de fin
         let c = store.state, x = store.codexState
-        let doneNow = (c == .done && lastClaude != .done) || (x == .done && lastCodex != .done)
+        let claudeDoneNow = c == .done && lastClaude != .done
+        let codexDoneNow = x == .done && lastCodex != .done
+        let doneNow = claudeDoneNow || codexDoneNow
         let errorNow = (c == .error && lastClaude != .error) || (x == .error && lastCodex != .error)
         let sound = SoundEngine.shared
         store.applySound(to: sound)
@@ -177,6 +179,14 @@ final class IslandController {
         // una tarea larga que termina se celebra con confeti
         if tasksRunning() { if taskStartedAt == nil { taskStartedAt = now } }
         if doneNow {
+            switch (claudeDoneNow, codexDoneNow) {
+            case (true, false): model.finishedAgent = .claude
+            case (false, true): model.finishedAgent = .codex
+            case (true, true):
+                // Si ambos terminan durante el mismo ciclo, el último paso conserva cuál fue el aviso más reciente.
+                model.finishedAgent = store.recentIslandSteps.last?.agent == "codex" ? .codex : .claude
+            case (false, false): break
+            }
             if let started = taskStartedAt, now - started >= PetAnimator.longTask { model.confettiStart = now }
             taskStartedAt = tasksRunning() ? now : nil
             finishedAt = now; model.hopStart = now; sound.play(.done)
@@ -357,6 +367,7 @@ struct IslandView: View {
             if !ownsMascot {
             Group {
                 if model.dizzyLeft != nil, model.dizzyAgent == .codex { CodexMini(store: store, model: model, greet: false) }
+                else if model.reason == .finished, model.finishedAgent == .codex { CodexMini(store: store, model: model, greet: false) }
                 else { PetFace(store: store, model: model) }
             }
                 .frame(width: side, height: side)
@@ -490,7 +501,7 @@ struct IslandView: View {
         } else if let ask = store.questionAsks.first {
             QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion)
         } else if model.reason == .finished {
-            IslandFinishedCard(store: store) { model.dismissRequested = true }
+            IslandFinishedCard(store: store, agent: model.finishedAgent) { model.dismissRequested = true }
         } else {
             IslandShell(store: store, model: model, agentTab: $agentTab)
         }

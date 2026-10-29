@@ -46,6 +46,9 @@ final class IslandModel: ObservableObject {
     @Published var page: IslandPage = .home
     /// Quien esta mareado (el de la tarjeta de mareo).
     var dizzyAgent: IslandAgentTab = .claude
+    /// Quien terminó la tarea que abrió la tarjeta de finalización.
+    /// La tarjeta puede seguir visible cuando ambos estados ya cambiaron, así que no se deduce al dibujar.
+    var finishedAgent: IslandAgentTab = .claude
     var dismissRequested = false
     @Published var focusActive = false
     /// Hay musica sonando y el usuario activo el baile.
