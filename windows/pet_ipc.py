@@ -81,6 +81,8 @@ def start_server(root, on_event):
     try:
         fd = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
+        if os.name != "nt":
+            key_path.chmod(0o600)
         key = key_path.read_bytes()
     else:
         key = secrets.token_bytes(32)
