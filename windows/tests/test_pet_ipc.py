@@ -3,6 +3,8 @@ from queue import Queue
 import tempfile
 import unittest
 import json
+import os
+from unittest import mock
 from multiprocessing.connection import Client
 from multiprocessing import AuthenticationError
 
@@ -36,3 +38,17 @@ class TransportTests(unittest.TestCase):
                     send(root, "a" * 2049)
             finally:
                 listener.close()
+
+    @unittest.skipIf(os.name == "nt", "POSIX mode bits; Windows uses directory ACLs")
+    def test_existing_key_is_made_private_before_listener_starts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "pet"
+            root.mkdir()
+            key = root / "windows-pet.key"
+            key.write_bytes(b"k" * 32)
+            key.chmod(0o644)
+            with mock.patch("pet_ipc.Listener", side_effect=OSError("test stops before binding")):
+                with self.assertRaises(OSError):
+                    start_server(root, lambda event: None)
+            self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(key.read_bytes(), b"k" * 32)
