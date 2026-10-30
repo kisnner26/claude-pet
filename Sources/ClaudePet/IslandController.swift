@@ -363,11 +363,11 @@ struct IslandView: View {
         let compact = model.mode != .expanded
         let items = store.islandCompactMode.items
         let side: CGFloat = compact ? 20 : 56
+        let displayedAgent = foregroundAgent
         HStack(alignment: compact ? .center : .top, spacing: compact ? 6 : 16) {
             if !ownsMascot {
             Group {
-                if model.dizzyLeft != nil, model.dizzyAgent == .codex { CodexMini(store: store, model: model, greet: false) }
-                else if model.reason == .finished, model.finishedAgent == .codex { CodexMini(store: store, model: model, greet: false) }
+                if displayedAgent == .codex { CodexMini(store: store, model: model, greet: false) }
                 else { PetFace(store: store, model: model) }
             }
                 .frame(width: side, height: side)
@@ -387,12 +387,12 @@ struct IslandView: View {
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture { model.poke() }
-                .accessibilityLabel("claude: \(store.state.label.lowercased()), \(store.stateDurationLabel)")
+                .onTapGesture { displayedAgent == .codex ? model.pokeCodex() : model.poke() }
+                .accessibilityLabel("\(displayedAgent.rawValue): \(displayedAgent == .codex ? store.codexState.label.lowercased() : store.state.label.lowercased())")
                 .accessibilityHint("pulsa para abrir el detalle")
                 .contextMenu {
                     ForEach(Outfit.allCases) { outfit in
-                        Toggle(Evolution.isUnlocked(outfit, level: store.weeklyRecap.level) ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.wardrobe.contains(outfit) }, set: { _ in store.toggleOutfit(outfit) })).disabled(!Evolution.isUnlocked(outfit, level: store.weeklyRecap.level))
+                        Toggle(Evolution.isUnlocked(outfit, level: store.weeklyRecap.level) ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.worn(outfit, by: displayedAgent == .codex ? .codex : .claude) }, set: { _ in store.toggleOutfit(outfit, for: displayedAgent == .codex ? .codex : .claude) })).disabled(!Evolution.isUnlocked(outfit, level: store.weeklyRecap.level))
                     }
                     Divider()
                     Toggle("atuendos de temporada", isOn: $store.seasonalOutfits)
@@ -489,6 +489,13 @@ struct IslandView: View {
     private var ownsMascot: Bool {
         model.mode == .expanded && store.permissionAsks.isEmpty && store.questionAsks.isEmpty && model.dizzyLeft == nil
             && !(model.dropHover || model.swallowStart.map({ ProcessInfo.processInfo.systemUptime - $0 < 0.8 }) == true) && model.reason != .finished
+    }
+
+    /// Las tarjetas reemplazan el escenario principal: cualquier gesto debe ir a la mascota que muestran.
+    private var foregroundAgent: IslandAgentTab {
+        if model.dizzyLeft != nil { return model.dizzyAgent }
+        if model.reason == .finished { return model.finishedAgent }
+        return .claude
     }
 
     @ViewBuilder private var expandedBody: some View {
