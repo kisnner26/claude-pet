@@ -1,34 +1,43 @@
 import SwiftUI
 
-/// Resonancia visual de los hitos locales. La nube se genera de forma determinista y no representa datos biométricos.
+/// Memoria local de la mascota, reconstruida desde cero: un núcleo que respira con la actividad y
+/// orbita una mota por recuerdo reciente, un pulso en vivo y una única barra de reparto — nada de
+/// cajas con números sueltos. Todo es determinista y no representa datos biométricos reales.
 struct PetMemoryView: View {
     @ObservedObject var store: PetStore
     @State private var events: [PetMemoryEvent] = []
-    @State private var tick = 0
 
     private var sessions: Int { events.filter { $0.kind == .session }.count }
+    private var tools: Int { events.filter { $0.kind == .tool }.count }
+    private var incidents: Int { events.filter { $0.kind == .error }.count }
     private var namedEvents: Int { events.filter { !$0.project.isEmpty }.count }
-    private var recall: Int { events.isEmpty ? 0 : Int((Double(namedEvents) / Double(events.count) * 100).rounded()) }
+    private var recall: Double { events.isEmpty ? 0 : Double(namedEvents) / Double(events.count) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 10) {
             header
-            stats
-            HStack(alignment: .top, spacing: 7) {
-                resonance
-                slices
+            HStack(alignment: .center, spacing: 16) {
+                MemoryCore(recallPercent: Int((recall * 100).rounded()), pulses: min(events.count, 16), reduceMotion: store.reduceMotion)
+                    .frame(width: 108, height: 108)
+                VStack(alignment: .leading, spacing: 7) {
+                    statRow("recuerdos", "\(events.count)", DashboardTheme.ember)
+                    statRow("sesiones", "\(sessions)", DashboardTheme.signal)
+                    statRow("racha", store.weeklyRecap.streak == 1 ? "1 día" : "\(store.weeklyRecap.streak) días", DashboardTheme.amber)
+                    MemoryPulseLine(level: events.count, reduceMotion: store.reduceMotion)
+                        .frame(height: 24)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            labels
+            MemoryBreakdown(sessions: sessions, tools: tools, incidents: incidents)
         }
         .onAppear(perform: reload)
-        .onReceive(Timer.publish(every: store.reduceMotion ? 3 : 1, on: .main, in: .common).autoconnect()) { _ in
-            if !store.reduceMotion { tick += 1 }
-        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("memoria local: \(events.count) recuerdos, recall \(Int((recall * 100).rounded()))%")
     }
 
     private var header: some View {
         HStack(spacing: 7) {
-            Image(systemName: "point.3.connected.trianglepath.dotted").font(.system(size: 12, weight: .semibold)).foregroundStyle(DashboardTheme.ember)
+            Image(systemName: "waveform.path.ecg").font(.system(size: 12, weight: .semibold)).foregroundStyle(DashboardTheme.ember)
             Text("memoria").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             Text("registro local").dashboardLabel()
             Spacer(minLength: 0)
@@ -40,143 +49,159 @@ struct PetMemoryView: View {
         }
     }
 
-    private var stats: some View {
-        LazyVGrid(columns: DashboardGrid.columns(4), spacing: DashboardGrid.gap) {
-            stat("recuerdos", "\(events.count)")
-            stat("sesiones", "\(sessions)")
-            stat("recall", "\(recall)%")
-            stat("racha", "\(store.weeklyRecap.streak)d")
-        }
-    }
-
-    private func stat(_ label: String, _ value: String) -> some View {
-        // mas aire entre la etiqueta y el numero, y la barra separada del numero en vez de pegada al borde inferior.
-        VStack(alignment: .leading, spacing: 5) {
+    private func statRow(_ label: String, _ value: String, _ tint: Color) -> some View {
+        HStack(spacing: 7) {
+            Circle().fill(tint).frame(width: 5, height: 5)
             Text(label).dashboardLabel()
-            Text(value).font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
-            Capsule().fill(DashboardTheme.accent).frame(height: 2)
+            Spacer(minLength: 6)
+            Text(value).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+                .contentTransition(.numericText())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .dashboardTile(padding: 9)
     }
 
-    private var resonance: some View {
-        ZStack(alignment: .topLeading) {
-            ResonanceCloud(phase: tick, reducedMotion: store.reduceMotion)
+    private func reload() {
+        withAnimation(store.reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.85)) {
+            events = PetMemoryStore.shared.snapshot()
         }
-        .overlay(alignment: .topLeading) { mapHeader.padding(8) }
-        .overlay(alignment: .topLeading) { mapTag("primeros hitos", color: DashboardTheme.ember).padding(.top, 40).padding(.leading, 12) }
-        .overlay(alignment: .bottomTrailing) { mapTag("proyectos vistos", color: DashboardTheme.signal).padding(.bottom, 14).padding(.trailing, 12) }
-        .frame(height: 112)
-        .frame(maxWidth: .infinity)
-        .dashboardTile(padding: 0, active: !events.isEmpty)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("mapa de memoria con \(events.count) recuerdos locales")
     }
+}
 
-    private var slices: some View {
-        VStack(spacing: 5) {
-            ForEach([0, 1, 2], id: \.self) { index in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("corte 0\(index + 1)").dashboardLabel()
-                    ResonanceSlice(index: index, phase: tick).frame(height: 21)
+/// Núcleo circular: el anillo marca el recall, el centro respira despacio y las motas orbitan,
+/// una por cada recuerdo reciente (hasta 16, para que no sature el ojo).
+private struct MemoryCore: View {
+    let recallPercent: Int
+    let pulses: Int
+    let reduceMotion: Bool
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                Canvas { gc, size in draw(&gc, size: size, t: 0) }
+            } else {
+                TimelineView(.animation) { timeline in
+                    Canvas { gc, size in draw(&gc, size: size, t: timeline.date.timeIntervalSinceReferenceDate) }
                 }
-                .dashboardTile(padding: 5)
             }
         }
-        .frame(width: 96)
+        .overlay(centerLabel)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("recall \(recallPercent) por ciento")
     }
 
-    private var labels: some View {
-        LazyVGrid(columns: DashboardGrid.columns(3), spacing: DashboardGrid.gap) {
-            memoryLabel("hitos", count: events.filter { $0.kind == .session }.count, color: DashboardTheme.ember)
-            memoryLabel("herramientas", count: events.filter { $0.kind == .tool }.count, color: DashboardTheme.signal)
-            memoryLabel("incidencias", count: events.filter { $0.kind == .error }.count, color: DashboardTheme.amber)
+    private var centerLabel: some View {
+        VStack(spacing: 1) {
+            Text("\(recallPercent)%").font(.system(size: 19, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+            Text("recall").dashboardLabel()
         }
     }
 
-    private func memoryLabel(_ title: String, count: Int, color: Color) -> some View {
-        HStack(spacing: 5) {
-            Rectangle().fill(color).frame(width: 2, height: 20)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).dashboardLabel()
-                Text("\(count) registrados").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
-            }
+    private func draw(_ gc: inout GraphicsContext, size: CGSize, t: Double) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radius = min(size.width, size.height) / 2 - 5
+
+        gc.stroke(Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)),
+                   with: .color(DashboardTheme.line), lineWidth: 2)
+
+        if recallPercent > 0 {
+            var ring = Path()
+            ring.addArc(center: center, radius: radius, startAngle: .degrees(-90), endAngle: .degrees(-90 + 360 * Double(recallPercent) / 100), clockwise: false)
+            gc.stroke(ring, with: .linearGradient(Gradient(colors: [DashboardTheme.amber, DashboardTheme.ember]), startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: size.width, y: size.height)),
+                       style: StrokeStyle(lineWidth: 3, lineCap: .round))
         }
-        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading).dashboardTile(padding: 6)
-    }
 
-    private var mapHeader: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("mapa de actividad").dashboardLabel()
-            Text(events.isEmpty ? "esperando el primer hito" : "\(events.last?.at.formatted(date: .abbreviated, time: .shortened) ?? "")")
-                .font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
+        let breathe = 1 + (reduceMotion ? 0 : 0.07 * sin(t * 1.3))
+        let coreRadius = radius * 0.4 * breathe
+        gc.fill(Path(ellipseIn: CGRect(x: center.x - coreRadius, y: center.y - coreRadius, width: coreRadius * 2, height: coreRadius * 2)),
+                with: .radialGradient(Gradient(colors: [DashboardTheme.ember.opacity(0.5), .clear]), center: center, startRadius: 0, endRadius: coreRadius))
+
+        guard pulses > 0 else { return }
+        for i in 0..<pulses {
+            let base = Double(i) / Double(pulses) * 2 * .pi
+            let speed = 0.1 + 0.05 * Double(i % 3)
+            let angle = base + (reduceMotion ? 0 : t * speed)
+            let orbit = radius * (0.58 + 0.2 * Double(i % 3))
+            let x = center.x + CGFloat(cos(angle)) * orbit
+            let y = center.y + CGFloat(sin(angle)) * orbit
+            let tint = i % 3 == 0 ? DashboardTheme.ember : (i % 3 == 1 ? DashboardTheme.signal : DashboardTheme.amber)
+            let r: CGFloat = i % 4 == 0 ? 2.1 : 1.3
+            gc.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(tint.opacity(0.85)))
         }
-    }
-
-    private func mapTag(_ text: String, color: Color) -> some View {
-        Text(text)
-            .font(.system(size: 8, weight: .semibold, design: .monospaced))
-            .foregroundStyle(color)
-            .padding(.horizontal, 5).padding(.vertical, 3)
-            .background(DashboardTheme.black.opacity(0.84))
-            .overlay(Rectangle().stroke(DashboardTheme.line, lineWidth: 0.6))
-    }
-
-    private func reload() { events = PetMemoryStore.shared.snapshot() }
-}
-
-private enum DashboardGrid {
-    static let gap: CGFloat = 6
-    static func columns(_ count: Int) -> [GridItem] {
-        Array(repeating: GridItem(.flexible(minimum: 0), spacing: gap), count: count)
     }
 }
 
-private struct ResonanceCloud: View {
-    let phase: Int
-    let reducedMotion: Bool
+/// Trazo de pulso que se mueve solo: cuanta más memoria hay, más alto late. Sustituye a los tres
+/// "corte" que antes eran cajas casi vacías.
+private struct MemoryPulseLine: View {
+    let level: Int
+    let reduceMotion: Bool
 
     var body: some View {
-        Canvas { context, size in
-            let center = CGPoint(x: size.width * 0.52, y: size.height * 0.57)
-            for point in 0..<210 {
-                let angle = Double(point * 47 % 360) * .pi / 180
-                let ring = Double(point % 17) / 17
-                let wobble = reducedMotion ? 0 : sin(Double(phase) * 0.8 + Double(point)) * 1.8
-                let x = center.x + CGFloat(cos(angle) * (ring * 76 + Double(point % 11) * 0.9))
-                let y = center.y + CGFloat(sin(angle) * (ring * 45 + Double(point % 7) * 0.8) + wobble)
-                let color = point % 5 == 0 ? DashboardTheme.ember : DashboardTheme.signal
-                let radius = point % 9 == 0 ? 1.7 : 0.9
-                context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: radius * 2, height: radius * 2)), with: .color(color.opacity(point % 5 == 0 ? 0.9 : 0.55)))
-            }
-            // los extremos salen justo de donde se dibujan las etiquetas "primeros hitos" y "proyectos vistos" (ver `resonance`),
-            // para que la línea apunte de verdad a su etiqueta en vez de a un punto fijo que no coincide con el layout.
-            for (from, to) in [(CGPoint(x: 14, y: 38), CGPoint(x: size.width * 0.35, y: size.height * 0.37)), (CGPoint(x: size.width - 14, y: size.height - 20), CGPoint(x: size.width * 0.67, y: size.height * 0.68))] {
-                var line = Path(); line.move(to: from); line.addLine(to: to)
-                context.stroke(line, with: .color(DashboardTheme.ember.opacity(0.4)), lineWidth: 0.6)
+        Group {
+            if reduceMotion {
+                Canvas { gc, size in draw(&gc, size: size, t: 0) }
+            } else {
+                TimelineView(.animation) { timeline in
+                    Canvas { gc, size in draw(&gc, size: size, t: timeline.date.timeIntervalSinceReferenceDate) }
+                }
             }
         }
-        .drawingGroup()
+        .accessibilityHidden(true)
+    }
+
+    private func draw(_ gc: inout GraphicsContext, size: CGSize, t: Double) {
+        let amp = min(1, Double(level) / 40) * Double(size.height / 2 - 2) + 1
+        var path = Path()
+        var x: CGFloat = 0
+        var started = false
+        while x <= size.width {
+            let phase = Double(x) * 0.09 + t * 2.2
+            let y = size.height / 2 - CGFloat(sin(phase) * amp * 0.5 + sin(phase * 2.3) * amp * 0.22)
+            if started { path.addLine(to: CGPoint(x: x, y: y)) } else { path.move(to: CGPoint(x: x, y: y)); started = true }
+            x += 3
+        }
+        gc.stroke(path, with: .linearGradient(Gradient(colors: [DashboardTheme.ember.opacity(0.1), DashboardTheme.ember, DashboardTheme.signal.opacity(0.7)]),
+                   startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: size.width, y: 0)),
+                   style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
     }
 }
 
-private struct ResonanceSlice: View {
-    let index: Int
-    let phase: Int
+/// Reparto de hitos, herramientas e incidencias en una sola barra de color con su leyenda debajo:
+/// una línea en vez de tres cajas sueltas con "N registrados".
+private struct MemoryBreakdown: View {
+    let sessions: Int
+    let tools: Int
+    let incidents: Int
+
+    private var parts: [(count: Int, tint: Color, title: String)] {
+        [(sessions, DashboardTheme.ember, "hitos"), (tools, DashboardTheme.signal, "herramientas"), (incidents, DashboardTheme.amber, "incidencias")]
+    }
+    private var total: Int { max(1, sessions + tools + incidents) }
 
     var body: some View {
-        Canvas { context, size in
-            // un inset pequeño y casi plano: con el inset anterior (hasta 10pt por lado) el óvalo quedaba
-            // diminuto dentro de una tarjeta mucho más ancha, dejando un hueco vacío a los lados.
-            let inset = CGFloat(index) * 1.5
-            let rect = CGRect(x: inset, y: 1, width: size.width - inset * 2, height: size.height - 2)
-            context.stroke(Path(ellipseIn: rect), with: .color(DashboardTheme.ember.opacity(0.45)), lineWidth: 0.8)
-            for dot in 0..<14 {
-                let x = rect.minX + CGFloat((dot * 17 + index * 11) % 100) / 100 * rect.width
-                let y = rect.minY + CGFloat((dot * 31 + phase) % 100) / 100 * rect.height
-                context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 2, height: 2)), with: .color(DashboardTheme.signal.opacity(0.75)))
+        VStack(alignment: .leading, spacing: 5) {
+            GeometryReader { geo in
+                HStack(spacing: 2) {
+                    ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
+                        if part.count > 0 {
+                            Capsule().fill(part.tint).frame(width: max(3, geo.size.width * CGFloat(part.count) / CGFloat(total)))
+                        }
+                    }
+                    if sessions + tools + incidents == 0 { Capsule().fill(DashboardTheme.line).frame(width: geo.size.width) }
+                }
             }
+            .frame(height: 6)
+            HStack(spacing: 14) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { _, part in legend(part.title, part.count, part.tint) }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func legend(_ title: String, _ count: Int, _ tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(tint).frame(width: 5, height: 5)
+            Text(title).dashboardLabel()
+            Text("\(count)").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
         }
     }
 }
