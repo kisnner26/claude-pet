@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';import{startServer}from'../src/server.js';test('pulso inicia',async()=>{const s=await startServer({port:0,read:async()=>[]});try{assert.ok(s.token.length>20)}finally{await s.close()}})

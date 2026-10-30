@@ -1,0 +1,1 @@
+{"name":"pulso","version":"0.1.0","type":"module","bin":{"pulso":"bin/pulso.js"},"scripts":{"start":"node bin/pulso.js","test":"node --test test/"},"engines":{"node":">=20"},"license":"MIT"}

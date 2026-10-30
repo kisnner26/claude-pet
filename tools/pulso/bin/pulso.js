@@ -1,0 +1,2 @@
+#!/usr/bin/env node
+import {spawn} from 'node:child_process';import {startServer} from '../src/server.js';const a=process.argv.slice(2);let port=4646,dir=process.cwd(),open=true;for(let i=0;i<a.length;i++){if(a[i]==='--port')port=Number(a[++i]);else if(a[i]==='--no-open')open=false;else if(!a[i].startsWith('-'))dir=a[i];else process.exit(2)}try{const s=await startServer({dir,port});console.log(`pulso de ${s.name} en ${s.url}`);if(open&&process.platform==='darwin')spawn('open',[s.url],{stdio:'ignore',detached:true}).unref()}catch(e){console.error(e.message);process.exit(1)}
