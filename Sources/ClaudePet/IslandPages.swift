@@ -83,7 +83,7 @@ struct IslandShell: View {
     private var page: IslandPage { pages.contains(model.page) ? model.page : .home }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 7) {
             Group {
                 switch page {
                 case .home: IslandOverviewView(store: store, model: model, agentTab: $agentTab)
@@ -103,12 +103,12 @@ struct IslandShell: View {
     }
 
     private var railView: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             ForEach(pages) { p in
                 Button { model.page = p } label: {
-                    Image(systemName: p.symbol).font(.system(size: 11, weight: .semibold))
+                    Image(systemName: p.symbol).font(.system(size: 10.5, weight: .semibold))
                         .foregroundColor(page == p ? .white : .white.opacity(0.5))
-                        .frame(width: 26, height: 26)
+                        .frame(width: 22, height: 22)
                         .background {
                             if page == p {
                                 Circle().fill(Color.white.opacity(0.14)).overlay(Circle().strokeBorder(Color.white.opacity(0.30), lineWidth: 0.8))
@@ -120,7 +120,7 @@ struct IslandShell: View {
                 .accessibilityAddTraits(page == p ? .isSelected : [])
             }
         }
-        .padding(.vertical, 5).padding(.horizontal, 3)
+        .padding(.vertical, 4).padding(.horizontal, 2)
         .background(Capsule().fill(Color.white.opacity(0.05)))
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.09), lineWidth: 0.8))
     }

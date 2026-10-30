@@ -11,10 +11,10 @@ struct PetMemoryView: View {
     private var recall: Int { events.isEmpty ? 0 : Int((Double(namedEvents) / Double(events.count) * 100).rounded()) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             header
             stats
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .top, spacing: 7) {
                 resonance
                 slices
             }
@@ -50,13 +50,14 @@ struct PetMemoryView: View {
     }
 
     private func stat(_ label: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        // mas aire entre la etiqueta y el numero, y la barra separada del numero en vez de pegada al borde inferior.
+        VStack(alignment: .leading, spacing: 5) {
             Text(label).dashboardLabel()
-            Text(value).font(.system(size: 16, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+            Text(value).font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             Capsule().fill(DashboardTheme.accent).frame(height: 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .dashboardTile(padding: 7)
+        .dashboardTile(padding: 9)
     }
 
     private var resonance: some View {
@@ -64,9 +65,9 @@ struct PetMemoryView: View {
             ResonanceCloud(phase: tick, reducedMotion: store.reduceMotion)
         }
         .overlay(alignment: .topLeading) { mapHeader.padding(8) }
-        .overlay(alignment: .topLeading) { mapTag("primeros hitos", color: DashboardTheme.ember).padding(.top, 48).padding(.leading, 12) }
-        .overlay(alignment: .bottomTrailing) { mapTag("proyectos vistos", color: DashboardTheme.signal).padding(.bottom, 18).padding(.trailing, 12) }
-        .frame(height: 142)
+        .overlay(alignment: .topLeading) { mapTag("primeros hitos", color: DashboardTheme.ember).padding(.top, 40).padding(.leading, 12) }
+        .overlay(alignment: .bottomTrailing) { mapTag("proyectos vistos", color: DashboardTheme.signal).padding(.bottom, 14).padding(.trailing, 12) }
+        .frame(height: 112)
         .frame(maxWidth: .infinity)
         .dashboardTile(padding: 0, active: !events.isEmpty)
         .accessibilityElement(children: .ignore)
@@ -74,16 +75,16 @@ struct PetMemoryView: View {
     }
 
     private var slices: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             ForEach([0, 1, 2], id: \.self) { index in
                 VStack(alignment: .leading, spacing: 2) {
                     Text("corte 0\(index + 1)").dashboardLabel()
-                    ResonanceSlice(index: index, phase: tick).frame(height: 29)
+                    ResonanceSlice(index: index, phase: tick).frame(height: 21)
                 }
-                .dashboardTile(padding: 6)
+                .dashboardTile(padding: 5)
             }
         }
-        .frame(width: 104)
+        .frame(width: 96)
     }
 
     private var labels: some View {
@@ -102,7 +103,7 @@ struct PetMemoryView: View {
                 Text("\(count) registrados").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading).dashboardTile(padding: 6)
+        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading).dashboardTile(padding: 6)
     }
 
     private var mapHeader: some View {
@@ -151,7 +152,7 @@ private struct ResonanceCloud: View {
             }
             // los extremos salen justo de donde se dibujan las etiquetas "primeros hitos" y "proyectos vistos" (ver `resonance`),
             // para que la línea apunte de verdad a su etiqueta en vez de a un punto fijo que no coincide con el layout.
-            for (from, to) in [(CGPoint(x: 14, y: 46), CGPoint(x: size.width * 0.35, y: size.height * 0.37)), (CGPoint(x: size.width - 14, y: size.height - 24), CGPoint(x: size.width * 0.67, y: size.height * 0.68))] {
+            for (from, to) in [(CGPoint(x: 14, y: 38), CGPoint(x: size.width * 0.35, y: size.height * 0.37)), (CGPoint(x: size.width - 14, y: size.height - 20), CGPoint(x: size.width * 0.67, y: size.height * 0.68))] {
                 var line = Path(); line.move(to: from); line.addLine(to: to)
                 context.stroke(line, with: .color(DashboardTheme.ember.opacity(0.4)), lineWidth: 0.6)
             }
