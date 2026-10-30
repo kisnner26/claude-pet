@@ -266,6 +266,8 @@ struct IslandToolsPage: View {
             PageHeader(page: .tools, detail: "módulos que viven en la isla")
             IslandTileGrid(store: store, music: music, lab: lab)
         }
+        // El riel de páginas vive a la derecha del shell: esta reserva evita que los módulos lo tapen.
+        .padding(.trailing, 42)
     }
 }
 
@@ -275,7 +277,7 @@ private struct IslandTileGrid: View {
     @ObservedObject var store: PetStore
     @ObservedObject var music: MusicController
     @ObservedObject var lab: LabLauncher
-    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 7) {
