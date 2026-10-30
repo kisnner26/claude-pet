@@ -277,7 +277,8 @@ private struct IslandTileGrid: View {
     @ObservedObject var store: PetStore
     @ObservedObject var music: MusicController
     @ObservedObject var lab: LabLauncher
-    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+    // 9 módulos exactos (3 fijos + 6 del laboratorio): 3 columnas cierran la rejilla sin huecos.
+    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 7) {
@@ -306,10 +307,10 @@ private struct IslandTileGrid: View {
                 Text(title).font(.system(size: 11, weight: .semibold)).lineLimit(1)
                 Text(detail).font(.system(size: 9, design: .monospaced)).foregroundStyle(.white.opacity(0.55)).lineLimit(1)
             }
-            .foregroundStyle(.white).padding(9).frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.opacity(active ? 0.22 : 0.08)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(active ? 0.75 : 0.18), lineWidth: 0.9))
-            .shadow(color: active ? tint.opacity(0.35) : .clear, radius: 12)
+            .foregroundStyle(.white).padding(8).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.opacity(active ? 0.26 : 0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(active ? 0.8 : 0.18), lineWidth: 0.9))
+            .shadow(color: active ? tint.opacity(0.45) : .clear, radius: 14)
         }.buttonStyle(.plain).accessibilityLabel("\(title): \(detail)")
     }
 }
