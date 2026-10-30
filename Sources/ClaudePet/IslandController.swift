@@ -479,8 +479,9 @@ struct IslandView: View {
         }
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
-        .padding(.top, compact ? 0 : (model.hasNotch ? 38 : 14))
-        .padding(.bottom, compact ? 0 : 12)
+        // El contenido nunca comparte la franja superior del notch: conserva aire y evita texto recortado.
+        .padding(.top, compact ? 0 : 36)
+        .padding(.bottom, compact ? 0 : 20)
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)
     }
@@ -834,7 +835,6 @@ extension IslandSnapshot {
             ("archivos", { mo, s in s.permissionAsks = []; s.setSnapshotState(.idle); mo.dropHover = true }),
             ("pagina-cambios", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .changes }),
             ("pagina-plan", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .plan }),
-            ("pagina-herramientas", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .tools }),
             ("pagina-ajustes", { mo, s in s.permissionAsks = []; s.setSnapshotState(.tool); mo.page = .settings }),
         ]
         // una imagen por escena: todas comparten el PetStore, asi que se dibujan de una en una

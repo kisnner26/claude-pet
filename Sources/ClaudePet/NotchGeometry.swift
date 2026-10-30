@@ -55,9 +55,9 @@ struct ScreenFollower {
 enum NotchGeometry {
     /// Ventana fija que contiene la isla; el resto es transparente y deja pasar los clics.
     // La isla abierta prioriza legibilidad: deja una columna cómoda para los datos y otra para el riel.
-    static let panelSize = CGSize(width: 920, height: 320)
+    static let panelSize = CGSize(width: 920, height: 360)
     static let expandedWidth: CGFloat = 840
-    static let expandedHeight: CGFloat = 206
+    static let expandedHeight: CGFloat = 240
     static let hitMargin: CGFloat = 6
     /// Pantalla sin notch: barra de este ancho y alto en reposo.
     static let barWidth: CGFloat = 80
