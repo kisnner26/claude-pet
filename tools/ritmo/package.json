@@ -1,0 +1,1 @@
+{"name":"ritmo","version":"0.1.0","type":"module","bin":{"ritmo":"bin/ritmo.js"},"scripts":{"start":"node bin/ritmo.js","test":"node --test test/"},"engines":{"node":">=20"},"license":"MIT"}

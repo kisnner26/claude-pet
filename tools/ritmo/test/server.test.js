@@ -1,0 +1,1 @@
+import test from'node:test';import assert from'node:assert/strict';import{startServer}from'../src/server.js';test('ritmo inicia local',async()=>{const s=await startServer({port:0});try{assert.ok(s.url.includes('127.0.0.1'))}finally{await s.close()}})

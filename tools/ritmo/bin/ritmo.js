@@ -1,0 +1,2 @@
+#!/usr/bin/env node
+import{spawn}from'node:child_process';import{startServer}from'../src/server.js';const a=process.argv.slice(2);let port=4545,open=true;for(let i=0;i<a.length;i++){if(a[i]==='--port')port=Number(a[++i]);else if(a[i]==='--no-open')open=false;else process.exit(2)}const s=await startServer({port});console.log(`ritmo en ${s.url}`);if(open&&process.platform==='darwin')spawn('open',[s.url],{stdio:'ignore',detached:true}).unref();
