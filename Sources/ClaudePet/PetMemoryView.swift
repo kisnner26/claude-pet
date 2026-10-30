@@ -149,7 +149,9 @@ private struct ResonanceCloud: View {
                 let radius = point % 9 == 0 ? 1.7 : 0.9
                 context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: radius * 2, height: radius * 2)), with: .color(color.opacity(point % 5 == 0 ? 0.9 : 0.55)))
             }
-            for (from, to) in [(CGPoint(x: 15, y: 30), CGPoint(x: size.width * 0.35, y: size.height * 0.37)), (CGPoint(x: size.width - 8, y: 104), CGPoint(x: size.width * 0.67, y: size.height * 0.68))] {
+            // los extremos salen justo de donde se dibujan las etiquetas "primeros hitos" y "proyectos vistos" (ver `resonance`),
+            // para que la línea apunte de verdad a su etiqueta en vez de a un punto fijo que no coincide con el layout.
+            for (from, to) in [(CGPoint(x: 14, y: 46), CGPoint(x: size.width * 0.35, y: size.height * 0.37)), (CGPoint(x: size.width - 14, y: size.height - 24), CGPoint(x: size.width * 0.67, y: size.height * 0.68))] {
                 var line = Path(); line.move(to: from); line.addLine(to: to)
                 context.stroke(line, with: .color(DashboardTheme.ember.opacity(0.4)), lineWidth: 0.6)
             }
@@ -164,8 +166,10 @@ private struct ResonanceSlice: View {
 
     var body: some View {
         Canvas { context, size in
-            let inset = CGFloat(index * 3 + 4)
-            let rect = CGRect(x: inset, y: 3, width: size.width - inset * 2, height: size.height - 6)
+            // un inset pequeño y casi plano: con el inset anterior (hasta 10pt por lado) el óvalo quedaba
+            // diminuto dentro de una tarjeta mucho más ancha, dejando un hueco vacío a los lados.
+            let inset = CGFloat(index) * 1.5
+            let rect = CGRect(x: inset, y: 1, width: size.width - inset * 2, height: size.height - 2)
             context.stroke(Path(ellipseIn: rect), with: .color(DashboardTheme.ember.opacity(0.45)), lineWidth: 0.8)
             for dot in 0..<14 {
                 let x = rect.minX + CGFloat((dot * 17 + index * 11) % 100) / 100 * rect.width
