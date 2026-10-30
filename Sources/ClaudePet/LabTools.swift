@@ -2,23 +2,25 @@ import Foundation
 import AppKit
 import Darwin
 
-/// Las tres herramientas del laboratorio, incluidas en la app: galaxia (un repo como estrellas), ciudad (una carpeta de repos como edificios)
-/// y radar (sondeo de la red). Son programas de Node sin dependencias que escuchan solo en 127.0.0.1 y no escriben nada; claude pet los
+/// Las herramientas del laboratorio, incluidas en la app. Son programas de Node sin dependencias que escuchan solo en 127.0.0.1; claude pet los
 /// lanza, espera a que respondan, abre la pagina y los cierra al salir.
 enum LabTool: String, CaseIterable, Identifiable {
-    case galaxy = "galaxia", city = "ciudad", radar
+    case galaxy = "galaxia", city = "ciudad", radar, trazo, pulso, ritmo
     var id: String { rawValue }
     var folder: String { rawValue }
-    var title: String { switch self { case .galaxy: return "galaxia del repo"; case .city: return "ciudad de proyectos"; case .radar: return "radar de red" } }
-    var symbol: String { switch self { case .galaxy: return "sparkles"; case .city: return "building.2"; case .radar: return "dot.radiowaves.left.and.right" } }
+    var title: String { switch self { case .galaxy: return "galaxia del repo"; case .city: return "ciudad de proyectos"; case .radar: return "radar de red"; case .trazo: return "trazo de cambios"; case .pulso: return "pulso del código"; case .ritmo: return "ritmo de foco" } }
+    var symbol: String { switch self { case .galaxy: return "sparkles"; case .city: return "building.2"; case .radar: return "dot.radiowaves.left.and.right"; case .trazo: return "square.3.layers.3d.down.right"; case .pulso: return "waveform.path.ecg"; case .ritmo: return "timer" } }
     var detail: String {
         switch self {
         case .galaxy: return "cada archivo del proyecto es una estrella: su historial decide el tamaño y el brillo."
         case .city: return "cada repo de la carpeta es un edificio: altura, luces y color salen de su git."
         case .radar: return "sondea tus servicios y compara el DNS de tu equipo con los públicos."
+        case .trazo: return "ordena los cambios de git por zona y revela qué debes revisar antes de commitear."
+        case .pulso: return "convierte TODO, FIXME y deuda visible en una lista priorizada del proyecto."
+        case .ritmo: return "bloques de enfoque con una cola corta de tareas guardada solo en este navegador."
         }
     }
-    var defaultPort: Int { switch self { case .galaxy: return 4949; case .city: return 5050; case .radar: return 4848 } }
+    var defaultPort: Int { switch self { case .galaxy: return 4949; case .city: return 5050; case .radar: return 4848; case .trazo: return 4747; case .pulso: return 4646; case .ritmo: return 4545 } }
 }
 
 enum LabRules {
@@ -54,15 +56,15 @@ enum LabRules {
         if let p = env["CLAUDE_PET_TOOLS"], !p.isEmpty { options.append(p) }
         if let r = resources { options.append(r + "/tools") }
         options.append(fm.currentDirectoryPath + "/tools")
-        return options.first { fm.fileExists(atPath: $0 + "/galaxia/bin/galaxia.js") }
+        return options.first { fm.fileExists(atPath: $0 + "/galaxia/bin/galaxia.js") && fm.fileExists(atPath: $0 + "/ritmo/bin/ritmo.js") }
     }
 
     /// Que carpeta recibe cada herramienta a partir del proyecto activo: galaxia el propio repo, ciudad la carpeta que contiene los repos.
     static func targetDirectory(_ tool: LabTool, workspace: String) -> String? {
         switch tool {
-        case .galaxy: return workspace.isEmpty ? nil : workspace
+        case .galaxy, .trazo, .pulso: return workspace.isEmpty ? nil : workspace
         case .city: return workspace.isEmpty ? nil : (workspace as NSString).deletingLastPathComponent
-        case .radar: return nil
+        case .radar, .ritmo: return nil
         }
     }
 
@@ -134,7 +136,7 @@ final class LabLauncher: ObservableObject {
         guard let rawRoot = root else { return .failure("no encuentro las herramientas incluidas") }
         let root = URL(fileURLWithPath: rawRoot).standardizedFileURL.path      // absoluta: el proceso arranca dentro de la carpeta de la herramienta
         let directory = LabRules.targetDirectory(tool, workspace: workspace)
-        if tool != .radar, directory == nil { return .failure("no hay un proyecto activo") }
+        if tool != .radar && tool != .ritmo, directory == nil { return .failure("no hay un proyecto activo") }
         if let d = directory, !FileManager.default.fileExists(atPath: d) { return .failure("la carpeta ya no existe") }
         guard let port = LabRules.freePort(from: tool.defaultPort) else { return .failure("no hay un puerto libre") }
 

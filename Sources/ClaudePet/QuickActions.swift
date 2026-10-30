@@ -4,7 +4,7 @@ import Foundation
 enum QuickAction: String, CaseIterable, Identifiable {
     case commit, terminal, changes, music, mission, summary, folder, restorePoint, pomodoro, snooze, relay, perimeter, settings
     // las que traen los perfiles por app
-    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext, copyBranch, focus, labGalaxy, labCity, labRadar
+    case openInEditor, openRepoWeb, copyCd, copyPath, musicPrev, musicNext, copyBranch, focus, labGalaxy, labCity, labRadar, labTrazo, labPulso, labRitmo
     var id: String { rawValue }
 }
 
@@ -66,6 +66,8 @@ enum QuickActions {
         case .labGalaxy: return c.labAvailable && c.hasWorkspace && c.isRepo
         case .labCity: return c.labAvailable && c.hasWorkspace
         case .labRadar: return c.labAvailable
+        case .labTrazo, .labPulso: return c.labAvailable && c.hasWorkspace && c.isRepo
+        case .labRitmo: return c.labAvailable
         }
     }
 
@@ -94,6 +96,9 @@ enum QuickActions {
         case .labGalaxy: return QuickDescriptor(title: "galaxia del repo", symbol: "sparkles", when: "hay un repositorio activo y node 20 o superior")
         case .labCity: return QuickDescriptor(title: "ciudad de proyectos", symbol: "building.2", when: "hay un proyecto activo y node 20 o superior")
         case .labRadar: return QuickDescriptor(title: "radar de red", symbol: "dot.radiowaves.left.and.right", when: "node 20 o superior")
+        case .labTrazo: return QuickDescriptor(title: "trazo de cambios", symbol: "square.3.layers.3d.down.right", when: "hay un repositorio activo y node 20 o superior")
+        case .labPulso: return QuickDescriptor(title: "pulso del código", symbol: "waveform.path.ecg", when: "hay un repositorio activo y node 20 o superior")
+        case .labRitmo: return QuickDescriptor(title: "ritmo de foco", symbol: "timer", when: "node 20 o superior")
         case .focus: return QuickDescriptor(title: c.focusOn ? "salir del foco" : "modo foco", symbol: c.focusOn ? "moon.fill" : "moon", when: "siempre")
         }
     }

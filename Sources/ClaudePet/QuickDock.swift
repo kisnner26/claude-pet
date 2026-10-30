@@ -191,8 +191,8 @@ struct QuickDock: View {
             let b = store.mission.git.branch
             guard !b.isEmpty else { NSSound.beep(); return }
             NSPasteboard.general.clearContents(); NSPasteboard.general.setString(b, forType: .string); plugins.show("rama copiada")
-        case .labGalaxy, .labCity, .labRadar:
-            let tool: LabTool = a == .labGalaxy ? .galaxy : a == .labCity ? .city : .radar
+        case .labGalaxy, .labCity, .labRadar, .labTrazo, .labPulso, .labRitmo:
+            let tool: LabTool = a == .labGalaxy ? .galaxy : a == .labCity ? .city : a == .labRadar ? .radar : a == .labTrazo ? .trazo : a == .labPulso ? .pulso : .ritmo
             let ws = workspace
             Task { @MainActor in
                 plugins.show("abriendo \(tool.title)…")
