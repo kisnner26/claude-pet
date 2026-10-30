@@ -127,11 +127,11 @@ enum IslandSelfTest {
         check("oculta mide como el notch; asoma +64; compacta +104",
               NotchGeometry.islandSize(.hidden, metrics: notchMac).width == 184 && NotchGeometry.islandSize(.peek, metrics: notchMac).width == 248
               && NotchGeometry.islandSize(.compact, metrics: notchMac).width == 288)
-        check("abierta mide 640 de ancho", NotchGeometry.islandSize(.expanded, metrics: notchMac).width == 640)
+        check("abierta mide 840 de ancho", NotchGeometry.islandSize(.expanded, metrics: notchMac).width == 840)
         let f = NotchGeometry.islandFrame(.compact, metrics: notchMac)
         check("la isla queda pegada al borde superior y centrada", f.maxY == 982 && f.midX == 756)
         let pf = NotchGeometry.panelFrame(plainMac)
-        check("la ventana queda centrada arriba de su pantalla", pf.midX == plainMac.frame.midX && pf.maxY == plainMac.frame.maxY && pf.width == 720)
+        check("la ventana queda centrada arriba de su pantalla", pf.midX == plainMac.frame.midX && pf.maxY == plainMac.frame.maxY && pf.width == 920)
         check("elige la pantalla con notch aunque no sea la primera", NotchGeometry.pick([plainMac, notchMac]) == notchMac)
         check("sin notch usa la primera pantalla", NotchGeometry.pick([plainMac]) == plainMac)
         check("dos monitores conservan geometría independiente", NotchGeometry.panelFrame(notchMac).midX == 756 && NotchGeometry.panelFrame(plainMac).midX == 2472)
