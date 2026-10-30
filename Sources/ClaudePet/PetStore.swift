@@ -742,7 +742,7 @@ final class PetStore: ObservableObject {
             if s == .thinking, prior?.state != .thinking, !e.workspace.isEmpty { monitor.arm(session: e.session, workspace: e.workspace) }
             if s == .tool && e.tool == "test" { testSessions.insert(e.session) }
             if s == .error { bugBattleLevel = min(3, bugBattleLevel + 1); lastBugChange = Date() }
-            if s == .tool { ActivityStats.shared.recordTool(agent: "claude", project: e.project) }
+            if s == .tool { ActivityStats.shared.recordTool(agent: "claude", project: e.project); PetMemoryStore.shared.record(.tool, agent: "claude", project: e.project) }
             if s == .tool || s == .error, !e.tool.isEmpty,
                let found = loopDetector.record(tool: e.tool, target: e.detail.isEmpty ? e.project : e.detail, failed: s == .error, at: ProcessInfo.processInfo.systemUptime) { loopAlert = found }
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }

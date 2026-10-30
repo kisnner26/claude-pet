@@ -359,6 +359,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         ActivityStats.shared.load()
+        PetMemoryStore.shared.load()
         PetStore.shared.refreshWeeklyRecap()
         PetStore.shared.startAmbient()
         PetStore.shared.plan.onAlert = { text in PetStore.shared.pushToPhone(.plan, agent: "claude", project: "", detail: text, key: "plan-" + text) }
@@ -419,6 +420,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
             PetStore.shared.lastDecision = (decision != .deny, ProcessInfo.processInfo.systemUptime)
             ActivityStats.shared.recordPermission()
+            PetMemoryStore.shared.record(.permission, project: PetStore.shared.permissionAsks.first(where: { $0.id == id })?.project ?? "")
             self?.askServer.resolve(id: id, decision)
         }
         remoteLink.onAnswer = { [weak self] id, decision in
@@ -427,6 +429,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                 SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
                 PetStore.shared.lastDecision = (decision != .deny, ProcessInfo.processInfo.systemUptime)
                 ActivityStats.shared.recordPermission()
+                PetMemoryStore.shared.record(.permission, project: PetStore.shared.permissionAsks.first(where: { $0.id == id })?.project ?? "")
                 self?.askServer.resolve(id: id, decision, source: "remoto")
             }
         }
