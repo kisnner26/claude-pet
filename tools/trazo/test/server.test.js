@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import http from 'node:http';import {startServer} from '../src/server.js';
+const get=(s,path,headers={})=>new Promise(r=>http.get({host:'127.0.0.1',port:s.port,path,headers},x=>{let b='';x.on('data',c=>b+=c);x.on('end',()=>r({status:x.statusCode,body:b}))}));
+test('trazo protege el estado con token',async()=>{const s=await startServer({port:0,scan:async()=>({name:'demo',branch:'main',files:[],groups:[],at:1})});try{assert.equal((await get(s,'/api/state')).status,403);assert.equal(JSON.parse((await get(s,'/api/state',{'x-trazo-token':s.token})).body).name,'demo')}finally{await s.close()}});

@@ -1,0 +1,10 @@
+{
+  "name": "trazo",
+  "version": "0.1.0",
+  "description": "trazo de cambios: triage visual y local de git",
+  "type": "module",
+  "bin": { "trazo": "bin/trazo.js" },
+  "scripts": { "start": "node bin/trazo.js", "test": "node --test test/" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
