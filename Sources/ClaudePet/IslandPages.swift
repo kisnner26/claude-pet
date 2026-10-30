@@ -3,13 +3,13 @@ import AppKit
 
 /// Los menus viven dentro de la propia pildora: un riel de iconos a la derecha cambia de pagina sin abrir ventanas.
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, changes, music, plan, tools, settings
+    case home, changes, music, plan, memory, tools, settings
     var id: String { rawValue }
     var title: String {
-        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .tools: return "herramientas"; case .settings: return "ajustes" }
+        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .tools: return "herramientas"; case .settings: return "ajustes" }
     }
     var symbol: String {
-        switch self { case .home: return "pawprint.fill"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.bar.fill"; case .tools: return "square.grid.2x2.fill"; case .settings: return "slider.horizontal.3" }
+        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .tools: return "square.grid.2x2"; case .settings: return "slider.horizontal.3" }
     }
     /// Una sola luz neutra para todas las paginas: blanco frio, sin colores saturados.
     var accent: Color { Color(hex: 0xD6DEF5) }
@@ -91,6 +91,7 @@ struct IslandShell: View {
                 case .changes: IslandChangesPage(store: store)
                 case .music: IslandMusicPage(store: store)
                 case .plan: IslandPlanPage(store: store)
+                case .memory: PetMemoryView(store: store)
                 case .tools: IslandToolsPage(store: store)
                 case .settings: IslandSettingsPage(store: store)
                 }
