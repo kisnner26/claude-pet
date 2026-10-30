@@ -41,7 +41,7 @@ struct PetMemoryView: View {
     }
 
     private var stats: some View {
-        HStack(spacing: 6) {
+        LazyVGrid(columns: DashboardGrid.columns(4), spacing: DashboardGrid.gap) {
             stat("recuerdos", "\(events.count)")
             stat("sesiones", "\(sessions)")
             stat("recall", "\(recall)%")
@@ -62,29 +62,12 @@ struct PetMemoryView: View {
     private var resonance: some View {
         ZStack(alignment: .topLeading) {
             ResonanceCloud(phase: tick, reducedMotion: store.reduceMotion)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("mapa de actividad").dashboardLabel()
-                Text(events.isEmpty ? "esperando el primer hito" : "\(events.last?.at.formatted(date: .abbreviated, time: .shortened) ?? "")")
-                    .font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
-            }
-            .padding(8)
-            Text("primeros hitos")
-                .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(DashboardTheme.ember)
-                .padding(.horizontal, 5).padding(.vertical, 3)
-                .background(DashboardTheme.black.opacity(0.78))
-                .overlay(Rectangle().stroke(DashboardTheme.line, lineWidth: 0.6))
-                .offset(x: 12, y: 46)
-            Text("proyectos vistos")
-                .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(DashboardTheme.signal)
-                .padding(.horizontal, 5).padding(.vertical, 3)
-                .background(DashboardTheme.black.opacity(0.78))
-                .overlay(Rectangle().stroke(DashboardTheme.line, lineWidth: 0.6))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, 12).padding(.top, 92)
         }
+        .overlay(alignment: .topLeading) { mapHeader.padding(8) }
+        .overlay(alignment: .topLeading) { mapTag("primeros hitos", color: DashboardTheme.ember).padding(.top, 48).padding(.leading, 12) }
+        .overlay(alignment: .bottomTrailing) { mapTag("proyectos vistos", color: DashboardTheme.signal).padding(.bottom, 18).padding(.trailing, 12) }
         .frame(height: 142)
+        .frame(maxWidth: .infinity)
         .dashboardTile(padding: 0, active: !events.isEmpty)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("mapa de memoria con \(events.count) recuerdos locales")
@@ -100,11 +83,11 @@ struct PetMemoryView: View {
                 .dashboardTile(padding: 6)
             }
         }
-        .frame(width: 94)
+        .frame(width: 104)
     }
 
     private var labels: some View {
-        HStack(spacing: 6) {
+        LazyVGrid(columns: DashboardGrid.columns(3), spacing: DashboardGrid.gap) {
             memoryLabel("hitos", count: events.filter { $0.kind == .session }.count, color: DashboardTheme.ember)
             memoryLabel("herramientas", count: events.filter { $0.kind == .tool }.count, color: DashboardTheme.signal)
             memoryLabel("incidencias", count: events.filter { $0.kind == .error }.count, color: DashboardTheme.amber)
@@ -119,10 +102,34 @@ struct PetMemoryView: View {
                 Text("\(count) registrados").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading).dashboardTile(padding: 6)
+        .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading).dashboardTile(padding: 6)
+    }
+
+    private var mapHeader: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("mapa de actividad").dashboardLabel()
+            Text(events.isEmpty ? "esperando el primer hito" : "\(events.last?.at.formatted(date: .abbreviated, time: .shortened) ?? "")")
+                .font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
+        }
+    }
+
+    private func mapTag(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 8, weight: .semibold, design: .monospaced))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5).padding(.vertical, 3)
+            .background(DashboardTheme.black.opacity(0.84))
+            .overlay(Rectangle().stroke(DashboardTheme.line, lineWidth: 0.6))
     }
 
     private func reload() { events = PetMemoryStore.shared.snapshot() }
+}
+
+private enum DashboardGrid {
+    static let gap: CGFloat = 6
+    static func columns(_ count: Int) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(minimum: 0), spacing: gap), count: count)
+    }
 }
 
 private struct ResonanceCloud: View {
