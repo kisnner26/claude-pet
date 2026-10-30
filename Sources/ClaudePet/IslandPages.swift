@@ -258,16 +258,57 @@ struct IslandToolsPage: View {
     @ObservedObject var store: PetStore
     @ObservedObject private var music: MusicController
     @ObservedObject private var plugins: PluginHost
+    @ObservedObject private var lab = LabLauncher.shared
     init(store: PetStore) { self.store = store; _music = ObservedObject(wrappedValue: store.music); _plugins = ObservedObject(wrappedValue: store.plugins) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            PageHeader(page: .tools, detail: "todo lo que tienes a mano")
-            let dock = QuickDock(store: store, music: music, plugins: plugins, summary: { "\(store.sessionSummary) · \(store.state.label.lowercased())" }, showAll: true)
-                .frame(maxWidth: .infinity, alignment: .leading).fiberCard(IslandPage.tools.accent)
-            // las capturas no dibujan el contenido de un ScrollView
-            if IslandSnapshot.isRendering { dock } else { ScrollView(.vertical, showsIndicators: false) { dock } }
+            PageHeader(page: .tools, detail: "módulos que viven en la isla")
+            IslandTileGrid(store: store, music: music, lab: lab)
         }
+    }
+}
+
+/// Inicio de herramientas inspirado en un panel de módulos: cada bloque muestra una función viva,
+/// se ilumina solo cuando está activa y abre su control con un toque.
+private struct IslandTileGrid: View {
+    @ObservedObject var store: PetStore
+    @ObservedObject var music: MusicController
+    @ObservedObject var lab: LabLauncher
+    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 7) {
+            tile("agente", store.state == .idle ? "en reposo" : store.state.label.lowercased(), "cpu", active: store.state != .idle, tint: Color(hex: 0x6D9CFF)) { store.refreshTelemetryNow() }
+            tile("música", music.nowPlaying?.title ?? "sin música", music.isPlaying ? "pause.fill" : "music.note", active: music.isPlaying, tint: Color(hex: 0xEE6A92)) { music.send(.playPause) }
+            tile("foco", store.pomodoro.phase == .idle ? "25 min" : (store.pomodoroLabel(now: ProcessInfo.processInfo.systemUptime) ?? "en foco"), store.pomodoro.phase == .idle ? "play.fill" : "timer", active: store.pomodoro.phase != .idle, tint: Color(hex: 0xB77AFF)) {
+                if store.pomodoro.phase == .idle { store.pomodoro.start(now: ProcessInfo.processInfo.systemUptime) } else { store.pomodoro.stop() }
+            }
+            ForEach([LabTool.trazo, .pulso, .ritmo, .galaxy, .city, .radar]) { tool in
+                tile(tool.title.replacingOccurrences(of: " del repo", with: "").replacingOccurrences(of: " de ", with: " "), lab.isRunning(tool) ? "abierto" : tool.detail, tool.symbol, active: lab.isRunning(tool), tint: tileTint(tool)) {
+                    Task { _ = await lab.open(tool, workspace: store.mission.workspace) }
+                }
+            }
+        }
+    }
+
+    private func tileTint(_ tool: LabTool) -> Color {
+        switch tool { case .trazo: return Color(hex: 0x69D6FF); case .pulso: return Color(hex: 0xF0B45D); case .ritmo: return Color(hex: 0xB77AFF); case .galaxy: return Color(hex: 0x8E8BFF); case .city: return Color(hex: 0x62D99A); case .radar: return Color(hex: 0xE77682) }
+    }
+
+    private func tile(_ title: String, _ detail: String, _ symbol: String, active: Bool, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack { Image(systemName: symbol).font(.system(size: 12, weight: .semibold)); Spacer(); Circle().fill(active ? tint : .white.opacity(0.16)).frame(width: 6, height: 6).shadow(color: active ? tint : .clear, radius: 6) }
+                Spacer(minLength: 3)
+                Text(title).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                Text(detail).font(.system(size: 9, design: .monospaced)).foregroundStyle(.white.opacity(0.55)).lineLimit(1)
+            }
+            .foregroundStyle(.white).padding(9).frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.opacity(active ? 0.22 : 0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(active ? 0.75 : 0.18), lineWidth: 0.9))
+            .shadow(color: active ? tint.opacity(0.35) : .clear, radius: 12)
+        }.buttonStyle(.plain).accessibilityLabel("\(title): \(detail)")
     }
 }
 
