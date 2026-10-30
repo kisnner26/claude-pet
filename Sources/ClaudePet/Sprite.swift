@@ -7,11 +7,11 @@ extension Color {
 }
 
 enum Pal {
-    static let charcoal = Color(hex: 0x1C1B1A)
-    static let body = Color(hex: 0xE0824F)
-    static let light = Color(hex: 0xEC9A6E)
-    static let dark = Color(hex: 0xB9603A)
-    static let cream = Color(hex: 0xEDE3DA)
+    static let charcoal = DashboardTheme.black
+    static let body = DashboardTheme.amber
+    static let light = DashboardTheme.ember
+    static let dark = Color(hex: 0xB94312)
+    static let cream = DashboardTheme.cream
 }
 
 /// Lo que la mascota sabe de su par (otra mascota en el pet bus).

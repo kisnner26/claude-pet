@@ -1,21 +1,20 @@
 import SwiftUI
 import AppKit
 
-/// Identidad de la ventana de ajustes. Claude y Codex comparten la rejilla pixel-art y el glifo `>_`; el color los separa:
-/// el naranja del bloque de Claude y el azul de la nube de Codex. El dúo coral -> violeta -> azul es el acento de toda la ventana.
+/// Tokens compartidos para los ajustes: telemetría oscura, datos monoespaciados y una sola señal ámbar.
 enum SettingsTheme {
-    static let claude = Color(hex: 0xE0824F)
-    static let codex = Color(hex: 0x5270E8)
-    static let codexLight = Color(hex: 0x7E98FF)
-    static let violet = Color(hex: 0xB872C8)
+    static let claude = DashboardTheme.amber
+    static let codex = DashboardTheme.ember
+    static let codexLight = DashboardTheme.ember
+    static let violet = Color(hex: 0xFF944D)
     /// Un solo color para controles que no admiten degradado.
-    static let blue = Color(hex: 0xA78BFA)
+    static let blue = DashboardTheme.amber
     static let green = Color(hex: 0x33CC5C)
     static let red = Color(hex: 0xE6213F)
     static let amber = Color(hex: 0xF2B632)
-    static let mute = Color.white.opacity(0.58)
-    static let line = Color.white.opacity(0.11)
-    static let duo = LinearGradient(colors: [claude, violet, codexLight], startPoint: .leading, endPoint: .trailing)
+    static let mute = DashboardTheme.muted
+    static let line = DashboardTheme.line
+    static let duo = DashboardTheme.accent
     static let duoDiagonal = LinearGradient(colors: [claude, violet, codexLight], startPoint: .topLeading, endPoint: .bottomTrailing)
     static var cardBorder: LinearGradient {
         LinearGradient(colors: [Color.white.opacity(0.24), Color.white.opacity(0.05), Color.white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -38,9 +37,9 @@ struct SettingsBackground: View {
     var body: some View {
         ZStack {
             VisualEffect()
-            Color(hex: 0x0D0E13).opacity(0.62)
-            RadialGradient(colors: [SettingsTheme.claude.opacity(0.20), .clear], center: .topLeading, startRadius: 10, endRadius: 520)
-            RadialGradient(colors: [SettingsTheme.codex.opacity(0.24), .clear], center: .bottomTrailing, startRadius: 10, endRadius: 620)
+            DashboardTheme.black.opacity(0.88)
+            RadialGradient(colors: [SettingsTheme.claude.opacity(0.16), .clear], center: .topLeading, startRadius: 10, endRadius: 520)
+            LinearGradient(colors: [.clear, DashboardTheme.ember.opacity(0.05)], startPoint: .top, endPoint: .bottom)
         }
         .ignoresSafeArea()
     }
@@ -68,8 +67,8 @@ struct SCard<Content: View>: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.035)], startPoint: .top, endPoint: .bottom)))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(DashboardTheme.surfaceRaised))
+        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
     }
 }
 
@@ -85,7 +84,7 @@ struct SRow<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13.5, weight: .medium))
+                Text(title).font(.system(size: 12.5, weight: .medium, design: .monospaced))
                 if let detail {
                     Text(detail).font(.system(size: 11.5)).foregroundStyle(SettingsTheme.mute).fixedSize(horizontal: false, vertical: true)
                 }
@@ -107,7 +106,7 @@ struct GlassToggleStyle: ToggleStyle {
                 Circle().fill(Color.white).padding(3).shadow(color: .black.opacity(0.35), radius: 2, y: 1)
             }
             .frame(width: 42, height: 24)
-            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isOn)
+            .animation(.easeOut(duration: 0.16), value: configuration.isOn)
         }
         .buttonStyle(.plain)
         .accessibilityRepresentation { Toggle(isOn: configuration.$isOn) { configuration.label } }

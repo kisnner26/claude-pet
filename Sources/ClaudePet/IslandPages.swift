@@ -11,23 +11,22 @@ enum IslandPage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .tools: return "square.grid.2x2"; case .settings: return "slider.horizontal.3" }
     }
-    /// Una sola luz neutra para todas las paginas: blanco frio, sin colores saturados.
-    var accent: Color { Color(hex: 0xD6DEF5) }
+    /// Una señal común hace que cada panel se lea como parte del mismo instrumento.
+    var accent: Color { DashboardTheme.ember }
     /// Que paginas se muestran: la de musica solo con el reproductor activo.
     static func visible(musicPlayer: Bool) -> [IslandPage] { allCases.filter { $0 != .music || musicPlayer } }
 }
 
-/// Cristal liquido oscuro: carbon con un velo azul muy tenue abajo, brillo especular arriba a la izquierda y hebras finas casi invisibles.
-/// Todo es estatico y neutro (se rasteriza una sola vez): ni colores saturados ni nada en movimiento.
+/// Fondo técnico: carbón, trama de escaneo y señal ámbar de baja intensidad.
 struct FiberGlassLayer: View {
     var accent: Color = Color(hex: 0xD6DEF5)
     var animated = true
 
     var body: some View {
         Canvas { gc, size in
-            // velo azul tenue hacia abajo: el borde de arriba sigue negro para fundirse con el notch
+            // velo ámbar hacia abajo: el borde de arriba sigue negro para fundirse con el notch
             gc.fill(Path(CGRect(origin: .zero, size: size)),
-                    with: .linearGradient(Gradient(stops: [.init(color: .clear, location: 0.25), .init(color: Color(hex: 0x262B3C).opacity(0.55), location: 1)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                    with: .linearGradient(Gradient(stops: [.init(color: .clear, location: 0.25), .init(color: DashboardTheme.amber.opacity(0.09), location: 1)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
             // reflejo especular suave, como luz sobre cristal curvo
             gc.fill(Path(ellipseIn: CGRect(x: -size.width * 0.15, y: -size.height * 0.9, width: size.width * 0.9, height: size.height * 1.3)),
                     with: .radialGradient(Gradient(colors: [.white.opacity(0.10), .clear]), center: CGPoint(x: size.width * 0.3, y: 0), startRadius: 0, endRadius: size.width * 0.45))
@@ -68,8 +67,8 @@ extension View {
     /// Tarjeta de fibra de vidrio para el contenido de las paginas.
     func fiberCard(_ accent: Color = .white, padding: CGFloat = 10) -> some View {
         self.padding(padding)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(LinearGradient(colors: [Color.white.opacity(0.085), Color.white.opacity(0.03)], startPoint: .top, endPoint: .bottom)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(LinearGradient(colors: [Color.white.opacity(0.20), Color.white.opacity(0.05), Color.white.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 0.8))
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(DashboardTheme.surfaceRaised.opacity(0.82)))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(DashboardTheme.line, lineWidth: 0.8))
     }
 }
 
