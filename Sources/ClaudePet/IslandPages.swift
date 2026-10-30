@@ -256,12 +256,12 @@ struct IslandPlanPage: View {
 struct IslandSettingsPage: View {
     @ObservedObject var store: PetStore
     private let accent = IslandPage.settings.accent
-    private let cols = [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)]
+    private let cols = [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             PageHeader(page: .settings, detail: "ajustes rápidos")
-            LazyVGrid(columns: cols, spacing: 6) {
+            LazyVGrid(columns: cols, spacing: 4) {
                 chip("sonidos", "speaker.wave.2.fill", $store.soundsEnabled)
                 chip("animaciones", "sparkles", $store.animationsEnabled)
                 chip("modo foco", "moon.fill", $store.focusManual)
@@ -275,7 +275,7 @@ struct IslandSettingsPage: View {
             HStack(spacing: 6) {
                 ForEach(Lang.allCases) { l in
                     Button { store.language = l } label: {
-                        Text(l.name).font(.system(size: 10.5, weight: .medium)).foregroundColor(store.language == l ? .white : .white.opacity(0.5)).padding(.horizontal, 10).frame(height: 24)
+                        Text(l.name).font(.system(size: 10.5, weight: .medium)).foregroundColor(store.language == l ? .white : .white.opacity(0.5)).padding(.horizontal, 10).frame(height: 22)
                             .background(Capsule().fill(store.language == l ? accent.opacity(0.3) : Color.white.opacity(0.05))).overlay(Capsule().strokeBorder(store.language == l ? accent.opacity(0.8) : Color.white.opacity(0.1), lineWidth: 0.8))
                     }.buttonStyle(.plain)
                 }
@@ -294,9 +294,9 @@ struct IslandSettingsPage: View {
                 Spacer(minLength: 0)
                 Circle().fill(on.wrappedValue ? accent : Color.white.opacity(0.18)).frame(width: 6, height: 6)
             }
-            .foregroundColor(on.wrappedValue ? .white : .white.opacity(0.55)).padding(.horizontal, 9).frame(height: 28)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(on.wrappedValue ? accent.opacity(0.16) : Color.white.opacity(0.05)))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on.wrappedValue ? accent.opacity(0.55) : Color.white.opacity(0.08), lineWidth: 0.8))
+            .foregroundColor(on.wrappedValue ? .white : .white.opacity(0.55)).padding(.horizontal, 8).frame(height: 25)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(on.wrappedValue ? accent.opacity(0.16) : Color.white.opacity(0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on.wrappedValue ? accent.opacity(0.55) : Color.white.opacity(0.08), lineWidth: 0.8))
         }.buttonStyle(.plain)
     }
 }
