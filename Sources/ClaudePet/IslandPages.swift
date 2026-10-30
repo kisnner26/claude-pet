@@ -3,13 +3,13 @@ import AppKit
 
 /// Los menus viven dentro de la propia pildora: un riel de iconos a la derecha cambia de pagina sin abrir ventanas.
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, changes, music, plan, memory, tools, settings
+    case home, changes, music, plan, memory, settings
     var id: String { rawValue }
     var title: String {
-        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .tools: return "herramientas"; case .settings: return "ajustes" }
+        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .settings: return "ajustes" }
     }
     var symbol: String {
-        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .tools: return "square.grid.2x2"; case .settings: return "slider.horizontal.3" }
+        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .settings: return "slider.horizontal.3" }
     }
     /// Una señal común hace que cada panel se lea como parte del mismo instrumento.
     var accent: Color { DashboardTheme.ember }
@@ -91,7 +91,6 @@ struct IslandShell: View {
                 case .music: IslandMusicPage(store: store)
                 case .plan: IslandPlanPage(store: store)
                 case .memory: PetMemoryView(store: store)
-                case .tools: IslandToolsPage(store: store)
                 case .settings: IslandSettingsPage(store: store)
                 }
             }
@@ -251,67 +250,6 @@ struct IslandPlanPage: View {
                 Text("\(r)%").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(.white)
             } else { Text("—").foregroundColor(.white.opacity(0.4)) }
         }.frame(maxWidth: .infinity).fiberCard(accent, padding: 7)
-    }
-}
-
-struct IslandToolsPage: View {
-    @ObservedObject var store: PetStore
-    @ObservedObject private var music: MusicController
-    @ObservedObject private var plugins: PluginHost
-    @ObservedObject private var lab = LabLauncher.shared
-    init(store: PetStore) { self.store = store; _music = ObservedObject(wrappedValue: store.music); _plugins = ObservedObject(wrappedValue: store.plugins) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PageHeader(page: .tools, detail: "módulos que viven en la isla")
-            IslandTileGrid(store: store, music: music, lab: lab)
-        }
-        // El riel de páginas vive a la derecha del shell: esta reserva evita que los módulos lo tapen.
-        .padding(.trailing, 42)
-    }
-}
-
-/// Inicio de herramientas inspirado en un panel de módulos: cada bloque muestra una función viva,
-/// se ilumina solo cuando está activa y abre su control con un toque.
-private struct IslandTileGrid: View {
-    @ObservedObject var store: PetStore
-    @ObservedObject var music: MusicController
-    @ObservedObject var lab: LabLauncher
-    // 9 módulos exactos (3 fijos + 6 del laboratorio): 3 columnas cierran la rejilla sin huecos.
-    private let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
-
-    var body: some View {
-        LazyVGrid(columns: columns, spacing: 7) {
-            tile("agente", store.state == .idle ? "en reposo" : store.state.label.lowercased(), "cpu", active: store.state != .idle, tint: Color(hex: 0x6D9CFF)) { store.refreshTelemetryNow() }
-            tile("música", music.nowPlaying?.title ?? "sin música", music.isPlaying ? "pause.fill" : "music.note", active: music.isPlaying, tint: Color(hex: 0xEE6A92)) { music.send(.playPause) }
-            tile("foco", store.pomodoro.phase == .idle ? "25 min" : (store.pomodoroLabel(now: ProcessInfo.processInfo.systemUptime) ?? "en foco"), store.pomodoro.phase == .idle ? "play.fill" : "timer", active: store.pomodoro.phase != .idle, tint: Color(hex: 0xB77AFF)) {
-                if store.pomodoro.phase == .idle { store.pomodoro.start(now: ProcessInfo.processInfo.systemUptime) } else { store.pomodoro.stop() }
-            }
-            ForEach([LabTool.trazo, .pulso, .ritmo, .galaxy, .city, .radar]) { tool in
-                tile(tool.title.replacingOccurrences(of: " del repo", with: "").replacingOccurrences(of: " de ", with: " "), lab.isRunning(tool) ? "abierto" : tool.detail, tool.symbol, active: lab.isRunning(tool), tint: tileTint(tool)) {
-                    Task { _ = await lab.open(tool, workspace: store.mission.workspace) }
-                }
-            }
-        }
-    }
-
-    private func tileTint(_ tool: LabTool) -> Color {
-        switch tool { case .trazo: return Color(hex: 0x69D6FF); case .pulso: return Color(hex: 0xF0B45D); case .ritmo: return Color(hex: 0xB77AFF); case .galaxy: return Color(hex: 0x8E8BFF); case .city: return Color(hex: 0x62D99A); case .radar: return Color(hex: 0xE77682) }
-    }
-
-    private func tile(_ title: String, _ detail: String, _ symbol: String, active: Bool, tint: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack { Image(systemName: symbol).font(.system(size: 12, weight: .semibold)); Spacer(); Circle().fill(active ? tint : .white.opacity(0.16)).frame(width: 6, height: 6).shadow(color: active ? tint : .clear, radius: 6) }
-                Spacer(minLength: 3)
-                Text(title).font(.system(size: 11, weight: .semibold)).lineLimit(1)
-                Text(detail).font(.system(size: 9, design: .monospaced)).foregroundStyle(.white.opacity(0.55)).lineLimit(1)
-            }
-            .foregroundStyle(.white).padding(8).frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.opacity(active ? 0.26 : 0.08)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(active ? 0.8 : 0.18), lineWidth: 0.9))
-            .shadow(color: active ? tint.opacity(0.45) : .clear, radius: 14)
-        }.buttonStyle(.plain).accessibilityLabel("\(title): \(detail)")
     }
 }
 
