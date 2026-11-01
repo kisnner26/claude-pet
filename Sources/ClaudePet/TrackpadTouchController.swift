@@ -188,11 +188,16 @@ struct TrackpadTouchPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("trackpad táctil").font(.system(size: 17, weight: .bold, design: .monospaced))
+                Text("experimental").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(Color(hex: 0xE0824F))
+                    .padding(.horizontal, 7).padding(.vertical, 2).overlay(Capsule().stroke(Color(hex: 0xE0824F), lineWidth: 1))
                 Spacer()
                 Toggle("activar", isOn: $controller.enabled).toggleStyle(.switch)
             }
             Text("el trackpad pasa a ser una superficie absoluta, como una tableta: tocar un punto lleva el cursor al punto equivalente de la pantalla. Con dos dedos sigues desplazando y haciendo zoom como siempre. El clic físico, o tocar para hacer clic si lo tienes activado, funciona donde esté el cursor.")
                 .font(.system(size: 11)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+
+            Text("fase experimental: lee el trackpad con MultitouchSupport, un framework privado de macOS que Apple puede cambiar en cualquier actualización. Puede fallar o dejar de funcionar sin aviso; si algo se comporta raro, apágalo.")
+                .font(.system(size: 10)).foregroundColor(Color(hex: 0xE7B45B)).fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 4) {
                 row("modo", controller.status, ok: controller.status == "activo")
