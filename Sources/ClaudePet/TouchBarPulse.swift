@@ -394,13 +394,6 @@ private struct TouchBarLane: View {
                         gc.fill(Path(CGRect(x: x, y: y, width: 2, height: 2)), with: .color(tint.opacity(1 - a)))
                     }
                 }
-                // pensando: tres puntos que botan al final de la grafica
-                if animated && st.isWorking && scrub == nil {
-                    for k in 0..<3 {
-                        let y = size.height / 2 - CGFloat(max(0, sin(t * 7 - Double(k) * 0.8))) * 7
-                        gc.fill(Path(ellipseIn: CGRect(x: size.width - 14 + CGFloat(k) * 5, y: y, width: 3, height: 3)), with: .color(.white.opacity(0.85)))
-                    }
-                }
             }
             .frame(width: barWidth, height: 24)
             .contentShape(Rectangle())
@@ -416,7 +409,18 @@ private struct TouchBarLane: View {
                 if let col = scrub {
                     Text(TouchBarPulse.readout(events: events, agent: agent, column: col, now: now)).font(TB.mono(9, .semibold)).foregroundColor(.white).lineLimit(2).minimumScaleFactor(0.8)
                 } else {
-                    Text("\(agent) · \(TouchBarPulse.word(st))").font(TB.mono(10, .bold)).foregroundColor(working ? tint : .white).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text("\(agent) · \(TouchBarPulse.word(st))").font(TB.mono(10, .bold)).foregroundColor(working ? tint : .white).lineLimit(1)
+                        // pensando: tres puntos que botan, junto al texto y no encima de la grafica
+                        if animated && st.isWorking {
+                            Canvas { gc, size in
+                                for k in 0..<3 {
+                                    let y = size.height - 3 - CGFloat(max(0, sin(t * 7 - Double(k) * 0.8))) * 5
+                                    gc.fill(Path(ellipseIn: CGRect(x: CGFloat(k) * 5, y: y, width: 3, height: 3)), with: .color(tint))
+                                }
+                            }.frame(width: 15, height: 9)
+                        }
+                    }
                     if let f = forecast, f.minutes <= 10 {
                         Text(ContextForecast.label(f)).font(TB.mono(8.5, .bold)).foregroundColor(Color(hex: f.minutes <= 4 ? 0xD85C5C : 0xE7B45B))
                             .opacity(animated ? 0.65 + 0.35 * sin(t * 5) : 1).lineLimit(1)
