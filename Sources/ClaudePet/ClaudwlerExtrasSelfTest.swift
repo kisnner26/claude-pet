@@ -43,6 +43,12 @@ enum ClaudwlerExtrasSelfTest {
         let many = (0..<50).map { ReportEntry(link: CrawledLink(text: "e\($0)", url: "http://a.com/\($0)"), problems: ["texto genérico"], check: nil, hints: []) }
         check("con muchos problemas se limita", WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("te paso los 40 mas graves") == true
               && WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("40. ") == true && WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("41. ") == false)
+        // carpeta del informe guardado
+        let when = Date(timeIntervalSince1970: 1_793_547_000)
+        let utc = TimeZone(identifier: "UTC")!
+        check("la carpeta lleva sitio y fecha", WebCrawlerReport.folderName(site: "localhost:3000", date: when, timeZone: utc) == "claudwler-localhost-3000-20261101-153000")
+        check("un sitio con rutas y mayusculas se limpia", WebCrawlerReport.folderName(site: "Mi-Sitio.com/Blog", date: when, timeZone: utc) == "claudwler-mi-sitio-com-blog-20261101-153000")
+        check("un sitio vacio no deja un nombre roto", WebCrawlerReport.folderName(site: "", date: when, timeZone: utc) == "claudwler-sitio-20261101-153000")
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
