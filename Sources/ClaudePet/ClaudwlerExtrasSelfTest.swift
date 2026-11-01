@@ -124,6 +124,19 @@ enum ClaudwlerExtrasSelfTest {
             url.path == "/robots.txt" ? FetchedPage(status: 404) : FetchedPage(status: 200, contentType: "text/html", body: "<html><a href='/fuera'>x</a></html>", millis: 1, finalURL: url.path == "/fuera" ? "https://otro.com/" : url.absoluteString)
         }) }
         check("una redireccion a otro dominio no se sigue ni se escanea", leave.pages.last?.problems == ["redirige fuera del sitio"])
+        // informe del recorrido
+        let report = SiteCrawlReport.build(outcome)
+        check("el informe cuenta paginas, avisos y rotas", report.markdown.contains("6 páginas · 2 con avisos · 1 rotas · 1 dominios externos") && report.flagged == 2 && report.broken == 1)
+        check("las rotas dicen desde donde se enlazan", report.markdown.contains("- /roto (404) — enlazada desde: `/`, `/a`"))
+        check("las paginas con avisos listan sus problemas", report.markdown.contains("- /b — sin título; sin meta descripción; sin h1; sin idioma (html lang); 1 imagen sin alt"))
+        check("una pagina sin descripcion tambien sale", report.markdown.contains("- /d — sin meta descripción"))
+        check("lo vetado por robots se dice", report.markdown.contains("## vetadas por robots.txt") && report.markdown.contains("- /privado/x"))
+        check("los dominios externos se agrupan", report.markdown.contains("- otro.com (1)"))
+        check("el HTML lleva el sitio y las rotas", report.html.contains("<h1>sitio.com</h1>") && report.html.contains("Páginas rotas") && report.html.contains("/roto"))
+        check("el HTML escapa lo que viene de la web", SiteCrawlReport.build(SiteCrawlOutcome(start: "https://x.com/", pages: [SitePage(url: "https://x.com/<b>", depth: 0, status: 200, millis: 1, title: "<script>alert(1)</script>", problems: ["sin h1"], linkCount: 0, error: "")], broken: [], external: [:], blockedByRobots: [], truncated: false)).html.contains("&lt;script&gt;") )
+        check("las rutas se ensenan sin dominio y con su query", SiteCrawlReport.path("https://a.com/x?y=1") == "/x?y=1" && SiteCrawlReport.path("https://a.com") == "/")
+        check("las lentas solo cuentan desde 800 ms y van de mas a menos", SiteCrawlReport.slowest([SitePage(url: "https://a.com/1", depth: 0, status: 200, millis: 900, title: "", problems: [], linkCount: 0, error: ""), SitePage(url: "https://a.com/2", depth: 0, status: 200, millis: 3000, title: "", problems: [], linkCount: 0, error: ""), SitePage(url: "https://a.com/3", depth: 0, status: 200, millis: 100, title: "", problems: [], linkCount: 0, error: "")]).map { SiteCrawlReport.path($0.url) } == ["/2", "/1"])
+        check("un recorrido incompleto lo dice", SiteCrawlReport.build(capped).markdown.contains("recorrido incompleto"))
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
