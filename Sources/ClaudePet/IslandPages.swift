@@ -3,18 +3,16 @@ import AppKit
 
 /// Los menus viven dentro de la propia pildora: un riel de iconos a la derecha cambia de pagina sin abrir ventanas.
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, changes, music, plan, memory, brain, settings
+    case home, changes, plan, memory, brain, settings
     var id: String { rawValue }
     var title: String {
-        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .brain: return "cerebro"; case .settings: return "ajustes" }
+        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .brain: return "cerebro"; case .settings: return "ajustes" }
     }
     var symbol: String {
-        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .brain: return "brain"; case .settings: return "slider.horizontal.3" }
+        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .brain: return "brain"; case .settings: return "slider.horizontal.3" }
     }
     /// Una señal común hace que cada panel se lea como parte del mismo instrumento.
     var accent: Color { DashboardTheme.ember }
-    /// Que paginas se muestran: la de musica solo con el reproductor activo.
-    static func visible(musicPlayer: Bool) -> [IslandPage] { allCases.filter { $0 != .music || musicPlayer } }
 }
 
 /// Fondo técnico: carbón, trama de escaneo y señal ámbar de baja intensidad.
@@ -79,7 +77,7 @@ struct IslandShell: View {
     @Binding var agentTab: IslandAgentTab
     @Namespace private var rail
     private var animated: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
-    private var pages: [IslandPage] { IslandPage.visible(musicPlayer: store.musicPlayer) }
+    private var pages: [IslandPage] { IslandPage.allCases }
     private var page: IslandPage { pages.contains(model.page) ? model.page : .home }
 
     var body: some View {
@@ -88,7 +86,6 @@ struct IslandShell: View {
                 switch page {
                 case .home: IslandOverviewView(store: store, model: model, agentTab: $agentTab)
                 case .changes: IslandChangesPage(store: store)
-                case .music: IslandMusicPage(store: store)
                 case .plan: IslandPlanPage(store: store)
                 case .memory: PetMemoryView(store: store)
                 case .brain: PetBrainView(store: store)
@@ -186,26 +183,6 @@ struct IslandChangesPage: View {
             Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundColor(warn ? Color(hex: 0xD85C5C) : .white).lineLimit(1)
             Text(label).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.45))
         }.frame(maxWidth: .infinity, alignment: .leading).fiberCard(accent, padding: 7)
-    }
-}
-
-struct IslandMusicPage: View {
-    @ObservedObject var store: PetStore
-    @ObservedObject private var music: MusicController
-    init(store: PetStore) { self.store = store; _music = ObservedObject(wrappedValue: store.music) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PageHeader(page: .music, detail: music.nowPlaying == nil ? "nada suena" : "")
-            if music.nowPlaying != nil {
-                MusicPanelView(music: music, accent: store.musicAccent.map { Color(hex: $0) } ?? IslandPage.music.accent).fiberCard(IslandPage.music.accent)
-            } else {
-                Text("abre Spotify o Apple Music y suena aquí, con su portada.").font(.system(size: 11)).foregroundColor(.white.opacity(0.55)).fiberCard(IslandPage.music.accent)
-            }
-            Spacer(minLength: 0)
-        }
-        .onAppear { music.watching = true }
-        .onDisappear { music.watching = false }
     }
 }
 

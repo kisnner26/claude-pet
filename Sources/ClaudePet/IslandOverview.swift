@@ -11,7 +11,6 @@ struct IslandOverviewView: View {
     @ObservedObject private var plugins: PluginHost
     @ObservedObject private var plan: PlanUsageMonitor
     @State private var shown = false
-    @State private var showMusic = false
 
     init(store: PetStore, model: IslandModel, agentTab: Binding<IslandAgentTab>) {
         self.store = store
@@ -46,25 +45,17 @@ struct IslandOverviewView: View {
                 if let a = plan.alert { planAlertBanner(a) }
                 header.reveal(1, shown, animated: animated)
                 if isClaude, let u = plan.usage { PlanUsageRow(usage: u).reveal(1, shown, animated: animated) }
-                if showMusic && music.nowPlaying != nil {
-                    Spacer(minLength: 0)
-                    MusicPanelView(music: music, accent: store.musicAccent.map { Color(hex: $0) } ?? .white).transition(.opacity)
-                    Spacer(minLength: 0)
-                } else {
-                    speech.reveal(2, shown, animated: animated)
-                    stepList.reveal(3, shown, animated: animated)
-                    Spacer(minLength: 0)
-                    actions.reveal(4, shown, animated: animated)
-                    chips.reveal(5, shown, animated: animated)
-                }
+                speech.reveal(2, shown, animated: animated)
+                stepList.reveal(3, shown, animated: animated)
+                Spacer(minLength: 0)
+                actions.reveal(4, shown, animated: animated)
+                chips.reveal(5, shown, animated: animated)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { shown = true }
-        .onDisappear { shown = false; showMusic = false; music.watching = false }
-        .onChange(of: showMusic) { music.watching = $0 }
-        .onChange(of: music.nowPlaying == nil) { gone in if gone { showMusic = false } }
+        .onDisappear { shown = false }
     }
 
     // MARK: encabezado y frase
@@ -76,7 +67,6 @@ struct IslandOverviewView: View {
                 Text(isClaude ? "claude code" : "codex").font(.system(size: 11)).foregroundColor(.white.opacity(0.45))
             }
             Spacer(minLength: 8)
-            if store.musicPlayer, music.nowPlaying != nil { musicButton }
             if store.codexPresent { agentSwitch.fixedSize() }
             // las capturas no pueden dibujar menus nativos: en su lugar, el icono quieto
             if IslandSnapshot.isRendering { Image(systemName: "ellipsis").font(.system(size: 12, weight: .bold)).foregroundColor(.white.opacity(0.7)).frame(width: 26, height: 26).layoutPriority(2) }
@@ -105,16 +95,6 @@ struct IslandOverviewView: View {
         .background(Capsule().fill(LinearGradient(colors: [Color(hex: 0xE0824F).opacity(0.35), Color(hex: 0x5270E8).opacity(0.4)], startPoint: .leading, endPoint: .trailing)))
         .transition(.opacity.combined(with: .move(edge: .top)))
         .accessibilityLabel("aviso de plugin: \(text)")
-    }
-
-    private var musicButton: some View {
-        Button { if animated { withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) { showMusic.toggle() } } else { showMusic.toggle() } } label: {
-            Image(systemName: music.isPlaying ? "music.note" : "pause.fill").font(.system(size: 11, weight: .semibold))
-                .foregroundColor(showMusic ? .black : .white.opacity(0.85))
-                .frame(width: 26, height: 26).background(Circle().fill(showMusic ? Color.white : Color.white.opacity(0.1)))
-        }
-        .buttonStyle(.plain).help(showMusic ? "volver a la actividad" : "reproductor")
-        .accessibilityLabel("reproductor de música")
     }
 
     private var agentSwitch: some View {
