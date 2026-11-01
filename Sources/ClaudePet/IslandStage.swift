@@ -35,7 +35,10 @@ struct IslandStage: View {
 
     private var state: PetState { agent == .claude ? store.state : store.codexState }
     private var animated: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
-    private var width: CGFloat { store.codexPresent ? 150 : 104 }
+    private var width: CGFloat { store.codexPresent ? 170 : 104 }
+    /// Suelo por el que pasea: con el otro agente al lado no se le acerca de mas.
+    private var roam: ClosedRange<CGFloat> { store.codexPresent ? -3...1 : -3...3 }
+    private var identityTint: Color { Color(hex: agent == .claude ? 0xE0824F : 0x5270E8) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -43,6 +46,7 @@ struct IslandStage: View {
             if animated, store.musicPlayer, store.musicReacts { MusicGlow(music: store.music, store: store).frame(width: 104, height: 100) }      // resplandor con el color de la portada
             if animated, store.musicPlayer, store.musicReacts { MusicNotesLayer(music: store.music, store: store).frame(width: 104, height: 100) }   // notas al ritmo del volumen
             if animated, store.musicPlayer, store.musicVinyl { VinylCorner(music: store.music, store: store) }      // el vinilo gira en una esquina
+            IdentityGlow(tint: identityTint, state: state, animate: animated).frame(width: 118, height: 110).offset(y: 6)      // halo propio de cada agente
             EvolutionView(level: store.weeklyRecap.level).frame(width: 104, height: 100)       // halo y estrellitas por nivel
             // suelo: un disco de luz tenue bajo los pies
             Ellipse()
@@ -55,10 +59,10 @@ struct IslandStage: View {
                     RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.16), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4])).padding(18)
                         .overlay(Text("en el escritorio").font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.4)))
                         .onTapGesture(count: 2) { DesktopPets.shared.putBack(agent) }
-                } else if agent == .claude { PetFace(store: store, model: model) }
-                else { CodexMini(store: store, model: model, greet: false) }
+                } else if agent == .claude { PetFace(store: store, model: model, roam: roam, mateSide: store.codexPresent ? 1 : 0) }
+                else { CodexMini(store: store, model: model, greet: false, roam: roam, mateSide: store.codexPresent ? 1 : 0) }
             }
-            .frame(width: 92, height: 92)
+            .frame(width: 92 * (16 + 2 * PetFace.room(roam)) / 16, height: 92)
             .contentShape(Rectangle())
             .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
             // arrastrarla fuera de la isla la suelta por el escritorio
@@ -87,7 +91,7 @@ struct IslandStage: View {
             if let top = model.hourglassTop { HourglassView(top: top).offset(x: 10, y: -2) }
         }
         .overlay(alignment: .bottomTrailing) {
-            if store.codexPresent { DuoMate(store: store, model: model, active: agent).offset(x: 44, y: 2) }
+            if store.codexPresent { DuoMate(store: store, model: model, active: agent).offset(x: 58, y: 2) }
         }
         .frame(width: width, alignment: .leading)
     }
@@ -104,11 +108,13 @@ struct DuoMate: View {
             let now = ProcessInfo.processInfo.systemUptime
             let p = DuoScene.highFive(claudeDoneAt: model.claudeDoneAt, codexDoneAt: model.codexDoneAt, now: now)
             ZStack {
+                IdentityGlow(tint: Color(hex: active == .claude ? 0x5270E8 : 0xE0824F), state: active == .claude ? store.codexState : store.state, animate: store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering)
+                    .frame(width: 70, height: 66).offset(y: 4)
                 Group {
-                    if active == .claude { CodexMini(store: store, model: model, greet: false) }
-                    else { PetFace(store: store, model: model) }
+                    if active == .claude { CodexMini(store: store, model: model, greet: false, roam: -1...2, mateSide: -1) }
+                    else { PetFace(store: store, model: model, roam: -1...2, mateSide: -1) }
                 }
-                .frame(width: 38, height: 40)
+                .frame(width: 56 * (16 + 2 * PetFace.room(-1...2)) / 16, height: 58)
                 .offset(y: p.map { CGFloat(-sin($0 * .pi) * 10) } ?? 0)
                 if let p {
                     // chispas entre los dos en el momento del choque
@@ -120,6 +126,25 @@ struct DuoMate: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// Halo propio de cada agente (coral para claude, azul para codex): respira siempre y se enciende cuando trabaja.
+struct IdentityGlow: View {
+    let tint: Color
+    let state: PetState
+    let animate: Bool
+
+    var body: some View {
+        let working = state == .thinking || state == .tool || state == .starting || state == .waiting
+        TimelineView(.animation(minimumInterval: 1.0 / 10.0, paused: !animate)) { ctx in
+            let t = animate ? ctx.date.timeIntervalSinceReferenceDate : 0
+            let wave = 0.5 + 0.5 * sin(t * 2 * .pi / (working ? 1.8 : 4.5))
+            let level = (working ? 0.20 : 0.09) + (working ? 0.10 : 0.05) * wave
+            Ellipse()
+                .fill(RadialGradient(colors: [tint.opacity(level), tint.opacity(level * 0.4), tint.opacity(0)], center: .center, startRadius: 2, endRadius: 56))
+        }
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 

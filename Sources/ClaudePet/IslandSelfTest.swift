@@ -199,6 +199,24 @@ enum IslandSelfTest {
         check("el confeti es determinista", PetAnimator.particles(at: 101, pose: PetPose(), scene: conf).map { "\($0.x),\($0.y)" } == c1.map { "\($0.x),\($0.y)" })
         check("preocupada muestra una gota de sudor", PetAnimator.particles(at: 2, pose: emote(2, scene(0, .error)), scene: scene(0, .error)).count == 2)
         check("la musica solo cuenta si el estado es exactamente playing", MusicMonitor.parse("playing\n") && !MusicMonitor.parse("paused") && !MusicMonitor.parse("stopped") && !MusicMonitor.parse("") && !MusicMonitor.parse("not playing"))
+        // paseo por el suelo y mirada entre agentes
+        let xs = (0..<4000).map { PetAnimator.roam(at: Double($0) / 20, min: -3, max: 1).x }
+        check("el paseo se queda en su tramo", xs.allSatisfy { $0 >= -3.001 && $0 <= 1.001 })
+        check("el paseo no da saltos", zip(xs, xs.dropFirst()).allSatisfy { abs($0 - $1) < 0.2 })
+        check("el paseo recorre el suelo", (xs.max() ?? 0) - (xs.min() ?? 0) > 1.5)
+        func roamPose(_ t: TimeInterval, idle: TimeInterval = 5, mate: Int = 0) -> PetPose {
+            var sc = PetScene(idleSeconds: idle, state: .idle); sc.roamMin = -3; sc.roamMax = 1; sc.mateSide = mate
+            return PetAnimator.pose(at: t, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: sc)
+        }
+        let still = PetAnimator.pose(at: 30, gaze: .zero, pokes: [], hopStart: nil, motion: true, scene: PetScene(idleSeconds: 5, state: .idle)).dx
+        check("sin tramo de suelo no pasea", abs(still) < 0.01)
+        check("con tramo de suelo se desplaza", (0..<200).contains { abs(roamPose(Double($0) / 4).dx - still) > 0.8 })
+        check("dormida se queda quieta", abs(roamPose(30, idle: 400).dx - roamPose(37, idle: 400).dx) < 0.01)
+        check("sin movimiento no pasea", { var sc = PetScene(idleSeconds: 5, state: .idle); sc.roamMin = -3; sc.roamMax = 1
+            return PetAnimator.pose(at: 30, gaze: .zero, pokes: [], hopStart: nil, motion: false, scene: sc).dx == 0 }())
+        let glanceT = (0..<260).map { Double($0) / 20 }.first { PetAnimator.glance(at: $0) }
+        check("los agentes se miran de vez en cuando", glanceT != nil && roamPose(glanceT ?? 0, mate: 1).eyeDX == 1 && roamPose(glanceT ?? 0, mate: 1).rotation > 2
+              && roamPose(glanceT ?? 0, mate: 0).eyeDX == 0)
         // brillo de color del fondo
         func glow(_ st: PetState = .idle, codex: PetState = .idle, reason: IslandReason = .none, asking: Bool = false, dizzy: Bool = false) -> IslandGlow.Glow? { IslandGlow.glow(state: st, codex: codex, reason: reason, asking: asking, dizzy: dizzy) }
         check("en reposo no hay brillo", glow() == nil)

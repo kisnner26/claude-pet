@@ -50,6 +50,12 @@ struct PetScene: Equatable {
     /// Lo que suena y como; nil si la musica no cuenta.
     var music: MusicPulse?
     var ambient = Ambient()
+    /// Tramo de suelo por el que puede pasear, en celdas del sprite (0...0 = quieta).
+    var roamMin: CGFloat = 0
+    var roamMax: CGFloat = 0
+    /// Donde esta el otro agente respecto a ella (-1 izquierda, 1 derecha, 0 no hay) y si esta trabajando.
+    var mateSide = 0
+    var mateWorking = false
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -121,6 +127,30 @@ enum PetAnimator {
         if s >= 0 && s < 0.7 { life.stretch = s / 0.7; if s > 0.14 && s < 0.56 { life.earLift = true } }
         else if jitter(q + 503) > 0.5, s >= 0.7 && s < 1.5 { life.yawn = true }
         return life
+    }
+
+    static let roamCycle: TimeInterval = 11
+    static let roamWalk: TimeInterval = 2.4
+
+    /// Paseo por el suelo: cada ciclo elige un punto nuevo del tramo y camina hasta el. Continuo entre ciclos,
+    /// asi que nunca da un salto. `walk` es 0...1 mientras camina y nil cuando esta parada.
+    static func roam(at t: TimeInterval, min lo: CGFloat, max hi: CGFloat) -> (x: CGFloat, walk: Double?) {
+        guard hi > lo else { return (lo, nil) }
+        func target(_ n: Int) -> CGFloat { lo + (hi - lo) * CGFloat(jitter(n + 701)) }
+        let n = Int((t / roamCycle).rounded(.down))
+        let start = 1 + jitter(n + 809) * (roamCycle - roamWalk - 2)
+        let d = t - Double(n) * roamCycle - start
+        let k = Swift.min(1, Swift.max(0, d / roamWalk))
+        let s = CGFloat(k * k * (3 - 2 * k))
+        let x = target(n - 1) + (target(n) - target(n - 1)) * s
+        return (x, d >= 0 && d < roamWalk ? k : nil)
+    }
+
+    /// Mirada mutua: cada ~13 s los dos agentes se miran un momento (mismo reloj, asi coinciden).
+    static func glance(at t: TimeInterval) -> Bool {
+        let cycle = 13.0, n = Int((t / cycle).rounded(.down))
+        let d = t - Double(n) * cycle - (1 + jitter(n + 977) * (cycle - 4))
+        return d >= 0 && d < 1.6
     }
 
     /// Parpadeo cada 2 a 5 s, con un parpadeo doble de vez en cuando.
@@ -257,6 +287,29 @@ enum PetAnimator {
             if scene.ambient.hot { p.sweating = true; p.scaleY *= 1 + 0.012 * CGFloat(sin(t * 6)) }
             // un salto al empezar y un suspiro al pausar, aunque no se baile
             if let m = scene.music, scene.state == .idle || scene.state == .done { MusicDance.transients(&p, music: m) }
+            // trabajando no esta quieta: cavila meciendose y teclea rebotando
+            if scene.state == .thinking || scene.state == .starting { p.rotation += 1.4 * sin(t * 2.2) }
+            if scene.state == .tool { p.dy -= CGFloat(0.28 * abs(sin(t * 7))) }
+        }
+        // el otro agente: se miran de vez en cuando y, si el otro trabaja, ella lo observa
+        if scene.mateSide != 0, !p.dizzy, !p.annoyed, !busy {
+            let side = CGFloat(scene.mateSide)
+            if (scene.mateWorking && scene.state == .idle) || glance(at: t) {
+                p.rotation += Double(side) * 3
+                p.dx += side * 0.45
+                if look.dx == 0 { p.eyeDX = scene.mateSide }
+            }
+        }
+        // paseo: se desplaza por su suelo; antes de dormirse se va quedando quieta para no dar un salto
+        if scene.roamMax > scene.roamMin {
+            let r = roam(at: t, min: scene.roamMin, max: scene.roamMax)
+            let calm = CGFloat(Swift.max(0, Swift.min(1, (sleepAfter - scene.idleSeconds) / 60)))
+            let rest = (scene.roamMin + scene.roamMax) / 2
+            p.dx += rest + (r.x - rest) * calm
+            if let k = r.walk {
+                p.dy -= CGFloat(0.4 * abs(sin(k * 2 * .pi * 4))) * calm
+                p.rotation += 2.5 * sin(k * 2 * .pi * 4) * Double(calm)
+            }
         }
         return p
     }

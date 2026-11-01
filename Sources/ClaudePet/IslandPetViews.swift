@@ -3,6 +3,11 @@ import SwiftUI
 struct PetFace: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
+    /// Suelo por el que pasea (celdas del sprite) y donde esta el otro agente; sin ellos queda quieta como siempre.
+    var roam: ClosedRange<CGFloat>? = nil
+    var mateSide = 0
+    /// Celdas extra a cada lado del sprite en el lienzo, para que el paseo no se recorte.
+    static func room(_ roam: ClosedRange<CGFloat>?) -> CGFloat { roam.map { max(abs($0.lowerBound), abs($0.upperBound)).rounded(.up) + 1 } ?? 0 }
 
     @ViewBuilder var body: some View {
         if model.mode == .hidden {
@@ -14,16 +19,18 @@ struct PetFace: View {
             let motion = store.animationsEnabled && !store.reduceMotion
             let now = ProcessInfo.processInfo.systemUptime
             let tick = motion ? Int(ctx.date.timeIntervalSinceReferenceDate * 8) : 0
-            let scene = Self.makeScene(model: model, store: store)
+            var scene = Self.makeScene(model: model, store: store)
+            let _ = Self.addCompany(to: &scene, roam: roam, mateSide: mateSide, mateState: store.codexState, motion: motion)
             let pose = PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.pokes, hopStart: model.hopStart, motion: motion, hover: model.hover, scene: scene)
             Canvas { gc, size in
+                let unit: CGFloat? = roam == nil ? nil : min(size.width / (16 + 2 * Self.room(roam)), size.height / 16)
                 var cue = store.cue(at: ctx.date)
                 if model.greetUntil > now { cue = (cue ?? PeerCue(state: store.state, greet: false, cheer: false, concern: false)); cue?.greet = true }
                 // un archivo encima o recien soltado: la mascota es una caja
                 if model.dropHover || model.swallowStart.map({ now - $0 < 0.7 }) == true {
                     var box = PetPose()
                     if let s = model.swallowStart, now - s < 0.7 { box.dx = CGFloat(sin((now - s) * 40)) * 0.5; box.scaleY = 0.96 }
-                    PetFace.draw(&gc, size: size, pixels: FileDrop.boxPixels(open: model.dropHover), pose: box)
+                    PetFace.draw(&gc, size: size, pixels: FileDrop.boxPixels(open: model.dropHover), pose: box, unit: unit)
                     return
                 }
                 var px = Sprite.pixels(store.state, tick: tick, cue: cue)
@@ -31,8 +38,8 @@ struct PetFace: View {
                 if store.state != .error { px = PetAnimator.apply(px, pose: pose) }
                 // las particulas no siguen al cuerpo: se dibujan antes de moverlo
                 var overlay = gc
-                PetFace.draw(&gc, size: size, pixels: px, pose: pose)
-                if motion { PetFace.draw(&overlay, size: size, pixels: PetAnimator.particles(at: now, pose: pose, scene: scene), pose: PetPose()) }
+                PetFace.draw(&gc, size: size, pixels: px, pose: pose, unit: unit)
+                if motion { PetFace.draw(&overlay, size: size, pixels: PetAnimator.particles(at: now, pose: pose, scene: scene), pose: PetPose(), unit: unit) }
             }
             }
         }
@@ -43,6 +50,14 @@ struct PetFace: View {
         var scene = PetScene(idleSeconds: model.idleSeconds, state: store.state, confettiStart: model.confettiStart, dancing: model.dancing)
         addMoments(to: &scene, model: model, store: store, now: 0)
         return scene
+    }
+
+    /// Paseo y compañia: el tramo de suelo, de que lado esta el otro agente y si ese esta trabajando.
+    static func addCompany(to scene: inout PetScene, roam: ClosedRange<CGFloat>?, mateSide: Int, mateState: PetState, motion: Bool) {
+        guard motion else { return }
+        if let r = roam { scene.roamMin = r.lowerBound; scene.roamMax = r.upperBound }
+        scene.mateSide = mateSide
+        scene.mateWorking = mateState == .thinking || mateState == .tool || mateState == .starting
     }
 
     static func addMoments(to scene: inout PetScene, model: IslandModel, store: PetStore, now: TimeInterval) {
@@ -56,13 +71,16 @@ struct PetFace: View {
         scene.ambient = store.ambient
     }
 
-    static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose) {
-        let u = size.width / 16
+    /// `unit` fija el tamano de la celda cuando el lienzo es mas ancho que el sprite (para poder pasear); sin el, el sprite llena el ancho.
+    static func draw(_ gc: inout GraphicsContext, size: CGSize, pixels: [Px], pose: PetPose, unit: CGFloat? = nil) {
+        let u = unit ?? size.width / 16
+        let ox = unit == nil ? 0 : (size.width - 16 * u) / 2
+        let oy = unit == nil ? 0 : size.height - 16 * u
         gc.translateBy(x: size.width / 2 + pose.dx * u, y: size.height + pose.dy * u)
         gc.rotate(by: .degrees(pose.rotation))
         gc.scaleBy(x: pose.scaleX, y: pose.scaleY)
         gc.translateBy(x: -size.width / 2, y: -size.height)
-        for p in pixels { gc.fill(Path(CGRect(x: CGFloat(p.x) * u, y: CGFloat(p.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(p.c)) }
+        for p in pixels { gc.fill(Path(CGRect(x: ox + CGFloat(p.x) * u, y: oy + CGFloat(p.y) * u, width: u + 0.5, height: u + 0.5)), with: .color(p.c)) }
     }
 }
 
@@ -70,6 +88,8 @@ struct CodexMini: View {
     @ObservedObject var store: PetStore
     @ObservedObject var model: IslandModel
     let greet: Bool
+    var roam: ClosedRange<CGFloat>? = nil
+    var mateSide = 0
     private func face(_ tick: Int, pose: PetPose) -> CodexAvatar.Face {
         // las expresiones de la pose mandan sobre el estado solo cuando no hay nada urgente que mostrar
         if pose.dizzy { return .dizzy(tick / 2) }
@@ -99,7 +119,7 @@ struct CodexMini: View {
             let legs: CodexAvatar.Legs = motion && tick % 8 < 4 ? .step : .stand
             // la misma vida que claude: respira, se inclina al cursor, se estira, bosteza, se marea y saluda con la mano
             let now = ProcessInfo.processInfo.systemUptime
-            let scene: PetScene = { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState, dancing: model.dancing); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); return sc }()
+            let scene: PetScene = { var sc = PetScene(idleSeconds: model.idleSeconds, state: store.codexState, dancing: model.dancing); PetFace.addMoments(to: &sc, model: model, store: store, now: 0); PetFace.addCompany(to: &sc, roam: roam, mateSide: mateSide, mateState: store.state, motion: motion); return sc }()
             let pose = motion ? PetAnimator.pose(at: now, gaze: model.gaze, pokes: model.codexPokes, hopStart: model.codexDoneAt, motion: true, scene: scene) : PetPose()
             CodexMiniFrame(face: face(tick, pose: pose), legs: legs, tick: tick, skin: store.codexSkin, wave: (greet || pose.earLift) && motion, pose: pose,
                            outfits: store.outfitsNow(for: .codex, at: ctx.date), particles: motion ? PetAnimator.particles(at: now, pose: pose, scene: scene) : [])
