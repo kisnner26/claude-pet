@@ -728,7 +728,6 @@ enum TouchBarHaptics {
 extension NSTouchBarItem.Identifier {
     static let pager = NSTouchBarItem.Identifier("claudepet.pager")
     static let content = NSTouchBarItem.Identifier("claudepet.content")
-    static let tools = NSTouchBarItem.Identifier("claudepet.tools")
     static let shot = NSTouchBarItem.Identifier("claudepet.shot")
     static let trackpadMode = NSTouchBarItem.Identifier("claudepet.trackpadmode")
     static let askLabel = NSTouchBarItem.Identifier("claudepet.ask.label")
@@ -743,7 +742,7 @@ extension NSTouchBarItem.Identifier {
 @MainActor final class TouchBarController: NSObject, NSTouchBarDelegate {
     private let store: PetStore
     private let state = TouchBarState()
-    private lazy var pulseBar: NSTouchBar = makeBar([.pager, .content, .tools])
+    private lazy var pulseBar: NSTouchBar = makeBar([.pager, .content, .shot, .trackpadMode])
     private var askBar = NSTouchBar()
     private var questionBar = NSTouchBar()
     private var shown: TouchBarPulse.Mode?
@@ -880,27 +879,17 @@ extension NSTouchBarItem.Identifier {
             host.widthAnchor.constraint(equalToConstant: 640).isActive = true
             item.view = host
             return item
-        case .tools:
-            // un solo boton que despliega las herramientas: asi la barra no pierde sitio
-            let item = NSPopoverTouchBarItem(identifier: id)
-            item.collapsedRepresentationImage = NSImage(systemSymbolName: "wrench.and.screwdriver.fill", accessibilityDescription: "herramientas")
-            let bar = NSTouchBar()
-            bar.delegate = self
-            bar.defaultItemIdentifiers = [.shot, .trackpadMode]
-            item.popoverTouchBar = bar
-            item.showsCloseButton = true
-            return item
         case .shot:
             let item = NSCustomTouchBarItem(identifier: id)
-            let b = NSButton(title: " captura", image: NSImage(systemSymbolName: "camera.fill", accessibilityDescription: "captura de la barra") ?? NSImage(), target: self, action: #selector(capture))
-            b.imagePosition = .imageLeading
+            let b = NSButton(image: NSImage(systemSymbolName: "camera.fill", accessibilityDescription: "captura de la barra") ?? NSImage(), target: self, action: #selector(capture))
+            b.widthAnchor.constraint(equalToConstant: 44).isActive = true
             item.view = b
             return item
         case .trackpadMode:
             let item = NSCustomTouchBarItem(identifier: id)
             let on = TrackpadTouchController.shared.enabled
-            let b = NSButton(title: on ? " trackpad táctil: activo · experimental" : " trackpad táctil · experimental", image: NSImage(systemSymbolName: "rectangle.and.hand.point.up.left", accessibilityDescription: "trackpad como pantalla táctil") ?? NSImage(), target: self, action: #selector(toggleTrackpad(_:)))
-            b.imagePosition = .imageLeading
+            let b = NSButton(image: NSImage(systemSymbolName: "rectangle.and.hand.point.up.left", accessibilityDescription: "trackpad como pantalla táctil (experimental)") ?? NSImage(), target: self, action: #selector(toggleTrackpad(_:)))
+            b.widthAnchor.constraint(equalToConstant: 44).isActive = true
             if on { b.bezelColor = Self.ember }
             item.view = b
             return item
@@ -970,9 +959,9 @@ extension NSTouchBarItem.Identifier {
         let c = TrackpadTouchController.shared
         c.toggle()
         TouchBarHaptics.tap(.levelChange)
-        sender.title = c.enabled ? " trackpad táctil: activo · experimental" : " trackpad táctil · experimental"
         sender.bezelColor = c.enabled ? Self.ember : nil
         if !c.enabled && c.status != "apagado" { flash(c.status, ok: false) }
+        else { flash(c.enabled ? "trackpad táctil activo · experimental" : "trackpad táctil apagado") }
     }
 
     @objc private func pageChanged(_ sender: NSSegmentedControl) {
