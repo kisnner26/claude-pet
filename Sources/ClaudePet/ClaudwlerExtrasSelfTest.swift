@@ -137,6 +137,9 @@ enum ClaudwlerExtrasSelfTest {
         check("las rutas se ensenan sin dominio y con su query", SiteCrawlReport.path("https://a.com/x?y=1") == "/x?y=1" && SiteCrawlReport.path("https://a.com") == "/")
         check("las lentas solo cuentan desde 800 ms y van de mas a menos", SiteCrawlReport.slowest([SitePage(url: "https://a.com/1", depth: 0, status: 200, millis: 900, title: "", problems: [], linkCount: 0, error: ""), SitePage(url: "https://a.com/2", depth: 0, status: 200, millis: 3000, title: "", problems: [], linkCount: 0, error: ""), SitePage(url: "https://a.com/3", depth: 0, status: 200, millis: 100, title: "", problems: [], linkCount: 0, error: "")]).map { SiteCrawlReport.path($0.url) } == ["/2", "/1"])
         check("un recorrido incompleto lo dice", SiteCrawlReport.build(capped).markdown.contains("recorrido incompleto"))
+        let siteCSV = SiteCrawlReport.csv(outcome).split(separator: "\n").map(String.init)
+        check("el CSV del sitio tiene una fila por pagina", siteCSV.count == 7 && siteCSV[0] == "ruta,estado,milisegundos,profundidad,titulo,avisos,enlazada_desde")
+        check("la pagina rota dice desde donde se enlaza", siteCSV.first { $0.hasPrefix("/roto,") } == "/roto,404,12,1,,,/ | /a")
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
