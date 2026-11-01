@@ -269,13 +269,61 @@ private struct TouchBarConfetti: View {
     }
 }
 
+/// Ritmo de la barra. Cada imagen que se dibuja viaja entera a la pantalla de la Touch Bar y cuesta CPU (a 3 fps la app gasta
+/// ~3 puntos mas; a 12 fps, ~9), asi que en calma se redibuja poco y solo se vuelve fluida cuando algo se mueve de verdad.
+final class TouchBarTempo: @unchecked Sendable {
+    var busy = false          // un agente trabaja, espera o acaba de terminar
+    var saving = false        // ahorro de energia
+    var still = false         // sin animaciones: basta con refrescar los datos
+}
+
+enum TouchBarRhythm {
+    static let calm: TimeInterval = 0.2
+    static let lively: TimeInterval = 1.0 / 12.0
+
+    static func interval(busy: Bool, walking: Bool, saving: Bool, still: Bool) -> TimeInterval {
+        if still { return 1 }
+        let base = busy || walking ? lively : calm
+        return saving ? base * 2 : base
+    }
+
+    /// La mascota esta de paseo (se mueve de verdad y pide fluidez). Es el mismo reloj que usa el animador.
+    static func walking(atUptime t: TimeInterval) -> Bool { PetAnimator.roam(at: t, min: -7, max: 7).walk != nil }
+}
+
+struct TouchBarSchedule: TimelineSchedule {
+    let tempo: TouchBarTempo
+
+    func entries(from start: Date, mode: TimelineScheduleMode) -> Entries {
+        Entries(cursor: start, tempo: tempo, offset: Date().timeIntervalSinceReferenceDate - ProcessInfo.processInfo.systemUptime)
+    }
+
+    struct Entries: Sequence, IteratorProtocol {
+        var cursor: Date
+        let tempo: TouchBarTempo
+        let offset: TimeInterval
+        mutating func next() -> Date? {
+            let current = cursor
+            let uptime = current.timeIntervalSinceReferenceDate - offset
+            cursor = current.addingTimeInterval(TouchBarRhythm.interval(busy: tempo.busy, walking: TouchBarRhythm.walking(atUptime: uptime), saving: tempo.saving, still: tempo.still))
+            return current
+        }
+    }
+}
+
 struct TouchBarPulseView: View {
     @ObservedObject var store: PetStore
     @ObservedObject var state: TouchBarState
+    @State private var tempo = TouchBarTempo()
 
     var body: some View {
         let animated = store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering
-        TimelineView(.animation(minimumInterval: store.energySaving ? 1.0 / 8.0 : 1.0 / 20.0, paused: !animated && !IslandSnapshot.isRendering)) { ctx in
+        let _ = {
+            tempo.busy = [store.state, store.codexPresent ? store.codexState : .idle].contains { $0.isWorking || $0 == .waiting || $0 == .done }
+            tempo.saving = store.energySaving
+            tempo.still = !animated
+        }()
+        TimelineView(TouchBarSchedule(tempo: tempo)) { ctx in
             let both = store.codexPresent
             HStack(spacing: 10) {
                 TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading,
@@ -1066,6 +1114,13 @@ enum TouchBarSelfTest {
         check("las lecturas viejas no cuentan", ContextForecast.recent([sample(50, minutesAgo: 90), sample(40, minutesAgo: 1)], now: now).count == 1)
         let when = Date(timeIntervalSince1970: 1_793_547_000)
         check("el nombre de la captura lleva pagina y fecha sin acentos", TouchBarPulse.captureName(page: .forecast, date: when, timeZone: TimeZone(identifier: "UTC")!) == "claude-pet-touchbar-pronostico-20261101-153000.png")
+        check("en calma la barra se redibuja despacio", TouchBarRhythm.interval(busy: false, walking: false, saving: false, still: false) == 0.2)
+        check("con trabajo o paseo se vuelve fluida", TouchBarRhythm.interval(busy: true, walking: false, saving: false, still: false) == 1.0 / 12.0 && TouchBarRhythm.interval(busy: false, walking: true, saving: false, still: false) == 1.0 / 12.0)
+        check("el ahorro de energia duplica el intervalo", TouchBarRhythm.interval(busy: true, walking: false, saving: true, still: false) == 2.0 / 12.0)
+        check("sin animaciones solo refresca cada segundo", TouchBarRhythm.interval(busy: true, walking: true, saving: false, still: true) == 1)
+        // el paseo dura 2,4 s de cada 11: el resto del tiempo la barra puede ir despacio
+        let walkingShare = (0..<2200).filter { TouchBarRhythm.walking(atUptime: Double($0) / 20) }.count
+        check("la mascota pasea una parte del tiempo, no siempre", walkingShare > 100 && walkingShare < 1400)
         print(ok ? "TOUCHBAR OK" : "TOUCHBAR FALLO")
         return ok
     }
