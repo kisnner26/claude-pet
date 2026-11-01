@@ -34,6 +34,15 @@ enum ClaudwlerExtrasSelfTest {
         check("los rotos van primero", lines[1].hasPrefix("\"Docs, guía\",http://localhost:3000/docs,roto,404,40,"))
         check("las pistas de codigo se separan con barra", lines[1].hasSuffix("src/nav.tsx:7 | src/footer.tsx:3"))
         check("un aviso sin verificar en red se marca como aviso", lines[2].contains(",aviso,") && lines[3].contains(",ok,200,80,"))
+        // prompt de arreglo
+        let prompt = WebCrawlerReport.fixPrompt(entries, site: "localhost:3000")
+        check("el prompt cuenta solo lo que falla", prompt?.contains("Son 2.") == true && prompt?.contains("Inicio") == false)
+        check("los rotos van primero con su pista de codigo", prompt.map { $0.range(of: "Docs, guía")!.lowerBound < $0.range(of: "aquí")!.lowerBound && $0.contains("`src/nav.tsx:7`, `src/footer.tsx:3`") } == true)
+        check("explica que la pista es archivo:linea", prompt?.contains("`archivo:línea`") == true)
+        check("sin problemas no hay prompt", WebCrawlerReport.fixPrompt([entries[0]], site: "x") == nil)
+        let many = (0..<50).map { ReportEntry(link: CrawledLink(text: "e\($0)", url: "http://a.com/\($0)"), problems: ["texto genérico"], check: nil, hints: []) }
+        check("con muchos problemas se limita", WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("te paso los 40 mas graves") == true
+              && WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("40. ") == true && WebCrawlerReport.fixPrompt(many, site: "a.com", limit: 40)?.contains("41. ") == false)
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
