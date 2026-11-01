@@ -206,6 +206,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             let out = CommandLine.arguments.indices.contains(flag + 1) ? CommandLine.arguments[flag + 1] : nil
             exit(WebCrawlerSelfTest.run(htmlOut: out) ? 0 : 1)
         }
+        if CommandLine.arguments.contains("--selftest-memory") { exit(MemorySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)

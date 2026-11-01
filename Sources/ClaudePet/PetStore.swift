@@ -838,7 +838,14 @@ final class PetStore: ObservableObject {
         let known = PetState(rawValue: m.state)
         peerStateKnown = known != nil                              // desconocido: hay presencia, pero no cuenta como idle para el partido
         let st = known ?? .idle
-        if lastPeerState != st { lastPeerState = st; peerStateSince = now }
+        if lastPeerState != st {
+            lastPeerState = st; peerStateSince = now
+            if st == .tool {
+                let name = m.project.map { String($0.prefix(40)) } ?? (codexWorkspace.isEmpty ? "" : URL(fileURLWithPath: codexWorkspace).lastPathComponent)
+                ActivityStats.shared.recordTool(agent: "codex", project: name)
+                PetMemoryStore.shared.record(.tool, agent: "codex", project: name)
+            }
+        }
         let localCodexProject = codexWorkspace.isEmpty ? nil : URL(fileURLWithPath: codexWorkspace).lastPathComponent
         let proj = m.project.map { String($0.prefix(40)) } ?? localCodexProject
         peer = Peer(id: m.id, state: st, project: proj, lastTs: m.ts, seen: now)
