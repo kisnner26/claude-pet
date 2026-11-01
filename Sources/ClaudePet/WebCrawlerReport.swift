@@ -88,6 +88,25 @@ enum WebCrawlerReport {
         return Output(markdown: md, html: html, flagged: flagged.count, broken: broken, external: external)
     }
 
+    // MARK: prompt de arreglo
+
+    /// Un texto listo para pegar en Claude Code: solo lo que hay que arreglar, los rotos primero y con la pista de donde esta en el codigo.
+    /// nil si el recorrido salio limpio.
+    static func fixPrompt(_ entries: [ReportEntry], site: String, limit: Int = 40) -> String? {
+        let flagged = entries.filter { !$0.problems.isEmpty }.sorted { rank($0) < rank($1) }
+        guard !flagged.isEmpty else { return nil }
+        var out = "Corrige los enlaces con problemas de \(site). Son \(flagged.count)"
+        out += flagged.count > limit ? " (te paso los \(limit) mas graves)." : "."
+        out += flagged.contains { !$0.hints.isEmpty } ? " Cuando hay pista `archivo:línea`, ahí está el enlace en el código.\n\n" : "\n\n"
+        for (i, entry) in flagged.prefix(limit).enumerated() {
+            out += "\(i + 1). \(display(entry.link)) → \(destination(entry.link))\n"
+            out += "   problema: \(entry.problems.joined(separator: "; "))\n"
+            if !entry.hints.isEmpty { out += "   dónde: " + entry.hints.map { "`\($0)`" }.joined(separator: ", ") + "\n" }
+        }
+        out += "\nCambia solo lo necesario para cada enlace, y al terminar dime qué archivos tocaste para volver a pasar claudwler."
+        return out
+    }
+
     // MARK: CSV
 
     /// Una celda de CSV: entre comillas si hace falta y a salvo de formulas (una celda que empieza por = + - @ se ejecutaria en una hoja de calculo).
