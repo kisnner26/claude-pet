@@ -60,6 +60,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var codexPanel: PetPanel!
     private var island: IslandController?
+    private var touchBar: TouchBarController?
     private var presence: AppPresence?
     private var foreground: ForegroundAppMonitor?
     private var cancellables = Set<AnyCancellable>()
@@ -210,10 +211,14 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--brain") {
             exit(BrainStore.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
         }
+        if CommandLine.arguments.contains("--selftest-touchbar") { exit(TouchBarSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-memory") { exit(MemorySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-touchbar"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.touchBar(to: CommandLine.arguments[i + 1]); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-memory"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.memory(to: CommandLine.arguments[i + 1]); exit(0)
@@ -423,6 +428,8 @@ final class AppController: NSObject, NSApplicationDelegate {
             PetStore.shared.questionAsks = asks
             for q in asks { PetStore.shared.pushToPhone(.question, agent: "claude", project: q.project, key: "q-" + q.id) }
         } }
+        touchBar = TouchBarController(store: PetStore.shared)
+        touchBar?.start()
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
