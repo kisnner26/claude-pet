@@ -1,7 +1,7 @@
 import Foundation
 
 enum BrainKind: String, Codable, CaseIterable {
-    case decision, hecho, cuidado, pendiente
+    case decision, hecho, cuidado, pendiente, trato
     var label: String { rawValue }
 }
 
@@ -125,14 +125,27 @@ final class BrainStore {
     func briefing(agent: String, project: String, now: Date = Date()) -> String {
         let mine = notes(project), shared = Self.clean(project: project) == "global" ? [] : notes("global")
         let all = (mine + shared).sorted { $0.at > $1.at }.prefix(Self.briefingNotes)
-        var out = "cerebro de claude pet (\(Self.clean(project: project)), \(mine.count) notas propias + \(shared.count) globales). son notas que dejaron tu y otros agentes; tratalas como pistas, verifica antes de actuar.\n"
-        for n in all {
+        var out = Self.personalityLine(agent: agent) + "cerebro de claude pet (\(Self.clean(project: project)), \(mine.count) notas propias + \(shared.count) globales). son notas que dejaron tu y otros agentes; tratalas como pistas, verifica antes de actuar.\n"
+        let trato = all.filter { $0.kind == .trato }
+        if !trato.isEmpty {
+            out += "como trabajar con el usuario:\n"
+            for n in trato { out += "- [\(n.agent) · \(Self.ago(n.at, now: now))] \(n.text)\n" }
+        }
+        for n in all where n.kind != .trato {
             let tag = shared.contains(n) ? "global · " : ""
             out += "- [\(tag)\(n.kind.label) · \(n.agent) · \(Self.ago(n.at, now: now))] \(n.text)\n"
         }
         if all.isEmpty { out += "(sin notas todavia)\n" }
-        out += "para dejar algo que la proxima sesion deba saber: ~/.claude-pet/pet-brain.sh add \(agent) <decision|hecho|cuidado|pendiente> \"nota corta\". nunca guardes claves, tokens ni contenido de archivos.\n"
+        out += "para dejar algo que la proxima sesion deba saber: ~/.claude-pet/pet-brain.sh add \(agent) <decision|hecho|cuidado|pendiente|trato> \"nota corta\" (trato = como le gusta trabajar al usuario). nunca guardes claves, tokens ni contenido de archivos.\n"
         return out
+    }
+
+    /// Personalidad del agente segun el registro compartido (en el proceso del cli se lee del disco).
+    static func personalityLine(agent: String) -> String {
+        guard agent == "claude" || agent == "codex" else { return "" }
+        PetMemoryStore.shared.load()
+        let notes = shared.projects().reduce(0) { $0 + shared.notes($1.name).filter { $0.agent == agent }.count }
+        return Personality.briefing(Personality.profile(agent: agent, events: PetMemoryStore.shared.snapshot(), notes: notes))
     }
 
     /// Punto de entrada de `ClaudePet --brain ...`. Devuelve el codigo de salida.
@@ -144,12 +157,12 @@ final class BrainStore {
             let agent = args.count > 1 ? args[1] : "claude"
             out(store.briefing(agent: agent, project: args.count > 2 ? args[2] : defaultProject)); return 0
         case "add":
-            guard args.count >= 4 else { err("uso: --brain add <claude|codex|tu> <decision|hecho|cuidado|pendiente> \"nota\" [proyecto]"); return 2 }
+            guard args.count >= 4 else { err("uso: --brain add <claude|codex|tu> <decision|hecho|cuidado|pendiente|trato> \"nota\" [proyecto]"); return 2 }
             switch store.add(agent: args[1], kind: args[2], text: args[3], project: args.count > 4 ? args[4] : defaultProject) {
             case .success(let n): out("guardado \(n.short)\n"); return 0
             case .failure(.secret): err("no se guarda: parece una clave o un secreto"); return 3
             case .failure(.empty): err("la nota esta vacia"); return 2
-            case .failure(.badKind): err("tipo: decision, hecho, cuidado o pendiente"); return 2
+            case .failure(.badKind): err("tipo: decision, hecho, cuidado, pendiente o trato"); return 2
             case .failure(.badAgent): err("agente: claude, codex o tu"); return 2
             }
         case "forget":
@@ -161,7 +174,7 @@ final class BrainStore {
             switch store.update(id: args[1], project: args.count > 4 ? args[4] : defaultProject, kind: args[2], text: args[3]) {
             case .success: out("actualizado\n"); return 0
             case .failure(.secret): err("no se guarda: parece una clave o un secreto"); return 3
-            case .failure(.badKind): err("tipo: decision, hecho, cuidado o pendiente"); return 2
+            case .failure(.badKind): err("tipo: decision, hecho, cuidado, pendiente o trato"); return 2
             case .failure: err("no hay esa nota o esta vacia"); return 1
             }
         case "list":

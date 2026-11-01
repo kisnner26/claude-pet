@@ -50,6 +50,28 @@ enum BrainSelfTest {
         check("el cli rechaza secretos con codigo 3", BrainStore.cli(["add", "claude", "hecho", "sk-live-abcdef", "cli"], cwd: "/tmp/x", out: { _ in }, err: { _ in }) == 3)
         _ = BrainStore.cli(["add", "tu", "hecho", "desde cwd"], cwd: "/tmp/miproj", out: { _ in }, err: { _ in })
         check("sin proyecto, el cli usa la carpeta actual", ProcessInfo.processInfo.environment["CLAUDE_PROJECT_DIR"] != nil || BrainStore.shared.notes("miproj").count == 1)
+        // personalidad
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let day0: TimeInterval = 1_800_000_000 - TimeInterval(1_800_000_000 % 86_400)
+        let noon = Date(timeIntervalSince1970: day0 + 12 * 3600)
+        func e(_ k: PetMemoryEvent.Kind, daysAgo: Int, hour: Int, agent: String, project: String = "app") -> PetMemoryEvent {
+            PetMemoryEvent(id: UUID(), at: noon.addingTimeInterval(-Double(daysAgo) * 86_400 + Double(hour - 12) * 3600), kind: k, agent: agent, project: project)
+        }
+        let few = Personality.profile(agent: "codex", events: [e(.tool, daysAgo: 0, hour: 10, agent: "codex")], notes: 0, now: noon, calendar: cal)
+        check("con pocos recuerdos aun se esta formando", !few.formed && few.summary == "todavía formándose" && few.stage == "recién conocidos")
+        var lots: [PetMemoryEvent] = []
+        for d in 0..<14 { for _ in 0..<3 { lots.append(e(.tool, daysAgo: d, hour: 23, agent: "claude", project: "p\(d % 3)")) } }
+        let rich = Personality.profile(agent: "claude", events: lots, notes: 12, now: noon, calendar: cal)
+        check("14 dias seguidos dan constancia total", rich.traits.first { $0.key == "constancia" }?.value == 1)
+        check("todo de noche da nocturnidad total", rich.traits.first { $0.key == "noche" }?.value == 1)
+        check("sin errores la precision es total", rich.traits.first { $0.key == "precision" }?.value == 1)
+        check("el resumen nombra los rasgos fuertes", rich.summary.contains("constante") && rich.summary.contains("nocturno") || rich.summary.contains("preciso"))
+        check("la etapa sube con los recuerdos", Personality.stage(events: 0) == "recién conocidos" && Personality.stage(events: 250) == "compañeros" && Personality.stage(events: 5000) == "cómplices")
+        check("los recuerdos sin autor son de claude", Personality.belongs(e(.tool, daysAgo: 0, hour: 9, agent: ""), to: "claude") && !Personality.belongs(e(.tool, daysAgo: 0, hour: 9, agent: ""), to: "codex"))
+        check("cada agente tiene su propio carácter", Personality.profile(agent: "codex", events: lots, notes: 0, now: noon, calendar: cal).events == 0)
+        check("el resumen del agente trae tono y limite", Personality.briefing(rich).contains("nunca a costa de la precisión") && Personality.briefing(few).contains("trato"))
+        s.add(agent: "claude", kind: "trato", text: "prefiere respuestas cortas y en español", project: "trato")
+        check("las notas de trato van primero en el resumen", s.briefing(agent: "claude", project: "trato").contains("como trabajar con el usuario"))
         print(ok ? "CEREBRO OK" : "CEREBRO FALLO")
         return ok
     }
