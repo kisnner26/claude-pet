@@ -138,6 +138,9 @@ struct MenuBarContent: View {
         Button(webScout.isCrawling ? "detener claudwler" : "iniciar claudwler", systemImage: webScout.isCrawling ? "stop.fill" : "point.3.filled.connected.trianglepath.dotted") {
             webScout.isCrawling ? webScout.stopCrawler() : webScout.startCrawler()
         }
+        Button(webScout.isSiteCrawling ? "detener el recorrido del sitio" : "recorrer todo el sitio…", systemImage: webScout.isSiteCrawling ? "stop.fill" : "network") {
+            webScout.isSiteCrawling ? webScout.stopSiteCrawl() : webScout.startSiteCrawl()
+        }
         Toggle("verificar enlaces rotos en red", isOn: $webScout.verifyLinks)
         Button("abrir informe visual", systemImage: "chart.bar.doc.horizontal") { webScout.openReport() }.disabled(!webScout.hasReport)
         Button("copiar informe para Claude Code", systemImage: "doc.on.clipboard") { webScout.copyReport() }.disabled(!webScout.hasReport)
