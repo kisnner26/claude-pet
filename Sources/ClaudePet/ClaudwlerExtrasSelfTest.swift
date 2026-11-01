@@ -49,6 +49,37 @@ enum ClaudwlerExtrasSelfTest {
         check("la carpeta lleva sitio y fecha", WebCrawlerReport.folderName(site: "localhost:3000", date: when, timeZone: utc) == "claudwler-localhost-3000-20261101-153000")
         check("un sitio con rutas y mayusculas se limpia", WebCrawlerReport.folderName(site: "Mi-Sitio.com/Blog", date: when, timeZone: utc) == "claudwler-mi-sitio-com-blog-20261101-153000")
         check("un sitio vacio no deja un nombre roto", WebCrawlerReport.folderName(site: "", date: when, timeZone: utc) == "claudwler-sitio-20261101-153000")
+        // lector de HTML
+        let base = URL(string: "https://sitio.com/blog/post")!
+        let html = """
+        <!doctype html><html lang="es"><head><title>  Mi &amp; sitio
+          </title><meta name="description" content="Una descripción corta">
+        <meta content='index,noindex' name='robots'><link rel="canonical" href="https://sitio.com/blog/post">
+        <script>var x = "<a href='/falso'>no</a>";</script><style>a{}</style></head><body>
+        <h1>Hola</h1><h1 class="x">Otra vez</h1>
+        <img src="a.png"><img src="b.png" alt=""><img src='c.png' alt='un gato'><IMG SRC=d.png>
+        <a href="/precios">Precios <b>hoy</b></a> <a href='../otro?x=1#sec' class=y>Otro</a>
+        <a href="https://externo.org/p">Externo</a> <a href="#arriba">arriba</a> <a href="mailto:a@b.com">correo</a>
+        <a href="javascript:void(0)">js</a> <a href="/solo-icono" aria-label="Menú"><svg></svg></a> <a href="/precios">Precios <b>hoy</b></a>
+        </body></html>
+        """
+        let page = HTMLScan.scan(html: html, base: base)
+        check("el titulo se limpia", page.title == "Mi & sitio")
+        check("lee descripcion, idioma y canonical", page.description == "Una descripción corta" && page.lang == "es" && page.canonical == "https://sitio.com/blog/post")
+        check("detecta noindex aunque los atributos vengan al reves", page.noindex)
+        check("cuenta los h1", page.h1Count == 2)
+        check("solo las imagenes sin atributo alt fallan (alt vacio vale)", page.imagesWithoutAlt == 2)
+        check("el script y el estilo no aportan enlaces", !page.links.contains { $0.url.contains("falso") })
+        check("las rutas relativas se resuelven y el fragmento se quita", page.links.contains { $0.url == "https://sitio.com/precios" } && page.links.contains { $0.url == "https://sitio.com/otro?x=1" })
+        check("el texto del enlace se limpia de etiquetas", page.links.first { $0.url.hasSuffix("/precios") }?.text == "Precios hoy")
+        check("un enlace solo con icono usa su aria-label", page.links.first { $0.url.hasSuffix("/solo-icono") }?.text == "Menú")
+        check("no se cuentan anclas, correo ni javascript", !page.links.contains { $0.url.contains("arriba") || $0.url.contains("mailto") || $0.url.contains("void") })
+        check("un enlace repetido no se duplica", page.links.filter { $0.url.hasSuffix("/precios") }.count == 1)
+        check("los problemas de la pagina", HTMLScan.problems(page) == ["2 h1", "2 imágenes sin alt", "noindex: se esconde de los buscadores"])
+        let bare = HTMLScan.scan(html: "<html><body><p>nada</p></body></html>", base: base)
+        check("una pagina pelada acumula avisos", HTMLScan.problems(bare) == ["sin título", "sin meta descripción", "sin h1", "sin idioma (html lang)"])
+        check("un titulo larguisimo se avisa", HTMLScan.problems(PageScan(title: String(repeating: "t", count: 80), description: "d", h1Count: 1, lang: "es")) == ["título largo (80 caracteres)"])
+        check("resolver ignora lo que no es web", HTMLScan.resolve("ftp://x.com/a", base: base) == nil && HTMLScan.resolve("tel:123", base: base) == nil && HTMLScan.resolve("/ok", base: base) == "https://sitio.com/ok")
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
