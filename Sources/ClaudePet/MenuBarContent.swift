@@ -25,7 +25,6 @@ struct MenuBarContent: View {
                 store.alertsAreSnoozed ? store.wakeAlerts() : store.snoozeAlerts()
             }
             pomodoroItem
-            touchScreenItem
             if store.musicPlayer, let n = music.nowPlaying {
                 Menu(n.title, systemImage: "music.note") {
                     Text(n.artist.isEmpty ? n.app.title : "\(n.artist) · \(n.app.title)")
@@ -68,10 +67,6 @@ struct MenuBarContent: View {
             if !store.bridgeOK || !store.busOK { Label("puente local no disponible", systemImage: "link.badge.plus") }
             if store.reviewReady { Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() } }
         }
-    }
-
-    @ViewBuilder private var touchScreenItem: some View {
-        Button("pantalla táctil…", systemImage: "hand.point.up.left") { ScreenTouchWindow.show() }
     }
 
     @ViewBuilder private var pomodoroItem: some View {

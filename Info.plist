@@ -13,8 +13,6 @@
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
-	<key>NSCameraUsageDescription</key>
-	<string>claude pet usa la cámara solo si activas la pantalla táctil: detecta tu dedo para mover el cursor. No guarda ni envía imágenes.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>claude pet solo pregunta si Música o Spotify están reproduciendo, para que la mascota baile. No lee títulos ni artistas.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
