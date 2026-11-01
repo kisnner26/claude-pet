@@ -269,26 +269,43 @@ private struct TouchBarConfetti: View {
     }
 }
 
-/// Ritmo de la barra. Cada imagen que se dibuja viaja entera a la pantalla de la Touch Bar y cuesta CPU (a 3 fps la app gasta
-/// ~3 puntos mas; a 12 fps, ~9), asi que en calma se redibuja poco y solo se vuelve fluida cuando algo se mueve de verdad.
+/// Ritmo de la barra. Cada imagen que se dibuja viaja entera a la pantalla de la Touch Bar y cuesta CPU (medido en reposo:
+/// la barra sola sumaba ~6 puntos a 5 fps), asi que en calma se redibuja a 2 fps y solo se vuelve fluida cuando algo se mueve de verdad.
 final class TouchBarTempo: @unchecked Sendable {
-    var busy = false          // un agente trabaja, espera o acaba de terminar
-    var saving = false        // ahorro de energia
-    var still = false         // sin animaciones: basta con refrescar los datos
+    var busy = false                      // un agente trabaja, espera o acaba de terminar
+    var saving = false                    // ahorro de energia
+    var still = false                     // sin animaciones: basta con refrescar los datos
+    var boostUntil = Date.distantPast     // un toque o un evento nuevo piden fluidez un momento
+    func boost(_ seconds: TimeInterval = 1.4) { boostUntil = Date().addingTimeInterval(seconds) }
 }
 
 enum TouchBarRhythm {
-    static let calm: TimeInterval = 0.2
+    static let calm: TimeInterval = 0.5
+    static let walk: TimeInterval = 1.0 / 10.0
     static let lively: TimeInterval = 1.0 / 12.0
+    /// Un parpadeo dura 0,14 s: se mira con esta resolucion para no perderlo entre dos fotogramas lentos.
+    static let blinkStep: TimeInterval = 0.02
 
-    static func interval(busy: Bool, walking: Bool, saving: Bool, still: Bool) -> TimeInterval {
+    static func interval(busy: Bool, walking: Bool, boosted: Bool = false, saving: Bool, still: Bool) -> TimeInterval {
         if still { return 1 }
-        let base = busy || walking ? lively : calm
+        let base = busy || boosted ? lively : (walking ? walk : calm)
         return saving ? base * 2 : base
     }
 
     /// La mascota esta de paseo (se mueve de verdad y pide fluidez). Es el mismo reloj que usa el animador.
     static func walking(atUptime t: TimeInterval) -> Bool { PetAnimator.roam(at: t, min: -7, max: 7).walk != nil }
+
+    /// En calma, cuando entra un parpadeo dentro del proximo intervalo lento se pone un fotograma justo ahi (y otro al acabar).
+    /// Devuelve cuanto esperar hasta el siguiente fotograma.
+    static func calmWait(atUptime t: TimeInterval, base: TimeInterval) -> TimeInterval {
+        if PetAnimator.isBlinking(at: t) { return min(base, 0.08) }
+        var d = blinkStep
+        while d < base {
+            if PetAnimator.isBlinking(at: t + d) { return d }
+            d += blinkStep
+        }
+        return base
+    }
 }
 
 struct TouchBarSchedule: TimelineSchedule {
@@ -305,7 +322,11 @@ struct TouchBarSchedule: TimelineSchedule {
         mutating func next() -> Date? {
             let current = cursor
             let uptime = current.timeIntervalSinceReferenceDate - offset
-            cursor = current.addingTimeInterval(TouchBarRhythm.interval(busy: tempo.busy, walking: TouchBarRhythm.walking(atUptime: uptime), saving: tempo.saving, still: tempo.still))
+            let walking = TouchBarRhythm.walking(atUptime: uptime)
+            let boosted = Date() < tempo.boostUntil
+            var wait = TouchBarRhythm.interval(busy: tempo.busy, walking: walking, boosted: boosted, saving: tempo.saving, still: tempo.still)
+            if !tempo.still, !tempo.busy, !boosted, !walking { wait = Swift.min(wait, TouchBarRhythm.calmWait(atUptime: uptime, base: wait)) }
+            cursor = current.addingTimeInterval(wait)
             return current
         }
     }
@@ -328,11 +349,11 @@ struct TouchBarPulseView: View {
             HStack(spacing: 10) {
                 TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading,
                              forecast: ContextForecast.project(samples: store.contextHistory, compactAt: store.contextReading?.compactAtTokens ?? 0, now: ctx.date),
-                             events: state.events, now: ctx.date, animated: animated, mateSide: both ? 1 : 0, mateWorking: store.codexState.isWorking, skin: store.codexSkin)
+                             events: state.events, now: ctx.date, animated: animated, mateSide: both ? 1 : 0, mateWorking: store.codexState.isWorking, skin: store.codexSkin, tempo: tempo)
                 if both {
                     TouchBarLane(agent: "codex", tint: TB.codex, st: store.codexState, context: store.codexContextReading,
                                  forecast: ContextForecast.project(samples: store.codexContextHistory, compactAt: store.codexContextReading?.compactAtTokens ?? 0, now: ctx.date),
-                                 events: state.events, now: ctx.date, animated: animated, mateSide: -1, mateWorking: store.state.isWorking, skin: store.codexSkin)
+                                 events: state.events, now: ctx.date, animated: animated, mateSide: -1, mateWorking: store.state.isWorking, skin: store.codexSkin, tempo: tempo)
                 }
             }
         }
@@ -355,6 +376,7 @@ private struct TouchBarLane: View {
     var mateSide = 0
     var mateWorking = false
     var skin: CodexSkin = .cloud
+    var tempo: TouchBarTempo? = nil
     @State private var scrub: Int?
     @State private var hopStart: TimeInterval?
     @State private var appearedAt = Date()
@@ -416,7 +438,7 @@ private struct TouchBarLane: View {
             }
             .frame(width: stage, height: 26)
             .contentShape(Rectangle())
-            .onTapGesture { hopStart = ProcessInfo.processInfo.systemUptime; TouchBarHaptics.tap(.generic) }
+            .onTapGesture { hopStart = ProcessInfo.processInfo.systemUptime; tempo?.boost(); TouchBarHaptics.tap(.generic) }
 
             Canvas { gc, size in
                 let w = size.width / CGFloat(heat.count)
@@ -482,7 +504,7 @@ private struct TouchBarLane: View {
             .frame(width: 118, alignment: .leading)
         }
         .onAppear { appearedAt = Date() }
-        .onChange(of: events.count) { _ in popAt = Date() }
+        .onChange(of: events.count) { _ in popAt = Date(); tempo?.boost(0.9) }
     }
 }
 
@@ -1114,13 +1136,29 @@ enum TouchBarSelfTest {
         check("las lecturas viejas no cuentan", ContextForecast.recent([sample(50, minutesAgo: 90), sample(40, minutesAgo: 1)], now: now).count == 1)
         let when = Date(timeIntervalSince1970: 1_793_547_000)
         check("el nombre de la captura lleva pagina y fecha sin acentos", TouchBarPulse.captureName(page: .forecast, date: when, timeZone: TimeZone(identifier: "UTC")!) == "claude-pet-touchbar-pronostico-20261101-153000.png")
-        check("en calma la barra se redibuja despacio", TouchBarRhythm.interval(busy: false, walking: false, saving: false, still: false) == 0.2)
-        check("con trabajo o paseo se vuelve fluida", TouchBarRhythm.interval(busy: true, walking: false, saving: false, still: false) == 1.0 / 12.0 && TouchBarRhythm.interval(busy: false, walking: true, saving: false, still: false) == 1.0 / 12.0)
+        check("en calma la barra se redibuja a 2 fps", TouchBarRhythm.interval(busy: false, walking: false, saving: false, still: false) == 0.5)
+        check("con trabajo o un empujon se vuelve fluida", TouchBarRhythm.interval(busy: true, walking: false, saving: false, still: false) == 1.0 / 12.0 && TouchBarRhythm.interval(busy: false, walking: false, boosted: true, saving: false, still: false) == 1.0 / 12.0)
+        check("de paseo va a 10 fps", TouchBarRhythm.interval(busy: false, walking: true, saving: false, still: false) == 0.1)
         check("el ahorro de energia duplica el intervalo", TouchBarRhythm.interval(busy: true, walking: false, saving: true, still: false) == 2.0 / 12.0)
         check("sin animaciones solo refresca cada segundo", TouchBarRhythm.interval(busy: true, walking: true, saving: false, still: true) == 1)
         // el paseo dura 2,4 s de cada 11: el resto del tiempo la barra puede ir despacio
         let walkingShare = (0..<2200).filter { TouchBarRhythm.walking(atUptime: Double($0) / 20) }.count
         check("la mascota pasea una parte del tiempo, no siempre", walkingShare > 100 && walkingShare < 1400)
+        // un parpadeo (0,14 s) nunca se cae entre dos fotogramas lentos
+        var missed = 0, blinks = 0
+        var t = 0.0
+        while t < 120 {
+            let wait = TouchBarRhythm.calmWait(atUptime: t, base: 0.5)
+            if PetAnimator.isBlinking(at: t + 0.001) || PetAnimator.isBlinking(at: t + wait) { blinks += 1 }
+            // si hay parpadeo en el hueco, el fotograma siguiente tiene que caer dentro de el
+            var d = 0.02, inGap = false
+            while d < wait { if PetAnimator.isBlinking(at: t + d) { inGap = true }; d += 0.02 }
+            if inGap, !PetAnimator.isBlinking(at: t) { missed += 1 }
+            t += wait
+        }
+        check("no se pierde ningun parpadeo entre fotogramas lentos", missed == 0 && blinks > 10)
+        check("durante un parpadeo los fotogramas son cortos", { var u = 0.0; while !PetAnimator.isBlinking(at: u) { u += 0.01 }; return TouchBarRhythm.calmWait(atUptime: u, base: 0.5) <= 0.08 }())
+        check("sin parpadeos cerca espera el intervalo entero", { var u = 0.0; while PetAnimator.isBlinking(at: u) || PetAnimator.isBlinking(at: u + 0.25) || PetAnimator.isBlinking(at: u + 0.49) || PetAnimator.isBlinking(at: u + 0.1) || PetAnimator.isBlinking(at: u + 0.4) { u += 0.13 }; return TouchBarRhythm.calmWait(atUptime: u, base: 0.5) == 0.5 }())
         print(ok ? "TOUCHBAR OK" : "TOUCHBAR FALLO")
         return ok
     }
