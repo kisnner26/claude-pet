@@ -9,12 +9,16 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 ## qué hace
 
 - **estado real**: inactivo, pensando, ejecutando, esperando tu aprobación, listo o error, con una burbuja que dice la tarea exacta («editando PetStore.swift»). la de claude sale si usas claude code y la de codex si usas codex.
-- **isla en el notch**: se despliega solo cuando hace falta. permisos con `permitir`, `siempre` y `denegar`, preguntas con opciones, ticker de pasos, contexto restante y mission control. un riel de iconos abre los menús dentro de la propia píldora (cambios, música, plan, herramientas y ajustes rápidos), en cristal líquido oscuro. detalle en [docs/ISLAND.md](docs/ISLAND.md).
+- **isla en el notch**: se despliega solo cuando hace falta. permisos con `permitir`, `siempre` y `denegar`, preguntas con opciones, ticker de pasos, contexto restante y mission control. un riel de iconos abre los menús dentro de la propia píldora (cambios, plan, memoria, cerebro y ajustes rápidos), en cristal líquido oscuro. detalle en [docs/ISLAND.md](docs/ISLAND.md).
 - **aprobar con criterio**: riesgo y secretos en cada permiso, reglas con caducidad, [perímetro](docs/PERIMETRO.md) por proyecto, puntos de restauración con git y registro de auditoría local.
+- **cerebro y carácter**: claude y codex comparten notas por proyecto (decisiones, cuidados, pendientes y cómo te gusta trabajar) que reciben al empezar una sesión, y cada uno va formando su carácter con lo vivido contigo. se editan desde la isla.
+- **touch bar**: en los MacBook Pro que la tienen, las dos mascotas viven en la barra con su actividad, contexto y pronóstico de cuándo se compacta; el permiso se aprueba arrastrando un deslizador. captura incluida.
 - **consumo del plan**: barras del límite de 5 horas y semanal en la isla, con aviso al 80 y al 95 %.
 - **visto**: app de iPhone y Apple Watch para aprobar permisos con un toque. [más abajo](#visto).
 - **plugins y taller**: acciones, ajustes y eventos con una carpeta y un `plugin.json`, y un catálogo para instalar los de otros.
 - **vivas**: claude y codex tienen las mismas expresiones y su propio guardarropa; se visten según el tiempo (opcional), sudan, tiritan, se mosquean si las golpeas seguido y se pueden sacar al escritorio, donde te siguen el cursor.
+- **claudwler**: recorre los enlaces de la página abierta (o de todo un sitio, con `robots.txt` y sin cookies), avisa de rotos, redirecciones y lentitud, y deja un informe html, un csv y un prompt listo para claude code.
+- **trackpad táctil (experimental)**: el trackpad como superficie absoluta de toda la pantalla, sin cámara.
 - **laboratorio**: [galaxia](tools/galaxia) (tu repo como estrellas), [ciudad](tools/ciudad) (tus repos como edificios), [radar](tools/radar) (sondeo de red), [trazo](tools/trazo) (triage visual de cambios), [pulso](tools/pulso) (deuda y próximos pasos) y [ritmo](tools/ritmo) (bloques de foco) vienen incluidos: un clic desde la isla. son programas de node 20+ sin dependencias que solo escuchan en 127.0.0.1.
 - **más**: reproductor de música con la mascota bailando al compás, acceso rápido que cambia según la app activa (más de cien apps y por categoría), traspaso entre claude y codex, modo foco y pomodoro, español e inglés.
 
@@ -22,7 +26,7 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 
 ## ajustes
 
-menú de la barra → «ajustes…» (⌘,). quince páginas con buscador y vidrio real del sistema; el naranja de claude y el azul de codex tiñen la ventana.
+menú de la barra → «ajustes…» (⌘,). dieciséis páginas con buscador y vidrio real del sistema; el naranja de claude y el azul de codex tiñen la ventana.
 
 ![ajustes](docs/img/ajustes-resumen.jpg)
 
@@ -90,7 +94,8 @@ tests/remote.sh       # visto: política, canal y respuestas
 tests/cpu.sh          # cpu medio en reposo durante 30 s (falla sobre 5 %)
 node --test relay/test # relay de visto
 .build/debug/ClaudePet --selftest-quest quest   # servidor de Meta Quest con tls real
-# también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang
+# también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang,
+#          --selftest-brain, --selftest-memory, --selftest-touchbar, --selftest-trackpad, --selftest-claudwler-extras
 ```
 
 las imágenes de este readme son renders con el propio código de dibujo de la app, no capturas de pantalla.
