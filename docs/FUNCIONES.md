@@ -115,6 +115,29 @@ los permisos y preguntas viajan por `~/.claude-pet/ask.sock` (unix, 0600, mismo 
 
 estado de verificacion: la logica, los protocolos y la limpieza al cerrar tienen autopruebas; en reposo la isla gasta cerca de 4 % de cpu. aun no esta probada sobre el notch fisico, el clic traversante, voiceover ni una sesion real de claude code y codex: la checklist manual esta en [docs/ISLAND.md](ISLAND.md).
 
+## touch bar
+
+en los MacBook Pro que la tienen (2016 a 2022) la Touch Bar muestra a las dos mascotas y sus datos en una barra a todo el ancho. se activa sola según el modelo; `CLAUDE_PET_TOUCHBAR=1` la fuerza y `=0` la apaga. un selector a la izquierda cambia de página:
+
+- **pulso**: cada agente con su mascota (respira, parpadea, pasea, se mira con el otro y salta si la tocas), el calor de su actividad de los últimos 48 minutos y su contexto. si arrastras el dedo por las barras cuenta qué pasó en ese momento.
+- **límites**: medidores del contexto de cada agente y de los límites de 5 horas y semanal del plan.
+- **pronóstico**: la curva del contexto con una proyección punteada y, a tu ritmo, en cuántos minutos se compacta. avisa en la página de pulso cuando quedan 10.
+- **foco**: el pomodoro con su cuenta atrás.
+- **música**: portada, progreso que se arrastra para saltar y controles.
+- **cerebro**: las últimas notas compartidas y un botón para dejar una.
+
+cuando un agente pide permiso la barra cambia a un deslizador que hay que arrastrar hasta el final (a fondo del todo si el riesgo es alto), con `siempre` y `denegar`. las preguntas salen como botones. al terminar una tarea cruza el confeti. a la derecha hay un botón de captura (guarda la página en el escritorio y la copia al portapapeles) y otro del trackpad táctil. el trackpad vibra al tocar. la barra se redibuja despacio cuando todo está en calma para no gastar CPU.
+
+## cerebro y carácter
+
+`cerebro` (icono propio en el riel de la isla) es la memoria compartida de claude y codex por proyecto, en `~/.claude-pet/brain/`. cada nota es corta (240 caracteres), de un tipo (decisión, hecho, cuidado, pendiente o trato), la deja un agente o tú, y se rechaza si parece una clave. al empezar una sesión, un hook de claude code y un bloque de `~/.codex/AGENTS.md` le dan al agente lo que dejaron los demás. se edita desde la isla o con `ClaudePet --brain show|add|edit|forget|list`. `./install-brain.sh` instala los hooks con copia de respaldo.
+
+debajo de las notas, el **carácter**: cada agente va formando una personalidad a partir de lo vivido contigo (constancia, precisión, noctámbulo, exploración y memoria) y pasa por cuatro etapas, de "recién conocidos" a "compañeros". se calcula solo con datos locales y el agente la recibe como una línea de tono, nunca a costa de la precisión. `memoria` (el otro icono) queda solo para la actividad.
+
+## trackpad táctil (experimental)
+
+convierte el trackpad en una superficie absoluta, como una tableta: tocar la esquina de arriba a la izquierda lleva el cursor a la esquina de arriba a la izquierda de la pantalla. con un dedo mueve el cursor; con dos se desplaza y se hace zoom como siempre; el clic físico y arrastrar funcionan donde esté el cursor. se activa en ajustes → trackpad táctil, en el menú de la barra o desde la Touch Bar. lee los contactos con `MultitouchSupport`, un framework privado de macos que Apple puede cambiar en cualquier actualización, y necesita el permiso de accesibilidad. no usa la cámara ni nada fuera de la Mac, y se apaga al cerrar la app.
+
 ## ocho sistemas visuales
 
 en macos, ambas mascotas convierten señales reales de su propio proyecto y sesión en ocho capas compactas. nunca reutilizan los datos de la otra para aparentar paridad:
@@ -132,7 +155,11 @@ en macos, ambas mascotas convierten señales reales de su propio proyecto y sesi
 
 `web scout` funciona de forma nativa con safari, chrome, edge, arc, firefox y cualquier navegador que exponga el árbol de accesibilidad de macos. autoriza claude pet una vez en privacidad y seguridad, abre `web scout nativo` en el menú y usa `marcar selección` o `auditar controles visibles`. las marcas siguen al contenido al desplazarte y el menú permite recorrer los hallazgos. no instala extensiones y no guarda el contenido de la página.
 
-`claudwler` (`iniciar claudwler` en el mismo menú) recorre los enlaces visibles y los marca en verde, ámbar o rojo mientras baja la página. al terminar abre un informe visual en html y copia un informe en markdown para pegar en claude code. si la página es `localhost:puerto`, localiza cada problema en el código del proyecto (`archivo:línea`). guarda un resumen de cada recorrido en `~/Library/Application Support/ClaudePet/claudwler/` para mostrar qué cambió desde la última vez. `verificar enlaces rotos en red` está apagado por defecto: al activarlo contacta los destinos con peticiones sin cookies.
+`claudwler` (`iniciar claudwler` en el mismo menú) recorre los enlaces visibles y los marca en verde, ámbar o rojo mientras baja la página. al terminar abre un informe visual en html y copia un informe en markdown para pegar en claude code. si la página es `localhost:puerto`, localiza cada problema en el código del proyecto (`archivo:línea`). guarda un resumen de cada recorrido en `~/Library/Application Support/ClaudePet/claudwler/` para mostrar qué cambió desde la última vez. `verificar enlaces rotos en red` está apagado por defecto: al activarlo contacta los destinos con peticiones sin cookies, y además de los rotos avisa de redirecciones permanentes (301 y 308), de enlaces que caen de https a http y de los que tardan 3 s o más.
+
+del último recorrido salen tres cosas más desde el mismo menú: `copiar prompt de arreglo` (solo lo que falla, los rotos primero y con la pista de código, listo para pegar en claude code), `guardar informe en el escritorio` (carpeta con el informe en markdown y html y un csv que abre cualquier hoja de cálculo) y `recorrer todo el sitio…`.
+
+`recorrer todo el sitio…` pide una dirección (viene rellena con la del último recorrido) y sigue los enlaces internos de ese dominio, hasta 40 páginas y 3 niveles. respeta `robots.txt`, no usa cookies, hace una pausa entre peticiones y no descarga imágenes, pdf ni scripts. de cada página apunta el estado, lo que tarda y lo que conviene arreglar: sin título, título largo, sin meta descripción, sin h1 o varios, sin idioma, imágenes sin `alt` y `noindex`. el informe lista primero las páginas rotas con las páginas desde donde se enlazan, luego las que tienen avisos, las más lentas y los dominios externos. también existe desde la terminal: `ClaudePet --crawl-site http://localhost:3000/ --html informe.html` imprime el informe y sale con código 2 si hay páginas rotas.
 
 ## mission control
 
@@ -188,11 +215,11 @@ el script traduce 10 eventos de hook a un estado y lo manda por un socket local.
 - el detector de contexto solo calcula una huella local de nombres, fechas y tamanos de archivos; no lee contenido. ignora `.git`, dependencias, builds y logs.
 - la ruta del proyecto llega a la app por el socket local (para la huella y el diff). no se muestra, no se escribe a disco y no cruza el pet bus: ahi solo va el nombre de la carpeta, y solo si lo activas.
 - mission control mantiene rutas, rama, contadores, linea de tiempo y capsulas solo en memoria. ninguno se serializa en el pet bus.
-- cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude permite ajustar el umbral con `CLAUDE_PET_COMPACTION_TOKENS` y codex usa la ventana registrada por su propia sesión.
+- cada medidor de contexto lee únicamente los contadores de tokens de su transcript local activo. no conserva el contenido; claude deduce la ventana de lo usado (hasta 200 000 tokens compacta a los 160 000; pasado eso es la ventana de 1M y compacta a los 800 000) y se puede forzar con `CLAUDE_PET_COMPACTION_TOKENS`; codex usa la ventana registrada por su propia sesión.
 - los hooks de la isla solo bloquean mientras esperan tu respuesta y con la opcion activada; ante cualquier error, plazo agotado o app cerrada devuelven salida vacia. validan la entrada, acotan su tamano y escapan la salida json; nunca ejecutan shell con rutas, nombres o detalles recibidos.
 - el hook no bloquea nada salvo que actives "bloquear herramientas si el proyecto cambia" o pidas "pausar a claude" ante una colision. la marca caduca a los 10 min y se borra con tu siguiente mensaje o al cerrar la sesion.
 - el traspaso es la unica funcion que envia contenido a un tercero (el diff, al proveedor del agente que elijas), y solo despues de que lo confirmes en un dialogo.
-- web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla ni accede al historial del navegador. claudwler solo usa red si activas `verificar enlaces rotos en red`, y guarda textos y destinos de enlaces de cada recorrido en tu carpeta de soporte.
+- web scout consulta bajo demanda el árbol de accesibilidad de la aplicación al frente. no captura pantalla ni accede al historial del navegador. claudwler solo usa red si activas `verificar enlaces rotos en red` o si lanzas tú `recorrer todo el sitio…`, y guarda textos y destinos de enlaces de cada recorrido en tu carpeta de soporte.
 - las cápsulas de relevo permanecen en esta mac hasta que vencen. crear una cápsula no la manda a ningún proveedor; solo se transmite cuando confirmas y pegas el contexto en el agente destino.
 
 ## instalacion
@@ -222,6 +249,11 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-handoff  # comandos de s
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-relay    # cápsulas portables, prompt y permisos locales
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-scout    # reglas del auditor nativo de accesibilidad
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler  # verificador, diff e informe de claudwler (usa red)
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler-extras  # avisos, csv, prompt de arreglo y recorrido del sitio (sin red)
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-touchbar  # touch bar: calor, pronóstico, ritmo, deslizador
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-trackpad  # trackpad táctil: contactos, mapeo y suavizado
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-brain     # cerebro compartido y carácter
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-memory    # actividad y memoria local
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
