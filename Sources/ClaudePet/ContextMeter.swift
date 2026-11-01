@@ -34,9 +34,14 @@ struct ContextReading: Equatable {
 enum ContextMeter {
     /// Claude Code compacta antes del límite total para reservar salida y herramientas. Puede ajustarse
     /// para instalaciones con otra ventana mediante `CLAUDE_PET_COMPACTION_TOKENS`.
-    static var compactAtTokens: Int {
-        let value = ProcessInfo.processInfo.environment["CLAUDE_PET_COMPACTION_TOKENS"].flatMap(Int.init)
-        return max(16_000, value ?? 160_000)
+    static var compactAtTokens: Int { compactAt(forUsed: 0) }
+
+    /// Claude Code compacta al 80 % de la ventana: 160 000 en la de 200 000 y 800 000 en la de 1 000 000.
+    /// El transcript no dice cual es; si ya se usaron mas de 200 000 tokens solo puede ser la grande
+    /// (con una ventana fija de 160 000 una sesion larga marcaba 0 % de contexto).
+    static func compactAt(forUsed used: Int, env: [String: String] = ProcessInfo.processInfo.environment) -> Int {
+        if let value = env["CLAUDE_PET_COMPACTION_TOKENS"].flatMap(Int.init) { return max(16_000, value) }
+        return used > 200_000 ? 800_000 : 160_000
     }
 
     static func read(sessionPrefix: String, root: URL = LocalAgentSessionReader.claudeRoot) -> ContextReading? {
@@ -46,7 +51,7 @@ enum ContextMeter {
         return read(url: url)
     }
 
-    static func read(url: URL, compactAt: Int = compactAtTokens) -> ContextReading? {
+    static func read(url: URL, compactAt: Int? = nil) -> ContextReading? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd(), end > 0 else { return nil }
@@ -62,7 +67,7 @@ enum ContextMeter {
                       let usage = message["usage"] as? [String: Any] else { continue }
                 let used = integer(usage["input_tokens"]) + integer(usage["cache_creation_input_tokens"]) + integer(usage["cache_read_input_tokens"]) + integer(usage["output_tokens"])
                 guard used > 0 else { continue }
-                return ContextReading(usedTokens: used, compactAtTokens: compactAt, model: message["model"] as? String ?? "claude")
+                return ContextReading(usedTokens: used, compactAtTokens: compactAt ?? Self.compactAt(forUsed: used), model: message["model"] as? String ?? "claude")
             }
             if start == 0 { break }
         }
