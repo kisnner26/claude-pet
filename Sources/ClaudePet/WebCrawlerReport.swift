@@ -88,6 +88,28 @@ enum WebCrawlerReport {
         return Output(markdown: md, html: html, flagged: flagged.count, broken: broken, external: external)
     }
 
+    // MARK: CSV
+
+    /// Una celda de CSV: entre comillas si hace falta y a salvo de formulas (una celda que empieza por = + - @ se ejecutaria en una hoja de calculo).
+    static func csvCell(_ value: String) -> String {
+        var text = value.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " ")
+        if let first = text.first, "=+-@".contains(first) { text = "'" + text }
+        guard text.contains(",") || text.contains("\"") else { return text }
+        return "\"" + text.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+    }
+
+    /// Todos los enlaces del recorrido, uno por fila, para abrirlos en una hoja de calculo.
+    static func csv(_ entries: [ReportEntry]) -> String {
+        var out = "texto,destino,estado,codigo,milisegundos,problemas,codigo_fuente\n"
+        for entry in entries.sorted(by: { rank($0) < rank($1) }) {
+            let state = entry.broken ? "roto" : (entry.problems.isEmpty ? (entry.check == nil ? "sin verificar" : "ok") : "aviso")
+            let cells = [display(entry.link), entry.link.url, state, entry.check?.note ?? "", entry.check.map { String($0.millis) } ?? "",
+                         entry.problems.joined(separator: " | "), entry.hints.joined(separator: " | ")]
+            out += cells.map(csvCell).joined(separator: ",") + "\n"
+        }
+        return out
+    }
+
     private static func rank(_ entry: ReportEntry) -> Int { entry.broken ? 0 : (entry.problems.isEmpty ? 2 : 1) }
 
     private static func display(_ link: CrawledLink) -> String {
