@@ -44,6 +44,55 @@ enum TouchBarHardware {
     }
 }
 
+/// Pronostico del contexto: con las lecturas recientes calcula en cuantos minutos se llega a compactar.
+enum ContextForecast {
+    struct Result: Equatable {
+        let minutes: Double
+        let percentPerMinute: Double
+        let tokensPerMinute: Int
+    }
+    static let window: TimeInterval = 30 * 60
+    static let minSpan: TimeInterval = 120
+    static let farAway = 240.0
+
+    /// Las lecturas del ultimo tramo: dentro de la ventana y despues del ultimo salto hacia arriba (una compactacion).
+    static func recent(_ samples: [ContextSample], now: Date) -> [ContextSample] {
+        var pts = samples.filter { now.timeIntervalSince($0.at) <= window }.sorted { $0.at < $1.at }
+        if let jump = pts.indices.dropFirst().last(where: { pts[$0].percent - pts[$0 - 1].percent >= 8 }) { pts = Array(pts[jump...]) }
+        return pts
+    }
+
+    static func project(samples: [ContextSample], compactAt: Int, now: Date) -> Result? {
+        let pts = recent(samples, now: now)
+        guard pts.count >= 3, let first = pts.first, let last = pts.last, last.at.timeIntervalSince(first.at) >= minSpan, last.percent > 0 else { return nil }
+        let xs = pts.map { $0.at.timeIntervalSince(first.at) / 60 }, ys = pts.map { Double($0.percent) }
+        let n = Double(pts.count), mx = xs.reduce(0, +) / n, my = ys.reduce(0, +) / n
+        let den = xs.reduce(0) { $0 + ($1 - mx) * ($1 - mx) }
+        guard den > 0 else { return nil }
+        let slope = zip(xs, ys).reduce(0) { $0 + ($1.0 - mx) * ($1.1 - my) } / den      // puntos por minuto
+        guard slope <= -0.05 else { return nil }
+        let minutes = Double(last.percent) / -slope
+        guard minutes <= farAway else { return nil }
+        return Result(minutes: minutes, percentPerMinute: -slope, tokensPerMinute: Int((-slope / 100 * Double(compactAt)).rounded()))
+    }
+
+    static func label(_ r: Result) -> String {
+        let m = Int(r.minutes.rounded(.up))
+        if m < 2 { return "compactas ya" }
+        if m < 60 { return "compactas en ~\(m) min" }
+        return "compactas en ~\(m / 60) h \(String(format: "%02d", m % 60))"
+    }
+
+    /// Por que no hay pronostico: faltan lecturas, esta estable o no hay riesgo.
+    static func status(_ samples: [ContextSample], now: Date) -> String {
+        let pts = recent(samples, now: now)
+        guard pts.count >= 3, let a = pts.first, let b = pts.last, b.at.timeIntervalSince(a.at) >= minSpan else { return "reuniendo datos" }
+        return "sin riesgo cerca"
+    }
+
+    static func compactTokens(_ n: Int) -> String { n >= 1000 ? String(format: "%.1fk", Double(n) / 1000) : "\(n)" }
+}
+
 enum TouchBarPulse {
     static let columns = 24
     static let minutesPerColumn = 2.0
@@ -112,12 +161,12 @@ enum TouchBarPulse {
     }
 
     enum Page: Int, CaseIterable {
-        case pulse, limits, focus, music, brain
+        case pulse, limits, forecast, focus, music, brain
         var symbol: String {
-            switch self { case .pulse: return "waveform.path.ecg"; case .limits: return "gauge.with.dots.needle.50percent"; case .focus: return "timer"; case .music: return "music.note"; case .brain: return "brain" }
+            switch self { case .pulse: return "waveform.path.ecg"; case .limits: return "gauge.with.dots.needle.50percent"; case .forecast: return "chart.line.uptrend.xyaxis"; case .focus: return "timer"; case .music: return "music.note"; case .brain: return "brain" }
         }
         var title: String {
-            switch self { case .pulse: return "pulso"; case .limits: return "límites"; case .focus: return "foco"; case .music: return "música"; case .brain: return "cerebro" }
+            switch self { case .pulse: return "pulso"; case .limits: return "límites"; case .forecast: return "pronóstico"; case .focus: return "foco"; case .music: return "música"; case .brain: return "cerebro" }
         }
     }
 }
@@ -153,6 +202,7 @@ struct TouchBarRootView: View {
                 switch state.page {
                 case .pulse: TouchBarPulseView(store: store, state: state)
                 case .limits: TouchBarLimitsView(store: store)
+                case .forecast: TouchBarForecastView(store: store)
                 case .focus: TouchBarFocusView(store: store)
                 case .music: TouchBarMusicView(music: music, store: store)
                 case .brain: TouchBarBrainView(store: store, state: state)
@@ -191,9 +241,9 @@ struct TouchBarPulseView: View {
         TimelineView(.animation(minimumInterval: 1.0 / 6.0)) { ctx in
             let tick = Int(ctx.date.timeIntervalSinceReferenceDate * 6)
             HStack(spacing: 16) {
-                TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading, events: state.events, tick: tick, now: ctx.date)
+                TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading, forecast: ContextForecast.project(samples: store.contextHistory, compactAt: store.contextReading?.compactAtTokens ?? 0, now: ctx.date), events: state.events, tick: tick, now: ctx.date)
                 if store.codexPresent {
-                    TouchBarLane(agent: "codex", tint: TB.codex, st: store.codexState, context: store.codexContextReading, events: state.events, tick: tick, now: ctx.date)
+                    TouchBarLane(agent: "codex", tint: TB.codex, st: store.codexState, context: store.codexContextReading, forecast: ContextForecast.project(samples: store.codexContextHistory, compactAt: store.codexContextReading?.compactAtTokens ?? 0, now: ctx.date), events: state.events, tick: tick, now: ctx.date)
                 }
             }
         }
@@ -205,6 +255,7 @@ private struct TouchBarLane: View {
     let tint: Color
     let st: PetState
     let context: ContextReading?
+    var forecast: ContextForecast.Result? = nil
     let events: [PetMemoryEvent]
     let tick: Int
     let now: Date
@@ -270,7 +321,9 @@ private struct TouchBarLane: View {
                     Text(TouchBarPulse.readout(events: events, agent: agent, column: col, now: now)).font(TB.mono(9, .semibold)).foregroundColor(.white).lineLimit(2).minimumScaleFactor(0.8)
                 } else {
                     Text("\(agent) · \(TouchBarPulse.word(st))").font(TB.mono(10, .bold)).foregroundColor(working ? tint : .white).lineLimit(1)
-                    if let r = context {
+                    if let f = forecast, f.minutes <= 10 {
+                        Text(ContextForecast.label(f)).font(TB.mono(8.5, .bold)).foregroundColor(Color(hex: f.minutes <= 4 ? 0xD85C5C : 0xE7B45B)).lineLimit(1)
+                    } else if let r = context {
                         Text("ctx \(r.remainingPercent)% · \(TouchBarPulse.tokens(r))").font(TB.mono(8.5)).foregroundColor(TB.pressure(r.pressure)).lineLimit(1)
                     } else {
                         Text("ctx sin lectura").font(TB.mono(8.5)).foregroundColor(.white.opacity(0.35)).lineLimit(1)
@@ -339,6 +392,54 @@ struct TouchBarLimitsView: View {
         let color: Color = used >= 95 ? Color(hex: 0xD85C5C) : used >= 80 ? Color(hex: 0xE7B45B) : Color(hex: 0x5270E8)
         let reset = w.resetText(now: now).map { "reinicia en \($0)" } ?? ""
         return TouchBarGauge(title: title, value: "\(left)%", fraction: Double(left) / 100, color: color, note: stale ? "dato viejo · \(reset)" : reset)
+    }
+}
+
+/// Pronostico: la curva del contexto de cada agente y, en punteado, hacia donde va a este ritmo.
+struct TouchBarForecastView: View {
+    @ObservedObject var store: PetStore
+    var claudeSamples: [ContextSample]? = nil
+    var codexSamples: [ContextSample]? = nil
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+            HStack(spacing: 16) {
+                block("claude", TB.claude, claudeSamples ?? store.contextHistory, store.contextReading, now: ctx.date)
+                if store.codexPresent { block("codex", TB.codex, codexSamples ?? store.codexContextHistory, store.codexContextReading, now: ctx.date) }
+            }
+        }
+    }
+
+    private func block(_ agent: String, _ tint: Color, _ samples: [ContextSample], _ reading: ContextReading?, now: Date) -> some View {
+        let f = ContextForecast.project(samples: samples, compactAt: reading?.compactAtTokens ?? 0, now: now)
+        let urgent: Color = (f?.minutes ?? 999) <= 4 ? Color(hex: 0xD85C5C) : (f?.minutes ?? 999) <= 10 ? Color(hex: 0xE7B45B) : tint
+        return HStack(spacing: 8) {
+            Canvas { gc, size in
+                let pts = ContextForecast.recent(samples, now: now)
+                guard let first = pts.first, let last = pts.last else {
+                    gc.fill(Path(CGRect(x: 0, y: size.height - 1, width: size.width, height: 1)), with: .color(.white.opacity(0.2))); return
+                }
+                let horizon = min(f?.minutes ?? 0, 45)
+                let t0 = first.at.timeIntervalSince(now) / 60, span = max(2, -t0 + horizon)
+                func pt(_ minutes: Double, _ percent: Double) -> CGPoint { CGPoint(x: CGFloat((minutes - t0) / span) * size.width, y: size.height - CGFloat(percent / 100) * size.height) }
+                var line = Path()
+                for (i, s) in pts.enumerated() { let q = pt(s.at.timeIntervalSince(now) / 60, Double(s.percent)); if i == 0 { line.move(to: q) } else { line.addLine(to: q) } }
+                gc.stroke(line, with: .color(tint), lineWidth: 2)
+                gc.fill(Path(CGRect(x: 0, y: size.height - 1, width: size.width, height: 1)), with: .color(.white.opacity(0.25)))     // el limite: 0 % restante
+                if let f {
+                    var proj = Path()
+                    proj.move(to: pt(last.at.timeIntervalSince(now) / 60, Double(last.percent)))
+                    proj.addLine(to: pt(horizon, max(0, Double(last.percent) - f.percentPerMinute * (horizon - last.at.timeIntervalSince(now) / 60))))
+                    gc.stroke(proj, with: .color(urgent), style: StrokeStyle(lineWidth: 2, dash: [3, 3]))
+                }
+            }
+            .frame(width: 170, height: 26)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(f.map { ContextForecast.label($0) } ?? ContextForecast.status(samples, now: now)).font(TB.mono(10, .bold)).foregroundColor(f == nil ? .white.opacity(0.7) : urgent).lineLimit(1)
+                Text(f.map { "\(agent) · ≈ \(ContextForecast.compactTokens($0.tokensPerMinute))/min" } ?? "\(agent) · contexto").font(TB.mono(8.5)).foregroundColor(.white.opacity(0.5)).lineLimit(1)
+            }
+            .frame(width: 140, alignment: .leading)
+        }
     }
 }
 
@@ -613,13 +714,13 @@ extension NSTouchBarItem.Identifier {
             let seg = NSSegmentedControl(images: TouchBarPulse.Page.allCases.map { NSImage(systemSymbolName: $0.symbol, accessibilityDescription: $0.title) ?? NSImage() },
                                          trackingMode: .selectOne, target: self, action: #selector(pageChanged(_:)))
             seg.selectedSegment = state.page.rawValue
-            for i in 0..<seg.segmentCount { seg.setWidth(40, forSegment: i) }
+            for i in 0..<seg.segmentCount { seg.setWidth(36, forSegment: i) }
             item.view = seg
             return item
         case .content:
             let item = NSCustomTouchBarItem(identifier: id)
             let host = NSHostingView(rootView: TouchBarRootView(store: store, state: state))
-            host.widthAnchor.constraint(equalToConstant: 760).isActive = true
+            host.widthAnchor.constraint(equalToConstant: 740).isActive = true
             item.view = host
             return item
         case .askLabel:
@@ -739,6 +840,20 @@ enum TouchBarSelfTest {
         check("pasados 200 000 tokens es la ventana grande", ContextMeter.compactAt(forUsed: 232_000, env: [:]) == 800_000)
         check("una sesion de 232 000 tokens ya no marca 0 %", ContextReading(usedTokens: 232_000, compactAtTokens: ContextMeter.compactAt(forUsed: 232_000, env: [:]), model: "x").remainingPercent == 71)
         check("el entorno manda sobre la deduccion", ContextMeter.compactAt(forUsed: 232_000, env: ["CLAUDE_PET_COMPACTION_TOKENS": "300000"]) == 300_000)
+        // pronostico del contexto
+        func sample(_ percent: Int, minutesAgo: Double) -> ContextSample { ContextSample(percent: percent, pressure: .normal, at: now.addingTimeInterval(-minutesAgo * 60)) }
+        let falling = [sample(80, minutesAgo: 10), sample(70, minutesAgo: 5), sample(60, minutesAgo: 0)]
+        let fc = ContextForecast.project(samples: falling, compactAt: 160_000, now: now)
+        check("a 2 puntos por minuto desde 60 % quedan 30 min", fc.map { abs($0.minutes - 30) < 0.01 } == true)
+        check("calcula los tokens por minuto", fc?.tokensPerMinute == 3200)
+        check("la etiqueta dice cuanto falta", fc.map(ContextForecast.label) == "compactas en ~30 min")
+        check("con una hora o mas usa horas", ContextForecast.label(.init(minutes: 65, percentPerMinute: 1, tokensPerMinute: 0)) == "compactas en ~1 h 05")
+        check("estable no pronostica", ContextForecast.project(samples: [sample(60, minutesAgo: 10), sample(60, minutesAgo: 5), sample(59, minutesAgo: 0)], compactAt: 160_000, now: now) == nil)
+        check("con menos de tres lecturas no pronostica", ContextForecast.project(samples: Array(falling.prefix(2)), compactAt: 160_000, now: now) == nil
+              && ContextForecast.status(Array(falling.prefix(2)), now: now) == "reuniendo datos")
+        check("una compactacion reinicia el tramo", ContextForecast.project(samples: [sample(20, minutesAgo: 20), sample(15, minutesAgo: 18), sample(10, minutesAgo: 16), sample(90, minutesAgo: 10), sample(80, minutesAgo: 5), sample(70, minutesAgo: 0)], compactAt: 160_000, now: now).map { abs($0.minutes - 35) < 0.01 } == true)
+        check("lo lejano no se anuncia", ContextForecast.project(samples: [sample(90, minutesAgo: 20), sample(89, minutesAgo: 10), sample(88, minutesAgo: 0)], compactAt: 160_000, now: now) == nil)
+        check("las lecturas viejas no cuentan", ContextForecast.recent([sample(50, minutesAgo: 90), sample(40, minutesAgo: 1)], now: now).count == 1)
         print(ok ? "TOUCHBAR OK" : "TOUCHBAR FALLO")
         return ok
     }
@@ -746,6 +861,10 @@ enum TouchBarSelfTest {
 
 extension IslandSnapshot {
     /// `ClaudePet --snapshot-touchbar <ruta.png>`: las paginas de la barra a su tamano real (30 pt de alto) sobre negro.
+    private static func forecastDemo(_ now: Date, from: Int, step: Int) -> [ContextSample] {
+        (0..<8).map { i in ContextSample(percent: from + step * i, pressure: .normal, at: now.addingTimeInterval(-Double(7 - i) * 150)) }
+    }
+
     static func touchBar(to path: String) {
         let store = PetStore.shared
         store.startDemo()
@@ -765,6 +884,11 @@ extension IslandSnapshot {
                     Text(page.title).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
                     TouchBarRootView(store: store, state: state).frame(width: 760, height: 30)
                 }
+            }
+            HStack(spacing: 10) {
+                Text("pronóstico\n(con datos)").font(.system(size: 8, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
+                TouchBarForecastView(store: store, claudeSamples: forecastDemo(now, from: 80, step: -3), codexSamples: forecastDemo(now, from: 70, step: -1))
+                    .frame(width: 740, height: 30, alignment: .leading)
             }
         }.padding(10).background(Color.black)
         let r = ImageRenderer(content: view)
