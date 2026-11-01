@@ -899,7 +899,7 @@ extension NSTouchBarItem.Identifier {
         case .trackpadMode:
             let item = NSCustomTouchBarItem(identifier: id)
             let on = TrackpadTouchController.shared.enabled
-            let b = NSButton(title: on ? " trackpad táctil: activo" : " trackpad táctil", image: NSImage(systemSymbolName: "rectangle.and.hand.point.up.left", accessibilityDescription: "trackpad como pantalla táctil") ?? NSImage(), target: self, action: #selector(toggleTrackpad(_:)))
+            let b = NSButton(title: on ? " trackpad táctil: activo · experimental" : " trackpad táctil · experimental", image: NSImage(systemSymbolName: "rectangle.and.hand.point.up.left", accessibilityDescription: "trackpad como pantalla táctil") ?? NSImage(), target: self, action: #selector(toggleTrackpad(_:)))
             b.imagePosition = .imageLeading
             if on { b.bezelColor = Self.ember }
             item.view = b
@@ -970,7 +970,7 @@ extension NSTouchBarItem.Identifier {
         let c = TrackpadTouchController.shared
         c.toggle()
         TouchBarHaptics.tap(.levelChange)
-        sender.title = c.enabled ? " trackpad táctil: activo" : " trackpad táctil"
+        sender.title = c.enabled ? " trackpad táctil: activo · experimental" : " trackpad táctil · experimental"
         sender.bezelColor = c.enabled ? Self.ember : nil
         if !c.enabled && c.status != "apagado" { flash(c.status, ok: false) }
     }
