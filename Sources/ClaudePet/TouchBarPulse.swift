@@ -876,7 +876,10 @@ extension NSTouchBarItem.Identifier {
         case .content:
             let item = NSCustomTouchBarItem(identifier: id)
             let host = NSHostingView(rootView: TouchBarRootView(store: store, state: state))
+            // tamano fijo y sin que el contenido dicte el layout: antes la barra recalculaba su maquetacion en cada fotograma
+            host.sizingOptions = []
             host.widthAnchor.constraint(equalToConstant: 640).isActive = true
+            host.heightAnchor.constraint(equalToConstant: 30).isActive = true
             item.view = host
             return item
         case .shot:
