@@ -88,6 +88,17 @@ enum WebCrawlerReport {
         return Output(markdown: md, html: html, flagged: flagged.count, broken: broken, external: external)
     }
 
+    // MARK: guardar
+
+    /// Nombre de la carpeta de un informe guardado: claudwler-localhost-3000-20261101-153000
+    static func folderName(site: String, date: Date, timeZone: TimeZone = .current) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = timeZone; f.dateFormat = "yyyyMMdd-HHmmss"
+        let slug = String(site.lowercased().map { $0.isLetter || $0.isNumber ? $0 : "-" })
+        let trimmed = slug.split(separator: "-", omittingEmptySubsequences: true).joined(separator: "-")
+        return "claudwler-\(trimmed.isEmpty ? "sitio" : trimmed)-\(f.string(from: date))"
+    }
+
     // MARK: prompt de arreglo
 
     /// Un texto listo para pegar en Claude Code: solo lo que hay que arreglar, los rotos primero y con la pista de donde esta en el codigo.
