@@ -20,6 +20,20 @@ enum ClaudwlerExtrasSelfTest {
         check("el destino se acorta sin esquema ni barra final", LinkChecker.shortURL("https://a.com/") == "a.com" && LinkChecker.shortURL("http://a.com/x/y") == "a.com/x/y")
         check("un destino larguisimo se recorta", LinkChecker.shortURL("https://a.com/" + String(repeating: "z", count: 100)).count == 60)
 
+        // CSV
+        check("una celda simple queda tal cual", WebCrawlerReport.csvCell("inicio") == "inicio")
+        check("una coma o unas comillas piden comillas y se duplican", WebCrawlerReport.csvCell("a, b") == "\"a, b\"" && WebCrawlerReport.csvCell("di \"hola\"") == "\"di \"\"hola\"\"\"")
+        check("los saltos de linea se aplanan", WebCrawlerReport.csvCell("uno\ndos") == "uno dos")
+        check("una formula no se ejecuta en la hoja de calculo", WebCrawlerReport.csvCell("=HYPERLINK(\"x\")").hasPrefix("\"'=") && WebCrawlerReport.csvCell("+34 600").hasPrefix("'+"))
+        let entries = [
+            ReportEntry(link: CrawledLink(text: "Inicio", url: "http://localhost:3000/"), problems: [], check: LinkCheck(state: .ok, note: "200", millis: 80), hints: []),
+            ReportEntry(link: CrawledLink(text: "aquí", url: "http://localhost:3000/precios"), problems: ["texto genérico"], check: nil, hints: ["src/app/page.tsx:42"]),
+            ReportEntry(link: CrawledLink(text: "Docs, guía", url: "http://localhost:3000/docs"), problems: ["roto · 404"], check: LinkCheck(state: .broken, note: "404", millis: 40), hints: ["src/nav.tsx:7", "src/footer.tsx:3"])]
+        let lines = WebCrawlerReport.csv(entries).split(separator: "\n").map(String.init)
+        check("el CSV tiene cabecera y una fila por enlace", lines.count == 4 && lines[0] == "texto,destino,estado,codigo,milisegundos,problemas,codigo_fuente")
+        check("los rotos van primero", lines[1].hasPrefix("\"Docs, guía\",http://localhost:3000/docs,roto,404,40,"))
+        check("las pistas de codigo se separan con barra", lines[1].hasSuffix("src/nav.tsx:7 | src/footer.tsx:3"))
+        check("un aviso sin verificar en red se marca como aviso", lines[2].contains(",aviso,") && lines[3].contains(",ok,200,80,"))
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
