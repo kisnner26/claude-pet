@@ -322,6 +322,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         // el modo de medición no crea ventanas ni icono de barra: mide el proceso en reposo real.
         if CommandLine.arguments.contains("--cpu-island-hidden") {
             NSApp.setActivationPolicy(.prohibited)
+            // `--cpu-touchbar` mide solo la Touch Bar en reposo (tests/cpu.sh con CPU_EXTRA="--cpu-touchbar")
+            if CommandLine.arguments.contains("--cpu-touchbar") {
+                touchBar = TouchBarController(store: PetStore.shared)
+                touchBar?.start()
+            }
             return
         }
         NSApp.setActivationPolicy(.accessory)
