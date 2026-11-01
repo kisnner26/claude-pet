@@ -260,6 +260,7 @@ final class NativeWebScoutController: ObservableObject {
                 var problems = WebCrawlerReport.problems(for: link, urlTexts: urlTexts)
                 let check = checks[link.url]
                 if let check, check.state != .ok { problems.insert(check.state == .broken ? "roto · \(check.note)" : "sin confirmar · \(check.note)", at: 0) }
+                if let check { problems += LinkChecker.warnings(for: check, requested: link.url) }
                 entries.append(ReportEntry(link: link, problems: problems, check: check, hints: []))
             }
             if let root {
