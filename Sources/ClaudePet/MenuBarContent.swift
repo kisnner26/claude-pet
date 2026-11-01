@@ -25,6 +25,7 @@ struct MenuBarContent: View {
                 store.alertsAreSnoozed ? store.wakeAlerts() : store.snoozeAlerts()
             }
             pomodoroItem
+            trackpadTouchItem
             if store.musicPlayer, let n = music.nowPlaying {
                 Menu(n.title, systemImage: "music.note") {
                     Text(n.artist.isEmpty ? n.app.title : "\(n.artist) · \(n.app.title)")
@@ -67,6 +68,10 @@ struct MenuBarContent: View {
             if !store.bridgeOK || !store.busOK { Label("puente local no disponible", systemImage: "link.badge.plus") }
             if store.reviewReady { Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() } }
         }
+    }
+
+    @ViewBuilder private var trackpadTouchItem: some View {
+        Button(TrackpadTouchController.shared.enabled ? "apagar trackpad táctil" : "trackpad táctil", systemImage: "rectangle.and.hand.point.up.left") { TrackpadTouchController.shared.toggle() }
     }
 
     @ViewBuilder private var pomodoroItem: some View {

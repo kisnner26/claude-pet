@@ -211,6 +211,18 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--brain") {
             exit(BrainStore.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
         }
+        if CommandLine.arguments.contains("--probe-trackpad") {
+            let c = TrackpadTouchController.shared
+            c.enabled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                print("estado: \(c.status) · dispositivos: \(c.deviceCount) · accesibilidad: \(c.accessibilityGranted)")
+                c.enabled = false
+                print("tras apagar: \(c.status)")
+                exit(0)
+            }
+            return
+        }
+        if CommandLine.arguments.contains("--selftest-trackpad") { exit(TrackpadTouchSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-touchbar") { exit(TouchBarSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-memory") { exit(MemorySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
