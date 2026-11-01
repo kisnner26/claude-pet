@@ -187,7 +187,8 @@ enum TouchBarPulse {
     @Published var notes: [BrainNote] = []
     @Published var noteTotal = 0
     /// Aviso breve dentro de la barra ("captura guardada").
-    @Published var flash: String?
+    struct Flash: Equatable { let text: String; let ok: Bool }
+    @Published var flash: Flash?
 }
 
 private enum TB {
@@ -218,15 +219,35 @@ struct TouchBarRootView: View {
                 case .brain: TouchBarBrainView(store: store, state: state)
                 }
             }
+            .id(state.page)
+            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
             .frame(maxWidth: .infinity, alignment: .leading)
+            // con el aviso la barra se atenua y el aviso va solo, pequeno, en el centro: nada se pisa
+            .opacity(state.flash == nil ? 1 : 0.08)
             if (store.state == .done || store.codexState == .done) && !store.reduceMotion { TouchBarConfetti().allowsHitTesting(false) }
             if let note = state.flash {
-                Text(note).font(TB.mono(11, .bold)).foregroundColor(.black)
-                    .padding(.horizontal, 14).padding(.vertical, 5).background(Capsule().fill(Color.white))
-                    .frame(maxWidth: .infinity, alignment: .center).transition(.opacity)
+                TouchBarShutter()
+                HStack(spacing: 5) {
+                    Image(systemName: note.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill").font(.system(size: 10, weight: .bold))
+                    Text(note.text).font(TB.mono(9.5, .bold))
+                }
+                .foregroundColor(.black).padding(.horizontal, 10).padding(.vertical, 3).background(Capsule().fill(Color.white))
+                .frame(maxWidth: .infinity, alignment: .center)
+                .transition(.scale(scale: 0.7).combined(with: .opacity))
             }
         }
         .frame(height: 30)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: state.page)
+        .animation(.easeOut(duration: 0.2), value: state.flash?.text)
+    }
+}
+
+/// Destello de obturador al tomar la captura: un fogonazo blanco que se apaga rapido.
+private struct TouchBarShutter: View {
+    @State private var on = true
+    var body: some View {
+        Rectangle().fill(Color.white).opacity(on ? 0.55 : 0).allowsHitTesting(false)
+            .onAppear { withAnimation(.easeOut(duration: 0.35)) { on = false } }
     }
 }
 
@@ -253,16 +274,25 @@ struct TouchBarPulseView: View {
     @ObservedObject var state: TouchBarState
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 6.0)) { ctx in
-            let tick = Int(ctx.date.timeIntervalSinceReferenceDate * 6)
-            HStack(spacing: 16) {
-                TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading, forecast: ContextForecast.project(samples: store.contextHistory, compactAt: store.contextReading?.compactAtTokens ?? 0, now: ctx.date), events: state.events, tick: tick, now: ctx.date)
-                if store.codexPresent {
-                    TouchBarLane(agent: "codex", tint: TB.codex, st: store.codexState, context: store.codexContextReading, forecast: ContextForecast.project(samples: store.codexContextHistory, compactAt: store.codexContextReading?.compactAtTokens ?? 0, now: ctx.date), events: state.events, tick: tick, now: ctx.date)
+        let animated = store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering
+        TimelineView(.animation(minimumInterval: store.energySaving ? 1.0 / 8.0 : 1.0 / 20.0, paused: !animated && !IslandSnapshot.isRendering)) { ctx in
+            let both = store.codexPresent
+            HStack(spacing: 10) {
+                TouchBarLane(agent: "claude", tint: TB.claude, st: store.state, context: store.contextReading,
+                             forecast: ContextForecast.project(samples: store.contextHistory, compactAt: store.contextReading?.compactAtTokens ?? 0, now: ctx.date),
+                             events: state.events, now: ctx.date, animated: animated, mateSide: both ? 1 : 0, mateWorking: store.codexState.isWorking, skin: store.codexSkin)
+                if both {
+                    TouchBarLane(agent: "codex", tint: TB.codex, st: store.codexState, context: store.codexContextReading,
+                                 forecast: ContextForecast.project(samples: store.codexContextHistory, compactAt: store.codexContextReading?.compactAtTokens ?? 0, now: ctx.date),
+                                 events: state.events, now: ctx.date, animated: animated, mateSide: -1, mateWorking: store.state.isWorking, skin: store.codexSkin)
                 }
             }
         }
     }
+}
+
+private extension PetState {
+    var isWorking: Bool { self == .thinking || self == .tool || self == .starting }
 }
 
 private struct TouchBarLane: View {
@@ -272,53 +302,104 @@ private struct TouchBarLane: View {
     let context: ContextReading?
     var forecast: ContextForecast.Result? = nil
     let events: [PetMemoryEvent]
-    let tick: Int
     let now: Date
+    let animated: Bool
+    var mateSide = 0
+    var mateWorking = false
+    var skin: CodexSkin = .cloud
     @State private var scrub: Int?
-    @State private var hopAt: Date?
-    private let barWidth: CGFloat = 150
+    @State private var hopStart: TimeInterval?
+    @State private var appearedAt = Date()
+    @State private var popAt: Date?
+    private let barWidth: CGFloat = 140
+    private let stage: CGFloat = 52     // el suelo de la mascota: 26 de cuerpo y margen para pasear
+
+    private func codexFace(_ pose: PetPose, tick: Int) -> CodexAvatar.Face {
+        if pose.dizzy { return .dizzy(tick / 2) }
+        if pose.annoyed { return .annoyed }
+        switch st {
+        case .waiting: return .alert(on: tick % 2 == 0)
+        case .error: return .cross
+        case .done: return .happy
+        case .thinking, .starting: return .dots(tick % 4)
+        case .tool: return .typing(tick)
+        default:
+            if pose.sleepy || pose.blink { return .closed }
+            if pose.yawn || pose.happy { return .happy }
+            if pose.wideEyes { return .wide }
+            if pose.worried || pose.impatient { return .worried }
+            return .prompt(cursor: tick % 2 == 0)
+        }
+    }
+
+    private func makeScene() -> PetScene {
+        var scene = PetScene(idleSeconds: 5, state: st)
+        scene.roamMin = -7; scene.roamMax = 7
+        scene.mateSide = mateSide; scene.mateWorking = mateWorking
+        return scene
+    }
 
     var body: some View {
         let heat = TouchBarPulse.lanes(events: events, agent: agent, now: now)
-        let working = st == .thinking || st == .tool || st == .starting || st == .waiting
-        let hop = hopAt.map { max(0, 1 - now.timeIntervalSince($0) / 0.6) } ?? 0
+        let working = st.isWorking || st == .waiting
+        let up = ProcessInfo.processInfo.systemUptime
+        let t = now.timeIntervalSinceReferenceDate
+        let tick = animated ? Int(t * 8) : 0
+        let scene = makeScene()
+        let pose = PetAnimator.pose(at: up, gaze: .zero, pokes: [], hopStart: hopStart, motion: animated, scene: scene)
+        let elapsed = now.timeIntervalSince(appearedAt)
+        let popAge = popAt.map { now.timeIntervalSince($0) } ?? 9
         HStack(spacing: 6) {
-            Canvas { gc, size in
-                let lift = CGFloat(sin(hop * .pi)) * 1.6
+            // la mascota: respira, parpadea, pasea por su suelo y se mira con el otro agente, igual que en la isla
+            Group {
                 if agent == "claude" {
-                    var pose = PetPose(); pose.dy = (working ? -CGFloat(abs(sin(Double(tick) * 0.9))) * 0.8 : 0) - lift
-                    PetFace.draw(&gc, size: size, pixels: Sprite.pixels(hop > 0 ? .done : st, tick: tick), pose: pose)
-                } else {
-                    let u = min(size.width / 18, size.height / 21)
-                    let ox = (size.width - 18 * u) / 2
-                    let face: CodexAvatar.Face = {
-                        if hop > 0 { return .happy }
-                        switch st {
-                        case .waiting: return .alert(on: tick % 2 == 0)
-                        case .error: return .cross
-                        case .done: return .happy
-                        case .thinking, .starting: return .dots(tick % 4)
-                        case .tool: return .typing(tick)
-                        default: return .prompt(cursor: tick % 2 == 0)
-                        }
-                    }()
-                    for c in CodexAvatar.cells(legs: working && tick % 2 == 0 ? .step : .stand, face: face) {
-                        gc.fill(Path(CGRect(x: ox + CGFloat(c.x) * u, y: CGFloat(c.y) * u - lift, width: u + 0.4, height: u + 0.4)), with: .color(c.c))
+                    Canvas { gc, size in
+                        let u = size.height / 16
+                        let px = PetAnimator.apply(Sprite.pixels(st, tick: tick), pose: pose)
+                        var over = gc
+                        PetFace.draw(&gc, size: size, pixels: px, pose: pose, unit: u)
+                        if animated { PetFace.draw(&over, size: size, pixels: PetAnimator.particles(at: up, pose: pose, scene: scene), pose: PetPose(), unit: u) }
                     }
+                } else {
+                    CodexMiniFrame(face: codexFace(pose, tick: tick), legs: animated && working && tick % 8 < 4 ? .step : .stand, tick: tick, skin: skin,
+                                   wave: animated && pose.earLift, pose: pose, outfits: [],
+                                   particles: animated ? PetAnimator.particles(at: up, pose: pose, scene: scene) : [])
                 }
             }
-            .frame(width: 26, height: 26)
+            .frame(width: stage, height: 26)
             .contentShape(Rectangle())
-            .onTapGesture { hopAt = Date(); TouchBarHaptics.tap(.generic) }
+            .onTapGesture { hopStart = ProcessInfo.processInfo.systemUptime; TouchBarHaptics.tap(.generic) }
 
             Canvas { gc, size in
                 let w = size.width / CGFloat(heat.count)
+                let sweep = animated ? ((t.truncatingRemainder(dividingBy: 5)) / 5) * Double(heat.count + 8) - 4 : -99
                 for (i, h) in heat.enumerated() {
-                    let bar = max(2, size.height * CGFloat(h))
-                    let age = Double(i) / Double(heat.count)
+                    // entran de izquierda a derecha al abrir la pagina
+                    let rise = animated ? min(1, max(0, (elapsed - Double(i) * 0.018) / 0.35)) : 1
+                    let eased = 1 - pow(1 - rise, 3)
+                    var bar = max(2, size.height * CGFloat(h)) * CGFloat(eased)
+                    var alpha = h == 0 ? 0.18 : 0.35 + 0.65 * Double(i) / Double(heat.count)
+                    alpha = min(1, alpha + max(0, 1 - abs(Double(i) - sweep) / 3) * 0.45)       // el barrido de luz
+                    if i == heat.count - 1 {
+                        if animated && working { alpha = 0.7 + 0.3 * sin(t * 6) }                   // "ahora" late mientras trabaja
+                        if popAge < 0.6 { bar = min(size.height, bar + CGFloat(1 - popAge / 0.6) * 9); alpha = 1 }  // evento nuevo
+                    }
                     let chosen = scrub == i
                     gc.fill(Path(roundedRect: CGRect(x: CGFloat(i) * w + 0.5, y: size.height - bar, width: w - 1.5, height: bar), cornerRadius: 1),
-                            with: .color(chosen ? .white : tint.opacity(h == 0 ? 0.18 : 0.35 + 0.65 * age)))
+                            with: .color(chosen ? .white : tint.opacity(alpha)))
+                }
+                if animated && popAge < 0.6 {
+                    for k in 0..<4 {
+                        let a = popAge / 0.6, x = size.width - w / 2 + CGFloat(k - 2) * 3 * CGFloat(a + 0.3), y = size.height - 8 - CGFloat(a) * 14 - CGFloat(k % 2) * 3
+                        gc.fill(Path(CGRect(x: x, y: y, width: 2, height: 2)), with: .color(tint.opacity(1 - a)))
+                    }
+                }
+                // pensando: tres puntos que botan al final de la grafica
+                if animated && st.isWorking && scrub == nil {
+                    for k in 0..<3 {
+                        let y = size.height / 2 - CGFloat(max(0, sin(t * 7 - Double(k) * 0.8))) * 7
+                        gc.fill(Path(ellipseIn: CGRect(x: size.width - 14 + CGFloat(k) * 5, y: y, width: 3, height: 3)), with: .color(.white.opacity(0.85)))
+                    }
                 }
             }
             .frame(width: barWidth, height: 24)
@@ -337,7 +418,8 @@ private struct TouchBarLane: View {
                 } else {
                     Text("\(agent) · \(TouchBarPulse.word(st))").font(TB.mono(10, .bold)).foregroundColor(working ? tint : .white).lineLimit(1)
                     if let f = forecast, f.minutes <= 10 {
-                        Text(ContextForecast.label(f)).font(TB.mono(8.5, .bold)).foregroundColor(Color(hex: f.minutes <= 4 ? 0xD85C5C : 0xE7B45B)).lineLimit(1)
+                        Text(ContextForecast.label(f)).font(TB.mono(8.5, .bold)).foregroundColor(Color(hex: f.minutes <= 4 ? 0xD85C5C : 0xE7B45B))
+                            .opacity(animated ? 0.65 + 0.35 * sin(t * 5) : 1).lineLimit(1)
                     } else if let r = context {
                         Text("ctx \(r.remainingPercent)% · \(TouchBarPulse.tokens(r))").font(TB.mono(8.5)).foregroundColor(TB.pressure(r.pressure)).lineLimit(1)
                     } else {
@@ -345,8 +427,10 @@ private struct TouchBarLane: View {
                     }
                 }
             }
-            .frame(width: 120, alignment: .leading)
+            .frame(width: 112, alignment: .leading)
         }
+        .onAppear { appearedAt = Date() }
+        .onChange(of: events.count) { _ in popAt = Date() }
     }
 }
 
@@ -357,7 +441,9 @@ private struct TouchBarGauge: View {
     let fraction: Double?
     let color: Color
     let note: String?
+    var urgent = false
     var width: CGFloat = 160
+    @State private var shown = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -366,13 +452,27 @@ private struct TouchBarGauge: View {
                 Spacer(minLength: 0)
                 Text(value).font(TB.mono(10, .bold)).foregroundColor(fraction == nil ? .white.opacity(0.35) : color)
             }
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.14))
-                if let f = fraction { Capsule().fill(color).frame(width: max(3, width * CGFloat(min(1, max(0, f))))) }
-            }.frame(height: 6)
+            TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { ctx in
+                let t = ctx.date.timeIntervalSinceReferenceDate
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.14))
+                    if let f = fraction {
+                        let fill = max(3, width * CGFloat(min(1, max(0, f))) * (shown ? 1 : 0))
+                        Capsule().fill(color.opacity(urgent ? 0.7 + 0.3 * sin(t * 6) : 1)).frame(width: fill)
+                            .overlay(alignment: .leading) {
+                                // un brillo recorre el medidor lleno
+                                LinearGradient(colors: [.clear, .white.opacity(0.55), .clear], startPoint: .leading, endPoint: .trailing)
+                                    .frame(width: 26).offset(x: CGFloat((t * 0.5).truncatingRemainder(dividingBy: 1)) * (fill + 26) - 26)
+                                    .mask(Capsule().frame(width: fill))
+                            }
+                    }
+                }
+            }
+            .frame(height: 6)
             Text(note ?? " ").font(TB.mono(8)).foregroundColor(.white.opacity(0.4)).lineLimit(1)
         }
         .frame(width: width)
+        .onAppear { withAnimation(.easeOut(duration: 0.9)) { shown = true } }
     }
 }
 
@@ -397,7 +497,7 @@ struct TouchBarLimitsView: View {
 
     private func gauge(title: String, reading: ContextReading?) -> some View {
         if let r = reading {
-            return TouchBarGauge(title: title, value: "\(r.remainingPercent)%", fraction: Double(r.remainingPercent) / 100, color: TB.pressure(r.pressure), note: "\(TouchBarPulse.tokens(r)) · \(r.pressureLabel)")
+            return TouchBarGauge(title: title, value: "\(r.remainingPercent)%", fraction: Double(r.remainingPercent) / 100, color: TB.pressure(r.pressure), note: "\(TouchBarPulse.tokens(r)) · \(r.pressureLabel)", urgent: r.pressure == .critical)
         }
         return TouchBarGauge(title: title, value: "—", fraction: nil, color: .white, note: "sin lectura")
     }
@@ -406,7 +506,7 @@ struct TouchBarLimitsView: View {
         let used = w.effectivePercent(now: now), left = w.remainingPercent(now: now)
         let color: Color = used >= 95 ? Color(hex: 0xD85C5C) : used >= 80 ? Color(hex: 0xE7B45B) : Color(hex: 0x5270E8)
         let reset = w.resetText(now: now).map { "reinicia en \($0)" } ?? ""
-        return TouchBarGauge(title: title, value: "\(left)%", fraction: Double(left) / 100, color: color, note: stale ? "dato viejo · \(reset)" : reset)
+        return TouchBarGauge(title: title, value: "\(left)%", fraction: Double(left) / 100, color: color, note: stale ? "dato viejo · \(reset)" : reset, urgent: used >= 95)
     }
 }
 
@@ -474,7 +574,7 @@ struct TouchBarFocusView: View {
                     let total = p.length(of: p.phase), left = p.remaining(now: now)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(p.phase == .work ? "foco" : p.phase.rawValue).font(TB.mono(8.5, .semibold)).foregroundColor(.white.opacity(0.55))
-                        Text(TouchBarPulse.clock(left)).font(TB.mono(16, .bold)).foregroundColor(p.phase == .work ? TB.claude : Color(hex: 0x6CCB8A))
+                        Text(TouchBarPulse.clock(left).replacingOccurrences(of: ":", with: p.isRunning && Int(now * 2) % 2 == 0 ? " " : ":")).font(TB.mono(16, .bold)).foregroundColor(p.phase == .work ? TB.claude : Color(hex: 0x6CCB8A))
                     }
                     .frame(width: 70, alignment: .leading)
                     ZStack(alignment: .leading) {
@@ -500,6 +600,27 @@ struct TouchBarFocusView: View {
     }
 }
 
+/// Ecualizador: cinco barras que bailan mientras suena la musica (con la energia real del audio si la hay).
+private struct TouchBarEqualizer: View {
+    let playing: Bool
+    let tint: Color
+    let store: PetStore
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: !playing)) { ctx in
+            let t = ctx.date.timeIntervalSinceReferenceDate
+            let level = store.musicPulse(at: ProcessInfo.processInfo.systemUptime)?.level ?? 0.6
+            Canvas { gc, size in
+                let w = size.width / 5
+                for i in 0..<5 {
+                    let wave = playing ? (0.5 + 0.5 * sin(t * (4.5 + Double(i) * 1.3) + Double(i) * 1.7)) : 0.1
+                    let h = max(2, size.height * CGFloat(0.2 + 0.8 * wave * min(1, 0.4 + level)))
+                    gc.fill(Path(roundedRect: CGRect(x: CGFloat(i) * w + 1, y: size.height - h, width: w - 2.5, height: h), cornerRadius: 1.5), with: .color(tint))
+                }
+            }
+        }
+    }
+}
+
 struct TouchBarMusicView: View {
     @ObservedObject var music: MusicController
     let store: PetStore
@@ -516,6 +637,7 @@ struct TouchBarMusicView: View {
                         if let c = music.cover { Image(nsImage: c).resizable().scaledToFill() } else { accent.opacity(0.5) }
                     }
                     .frame(width: 28, height: 28).clipShape(RoundedRectangle(cornerRadius: 5))
+                    TouchBarEqualizer(playing: n.isPlaying, tint: accent, store: store).frame(width: 22, height: 22)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(n.title).font(.system(size: 11, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                         Text(n.artist).font(.system(size: 9)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
@@ -557,6 +679,7 @@ struct TouchBarMusicView: View {
 struct TouchBarBrainView: View {
     @ObservedObject var store: PetStore
     @ObservedObject var state: TouchBarState
+    @State private var shown = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -568,12 +691,14 @@ struct TouchBarBrainView: View {
             if state.notes.isEmpty {
                 Text("sin notas todavía: los agentes las dejan al terminar algo importante").font(TB.mono(9.5)).foregroundColor(.white.opacity(0.45)).lineLimit(1)
             } else {
-                ForEach(state.notes.prefix(3)) { n in
+                ForEach(Array(state.notes.prefix(3).enumerated()), id: \.element.id) { i, n in
                     HStack(spacing: 5) {
                         Circle().fill(n.kind.tint).frame(width: 6, height: 6)
                         Text(n.text).font(.system(size: 10)).foregroundColor(.white).lineLimit(1).frame(width: 120, alignment: .leading)
                     }
                     .padding(.horizontal, 8).padding(.vertical, 5).background(Capsule().fill(Color.white.opacity(0.1)))
+                    .scaleEffect(shown ? 1 : 0.5).opacity(shown ? 1 : 0)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.7).delay(Double(i) * 0.09), value: shown)
                 }
             }
             Spacer(minLength: 0)
@@ -583,6 +708,7 @@ struct TouchBarBrainView: View {
             }.buttonStyle(.plain)
         }
         .frame(width: 690)
+        .onAppear { shown = true }
     }
 }
 
@@ -791,28 +917,32 @@ extension NSTouchBarItem.Identifier {
     /// Lo que se ve en la barra, tal cual: la pagina actual a 2170 x 60 px (el tamano real de la pantalla) o mas.
     /// Se guarda en el escritorio y se copia al portapapeles para pegarla donde quieras.
     @objc private func capture() {
+        guard state.flash == nil else { return }       // sin capturar el propio aviso
         let page = state.page
         let view = TouchBarRootView(store: store, state: state).frame(width: 690, height: 30).padding(.horizontal, 10).padding(.vertical, 4).background(Color.black)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 4
+        // sin animaciones: una foto fija no puede pillar las barras a medio crecer
+        IslandSnapshot.isRendering = true
+        defer { IslandSnapshot.isRendering = false }
         guard let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-              let png = rep.representation(using: .png, properties: [:]) else { flash("no se pudo capturar"); return }
+              let png = rep.representation(using: .png, properties: [:]) else { flash("no se pudo capturar", ok: false); return }
         let dir = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory())
         let url = dir.appendingPathComponent(TouchBarPulse.captureName(page: page, date: Date()))
-        do { try png.write(to: url) } catch { flash("no se pudo guardar"); return }
+        do { try png.write(to: url) } catch { flash("no se pudo guardar", ok: false); return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
         TouchBarHaptics.tap(.levelChange)
-        flash("captura guardada y copiada")
+        flash("guardada y copiada")
     }
 
-    private func flash(_ text: String) {
-        withAnimation { state.flash = text }
+    private func flash(_ text: String, ok: Bool = true) {
+        withAnimation { state.flash = TouchBarState.Flash(text: text, ok: ok) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in withAnimation { self?.state.flash = nil } }
     }
 
     @objc private func pageChanged(_ sender: NSSegmentedControl) {
-        state.page = TouchBarPulse.Page(rawValue: sender.selectedSegment) ?? .pulse
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { state.page = TouchBarPulse.Page(rawValue: sender.selectedSegment) ?? .pulse }
         TouchBarHaptics.tap(.alignment)
     }
 
@@ -924,6 +1054,7 @@ extension IslandSnapshot {
     static func touchBar(to path: String) {
         let store = PetStore.shared
         store.startDemo()
+        IslandSnapshot.isRendering = true
         let now = Date()
         var events: [PetMemoryEvent] = []
         for i in 0..<90 {
@@ -940,6 +1071,12 @@ extension IslandSnapshot {
                     Text(page.title).font(.system(size: 9, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
                     TouchBarRootView(store: store, state: state).frame(width: 760, height: 30)
                 }
+            }
+            HStack(spacing: 10) {
+                Text("aviso de captura").font(.system(size: 8, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
+                let flashState = TouchBarState()
+                let _ = { flashState.events = events; flashState.page = .pulse; flashState.flash = TouchBarState.Flash(text: "guardada y copiada", ok: true) }()
+                TouchBarRootView(store: store, state: flashState).frame(width: 690, height: 30)
             }
             HStack(spacing: 10) {
                 Text("pronóstico\n(con datos)").font(.system(size: 8, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
