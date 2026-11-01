@@ -80,7 +80,68 @@ enum ClaudwlerExtrasSelfTest {
         check("una pagina pelada acumula avisos", HTMLScan.problems(bare) == ["sin título", "sin meta descripción", "sin h1", "sin idioma (html lang)"])
         check("un titulo larguisimo se avisa", HTMLScan.problems(PageScan(title: String(repeating: "t", count: 80), description: "d", h1Count: 1, lang: "es")) == ["título largo (80 caracteres)"])
         check("resolver ignora lo que no es web", HTMLScan.resolve("ftp://x.com/a", base: base) == nil && HTMLScan.resolve("tel:123", base: base) == nil && HTMLScan.resolve("/ok", base: base) == "https://sitio.com/ok")
+        // robots.txt
+        let robots = "User-agent: googlebot\nDisallow: /solo-google\n\nUser-agent: *\nUser-agent: claudwler\nDisallow: /privado # comentario\nDisallow: /tmp/*\nDisallow:\nAllow: /publico\n"
+        let rules = RobotsTxt.disallowed(robots)
+        check("robots: solo lo que aplica a todos o a claudwler", rules == ["/privado", "/tmp/*"])
+        check("robots: bloquea por prefijo", !RobotsTxt.allows(path: "/privado/x", disallowed: rules) && !RobotsTxt.allows(path: "/tmp/a", disallowed: rules) && RobotsTxt.allows(path: "/publico", disallowed: rules))
+        check("robots: vacio no bloquea nada", RobotsTxt.allows(path: "/", disallowed: RobotsTxt.disallowed("User-agent: *\nDisallow:\n")))
+        check("robots: un grupo con el comodin despues de otro agente aplica", RobotsTxt.disallowed("User-agent: bing\nUser-agent: *\nDisallow: /x\n") == ["/x"])
+
+        // recorrido de un sitio de mentira
+        let site: [String: (Int, String)] = [
+            "/": (200, "<html lang='es'><head><title>Inicio</title><meta name='description' content='d'></head><body><h1>Hola</h1><a href='/a'>A</a> <a href='/b'>B</a> <a href='/privado/x'>P</a> <a href='https://otro.com/z'>Z</a> <a href='/logo.png'>logo</a> <a href='/roto'>roto</a></body></html>"),
+            "/a": (200, "<html lang='es'><head><title>A</title><meta name='description' content='d'></head><body><h1>A</h1><a href='/'>inicio</a> <a href='/c'>C</a> <a href='/roto'>otra vez</a></body></html>"),
+            "/b": (200, "<html><head></head><body><a href='/a#seccion'>A</a><img src='x.png'></body></html>"),
+            "/c": (200, "<html lang='es'><head><title>C</title><meta name='description' content='d'></head><body><h1>C</h1><a href='/d'>profunda</a></body></html>"),
+            "/d": (200, "<html lang='es'><head><title>D</title></head><body><h1>D</h1></body></html>"),
+            "/roto": (404, "no existe"),
+            "/robots.txt": (200, "User-agent: *\nDisallow: /privado\n")]
+        @Sendable func fetcher(_ log: CallLog) -> @Sendable (URL) async -> FetchedPage {
+            { url in
+                await log.add(url.path)
+                guard let entry = site[url.path] else { return FetchedPage(status: 404, contentType: "text/html", body: "", millis: 5, finalURL: url.absoluteString) }
+                return FetchedPage(status: entry.0, contentType: url.path == "/robots.txt" ? "text/plain" : "text/html", body: entry.1, millis: 12, finalURL: url.absoluteString)
+            }
+        }
+        let log = CallLog()
+        let outcome = runBlocking { await SiteCrawl.run(start: URL(string: "https://sitio.com/")!, maxPages: 20, maxDepth: 3, fetch: fetcher(log)) }
+        let paths = outcome.pages.compactMap { URL(string: $0.url)?.path }
+        check("recorre las paginas internas en orden de descubrimiento", paths == ["/", "/a", "/b", "/roto", "/c", "/d"])
+        check("no pide la zona que robots.txt veta", !runBlocking { await log.all() }.contains("/privado/x") && outcome.blockedByRobots == ["/privado/x"])
+        check("no descarga recursos que no son paginas", !runBlocking { await log.all() }.contains("/logo.png"))
+        check("cada pagina se pide una sola vez (el fragmento no cuenta)", Dictionary(grouping: runBlocking { await log.all() }, by: { $0 }).values.allSatisfy { $0.count == 1 })
+        check("apunta los enlaces externos y donde aparecen", outcome.external == ["https://otro.com/z": ["https://sitio.com/"]])
+        check("el enlace interno roto dice en que paginas esta", outcome.broken == [SiteBrokenLink(url: "https://sitio.com/roto", status: 404, foundOn: ["https://sitio.com/", "https://sitio.com/a"])])
+        check("cada pagina trae sus problemas", outcome.pages.first { $0.url.hasSuffix("/b") }?.problems == ["sin título", "sin meta descripción", "sin h1", "sin idioma (html lang)", "1 imagen sin alt"])
+        check("una pagina limpia no trae problemas y guarda el titulo", outcome.pages[0].problems.isEmpty && outcome.pages[0].title == "Inicio" && outcome.pages[0].depth == 0 && outcome.pages[5].depth == 3)
+        check("sin tope no queda nada sin visitar", !outcome.truncated)
+        let shallow = runBlocking { await SiteCrawl.run(start: URL(string: "https://sitio.com/")!, maxPages: 20, maxDepth: 1, fetch: fetcher(CallLog())) }
+        check("la profundidad limita hasta donde se baja", shallow.pages.compactMap { URL(string: $0.url)?.path } == ["/", "/a", "/b", "/roto"])
+        let capped = runBlocking { await SiteCrawl.run(start: URL(string: "https://sitio.com/")!, maxPages: 3, maxDepth: 3, concurrency: 2, fetch: fetcher(CallLog())) }
+        check("el tope de paginas corta y avisa", capped.pages.count == 3 && capped.truncated)
+        let leave = runBlocking { await SiteCrawl.run(start: URL(string: "https://sitio.com/")!, maxPages: 5, fetch: { url in
+            url.path == "/robots.txt" ? FetchedPage(status: 404) : FetchedPage(status: 200, contentType: "text/html", body: "<html><a href='/fuera'>x</a></html>", millis: 1, finalURL: url.path == "/fuera" ? "https://otro.com/" : url.absoluteString)
+        }) }
+        check("una redireccion a otro dominio no se sigue ni se escanea", leave.pages.last?.problems == ["redirige fuera del sitio"])
         print(ok ? "CLAUDWLER EXTRAS OK" : "CLAUDWLER EXTRAS FALLO")
         return ok
     }
 }
+
+/// Apunta las rutas pedidas, desde varias tareas a la vez.
+actor CallLog {
+    private var paths: [String] = []
+    func add(_ p: String) { paths.append(p) }
+    func all() -> [String] { paths }
+}
+
+/// Espera el resultado de una tarea async desde una prueba sincrona.
+func runBlocking<T: Sendable>(_ work: @escaping @Sendable () async -> T) -> T {
+    let box = ResultBox<T>()
+    let done = DispatchSemaphore(value: 0)
+    Task.detached { box.value = await work(); done.signal() }
+    done.wait()
+    return box.value!
+}
+final class ResultBox<T>: @unchecked Sendable { var value: T? }
