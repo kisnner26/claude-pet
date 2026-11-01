@@ -3,13 +3,13 @@ import AppKit
 
 /// Los menus viven dentro de la propia pildora: un riel de iconos a la derecha cambia de pagina sin abrir ventanas.
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, changes, music, plan, memory, settings
+    case home, changes, music, plan, memory, brain, settings
     var id: String { rawValue }
     var title: String {
-        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .settings: return "ajustes" }
+        switch self { case .home: return "inicio"; case .changes: return "cambios"; case .music: return "música"; case .plan: return "plan y datos"; case .memory: return "memoria"; case .brain: return "cerebro"; case .settings: return "ajustes" }
     }
     var symbol: String {
-        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .settings: return "slider.horizontal.3" }
+        switch self { case .home: return "terminal"; case .changes: return "plus.forwardslash.minus"; case .music: return "music.note"; case .plan: return "chart.xyaxis.line"; case .memory: return "point.3.connected.trianglepath.dotted"; case .brain: return "brain"; case .settings: return "slider.horizontal.3" }
     }
     /// Una señal común hace que cada panel se lea como parte del mismo instrumento.
     var accent: Color { DashboardTheme.ember }
@@ -91,6 +91,7 @@ struct IslandShell: View {
                 case .music: IslandMusicPage(store: store)
                 case .plan: IslandPlanPage(store: store)
                 case .memory: PetMemoryView(store: store)
+                case .brain: PetMemoryView(store: store, initialTab: .brain)
                 case .settings: IslandSettingsPage(store: store)
                 }
             }
@@ -103,12 +104,12 @@ struct IslandShell: View {
     }
 
     private var railView: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 2) {
             ForEach(pages) { p in
                 Button { model.page = p } label: {
                     Image(systemName: p.symbol).font(.system(size: 10.5, weight: .semibold))
                         .foregroundColor(page == p ? .white : .white.opacity(0.5))
-                        .frame(width: 22, height: 22)
+                        .frame(width: 20, height: 20)
                         .background {
                             if page == p {
                                 Circle().fill(Color.white.opacity(0.14)).overlay(Circle().strokeBorder(Color.white.opacity(0.30), lineWidth: 0.8))
