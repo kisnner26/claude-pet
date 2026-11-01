@@ -141,6 +141,8 @@ struct MenuBarContent: View {
         Toggle("verificar enlaces rotos en red", isOn: $webScout.verifyLinks)
         Button("abrir informe visual", systemImage: "chart.bar.doc.horizontal") { webScout.openReport() }.disabled(!webScout.hasReport)
         Button("copiar informe para Claude Code", systemImage: "doc.on.clipboard") { webScout.copyReport() }.disabled(!webScout.hasReport)
+        Button("copiar prompt de arreglo", systemImage: "wrench.and.screwdriver") { webScout.copyFixPrompt() }.disabled(!webScout.hasFixes)
+        Button("guardar informe en el escritorio", systemImage: "square.and.arrow.down") { webScout.saveReportFolder() }.disabled(!webScout.hasReport)
         if webScout.canNavigate {
             Divider()
             Button("problema anterior", systemImage: "chevron.left") { webScout.previousFinding() }
