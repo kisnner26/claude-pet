@@ -81,6 +81,7 @@ final class NativeWebScoutController: ObservableObject {
     @Published private(set) var issueIndex = 0
     @Published private(set) var isCrawling = false
     @Published private(set) var hasReport = false
+    @Published private(set) var isSiteCrawling = false
     /// Opt-in: contactar los destinos (HEAD/GET sin cookies) para detectar enlaces rotos.
     @Published var verifyLinks: Bool = UserDefaults.standard.bool(forKey: "claudwler.verify") {
         didSet { UserDefaults.standard.set(verifyLinks, forKey: "claudwler.verify") }
@@ -98,6 +99,7 @@ final class NativeWebScoutController: ObservableObject {
     private var crawlerIndex = 0
     private var crawlerPage = 0
     private var crawlerTask: Task<Void, Never>?
+    private var siteTask: Task<Void, Never>?
     private var crawlerRecords: [CrawledLink] = []
     private var crawlerSeen = Set<CrawledLink>()
     private var lastReport = ""
@@ -198,6 +200,75 @@ final class NativeWebScoutController: ObservableObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastReport, forType: .string)
         status = "informe de claudwler copiado"
+    }
+
+    // MARK: recorrido del sitio entero
+
+    /// Donde empezar: la raiz del sitio del ultimo recorrido, o una URL que ya tengas copiada, o el servidor de desarrollo de siempre.
+    private func suggestedSiteURL() -> String {
+        if let first = lastEntries.first?.link.url, let url = URL(string: first), let scheme = url.scheme, let host = url.host {
+            return "\(scheme)://\(host)\(url.port.map { ":\($0)" } ?? "")/"
+        }
+        if let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines), LinkChecker.isCheckable(clip), !clip.contains(" ") { return clip }
+        return "http://localhost:3000/"
+    }
+
+    private func askSiteURL(default text: String) -> URL? {
+        let alert = NSAlert()
+        alert.messageText = "recorrer todo el sitio"
+        alert.informativeText = "claudwler sigue los enlaces internos desde esta página (hasta 40 páginas y 3 niveles), respeta robots.txt y no usa cookies."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 340, height: 24))
+        field.stringValue = text
+        alert.accessoryView = field
+        alert.addButton(withTitle: "recorrer")
+        alert.addButton(withTitle: "cancelar")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        var typed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.contains("://") { typed = (typed.hasPrefix("localhost") || typed.hasPrefix("127.") ? "http://" : "https://") + typed }
+        guard LinkChecker.isCheckable(typed) else { status = "claudwler · esa dirección no es una web"; return nil }
+        return URL(string: typed)
+    }
+
+    func startSiteCrawl() {
+        guard !isSiteCrawling, let start = askSiteURL(default: suggestedSiteURL()) else { return }
+        isSiteCrawling = true
+        status = "claudwler · sitio · conectando con \(start.host ?? "el sitio")…"
+        siteTask = Task { [weak self] in
+            let outcome = await SiteCrawl.run(start: start, maxPages: 40, maxDepth: 3, fetch: { await SiteFetcher.fetch($0) }, progress: { done, total in
+                Task { @MainActor [weak self] in self?.status = "claudwler · sitio · \(done)/\(total) páginas" }
+            })
+            guard !Task.isCancelled, let self else { return }
+            self.finishSiteCrawl(outcome)
+        }
+    }
+
+    func stopSiteCrawl() {
+        siteTask?.cancel()
+        isSiteCrawling = false
+        status = "claudwler · recorrido del sitio detenido"
+    }
+
+    private func finishSiteCrawl(_ outcome: SiteCrawlOutcome) {
+        isSiteCrawling = false
+        guard !outcome.pages.isEmpty else { status = "claudwler · no pude recorrer el sitio"; return }
+        let report = SiteCrawlReport.build(outcome)
+        let site = SiteCrawlReport.host(outcome.start)
+        lastReport = report.markdown
+        lastHTML = report.html
+        lastCSV = SiteCrawlReport.csv(outcome)
+        lastSite = site
+        lastEntries = []
+        hasReport = true
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report.markdown, forType: .string)
+        try? FileManager.default.createDirectory(at: CrawlHistory.directory, withIntermediateDirectories: true)
+        let file = CrawlHistory.directory.appendingPathComponent("sitio-\(CrawlHistory.slug(site)).html")
+        if (try? report.html.write(to: file, atomically: true, encoding: .utf8)) != nil {
+            lastReportURL = file
+            NSWorkspace.shared.open(file)
+        }
+        status = "claudwler · \(outcome.pages.count) páginas · \(report.flagged) con avisos · \(report.broken) rotas · informe copiado"
     }
 
     /// Hay algo que arreglar en el ultimo recorrido.
