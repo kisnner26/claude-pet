@@ -211,6 +211,18 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--brain") {
             exit(BrainStore.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--crawl-site"), i + 1 < CommandLine.arguments.count, let start = URL(string: CommandLine.arguments[i + 1]) {
+            // claudwler desde la terminal: recorre el sitio e imprime el informe en markdown (con --html ruta.html tambien lo guarda)
+            let htmlPath = CommandLine.arguments.firstIndex(of: "--html").flatMap { CommandLine.arguments.indices.contains($0 + 1) ? CommandLine.arguments[$0 + 1] : nil }
+            Task.detached {
+                let outcome = await SiteCrawl.run(start: start, fetch: { await SiteFetcher.fetch($0) })
+                let report = SiteCrawlReport.build(outcome)
+                print(report.markdown)
+                if let htmlPath { try? report.html.write(toFile: htmlPath, atomically: true, encoding: .utf8) }
+                exit(report.broken > 0 ? 2 : 0)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--probe-trackpad") {
             let c = TrackpadTouchController.shared
             c.enabled = true
