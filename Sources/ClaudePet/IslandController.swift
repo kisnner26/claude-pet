@@ -187,11 +187,12 @@ final class IslandController {
                 model.finishedAgent = store.recentIslandSteps.last?.agent == "codex" ? .codex : .claude
             case (false, false): break
             }
-            if let started = taskStartedAt, now - started >= PetAnimator.longTask { model.confettiStart = now }
+            let ranFor = taskStartedAt.map { now - $0 } ?? 0
+            if ranFor >= PetAnimator.longTask { model.confettiStart = now }
             taskStartedAt = tasksRunning() ? now : nil
             finishedAt = now; model.hopStart = now; sound.play(.done)
             // solo cuentan las tareas que duraron de verdad, no cada turno corto
-            let ran = taskStartedAt.map { now - $0 } ?? 0
+            let ran = ranFor
             if ActivityStats.countsAsTask(duration: ran) {
                 if c == .done && lastClaude != .done { ActivityStats.shared.recordFinished(agent: "claude", project: store.terminalProject); PetMemoryStore.shared.record(.session, agent: "claude", project: store.terminalProject); store.plugins.emit(.sessionDone, fields: ["agent": "claude", "seconds": String(Int(ran))]) }
                 if x == .done && lastCodex != .done { ActivityStats.shared.recordFinished(agent: "codex", project: store.terminalProject); PetMemoryStore.shared.record(.session, agent: "codex", project: store.terminalProject); store.plugins.emit(.sessionDone, fields: ["agent": "codex", "seconds": String(Int(ran))]) }
@@ -199,7 +200,7 @@ final class IslandController {
             ActivityStats.shared.save()
             store.refreshWeeklyRecap()
         }
-        if errorNow { sound.play(.error); ActivityStats.shared.recordError(); PetMemoryStore.shared.record(.error) }
+        if errorNow { sound.play(.error); ActivityStats.shared.recordError(); PetMemoryStore.shared.record(.error, agent: (c == .error && lastClaude != .error) ? "claude" : "codex", project: store.terminalProject) }
         // efectos: cuando termina cada agente (choque de manos) y cuando llega una edicion con lineas (lluvia)
         if c == .done && lastClaude != .done { model.claudeDoneAt = now }
         if x == .done && lastCodex != .done { model.codexDoneAt = now }
@@ -480,7 +481,7 @@ struct IslandView: View {
         .padding(.leading, compact ? 8 : 24)
         .padding(.trailing, compact ? 10 : 24)
         // El contenido nunca comparte la franja superior del notch: conserva aire y evita texto recortado.
-        .padding(.top, compact ? 0 : 36)
+        .padding(.top, compact ? 0 : (model.hasNotch ? 36 : 28))
         .padding(.bottom, compact ? 0 : 20)
         .frame(maxHeight: .infinity, alignment: compact ? .center : .top)
         .transition(.opacity)

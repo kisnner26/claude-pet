@@ -57,7 +57,7 @@ enum NotchGeometry {
     // La isla abierta prioriza legibilidad: deja una columna cómoda para los datos y otra para el riel.
     static let panelSize = CGSize(width: 640, height: 300)
     static let expandedWidth: CGFloat = 560
-    static let expandedHeight: CGFloat = 175
+    static let expandedHeight: CGFloat = 236
     static let hitMargin: CGFloat = 6
     /// Pantalla sin notch: barra de este ancho y alto en reposo.
     static let barWidth: CGFloat = 80
