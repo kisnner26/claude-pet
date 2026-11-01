@@ -210,6 +210,24 @@ final class NativeWebScoutController: ObservableObject {
         status = "prompt de arreglo copiado · \(lastEntries.filter { !$0.problems.isEmpty }.count) enlaces"
     }
 
+    /// Guarda el informe entero (markdown, HTML y CSV) en una carpeta nueva del escritorio y la muestra en Finder.
+    func saveReportFolder() {
+        guard hasReport else { return }
+        let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory())
+        let folder = desktop.appendingPathComponent(WebCrawlerReport.folderName(site: lastSite, date: Date()), isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try lastReport.write(to: folder.appendingPathComponent("informe.md"), atomically: true, encoding: .utf8)
+            try lastHTML.write(to: folder.appendingPathComponent("informe.html"), atomically: true, encoding: .utf8)
+            try WebCrawlerReport.csv(lastEntries).write(to: folder.appendingPathComponent("enlaces.csv"), atomically: true, encoding: .utf8)
+        } catch {
+            status = "claudwler · no se pudo guardar el informe"
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
+        status = "informe guardado en el escritorio: \(folder.lastPathComponent)"
+    }
+
     func openReport() {
         guard let lastReportURL else { return }
         NSWorkspace.shared.open(lastReportURL)
