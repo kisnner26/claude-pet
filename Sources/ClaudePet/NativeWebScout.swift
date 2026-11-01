@@ -199,6 +199,17 @@ final class NativeWebScoutController: ObservableObject {
         status = "informe de claudwler copiado"
     }
 
+    /// Hay algo que arreglar en el ultimo recorrido.
+    var hasFixes: Bool { lastEntries.contains { !$0.problems.isEmpty } }
+
+    /// Copia un texto para Claude Code con solo lo que falla (rotos primero) y donde esta en el codigo.
+    func copyFixPrompt() {
+        guard let prompt = WebCrawlerReport.fixPrompt(lastEntries, site: lastSite) else { status = "claudwler · nada que arreglar"; return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(prompt, forType: .string)
+        status = "prompt de arreglo copiado · \(lastEntries.filter { !$0.problems.isEmpty }.count) enlaces"
+    }
+
     func openReport() {
         guard let lastReportURL else { return }
         NSWorkspace.shared.open(lastReportURL)
