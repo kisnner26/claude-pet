@@ -67,10 +67,13 @@ extension PetMemoryEvent.Kind {
 
 /// Memoria local de la mascota: un medidor con la parte sin fallos, tres cifras, el gráfico de actividad
 /// del periodo elegido, el reparto por tipo y por agente. Todo sale del registro local y no guarda contenido.
+enum MemoryTab: String, CaseIterable, Identifiable { case activity = "actividad", brain = "cerebro"; var id: String { rawValue } }
+
 struct PetMemoryView: View {
     @ObservedObject var store: PetStore
     @State private var events: [PetMemoryEvent] = []
     @State private var range: MemoryRange = .day
+    @State private var tab: MemoryTab = .activity
 
     private var now: Date { Date() }
     private var scoped: [PetMemoryEvent] { MemoryStats.window(events, range: range, now: now) }
@@ -80,21 +83,25 @@ struct PetMemoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             header
-            HStack(alignment: .center, spacing: 14) {
-                MemoryHealth(percent: Int((recall * 100).rounded()), incidents: count(.error), total: scoped.count, reduceMotion: store.reduceMotion)
-                    .frame(width: 128, alignment: .leading)
-                VStack(alignment: .leading, spacing: 6) {
-                    statRow("recuerdos", "\(scoped.count)", "en \(range.rawValue)", DashboardTheme.cream)
-                    statRow("sesiones", "\(count(.session))", "tareas largas", DashboardTheme.ember)
-                    statRow("racha", store.weeklyRecap.streak == 1 ? "1 día" : "\(store.weeklyRecap.streak) días", "con actividad", DashboardTheme.amber)
+            if tab == .brain {
+                BrainPanel(project: store.terminalProject)
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    MemoryHealth(percent: Int((recall * 100).rounded()), incidents: count(.error), total: scoped.count, reduceMotion: store.reduceMotion)
+                        .frame(width: 128, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 6) {
+                        statRow("recuerdos", "\(scoped.count)", "en \(range.rawValue)", DashboardTheme.cream)
+                        statRow("sesiones", "\(count(.session))", "tareas largas", DashboardTheme.ember)
+                        statRow("racha", store.weeklyRecap.streak == 1 ? "1 día" : "\(store.weeklyRecap.streak) días", "con actividad", DashboardTheme.amber)
+                    }
+                    .frame(width: 150, alignment: .leading)
+                    MemoryActivityChart(buckets: MemoryStats.buckets(scoped, range: range, now: now), range: range, now: now)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 92)
                 }
-                .frame(width: 150, alignment: .leading)
-                MemoryActivityChart(buckets: MemoryStats.buckets(scoped, range: range, now: now), range: range, now: now)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 92)
+                MemoryBreakdown(parts: PetMemoryEvent.Kind.allCases.map { ($0, count($0)) })
+                MemoryAgents(claude: MemoryStats.share(scoped, agent: "claude"), codex: MemoryStats.share(scoped, agent: "codex"), top: MemoryStats.topProject(scoped))
             }
-            MemoryBreakdown(parts: PetMemoryEvent.Kind.allCases.map { ($0, count($0)) })
-            MemoryAgents(claude: MemoryStats.share(scoped, agent: "claude"), codex: MemoryStats.share(scoped, agent: "codex"), top: MemoryStats.topProject(scoped))
         }
         .onAppear(perform: reload)
         .accessibilityElement(children: .contain)
@@ -107,18 +114,8 @@ struct PetMemoryView: View {
             Text("memoria").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             Text("registro local").dashboardLabel()
             Spacer(minLength: 0)
-            HStack(spacing: 2) {
-                ForEach(MemoryRange.allCases) { r in
-                    Button { withAnimation(store.reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) { range = r } } label: {
-                        Text(r.rawValue).font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(range == r ? Color.black : DashboardTheme.muted)
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Capsule().fill(range == r ? DashboardTheme.ember : Color.clear))
-                    }
-                    .buttonStyle(.plain).accessibilityLabel("periodo \(r.rawValue)")
-                }
-            }
-            .padding(2).background(Capsule().fill(Color.white.opacity(0.06)))
+            pill(MemoryTab.allCases, selection: $tab) { $0.rawValue }
+            if tab == .activity { pill(MemoryRange.allCases, selection: $range) { $0.rawValue } }
             Button("actualizar", systemImage: "arrow.clockwise", action: reload)
                 .labelStyle(.iconOnly)
                 .font(.system(size: 10, weight: .semibold))
@@ -127,6 +124,21 @@ struct PetMemoryView: View {
                 .help("actualizar recuerdos")
                 .accessibilityLabel("actualizar recuerdos")
         }
+    }
+
+    private func pill<T: Identifiable & Equatable>(_ items: [T], selection: Binding<T>, title: @escaping (T) -> String) -> some View {
+        HStack(spacing: 2) {
+            ForEach(items) { item in
+                Button { withAnimation(store.reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) { selection.wrappedValue = item } } label: {
+                    Text(title(item)).font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(selection.wrappedValue == item ? Color.black : DashboardTheme.muted)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(selection.wrappedValue == item ? DashboardTheme.ember : Color.clear))
+                }
+                .buttonStyle(.plain).accessibilityLabel(title(item))
+            }
+        }
+        .padding(2).background(Capsule().fill(Color.white.opacity(0.06)))
     }
 
     private func statRow(_ label: String, _ value: String, _ caption: String, _ tint: Color) -> some View {
@@ -327,4 +339,143 @@ private struct MemoryAgents: View {
 
     private func dot(_ c: Color) -> some View { Circle().fill(c).frame(width: 5, height: 5) }
     private func value(_ n: Int) -> some View { Text("\(n)").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(DashboardTheme.ink) }
+}
+
+extension BrainKind {
+    var tint: Color {
+        switch self {
+        case .decision: return DashboardTheme.ember
+        case .hecho: return DashboardTheme.signal
+        case .cuidado: return DashboardTheme.amber
+        case .pendiente: return DashboardTheme.cream.opacity(0.7)
+        }
+    }
+}
+
+private func brainAgentTint(_ agent: String) -> Color {
+    switch agent { case "claude": return Color(hex: 0xE0824F); case "codex": return Color(hex: 0x5270E8); default: return DashboardTheme.cream.opacity(0.8) }
+}
+
+/// El cerebro compartido: cuantas notas hay y quien las dejo, y las mas recientes del proyecto actual.
+private struct BrainPanel: View {
+    let project: String
+    @State private var notes: [BrainNote] = []
+    @State private var globalCount = 0
+    @State private var showGlobal = false
+
+    private var name: String { BrainStore.clean(project: project) }
+    private var scopeProject: String { showGlobal ? "global" : project }
+    private var shown: [BrainNote] { showGlobal ? BrainStore.shared.notes("global") : notes }
+    private func scopeButton(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(on ? DashboardTheme.ink : DashboardTheme.muted)
+                .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(on ? Color.white.opacity(0.12) : .clear))
+        }.buttonStyle(.plain)
+    }
+    private func count(agent: String) -> Int { notes.filter { $0.agent == agent }.count }
+    private func count(kind: BrainKind) -> Int { notes.filter { $0.kind == kind }.count }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("proyecto").dashboardLabel()
+                Text(project.isEmpty ? "global" : name).font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("\(notes.count)").font(.system(size: 34, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).contentTransition(.numericText())
+                    Text(notes.count == 1 ? "nota" : "notas").font(.system(size: 11)).foregroundStyle(DashboardTheme.muted)
+                }
+                agentBar
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(BrainKind.allCases, id: \.self) { k in
+                        HStack(spacing: 5) {
+                            Circle().fill(k.tint).frame(width: 5, height: 5)
+                            Text(k.label).dashboardLabel()
+                            Spacer(minLength: 0)
+                            Text("\(count(kind: k))").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+                        }
+                    }
+                }
+                if globalCount > 0 { Text("+ \(globalCount) globales").font(.system(size: 9.5)).foregroundStyle(DashboardTheme.muted) }
+            }
+            .frame(width: 150, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text("lo último que saben").dashboardLabel()
+                    Spacer(minLength: 0)
+                    if name != "global" {
+                        scopeButton("proyecto", on: !showGlobal) { showGlobal = false; reload() }
+                        scopeButton("global", on: showGlobal) { showGlobal = true; reload() }
+                    }
+                    Button { BrainEditorWindow.present(project: showGlobal ? "global" : project, note: nil) } label: {
+                        Label("nueva", systemImage: "plus").labelStyle(.titleAndIcon).font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.black).padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(DashboardTheme.ember))
+                    }.buttonStyle(.plain).help("escribir una nota para tus agentes")
+                }
+                if shown.isEmpty { empty } else {
+                    ForEach(shown.prefix(4)) { n in row(n) }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .onAppear(perform: reload)
+        .onChange(of: project) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .brainChanged)) { _ in reload() }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("cerebro compartido de \(name): \(notes.count) notas")
+    }
+
+    private var agentBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { geo in
+                HStack(spacing: 2) {
+                    if notes.isEmpty { Capsule().fill(DashboardTheme.line) }
+                    ForEach(BrainStore.agents, id: \.self) { a in
+                        let c = count(agent: a)
+                        if c > 0 { Capsule().fill(brainAgentTint(a)).frame(width: max(3, (geo.size.width - 4) * CGFloat(c) / CGFloat(notes.count))) }
+                    }
+                }
+            }
+            .frame(height: 5)
+            HStack(spacing: 8) {
+                ForEach(BrainStore.agents, id: \.self) { a in
+                    HStack(spacing: 3) {
+                        Circle().fill(brainAgentTint(a)).frame(width: 4, height: 4)
+                        Text("\(a) \(count(agent: a))").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ n: BrainNote) -> some View {
+        HStack(spacing: 7) {
+            Text(n.kind.label).font(.system(size: 8.5, weight: .bold, design: .monospaced)).textCase(.uppercase)
+                .foregroundStyle(Color.black).padding(.horizontal, 5).padding(.vertical, 2)
+                .background(Capsule().fill(n.kind.tint)).frame(width: 66, alignment: .leading)
+            Text(n.text).font(.system(size: 11.5)).foregroundStyle(DashboardTheme.ink).lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 4)
+            Circle().fill(brainAgentTint(n.agent)).frame(width: 5, height: 5)
+            Text(BrainStore.ago(n.at)).font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted).fixedSize()
+            Button { BrainEditorWindow.present(project: scopeProject, note: n) } label: { Image(systemName: "pencil").font(.system(size: 10, weight: .semibold)) }
+                .buttonStyle(.plain).foregroundStyle(DashboardTheme.muted).help("editar").accessibilityLabel("editar nota")
+            Button { BrainStore.shared.forget(id: n.short, project: scopeProject); reload() } label: { Image(systemName: "trash").font(.system(size: 10)) }
+                .buttonStyle(.plain).foregroundStyle(DashboardTheme.muted).help("olvidar").accessibilityLabel("olvidar nota")
+        }
+        .help("\(n.agent) · \(n.text)")
+    }
+
+    private var empty: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("todavía no hay notas de este proyecto").font(.system(size: 12, weight: .medium)).foregroundStyle(DashboardTheme.ink)
+            Text("claude y codex las dejan al terminar algo que la próxima sesión debe saber.").font(.system(size: 10.5)).foregroundStyle(DashboardTheme.muted).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, 6)
+    }
+
+    private func reload() {
+        notes = BrainStore.shared.notes(project)
+        globalCount = name == "global" ? 0 : BrainStore.shared.notes("global").count
+    }
 }
