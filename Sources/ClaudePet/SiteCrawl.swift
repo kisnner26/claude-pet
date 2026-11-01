@@ -102,7 +102,7 @@ enum SiteCrawl {
         var results: [String: SitePage] = [:]
         var order: [String] = []
 
-        while !queue.isEmpty, results.count < maxPages {
+        while !queue.isEmpty, results.count < maxPages, !Task.isCancelled {
             let take = min(concurrency, maxPages - results.count, queue.count)
             let batch = Array(queue.prefix(take))
             queue.removeFirst(take)
