@@ -390,28 +390,29 @@ private struct BrainPanel: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(project.isEmpty ? "global" : name).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).lineLimit(1)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(notes.count)").font(.system(size: 24, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).contentTransition(.numericText())
                     Text(notes.count == 1 ? "nota" : "notas").font(.system(size: 11)).foregroundStyle(DashboardTheme.muted)
                 }
                 agentBar
-                HStack(spacing: 7) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 6, alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 3) {
                     ForEach(BrainKind.allCases, id: \.self) { k in
-                        HStack(spacing: 3) {
+                        HStack(spacing: 4) {
                             Circle().fill(k.tint).frame(width: 5, height: 5)
-                            Text("\(count(kind: k))").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+                            Text(k.label).font(.system(size: 8.5, weight: .semibold, design: .monospaced)).textCase(.uppercase).foregroundStyle(DashboardTheme.muted).lineLimit(1).minimumScaleFactor(0.7)
+                            Spacer(minLength: 0)
+                            Text("\(count(kind: k))").font(.system(size: 10, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
                         }
-                        .help(k.label).accessibilityElement(children: .ignore).accessibilityLabel("\(k.label) \(count(kind: k))")
+                        .accessibilityElement(children: .ignore).accessibilityLabel("\(k.label) \(count(kind: k))")
                     }
                 }
                 if globalCount > 0 { Text("+ \(globalCount) globales").font(.system(size: 9.5)).foregroundStyle(DashboardTheme.muted) }
             }
-            .frame(width: 128, alignment: .leading)
+            .frame(width: 156, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text("notas").dashboardLabel()
+                    Text(project.isEmpty ? "notas · global" : "notas · \(name)").dashboardLabel().lineLimit(1)
                     Spacer(minLength: 0)
                     if name != "global" {
                         scopeButton("proyecto", on: !showGlobal) { showGlobal = false; reload() }
@@ -448,11 +449,11 @@ private struct BrainPanel: View {
                 }
             }
             .frame(height: 5)
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(BrainStore.agents, id: \.self) { a in
-                    HStack(spacing: 3) {
+                    HStack(spacing: 2) {
                         Circle().fill(brainAgentTint(a)).frame(width: 4, height: 4)
-                        Text("\(a) \(count(agent: a))").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
+                        Text("\(a == "tu" ? "tú" : a) \(count(agent: a))").font(.system(size: 8.5, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
                     }
                 }
             }
