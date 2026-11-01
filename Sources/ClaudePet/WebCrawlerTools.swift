@@ -115,6 +115,33 @@ enum LinkChecker {
     }
 }
 
+// MARK: - Avisos de un enlace que funciona
+
+extension LinkChecker {
+    /// A partir de cuantos milisegundos un enlace cuenta como lento.
+    static let slowMillis = 3000
+
+    /// Avisos que salen de la respuesta aunque el enlace funcione: redirecciones permanentes, caidas a http y lentitud.
+    static func warnings(for check: LinkCheck, requested: String) -> [String] {
+        guard check.state != .broken else { return [] }
+        var out: [String] = []
+        if let final = check.finalURL {
+            if requested.lowercased().hasPrefix("https://"), final.lowercased().hasPrefix("http://") { out.append("redirige a http sin cifrar") }
+            if let code = check.redirectCode, code == 301 || code == 308 { out.append("redirección permanente (\(code)) → \(shortURL(final))") }
+        }
+        if check.millis >= slowMillis { out.append("lento (\(String(format: "%.1f", Double(check.millis) / 1000)) s)") }
+        return out
+    }
+
+    /// El destino sin esquema y con tope de largo, para que quepa en una linea del informe.
+    static func shortURL(_ url: String, limit: Int = 60) -> String {
+        var text = url
+        for scheme in ["https://", "http://"] where text.lowercased().hasPrefix(scheme) { text = String(text.dropFirst(scheme.count)); break }
+        if text.hasSuffix("/") { text.removeLast() }
+        return text.count > limit ? String(text.prefix(limit - 1)) + "…" : text
+    }
+}
+
 // MARK: - De la página en localhost al código fuente
 
 enum SourceLocator {
