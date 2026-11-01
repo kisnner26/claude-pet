@@ -91,7 +91,7 @@ struct IslandShell: View {
                 case .music: IslandMusicPage(store: store)
                 case .plan: IslandPlanPage(store: store)
                 case .memory: PetMemoryView(store: store)
-                case .brain: PetMemoryView(store: store, initialTab: .brain)
+                case .brain: PetBrainView(store: store)
                 case .settings: IslandSettingsPage(store: store)
                 }
             }

@@ -65,20 +65,12 @@ extension PetMemoryEvent.Kind {
     }
 }
 
-/// Memoria local de la mascota: un medidor con la parte sin fallos, tres cifras, el gráfico de actividad
+/// Actividad local de la mascota: un medidor con la parte sin fallos, tres cifras, el gráfico de actividad
 /// del periodo elegido, el reparto por tipo y por agente. Todo sale del registro local y no guarda contenido.
-enum MemoryTab: String, CaseIterable, Identifiable { case activity = "actividad", brain = "cerebro", character = "carácter"; var id: String { rawValue } }
-
 struct PetMemoryView: View {
     @ObservedObject var store: PetStore
     @State private var events: [PetMemoryEvent] = []
     @State private var range: MemoryRange = .day
-    @State private var tab: MemoryTab
-
-    init(store: PetStore, initialTab: MemoryTab = .activity) {
-        self.store = store
-        _tab = State(initialValue: initialTab)
-    }
 
     private var now: Date { Date() }
     private var scoped: [PetMemoryEvent] { MemoryStats.window(events, range: range, now: now) }
@@ -88,11 +80,6 @@ struct PetMemoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             header
-            if tab == .brain {
-                BrainPanel(project: store.terminalProject)
-            } else if tab == .character {
-                PersonalityPanel(events: events)
-            } else {
                 HStack(alignment: .center, spacing: 14) {
                     MemoryHealth(percent: Int((recall * 100).rounded()), incidents: count(.error), total: scoped.count, reduceMotion: store.reduceMotion)
                         .frame(width: 128, alignment: .leading)
@@ -108,7 +95,6 @@ struct PetMemoryView: View {
                 }
                 MemoryBreakdown(parts: PetMemoryEvent.Kind.allCases.map { ($0, count($0)) })
                 MemoryAgents(claude: MemoryStats.share(scoped, agent: "claude"), codex: MemoryStats.share(scoped, agent: "codex"), top: MemoryStats.topProject(scoped))
-            }
         }
         .onAppear(perform: reload)
         .accessibilityElement(children: .contain)
@@ -121,8 +107,7 @@ struct PetMemoryView: View {
             Text("memoria").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             Text("registro local").dashboardLabel()
             Spacer(minLength: 0)
-            pill(MemoryTab.allCases, selection: $tab) { $0.rawValue }
-            if tab == .activity { pill(MemoryRange.allCases, selection: $range) { $0.rawValue } }
+            pill(MemoryRange.allCases, selection: $range) { $0.rawValue }
             Button("actualizar", systemImage: "arrow.clockwise", action: reload)
                 .labelStyle(.iconOnly)
                 .font(.system(size: 10, weight: .semibold))
@@ -364,6 +349,25 @@ private func brainAgentTint(_ agent: String) -> Color {
     switch agent { case "claude": return Color(hex: 0xE0824F); case "codex": return Color(hex: 0x5270E8); default: return DashboardTheme.cream.opacity(0.8) }
 }
 
+/// Cerebro compartido y carácter de cada agente, en un solo bloque: las notas del proyecto y, debajo,
+/// lo que cada agente fue formando contigo. Todo sale del registro local; no hay nada inventado.
+struct PetBrainView: View {
+    @ObservedObject var store: PetStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 7) {
+                Image(systemName: "brain").font(.system(size: 12, weight: .semibold)).foregroundStyle(DashboardTheme.ember)
+                Text("cerebro").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+                Text("compartido y carácter").dashboardLabel()
+                Spacer(minLength: 0)
+            }
+            BrainPanel(project: store.terminalProject)
+            PersonalityStrip()
+        }
+    }
+}
+
 /// El cerebro compartido: cuantas notas hay y quien las dejo, y las mas recientes del proyecto actual.
 private struct BrainPanel: View {
     let project: String
@@ -385,21 +389,20 @@ private struct BrainPanel: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(project.isEmpty ? "global" : name).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).lineLimit(1)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(notes.count)").font(.system(size: 28, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).contentTransition(.numericText())
+                    Text("\(notes.count)").font(.system(size: 24, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink).contentTransition(.numericText())
                     Text(notes.count == 1 ? "nota" : "notas").font(.system(size: 11)).foregroundStyle(DashboardTheme.muted)
                 }
                 agentBar
-                VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 7) {
                     ForEach(BrainKind.allCases, id: \.self) { k in
-                        HStack(spacing: 5) {
+                        HStack(spacing: 3) {
                             Circle().fill(k.tint).frame(width: 5, height: 5)
-                            Text(k.label).dashboardLabel()
-                            Spacer(minLength: 0)
                             Text("\(count(kind: k))").font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
                         }
+                        .help(k.label).accessibilityElement(children: .ignore).accessibilityLabel("\(k.label) \(count(kind: k))")
                     }
                 }
                 if globalCount > 0 { Text("+ \(globalCount) globales").font(.system(size: 9.5)).foregroundStyle(DashboardTheme.muted) }
@@ -420,7 +423,7 @@ private struct BrainPanel: View {
                     }.buttonStyle(.plain).help("escribir una nota para tus agentes")
                 }
                 if shown.isEmpty { empty } else {
-                    ForEach(shown.prefix(4)) { n in row(n) }
+                    ForEach(shown.prefix(3)) { n in row(n) }
                 }
                 Spacer(minLength: 0)
             }
@@ -487,51 +490,52 @@ private struct BrainPanel: View {
     }
 }
 
-/// Carácter de cada agente: lo que fue formando contigo. Se calcula del registro local; no hay nada inventado.
-private struct PersonalityPanel: View {
-    let events: [PetMemoryEvent]
+/// Carácter de cada agente en una franja: su rasgo, su etapa y cinco barritas, una por rasgo.
+private struct PersonalityStrip: View {
+    @State private var events: [PetMemoryEvent] = []
 
     private func notes(_ agent: String) -> Int {
         BrainStore.shared.projects().reduce(0) { $0 + BrainStore.shared.notes($1.name).filter { $0.agent == agent }.count }
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             ForEach(["claude", "codex"], id: \.self) { agent in card(Personality.profile(agent: agent, events: events, notes: notes(agent))) }
         }
+        .onAppear { events = PetMemoryStore.shared.snapshot() }
+        .onReceive(NotificationCenter.default.publisher(for: .brainChanged)) { _ in events = PetMemoryStore.shared.snapshot() }
         .accessibilityElement(children: .contain)
     }
 
     private func card(_ p: PersonalityProfile) -> some View {
         let tint = brainAgentTint(p.agent)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Circle().fill(tint).frame(width: 7, height: 7)
-                Text(p.agent).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
-                Spacer(minLength: 0)
-                Text(p.stage).font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundStyle(Color.black)
-                    .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(tint))
+        return HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
+                    Circle().fill(tint).frame(width: 6, height: 6)
+                    Text(p.agent).font(.system(size: 10.5, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
+                    Text(p.stage).font(.system(size: 8.5, weight: .semibold, design: .monospaced)).foregroundStyle(Color.black)
+                        .padding(.horizontal, 5).padding(.vertical, 1.5).background(Capsule().fill(tint)).lineLimit(1)
+                }
+                Text(p.summary).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(DashboardTheme.ink).lineLimit(1).minimumScaleFactor(0.75)
+                Text("\(p.events) recuerdos · \(p.activeDays) días").font(.system(size: 8.5, design: .monospaced)).foregroundStyle(DashboardTheme.muted).lineLimit(1)
             }
-            Text(p.summary).font(.system(size: 15, weight: .semibold)).foregroundStyle(DashboardTheme.ink).lineLimit(1).minimumScaleFactor(0.8)
-            VStack(spacing: 4) { ForEach(p.traits) { t in traitRow(t, tint: tint, faded: !p.formed) } }
-            Text("\(p.events) recuerdos · \(p.activeDays) días activos").font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted)
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(p.agent): \(p.summary), \(p.stage), \(p.events) recuerdos")
-    }
-
-    private func traitRow(_ t: PersonalityTrait, tint: Color, faded: Bool) -> some View {
-        HStack(spacing: 6) {
-            Text(t.label).dashboardLabel().frame(width: 74, alignment: .leading).lineLimit(1).minimumScaleFactor(0.7)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.08))
-                    Capsule().fill(tint.opacity(faded ? 0.35 : 0.95)).frame(width: max(3, geo.size.width * CGFloat(t.value)))
+            Spacer(minLength: 0)
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(p.traits) { t in
+                    ZStack(alignment: .bottom) {
+                        Capsule().fill(Color.white.opacity(0.08))
+                        Capsule().fill(tint.opacity(p.formed ? 0.95 : 0.35)).frame(height: max(3, 28 * CGFloat(t.value)))
+                    }
+                    .frame(width: 5, height: 28)
+                    .help("\(t.label): \(t.note)")
                 }
             }
-            .frame(height: 5)
-            Text(t.note).font(.system(size: 8.5)).foregroundStyle(DashboardTheme.muted.opacity(0.8)).frame(width: 66, alignment: .trailing).lineLimit(1).minimumScaleFactor(0.7)
         }
+        .padding(.horizontal, 9).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.05)))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(p.agent): \(p.summary), \(p.stage), \(p.events) recuerdos")
     }
 }

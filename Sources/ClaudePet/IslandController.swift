@@ -632,6 +632,22 @@ enum IslandSnapshot {
 }
 
 extension IslandSnapshot {
+    /// `ClaudePet --snapshot-memory <ruta.png>`: la pagina de actividad y la del cerebro, una sobre otra.
+    static func memory(to path: String) {
+        let store = PetStore.shared
+        let view = VStack(spacing: 14) {
+            PetMemoryView(store: store).frame(width: 470, height: 190, alignment: .top)
+            PetBrainView(store: store).frame(width: 470, height: 190, alignment: .top)
+        }.padding(16).background(Color(hex: 0x1B1210))
+        let r = ImageRenderer(content: view)
+        r.scale = 2
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+extension IslandSnapshot {
     /// `ClaudePet --snapshot-poses <ruta.png>`: la mascota en reposo, mirando, parpadeando, molesta, mareada y saltando.
     static func poses(to path: String) {
         func look(_ dx: Int, _ dy: Int) -> PetPose { var q = PetPose(); q.eyeDX = dx; q.eyeDY = dy; return q }
