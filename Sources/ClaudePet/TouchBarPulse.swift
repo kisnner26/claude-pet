@@ -431,7 +431,7 @@ private struct TouchBarLane: View {
                     }
                 }
             }
-            .frame(width: 104, alignment: .leading)
+            .frame(width: 118, alignment: .leading)
         }
         .onAppear { appearedAt = Date() }
         .onChange(of: events.count) { _ in popAt = Date() }
