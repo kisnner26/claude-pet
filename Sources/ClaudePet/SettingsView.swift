@@ -15,6 +15,7 @@ extension SettingsPage {
         case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
         case .musica: return "reproductor de Spotify y Apple Music en la isla, y cómo reacciona la mascota."
         case .foco: return "silencia lo que no importa y trabaja por ciclos."
+        case .tactil: return "convierte la pantalla en táctil con la cámara: un espejito delante de ella, o la mano en el aire."
         case .plugins: return "complementos creados por la comunidad que añaden acciones y ajustes a claude-pet."
         case .atajos: return "combinaciones globales. siempre con control y opción más la letra que elijas."
         case .copia: return "exporta tus ajustes, impórtalos en otro Mac o vuelve a empezar."
@@ -171,6 +172,7 @@ struct SettingsView: View {
         case .sonidos: SonidosPage(store: store)
         case .musica: MusicaPage(store: store)
         case .foco: FocoPage(store: store)
+        case .tactil: ScreenTouchPanel(controller: .shared, embedded: true)
         case .plugins: PluginsPage(store: store)
         case .atajos: AtajosPage(store: store)
         case .copia: CopiaPage(store: store)
