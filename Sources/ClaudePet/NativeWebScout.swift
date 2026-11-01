@@ -234,10 +234,11 @@ final class NativeWebScoutController: ObservableObject {
         guard !isSiteCrawling, let start = askSiteURL(default: suggestedSiteURL()) else { return }
         isSiteCrawling = true
         status = "claudwler · sitio · conectando con \(start.host ?? "el sitio")…"
+        let update: @Sendable (Int, Int) -> Void = { [weak self] done, total in
+            Task { @MainActor in self?.status = "claudwler · sitio · \(done)/\(total) páginas" }
+        }
         siteTask = Task { [weak self] in
-            let outcome = await SiteCrawl.run(start: start, maxPages: 40, maxDepth: 3, fetch: { await SiteFetcher.fetch($0) }, progress: { done, total in
-                Task { @MainActor [weak self] in self?.status = "claudwler · sitio · \(done)/\(total) páginas" }
-            })
+            let outcome = await SiteCrawl.run(start: start, maxPages: 40, maxDepth: 3, fetch: { await SiteFetcher.fetch($0) }, progress: update)
             guard !Task.isCancelled, let self else { return }
             self.finishSiteCrawl(outcome)
         }
