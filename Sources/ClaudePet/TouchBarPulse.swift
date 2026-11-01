@@ -155,6 +155,14 @@ enum TouchBarPulse {
         }
     }
 
+    /// Nombre del archivo de una captura: claude-pet-touchbar-pronostico-20261101-153000.png
+    static func captureName(page: Page, date: Date, timeZone: TimeZone = .current) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = timeZone; f.dateFormat = "yyyyMMdd-HHmmss"
+        let title = page.title.folding(options: .diacriticInsensitive, locale: nil)
+        return "claude-pet-touchbar-\(title)-\(f.string(from: date)).png"
+    }
+
     static func clock(_ seconds: TimeInterval) -> String {
         let t = max(0, Int(seconds.rounded(.up)))
         return String(format: "%02d:%02d", t / 60, t % 60)
@@ -178,6 +186,8 @@ enum TouchBarPulse {
     @Published var page: TouchBarPulse.Page = .pulse
     @Published var notes: [BrainNote] = []
     @Published var noteTotal = 0
+    /// Aviso breve dentro de la barra ("captura guardada").
+    @Published var flash: String?
 }
 
 private enum TB {
@@ -210,6 +220,11 @@ struct TouchBarRootView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if (store.state == .done || store.codexState == .done) && !store.reduceMotion { TouchBarConfetti().allowsHitTesting(false) }
+            if let note = state.flash {
+                Text(note).font(TB.mono(11, .bold)).foregroundColor(.black)
+                    .padding(.horizontal, 14).padding(.vertical, 5).background(Capsule().fill(Color.white))
+                    .frame(maxWidth: .infinity, alignment: .center).transition(.opacity)
+            }
         }
         .frame(height: 30)
     }
@@ -583,6 +598,7 @@ enum TouchBarHaptics {
 extension NSTouchBarItem.Identifier {
     static let pager = NSTouchBarItem.Identifier("claudepet.pager")
     static let content = NSTouchBarItem.Identifier("claudepet.content")
+    static let shot = NSTouchBarItem.Identifier("claudepet.shot")
     static let askLabel = NSTouchBarItem.Identifier("claudepet.ask.label")
     static let askSlide = NSTouchBarItem.Identifier("claudepet.ask.slide")
     static let askAlways = NSTouchBarItem.Identifier("claudepet.ask.always")
@@ -595,7 +611,7 @@ extension NSTouchBarItem.Identifier {
 @MainActor final class TouchBarController: NSObject, NSTouchBarDelegate {
     private let store: PetStore
     private let state = TouchBarState()
-    private lazy var pulseBar: NSTouchBar = makeBar([.pager, .content])
+    private lazy var pulseBar: NSTouchBar = makeBar([.pager, .content, .shot])
     private var askBar = NSTouchBar()
     private var questionBar = NSTouchBar()
     private var shown: TouchBarPulse.Mode?
@@ -723,6 +739,12 @@ extension NSTouchBarItem.Identifier {
             host.widthAnchor.constraint(equalToConstant: 740).isActive = true
             item.view = host
             return item
+        case .shot:
+            let item = NSCustomTouchBarItem(identifier: id)
+            let b = NSButton(image: NSImage(systemSymbolName: "camera.fill", accessibilityDescription: "captura de la barra") ?? NSImage(), target: self, action: #selector(capture))
+            b.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            item.view = b
+            return item
         case .askLabel:
             let more = store.permissionAsks.count > 1 ? "  +\(store.permissionAsks.count - 1)" : ""
             let isPlan = currentAsk?.tool == "ExitPlanMode"
@@ -755,6 +777,29 @@ extension NSTouchBarItem.Identifier {
             }
             return nil
         }
+    }
+
+    /// Lo que se ve en la barra, tal cual: la pagina actual a 2170 x 60 px (el tamano real de la pantalla) o mas.
+    /// Se guarda en el escritorio y se copia al portapapeles para pegarla donde quieras.
+    @objc private func capture() {
+        let page = state.page
+        let view = TouchBarRootView(store: store, state: state).frame(width: 740, height: 30).padding(.horizontal, 10).padding(.vertical, 4).background(Color.black)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 4
+        guard let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { flash("no se pudo capturar"); return }
+        let dir = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory())
+        let url = dir.appendingPathComponent(TouchBarPulse.captureName(page: page, date: Date()))
+        do { try png.write(to: url) } catch { flash("no se pudo guardar"); return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+        TouchBarHaptics.tap(.levelChange)
+        flash("captura guardada y copiada")
+    }
+
+    private func flash(_ text: String) {
+        withAnimation { state.flash = text }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in withAnimation { self?.state.flash = nil } }
     }
 
     @objc private func pageChanged(_ sender: NSSegmentedControl) {
@@ -854,6 +899,8 @@ enum TouchBarSelfTest {
         check("una compactacion reinicia el tramo", ContextForecast.project(samples: [sample(20, minutesAgo: 20), sample(15, minutesAgo: 18), sample(10, minutesAgo: 16), sample(90, minutesAgo: 10), sample(80, minutesAgo: 5), sample(70, minutesAgo: 0)], compactAt: 160_000, now: now).map { abs($0.minutes - 35) < 0.01 } == true)
         check("lo lejano no se anuncia", ContextForecast.project(samples: [sample(90, minutesAgo: 20), sample(89, minutesAgo: 10), sample(88, minutesAgo: 0)], compactAt: 160_000, now: now) == nil)
         check("las lecturas viejas no cuentan", ContextForecast.recent([sample(50, minutesAgo: 90), sample(40, minutesAgo: 1)], now: now).count == 1)
+        let when = Date(timeIntervalSince1970: 1_793_547_000)
+        check("el nombre de la captura lleva pagina y fecha sin acentos", TouchBarPulse.captureName(page: .forecast, date: when, timeZone: TimeZone(identifier: "UTC")!) == "claude-pet-touchbar-pronostico-20261101-153000.png")
         print(ok ? "TOUCHBAR OK" : "TOUCHBAR FALLO")
         return ok
     }
