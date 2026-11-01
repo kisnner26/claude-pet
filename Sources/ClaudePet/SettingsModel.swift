@@ -8,7 +8,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 }
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case resumen, apariencia, comportamiento, agentes, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, tactil, plugins, atajos, copia, acerca
+    case resumen, apariencia, comportamiento, agentes, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, plugins, atajos, copia, acerca
     var id: String { rawValue }
 
     var title: String {
@@ -24,7 +24,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .sonidos: return "sonidos"
         case .musica: return "música"
         case .foco: return "foco y pomodoro"
-        case .tactil: return "pantalla táctil"
         case .plugins: return "plugins"
         case .atajos: return "atajos"
         case .copia: return "copia y restauración"
@@ -45,7 +44,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .sonidos: return "speaker.wave.2"
         case .musica: return "music.note"
         case .foco: return "timer"
-        case .tactil: return "hand.point.up.left"
         case .plugins: return "puzzlepiece.extension"
         case .atajos: return "command"
         case .copia: return "arrow.up.arrow.down.circle"
@@ -60,7 +58,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .agentes: return .agentes
         case .permisos, .perimetro, .privacidad: return .seguridad
         case .guardarropa, .sonidos, .musica, .foco: return .mascota
-        case .tactil, .plugins, .atajos, .copia, .acerca: return .sistema
+        case .plugins, .atajos, .copia, .acerca: return .sistema
         }
     }
 
@@ -78,7 +76,6 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .sonidos: return ["volumen", "audio", "silencio", "carpeta", "personalizado", "alertas", "interfaz", "probar"]
         case .musica: return ["spotify", "apple music", "reproductor", "cancion", "auriculares", "bailar", "notas", "portada", "reaccion", "player"]
         case .foco: return ["pomodoro", "concentracion", "horario", "descanso", "no molestar"]
-        case .tactil: return ["tactil", "touch", "camara", "webcam", "espejo", "dedo", "cursor", "pellizco", "mano", "sistine", "calibrar"]
         case .plugins: return ["mod", "mods", "extension", "complemento", "addon", "script", "instalar", "commitero", "integracion", "automatizar"]
         case .atajos: return ["teclado", "teclas", "combinacion", "global", "control", "opcion"]
         case .copia: return ["exportar", "importar", "respaldo", "restablecer", "reiniciar", "configuracion", "json"]

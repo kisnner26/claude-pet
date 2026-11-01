@@ -359,8 +359,6 @@ private struct ScreenTouchCalibrationView: View {
 
 struct ScreenTouchPanel: View {
     @ObservedObject var controller: ScreenTouchController
-    /// Dentro de la ventana de ajustes ocupa el ancho disponible y no lleva marco propio.
-    var embedded = false
 
     private var steps: String {
         controller.mode == .mirror
@@ -405,8 +403,8 @@ struct ScreenTouchPanel: View {
             }
             Text("experimental: no guarda ni envía imágenes; cada fotograma se descarta al procesarlo.").font(.system(size: 10)).foregroundColor(.secondary)
         }
-        .padding(embedded ? 0 : 18)
-        .frame(width: embedded ? nil : 520)
+        .padding(18)
+        .frame(width: 520)
     }
 
     private func row(_ title: String, _ value: String, ok: Bool) -> some View {
