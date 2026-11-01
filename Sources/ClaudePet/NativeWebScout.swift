@@ -101,6 +101,9 @@ final class NativeWebScoutController: ObservableObject {
     private var crawlerRecords: [CrawledLink] = []
     private var crawlerSeen = Set<CrawledLink>()
     private var lastReport = ""
+    private var lastHTML = ""
+    private var lastEntries: [ReportEntry] = []
+    private var lastSite = ""
     private var lastReportURL: URL?
     private var crawlerChecks: [String: LinkCheck] = [:]
     private var pendingChecks: [String: Task<LinkCheck, Never>] = [:]
@@ -286,6 +289,9 @@ final class NativeWebScoutController: ObservableObject {
             CrawlHistory.save(snapshot, site: site)
             let report = WebCrawlerReport.build(entries, pages: max(pages, 1), site: site, diff: diff, verified: verified)
             self.lastReport = report.markdown
+            self.lastHTML = report.html
+            self.lastEntries = entries
+            self.lastSite = site
             self.hasReport = true
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(report.markdown, forType: .string)
