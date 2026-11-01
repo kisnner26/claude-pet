@@ -17,6 +17,18 @@ enum SiteCrawlReport {
         return u.query.map { p + "?" + $0 } ?? p
     }
 
+    /// Una fila por pagina para abrirla en una hoja de calculo.
+    static func csv(_ outcome: SiteCrawlOutcome) -> String {
+        var out = "ruta,estado,milisegundos,profundidad,titulo,avisos,enlazada_desde\n"
+        let inbound = Dictionary(uniqueKeysWithValues: outcome.broken.map { ($0.url, $0.foundOn) })
+        for p in outcome.pages {
+            let cells = [path(p.url), p.status == 0 ? "sin respuesta" : String(p.status), String(p.millis), String(p.depth), p.title,
+                         p.problems.joined(separator: " | "), (inbound[p.url] ?? []).map(path).joined(separator: " | ")]
+            out += cells.map(WebCrawlerReport.csvCell).joined(separator: ",") + "\n"
+        }
+        return out
+    }
+
     static func host(_ url: String) -> String { URL(string: url)?.host ?? url }
 
     static func slowest(_ pages: [SitePage], limit: Int = 5, minMillis: Int = 800) -> [SitePage] {
