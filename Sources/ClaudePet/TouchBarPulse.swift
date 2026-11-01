@@ -311,7 +311,7 @@ private struct TouchBarLane: View {
     @State private var hopStart: TimeInterval?
     @State private var appearedAt = Date()
     @State private var popAt: Date?
-    private let barWidth: CGFloat = 140
+    private let barWidth: CGFloat = 128
     private let stage: CGFloat = 52     // el suelo de la mascota: 26 de cuerpo y margen para pasear
 
     private func codexFace(_ pose: PetPose, tick: Int) -> CodexAvatar.Face {
@@ -431,7 +431,7 @@ private struct TouchBarLane: View {
                     }
                 }
             }
-            .frame(width: 112, alignment: .leading)
+            .frame(width: 104, alignment: .leading)
         }
         .onAppear { appearedAt = Date() }
         .onChange(of: events.count) { _ in popAt = Date() }
@@ -446,7 +446,7 @@ private struct TouchBarGauge: View {
     let color: Color
     let note: String?
     var urgent = false
-    var width: CGFloat = 160
+    var width: CGFloat = 146
     @State private var shown = false
 
     var body: some View {
@@ -583,8 +583,8 @@ struct TouchBarFocusView: View {
                     .frame(width: 70, alignment: .leading)
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color.white.opacity(0.14))
-                        Capsule().fill(p.phase == .work ? TB.claude : Color(hex: 0x6CCB8A)).frame(width: max(4, 260 * CGFloat(total > 0 ? 1 - left / total : 0)))
-                    }.frame(width: 260, height: 8)
+                        Capsule().fill(p.phase == .work ? TB.claude : Color(hex: 0x6CCB8A)).frame(width: max(4, 220 * CGFloat(total > 0 ? 1 - left / total : 0)))
+                    }.frame(width: 220, height: 8)
                     Text("\(p.completed) hechos").font(TB.mono(9)).foregroundColor(.white.opacity(0.5))
                     Spacer(minLength: 0)
                     if p.isPaused { button("reanudar", "play.fill") { store.pomodoro.resume(now: ProcessInfo.processInfo.systemUptime) } }
@@ -592,7 +592,7 @@ struct TouchBarFocusView: View {
                     button("parar", "stop.fill") { store.pomodoro.stop() }
                 }
             }
-            .frame(width: 690)
+            .frame(width: 640)
         }
     }
 
@@ -646,7 +646,7 @@ struct TouchBarMusicView: View {
                         Text(n.title).font(.system(size: 11, weight: .semibold)).foregroundColor(.white).lineLimit(1)
                         Text(n.artist).font(.system(size: 9)).foregroundColor(.white.opacity(0.6)).lineLimit(1)
                     }
-                    .frame(width: 140, alignment: .leading)
+                    .frame(width: 130, alignment: .leading)
                     Text(TouchBarPulse.clock(frac * n.duration)).font(TB.mono(9)).foregroundColor(.white.opacity(0.6))
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -660,7 +660,7 @@ struct TouchBarMusicView: View {
                             .onChanged { v in drag = min(1, max(0, Double(v.location.x / geo.size.width))) }
                             .onEnded { v in music.seek(toFraction: min(1, max(0, Double(v.location.x / geo.size.width)))); TouchBarHaptics.tap(.levelChange); drag = nil })
                     }
-                    .frame(width: 190, height: 14)
+                    .frame(width: 150, height: 14)
                     Text(TouchBarPulse.clock(n.duration)).font(TB.mono(9)).foregroundColor(.white.opacity(0.6))
                     control("backward.fill") { music.send(.previous) }
                     control(n.isPlaying ? "pause.fill" : "play.fill", big: true, tint: accent) { music.send(.playPause) }
@@ -698,7 +698,7 @@ struct TouchBarBrainView: View {
                 ForEach(Array(state.notes.prefix(3).enumerated()), id: \.element.id) { i, n in
                     HStack(spacing: 5) {
                         Circle().fill(n.kind.tint).frame(width: 6, height: 6)
-                        Text(n.text).font(.system(size: 10)).foregroundColor(.white).lineLimit(1).frame(width: 120, alignment: .leading)
+                        Text(n.text).font(.system(size: 10)).foregroundColor(.white).lineLimit(1).frame(width: 100, alignment: .leading)
                     }
                     .padding(.horizontal, 8).padding(.vertical, 5).background(Capsule().fill(Color.white.opacity(0.1)))
                     .scaleEffect(shown ? 1 : 0.5).opacity(shown ? 1 : 0)
@@ -711,7 +711,7 @@ struct TouchBarBrainView: View {
                     .padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(TB.claude))
             }.buttonStyle(.plain)
         }
-        .frame(width: 690)
+        .frame(width: 640)
         .onAppear { shown = true }
     }
 }
@@ -877,7 +877,7 @@ extension NSTouchBarItem.Identifier {
         case .content:
             let item = NSCustomTouchBarItem(identifier: id)
             let host = NSHostingView(rootView: TouchBarRootView(store: store, state: state))
-            host.widthAnchor.constraint(equalToConstant: 690).isActive = true
+            host.widthAnchor.constraint(equalToConstant: 640).isActive = true
             item.view = host
             return item
         case .tools:
@@ -943,7 +943,7 @@ extension NSTouchBarItem.Identifier {
     @objc private func capture() {
         guard state.flash == nil else { return }       // sin capturar el propio aviso
         let page = state.page
-        let view = TouchBarRootView(store: store, state: state).frame(width: 690, height: 30).padding(.horizontal, 10).padding(.vertical, 4).background(Color.black)
+        let view = TouchBarRootView(store: store, state: state).frame(width: 640, height: 30).padding(.horizontal, 10).padding(.vertical, 4).background(Color.black)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 4
         // sin animaciones: una foto fija no puede pillar las barras a medio crecer
@@ -1110,12 +1110,12 @@ extension IslandSnapshot {
                 Text("aviso de captura").font(.system(size: 8, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
                 let flashState = TouchBarState()
                 let _ = { flashState.events = events; flashState.page = .pulse; flashState.flash = TouchBarState.Flash(text: "guardada y copiada", ok: true) }()
-                TouchBarRootView(store: store, state: flashState).frame(width: 690, height: 30)
+                TouchBarRootView(store: store, state: flashState).frame(width: 640, height: 30)
             }
             HStack(spacing: 10) {
                 Text("pronóstico\n(con datos)").font(.system(size: 8, design: .monospaced)).foregroundColor(.white.opacity(0.5)).frame(width: 52, alignment: .leading)
                 TouchBarForecastView(store: store, claudeSamples: forecastDemo(now, from: 80, step: -3), codexSamples: forecastDemo(now, from: 70, step: -1))
-                    .frame(width: 690, height: 30, alignment: .leading)
+                    .frame(width: 640, height: 30, alignment: .leading)
             }
         }.padding(10).background(Color.black)
         let r = ImageRenderer(content: view)
