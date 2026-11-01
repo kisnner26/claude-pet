@@ -71,7 +71,7 @@ struct MenuBarContent: View {
     }
 
     @ViewBuilder private var trackpadTouchItem: some View {
-        Button(TrackpadTouchController.shared.enabled ? "apagar trackpad táctil" : "trackpad táctil", systemImage: "rectangle.and.hand.point.up.left") { TrackpadTouchController.shared.toggle() }
+        Button(TrackpadTouchController.shared.enabled ? "apagar trackpad táctil (experimental)" : "trackpad táctil (experimental)", systemImage: "rectangle.and.hand.point.up.left") { TrackpadTouchController.shared.toggle() }
     }
 
     @ViewBuilder private var pomodoroItem: some View {
