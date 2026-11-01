@@ -102,6 +102,7 @@ final class NativeWebScoutController: ObservableObject {
     private var crawlerSeen = Set<CrawledLink>()
     private var lastReport = ""
     private var lastHTML = ""
+    private var lastCSV = ""
     private var lastEntries: [ReportEntry] = []
     private var lastSite = ""
     private var lastReportURL: URL?
@@ -219,7 +220,7 @@ final class NativeWebScoutController: ObservableObject {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try lastReport.write(to: folder.appendingPathComponent("informe.md"), atomically: true, encoding: .utf8)
             try lastHTML.write(to: folder.appendingPathComponent("informe.html"), atomically: true, encoding: .utf8)
-            try WebCrawlerReport.csv(lastEntries).write(to: folder.appendingPathComponent("enlaces.csv"), atomically: true, encoding: .utf8)
+            try lastCSV.write(to: folder.appendingPathComponent("enlaces.csv"), atomically: true, encoding: .utf8)
         } catch {
             status = "claudwler · no se pudo guardar el informe"
             return
@@ -319,6 +320,7 @@ final class NativeWebScoutController: ObservableObject {
             let report = WebCrawlerReport.build(entries, pages: max(pages, 1), site: site, diff: diff, verified: verified)
             self.lastReport = report.markdown
             self.lastHTML = report.html
+            self.lastCSV = WebCrawlerReport.csv(entries)
             self.lastEntries = entries
             self.lastSite = site
             self.hasReport = true
