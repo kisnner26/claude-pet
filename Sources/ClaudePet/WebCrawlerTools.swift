@@ -56,16 +56,32 @@ enum LinkChecker {
         return result
     }
 
+    /// Apunta la primera redireccion de una peticion: el codigo (301, 302...) y a donde llevaba.
+    private final class RedirectRecorder: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+        private(set) var code: Int?
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+            if code == nil { code = response.statusCode }
+            completionHandler(request)
+        }
+    }
+
     private static func run(_ url: URL) async -> LinkCheck {
         for method in ["HEAD", "GET"] {
             var request = URLRequest(url: url)
             request.httpMethod = method
             if method == "GET" { request.setValue("bytes=0-0", forHTTPHeaderField: "Range") }
+            let recorder = RedirectRecorder()
+            let started = Date()
             do {
-                let (_, response) = try await session.data(for: request)
+                let (_, response) = try await session.data(for: request, delegate: recorder)
                 guard let http = response as? HTTPURLResponse else { continue }
                 if method == "HEAD", [403, 405, 501].contains(http.statusCode) { continue }
-                return classify(http.statusCode)
+                var result = classify(http.statusCode)
+                result.millis = Int(Date().timeIntervalSince(started) * 1000)
+                result.redirectCode = recorder.code
+                if let final = http.url?.absoluteString, final != url.absoluteString { result.finalURL = final }
+                return result
             } catch let error as URLError {
                 return classify(error)
             } catch {
