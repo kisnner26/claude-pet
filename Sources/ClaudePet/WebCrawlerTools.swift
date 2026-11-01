@@ -5,8 +5,14 @@ import Foundation
 enum LinkState: String, Codable { case ok, broken, unknown }
 
 struct LinkCheck: Codable {
-    let state: LinkState
-    let note: String
+    var state: LinkState
+    var note: String
+    /// A donde acabo llevando el enlace tras las redirecciones, si el destino final es otro.
+    var finalURL: String? = nil
+    /// Codigo de la primera redireccion (301, 302...), si la hubo.
+    var redirectCode: Int? = nil
+    /// Lo que tardo la respuesta, en milisegundos.
+    var millis: Int = 0
 }
 
 private actor AsyncGate {
