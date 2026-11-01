@@ -15,7 +15,7 @@ extension SettingsPage {
         case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
         case .musica: return "reproductor de Spotify y Apple Music en la isla, y cómo reacciona la mascota."
         case .foco: return "silencia lo que no importa y trabaja por ciclos."
-        case .trackpad: return "usa el trackpad como una superficie táctil de toda la pantalla, sin cámara."
+        case .trackpad: return "experimental: usa el trackpad como una superficie táctil de toda la pantalla, sin cámara."
         case .plugins: return "complementos creados por la comunidad que añaden acciones y ajustes a claude-pet."
         case .atajos: return "combinaciones globales. siempre con control y opción más la letra que elijas."
         case .copia: return "exporta tus ajustes, impórtalos en otro Mac o vuelve a empezar."
