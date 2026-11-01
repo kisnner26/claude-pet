@@ -5,7 +5,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Cerebro compartido: claude y codex dejan notas cortas por proyecto (decisión, hecho, cuidado, pendiente y trato) que el siguiente agente recibe al empezar una sesión. Se editan desde la isla o con `ClaudePet --brain`. Rechaza claves y textos largos. `./install-brain.sh` instala los hooks con copia de respaldo.
+- Carácter de cada agente: una personalidad que se va formando con lo vivido contigo (constancia, precisión, noctámbulo, exploración y memoria) y cuatro etapas de relación. Solo usa datos locales.
+- Touch Bar para los MacBook Pro que la tienen: páginas de pulso, límites, pronóstico, foco, música y cerebro; deslizador para aprobar permisos, preguntas como botones, confeti al terminar, captura de la barra y vibración en el trackpad. `CLAUDE_PET_TOUCHBAR=1/0` la fuerza o la apaga.
+- Pronóstico de contexto: a partir de las lecturas recientes calcula en cuántos minutos se compacta y avisa cuando quedan 10.
+- Trackpad táctil (experimental): el trackpad como superficie absoluta de toda la pantalla. Sin cámara. Usa el framework privado `MultitouchSupport`.
+- claudwler: avisos de redirecciones permanentes, caídas a http y enlaces lentos; exportación a CSV; prompt de arreglo para claude code; guardar el informe en una carpeta; y recorrido de todo el sitio con `robots.txt`, avisos por página (título, descripción, h1, idioma, `alt`, `noindex`), informe html y modo terminal `--crawl-site`.
+- Pruebas nuevas sin red: `--selftest-brain`, `--selftest-memory`, `--selftest-touchbar`, `--selftest-trackpad` y `--selftest-claudwler-extras`.
 - Vídeo de presentación hecho con el propio código de la app: `ClaudePet --render-promo salida.mp4` renderiza 53 s a 1080p con las vistas y el animador reales (la isla, las mascotas, los atuendos, el enfado) y lo codifica con AVFoundation, sin ffmpeg. Los menús nativos se sustituyen por su icono en las capturas.
+
+### cambiado
+- La memoria queda solo con la actividad: salud, cifras, gráfico y reparto por agente y tipo. El cerebro y el carácter pasan a su propia página, en un solo bloque.
+- La isla ya no tiene el botón ni la pestaña de música: el reproductor vive en la Touch Bar y la mascota sigue mostrando el disco y bailando.
+- La isla abierta mide 236 pt de alto y deja más aire arriba; las cifras de memoria cuentan sesiones y registran también a codex.
+
+### corregido
+- El contexto marcaba 0 % en sesiones largas porque se medía contra 160 000 tokens fijos. Ahora la ventana se deduce de lo usado: pasados 200 000 tokens es la de 1M y compacta a los 800 000.
+- La duración de una tarea no se calculaba bien y las sesiones no se contaban nunca.
 
 ## [2.11.0] - 2026-10-28
 
