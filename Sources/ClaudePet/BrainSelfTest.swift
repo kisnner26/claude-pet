@@ -125,6 +125,15 @@ enum BrainSelfTest {
         let result = dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) })
         check("el repaso une y marca en el disco", result.merged == 1 && result.stale.count == 1 && dreamStore.notes("mi-app").count == 2 && dreamStore.notes("mi-app").contains { $0.stale == true })
         check("repasar otra vez no cambia nada", dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) }).merged == 0 && dreamStore.notes("mi-app").count == 2)
+        // cuando suena
+        let t = Date(timeIntervalSince1970: 1_800_000_000)
+        check("de noche y sin haber sonado nunca, toca", DreamKeeper.isDue(last: nil, now: t, hour: 3, idle: 0, busy: false))
+        check("de dia con la Mac en uso no toca", !DreamKeeper.isDue(last: nil, now: t, hour: 15, idle: 60, busy: false))
+        check("de dia, tras una hora sin tocar la Mac, toca", DreamKeeper.isDue(last: nil, now: t, hour: 15, idle: 3_700, busy: false))
+        check("no suena si ya sono hace menos de 20 horas", !DreamKeeper.isDue(last: t.addingTimeInterval(-19 * 3600), now: t, hour: 3, idle: 9_000, busy: false))
+        check("suena otra vez pasadas las 20 horas", DreamKeeper.isDue(last: t.addingTimeInterval(-21 * 3600), now: t, hour: 3, idle: 0, busy: false))
+        check("nunca mientras un agente trabaja", !DreamKeeper.isDue(last: nil, now: t, hour: 3, idle: 9_000, busy: true))
+        check("la franja de noche acaba a las 7", !DreamKeeper.isDue(last: nil, now: t, hour: 7, idle: 0, busy: false) && DreamKeeper.isDue(last: nil, now: t, hour: 6, idle: 0, busy: false))
         print(ok ? "CEREBRO OK" : "CEREBRO FALLO")
         return ok
     }
