@@ -51,7 +51,7 @@ final class PluginRegistry {
             // se registra siempre bajo el nombre de su carpeta: un manifiesto que dice ser otro plugin no puede taparlo
             if m.id != dir.lastPathComponent { problems.append("la carpeta debe llamarse como el id (\(m.id))"); m.id = dir.lastPathComponent }
             // todo ejecutable declarado debe cumplir las reglas de seguridad
-            for run in m.actions.map { $0.run } + Array(m.events.values) where PluginSecurity.resolveExecutable(run, in: dir) == nil {
+            for run in (m.actions.map { $0.run } + Array(m.events.values)) where PluginSecurity.resolveExecutable(run, in: dir) == nil {
                 problems.append("«\(run)» no es un ejecutable seguro (debe estar dentro del plugin, con permiso de ejecución y sin escritura para otros)")
             }
             out.append(LoadedPlugin(manifest: m, dir: dir, problems: Array(Set(problems)).sorted()))
