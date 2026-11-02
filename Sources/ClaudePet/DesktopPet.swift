@@ -140,6 +140,8 @@ final class DesktopPets {
     /// Quita a la mascota del escritorio de verdad (sin animacion).
     private func remove(_ agent: IslandAgentTab) {
         panels[agent]?.orderOut(nil); panels[agent] = nil; models[agent] = nil; carried.remove(agent); moving.remove(agent); transitions[agent] = nil
+        // sin la mascota no hay quien apague el halo del Dock ni el aviso sobre su cabeza: se sueltan aqui, antes de parar el temporizador
+        DeskWorld.shared.forget(agent)
         store.deskOut = out; saveSpots(); stopTimerIfIdle()
     }
 
