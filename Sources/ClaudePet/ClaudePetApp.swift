@@ -242,6 +242,8 @@ final class AppController: NSObject, NSApplicationDelegate {
                 guard let host = WindowCatalog.agentWindow(project: store.terminalProject, in: windows) else { print("\(label): sin ventana para el agente"); return }
                 let h = windows[host]
                 print("\(label): ventana del agente \(h.owner) borde superior y=\(Int(h.frame.maxY)) x \(Int(h.frame.minX))...\(Int(h.frame.maxX)) (posicion z \(all.firstIndex(of: h.id) ?? -1))")
+                let glow = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []).filter { ($0[kCGWindowOwnerPID as String] as? Int32) == ProcessInfo.processInfo.processIdentifier && ($0[kCGWindowLayer as String] as? Int) == Int(CGWindowLevelForKey(.dockWindow)) + 1 }
+                print("  halo del Dock: \(glow.isEmpty ? "no" : "sí") \(glow.first.flatMap { $0[kCGWindowBounds as String] as? [String: CGFloat] }.map { "en x=\(Int($0["X"] ?? 0)) \(Int($0["Width"] ?? 0))x\(Int($0["Height"] ?? 0))" } ?? "")")
                 for p in DesktopPets.shared.debugPanels() {
                     let feet = p.frame.minY + DeskWorld.feetOffset
                     print("  \(p.agent.rawValue): pies y=\(Int(feet)) x=\(Int(p.frame.midX)) nivel \(p.level) posicion z \(all.firstIndex(of: p.number) ?? -1) · \(abs(feet - h.frame.maxY) < 3 ? "SOBRE el borde" : abs(feet - (h.frame.maxY - DeskWorld.peekDepth)) < 3 ? "ASOMADA" : "en otro sitio")")

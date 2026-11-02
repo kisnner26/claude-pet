@@ -198,6 +198,7 @@ final class DesktopPets {
             if model.gaze != g { model.gaze = g }
             model.idleSeconds = store.idleForDesk
         }
+        if store.deskWorld { DeskWorld.shared.updateGlow(animated: store.animationsEnabled && !store.reduceMotion) }
     }
 }
 

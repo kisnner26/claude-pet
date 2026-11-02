@@ -46,6 +46,11 @@ final class DeskWorld {
     private var windowsAt: TimeInterval = -10
     private var titlesAt: TimeInterval = -10
     private var titles: [Int: String] = [:]
+    private var dockItems: [DockItem] = []
+    private var dockUsable = false
+    private var dockAt: TimeInterval = -10
+    /// El icono que cada agente quiere encender mientras trabaja.
+    private var glowWanted: [IslandAgentTab: DockItem] = [:]
 
     /// Las ventanas se releen unas 7 veces por segundo; los titulos (accesibilidad) cada par de segundos.
     private func refresh(now: TimeInterval) {
@@ -60,8 +65,21 @@ final class DeskWorld {
         windows = list
     }
 
+    private func refreshDock(now: TimeInterval) {
+        guard now - dockAt > 1 else { return }
+        dockAt = now
+        dockUsable = DockInfo.currentLayoutUsable()
+        dockItems = dockUsable ? DockInfo.items() : []
+    }
+
+    /// Enciende (o apaga) el halo del Dock segun lo que quiera cada agente; si los dos trabajan en la misma app manda el color de claude.
+    func updateGlow(animated: Bool) {
+        guard let agent = IslandAgentTab.allCases.first(where: { glowWanted[$0] != nil }), let item = glowWanted[agent] else { DockGlow.shared.hide(); return }
+        DockGlow.shared.apply(frame: item.frame, tint: Color(hex: agent == .claude ? 0xE0824F : 0x5270E8), animated: animated)
+    }
+
     func reset(_ agent: IslandAgentTab) { pets[agent]?.needsInit = true }
-    func forget(_ agent: IslandAgentTab) { pets[agent] = nil }
+    func forget(_ agent: IslandAgentTab) { pets[agent] = nil; glowWanted[agent] = nil; updateGlow(animated: false) }
 
     private func screen(containing x: CGFloat) -> CGRect {
         let frames = NSScreen.screens.map(\.visibleFrame)
@@ -70,6 +88,7 @@ final class DeskWorld {
 
     func step(agent: IslandAgentTab, current center: CGPoint, dt: CGFloat, now: TimeInterval) -> Output {
         refresh(now: now)
+        refreshDock(now: now)
         var pet = pets[agent] ?? Pet()
         if pet.needsInit {
             pet.body = DeskPhysics.Body(x: center.x, feetY: center.y - Self.centerAboveFeet)
@@ -84,6 +103,9 @@ final class DeskWorld {
         let hostIndex = WindowCatalog.agentWindow(project: store.terminalProject, in: windows)
         let goal = DeskGoal.decide(state: effective, hasWindow: hostIndex != nil, secondsSinceBusy: now - pet.lastBusy)
         pet.otherSpace = hostIndex == nil && effective != .idle
+        let busy = effective == .thinking || effective == .tool || effective == .starting || effective == .waiting
+        let dockItem = hostIndex.flatMap { DockInfo.item(forApp: windows[$0].owner, in: dockItems) }
+        glowWanted[agent] = busy ? dockItem : nil
 
         let screenFrame = screen(containing: pet.body.x)
         let floorY = screenFrame.minY
@@ -112,8 +134,13 @@ final class DeskWorld {
                 target = CGPoint(x: pet.body.x, y: floorY)
             }
         case .rest:
-            let side = agent == .claude ? 0.0 : 130.0
-            target = CGPoint(x: screenFrame.maxX - 150 - side, y: floorY)
+            if let d = dockItem {
+                // descansa junto al icono de la app donde trabaja su agente, encima del Dock
+                target = CGPoint(x: d.frame.midX + (agent == .claude ? -26 : 40), y: floorY)
+            } else {
+                let side = agent == .claude ? 0.0 : 130.0
+                target = CGPoint(x: screenFrame.maxX - 150 - side, y: floorY)
+            }
         }
         let effectiveGoal: DeskGoal = targetWindow == nil && goal != .rest ? .rest : goal
 
