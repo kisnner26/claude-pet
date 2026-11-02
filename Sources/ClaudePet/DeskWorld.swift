@@ -30,6 +30,8 @@ final class DeskWorld {
         var needsInit = true
         var otherSpace = false
         var lastWindowFrame: CGRect?
+        /// Hacia que lado se aparta de una ventana que le cae encima (-1 izquierda, 1 derecha, 0 ninguno): se mantiene mientras dure.
+        var dodgeSide: CGFloat = 0
     }
 
     struct Output {
@@ -195,12 +197,14 @@ final class DeskWorld {
             // en el suelo: se aparta de lo que le cae encima y, si no, va a su sitio de descanso
             var goalX = target.x
             var speed: CGFloat = 130
-            if let away = DeskPhysics.sidestep(centerX: pet.body.x, feetY: pet.body.feetY, height: 96, windows: windows, supporting: nil) {
+            if let away = DeskPhysics.sidestep(centerX: pet.body.x, feetY: pet.body.feetY, height: 96, windows: windows, supporting: nil, prefer: pet.dodgeSide) {
+                if pet.dodgeSide == 0 { pet.dodgeSide = away < pet.body.x ? -1 : 1 }
                 goalX = away; speed = 300
             } else if DeskPhysics.pathBlocked(from: pet.body.x, to: target.x, feetY: pet.body.feetY, height: 96, windows: windows) {
                 // su sitio queda tras una ventana: se queda donde esta en vez de meterse y salir una y otra vez
                 goalX = pet.body.x
-            }
+                pet.dodgeSide = 0
+            } else { pet.dodgeSide = 0 }
             let r = DeskPhysics.walk(x: pet.body.x, toward: goalX, dt: dt, speed: speed)
             pet.body.x = r.x; pet.walking = r.walking
             if r.walking { pet.facing = r.facing }

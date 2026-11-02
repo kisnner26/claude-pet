@@ -73,6 +73,7 @@ enum DeskWorldSelfTest {
         check("una ventana que le cae encima la aparta al lado libre mas cercano", DeskPhysics.sidestep(centerX: 420, feetY: 80, height: 90, windows: [dragged], supporting: nil) == 360 - DeskPhysics.half - 10)
         check("si esta mas cerca del otro lado se va por ese", DeskPhysics.sidestep(centerX: 600, feetY: 80, height: 90, windows: [dragged], supporting: nil) == 660 + DeskPhysics.half + 10)
         check("la ventana que la sostiene no la aparta", DeskPhysics.sidestep(centerX: 400, feetY: 500, height: 90, windows: [back], supporting: 0) == nil)
+        check("con un lado preferido no cambia aunque cruce el centro", DeskPhysics.sidestep(centerX: 600, feetY: 80, height: 90, windows: [dragged], supporting: nil, prefer: -1) == 360 - DeskPhysics.half - 10)
         check("una ventana lejos no la molesta", DeskPhysics.sidestep(centerX: 900, feetY: 80, height: 90, windows: [dragged], supporting: nil) == nil)
         check("una ventana con el borde a sus pies es suelo, no estorbo", DeskPhysics.sidestep(centerX: 400, feetY: 510, height: 90, windows: [back], supporting: nil) == nil)
         check("si su sitio queda tras una ventana, el camino esta bloqueado", DeskPhysics.pathBlocked(from: 300, to: 800, feetY: 80, height: 90, windows: [dragged]))

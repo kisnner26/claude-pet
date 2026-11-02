@@ -262,6 +262,36 @@ final class AppController: NSObject, NSApplicationDelegate {
             for (i, t) in [1.0, 3.0, 6.0].enumerated() { DispatchQueue.main.asyncAfter(deadline: .now() + t) { report("t=\(Int(t)) s") ; if i == 2 { DesktopPets.shared.setWorld(false); exit(0) } } }
             return
         }
+        if CommandLine.arguments.contains("--probe-jitter") {
+            // muestrea la posicion de cada mascota a 60 Hz durante 8 s y cuenta cuantas veces invierte el sentido (temblor)
+            let store = PetStore.shared
+            if !CommandLine.arguments.contains("--real") { store.startDemo() }
+            DesktopPets.shared.setWorld(true)
+            var samples: [String: [CGPoint]] = [:]
+            var t0 = ProcessInfo.processInfo.systemUptime
+            Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { timer in
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - t0 > 2 {
+                    for p in DesktopPets.shared.debugPanels() { samples[p.agent.rawValue, default: []].append(CGPoint(x: p.frame.midX, y: p.frame.minY)) }
+                }
+                if now - t0 > 10 {
+                    timer.invalidate()
+                    for (a, pts) in samples {
+                        var flipsX = 0, flipsY = 0, lastX: CGFloat = 0, lastY: CGFloat = 0
+                        for i in 1..<pts.count {
+                            let dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y
+                            if abs(dx) > 0.01 { if dx * lastX < 0 { flipsX += 1 }; lastX = dx }
+                            if abs(dy) > 0.01 { if dy * lastY < 0 { flipsY += 1 }; lastY = dy }
+                        }
+                        let xs = pts.map(\.x), ys = pts.map(\.y)
+                        print("\(a): \(pts.count) muestras, inversiones x=\(flipsX) y=\(flipsY), rango x \(Int(xs.min() ?? 0))...\(Int(xs.max() ?? 0)) y \(Int(ys.min() ?? 0))...\(Int(ys.max() ?? 0))")
+                    }
+                    DesktopPets.shared.setWorld(false); exit(0)
+                }
+            }
+            _ = t0; t0 = ProcessInfo.processInfo.systemUptime
+            return
+        }
         if CommandLine.arguments.contains("--probe-dock") {
             // cuenta lo que ve del Dock y si encuentra el icono de la app del agente (sin imprimir el resto de nombres)
             let items = DockInfo.items()

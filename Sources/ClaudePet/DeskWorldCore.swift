@@ -119,13 +119,15 @@ enum DeskPhysics {
     }
 
     /// Si una ventana (que no es su suelo) le cae encima, a donde se aparta: el lado libre mas cercano. nil si nada le estorba.
-    static func sidestep(centerX: CGFloat, feetY: CGFloat, height: CGFloat, windows: [DeskWindow], supporting: Int?, margin: CGFloat = 10) -> CGFloat? {
+    static func sidestep(centerX: CGFloat, feetY: CGFloat, height: CGFloat, windows: [DeskWindow], supporting: Int?, margin: CGFloat = 10, prefer: CGFloat = 0) -> CGFloat? {
         let body = CGRect(x: centerX - half, y: feetY + 4, width: half * 2, height: max(1, height - 8))
         for i in windows.indices where i != supporting {
             let f = windows[i].frame
             // una ventana cuyo borde queda a sus pies o por debajo es un suelo posible, no un estorbo
             guard f.maxY > feetY + reach, f.intersects(body) else { continue }
             let left = f.minX - half - margin, right = f.maxX + half + margin
+            // si ya se estaba apartando hacia un lado, sigue por ese: elegir el mas cercano cada vez la hace temblar al cruzar el centro
+            if prefer != 0 { return prefer < 0 ? left : right }
             return abs(centerX - left) <= abs(centerX - right) ? left : right
         }
         return nil
