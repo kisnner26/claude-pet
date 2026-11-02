@@ -147,6 +147,10 @@ final class PetStore: ObservableObject {
         didSet { UserDefaults.standard.set(deskFollow, forKey: "deskFollow") }
     }
     /// Escritorio vivo (experimental): las mascotas salen de la isla y se posan en tus ventanas segun lo que hace su agente.
+    /// Mide el ritmo con que escribes (solo cuando y si borras, nunca que teclas): avisa si peleas con algo y si llevas mucho sin parar. Apagado por defecto.
+    @Published var typingRhythm: Bool = UserDefaults.standard.bool(forKey: "typingRhythm") {
+        didSet { UserDefaults.standard.set(typingRhythm, forKey: "typingRhythm"); TypingMonitor.shared.setEnabled(typingRhythm) }
+    }
     @Published var deskWorld: Bool = UserDefaults.standard.bool(forKey: "deskWorld") {
         didSet { UserDefaults.standard.set(deskWorld, forKey: "deskWorld") }
     }

@@ -370,6 +370,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             return
         }
         if CommandLine.arguments.contains("--selftest-desk-world") { exit(DeskWorldSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-typing") { exit(TypingRhythmSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-keyboard") { exit(KeyboardWaveSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-trackpad") { exit(TrackpadTouchSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-touchbar") { exit(TouchBarSelfTest.run() ? 0 : 1) }
@@ -602,6 +603,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         touchBar = TouchBarController(store: PetStore.shared)
         touchBar?.start()
         KeyboardBreath.shared.start(store: PetStore.shared)
+        TypingMonitor.shared.setEnabled(PetStore.shared.typingRhythm)
         // el cerebro suena de noche o tras una hora sin usar la Mac: se comprueba al arrancar y cada 10 minutos
         DreamKeeper.shared.load()
         let dreamCheck: @MainActor () -> Void = {

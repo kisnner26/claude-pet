@@ -288,6 +288,9 @@ struct ComportamientoPage: View {
                     SToggle(title: "el teclado respira", detail: "retroiluminación del teclado integrado.", isOn: $keyboard.enabled)
                 }
             }
+            SCard(title: "ritmo de escritura", footer: "mide cuando pulsas teclas y si borras, nunca cuales ni qué escribes. si tecleas y borras muchísimo a la vez, la mascota te dice que respires; tras 50 minutos seguidos sin una pausa de cinco, que descanses. Las pulsaciones por hora alimentan «tu ritmo». Usa el mismo permiso que los atajos globales.") {
+                SToggle(title: "medir cómo escribo", detail: "avisos de esfuerzo y de descanso sobre la mascota.", isOn: $store.typingRhythm)
+            }
             SCard(title: "energía", footer: "con el modo de bajo consumo de macOS o con menos de un 15 % de batería, la isla deja los brillos y las hebras animadas y gasta menos.") {
                 SToggle(title: "ahorro automático", detail: store.energySaving ? "activo ahora: efectos reducidos" : "se activa solo cuando hace falta", isOn: $store.autoEnergySaving)
             }

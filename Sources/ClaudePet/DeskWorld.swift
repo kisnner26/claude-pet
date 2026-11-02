@@ -125,7 +125,7 @@ final class DeskWorld {
         let busy = effective == .thinking || effective == .tool || effective == .starting || effective == .waiting
         let dockItem = hostIndex.flatMap { DockInfo.item(forApp: windows[$0].owner, in: dockItems) }
         glowWanted[agent] = busy ? dockItem : nil
-        noteWanted[agent] = pet.otherSpace ? "su ventana no está aquí" : nil
+        noteWanted[agent] = pet.otherSpace ? "su ventana no está aquí" : (agent == .claude ? TypingMonitor.shared.note : nil)
         hostPID = hostIndex.map { windows[$0].pid } ?? hostPID
 
         let screenFrame = screen(containing: pet.body.x)
