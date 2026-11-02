@@ -256,6 +256,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if CommandLine.arguments.contains("--selftest-desk-world") { exit(DeskWorldSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-keyboard") { exit(KeyboardWaveSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-trackpad") { exit(TrackpadTouchSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-touchbar") { exit(TouchBarSelfTest.run() ? 0 : 1) }
