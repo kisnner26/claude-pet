@@ -99,6 +99,32 @@ enum BrainSelfTest {
         check("sin novedades dice que todo esta en orden", DreamReport(at: now).headline == "mientras dormías: todo en orden" && DreamReport(at: now).isQuiet)
         check("el aviso de obsoleta sobrevive a guardar y leer", { var n = note("mira Viejo.swift"); n.stale = true; let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601; let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601; return (try? dec.decode(BrainNote.self, from: enc.encode(n)))?.stale == true }())
         check("las notas guardadas antes de esto se siguen leyendo", { let old = #"{"id":"\#(UUID().uuidString)","at":"2026-10-01T10:00:00Z","agent":"claude","kind":"hecho","text":"vieja"}"#; let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601; return (try? dec.decode(BrainNote.self, from: Data(old.utf8)))?.text == "vieja" }())
+        // donde esta el proyecto y que archivos siguen
+        let tmpHome = NSTemporaryDirectory() + "dream-home-\(UUID().uuidString)"
+        let proj = tmpHome + "/Documents/mi-app"
+        try? FileManager.default.createDirectory(atPath: proj + "/Sources/App", withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(atPath: proj + "/node_modules/x", withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: proj + "/Sources/App/Brain.swift", contents: Data())
+        FileManager.default.createFile(atPath: proj + "/node_modules/x/ruido.js", contents: Data())
+        defer { try? FileManager.default.removeItem(atPath: tmpHome) }
+        check("encuentra el proyecto en las carpetas habituales", DreamRoots.root(for: "mi-app", perimeterRoots: [], home: tmpHome) == proj)
+        check("prefiere el perimetro que ya configuraste", DreamRoots.root(for: "mi-app", perimeterRoots: ["/otro/sitio/mi-app", proj], home: "/no-existe", isDirectory: { $0 == proj }) == proj)
+        check("un proyecto desconocido o global no tiene carpeta", DreamRoots.root(for: "nadie", perimeterRoots: [], home: tmpHome) == nil && DreamRoots.root(for: "global", perimeterRoots: [], home: tmpHome) == nil)
+        let index = ProjectFileIndex.build(root: proj)
+        check("el indice conoce los archivos y rutas", index.exists("Brain.swift") && index.exists("Sources/App/Brain.swift") && index.exists("./Sources/App/Brain.swift") && index.exists("App/Brain.swift"))
+        check("un archivo que no esta se nota", !index.exists("Viejo.swift") && !index.exists("Sources/App/Viejo.swift"))
+        check("no se cuela lo que hay dentro de node_modules", !index.exists("ruido.js"))
+        check("las rutas absolutas se comprueban en el disco", index.exists("/abs/ruta.swift", fileExists: { $0 == "/abs/ruta.swift" }) && !index.exists("/abs/otra.swift", fileExists: { _ in false }))
+        // de punta a punta con el almacen
+        let dreamDir = NSTemporaryDirectory() + "dream-brain-\(UUID().uuidString)"
+        let dreamStore = BrainStore(); dreamStore.directory = dreamDir
+        defer { try? FileManager.default.removeItem(atPath: dreamDir) }
+        dreamStore.add(agent: "claude", kind: "hecho", text: "el cerebro vive en Brain.swift y lo edita la isla", project: "mi-app", at: now.addingTimeInterval(-86_400))
+        dreamStore.add(agent: "codex", kind: "hecho", text: "El cerebro vive en Brain.swift y lo edita la isla de claude pet", project: "mi-app", at: now)
+        dreamStore.add(agent: "claude", kind: "cuidado", text: "no tocar Sources/App/Viejo.swift", project: "mi-app", at: now)
+        let result = dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) })
+        check("el repaso une y marca en el disco", result.merged == 1 && result.stale.count == 1 && dreamStore.notes("mi-app").count == 2 && dreamStore.notes("mi-app").contains { $0.stale == true })
+        check("repasar otra vez no cambia nada", dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) }).merged == 0 && dreamStore.notes("mi-app").count == 2)
         print(ok ? "CEREBRO OK" : "CEREBRO FALLO")
         return ok
     }
