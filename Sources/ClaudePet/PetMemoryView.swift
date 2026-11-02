@@ -373,14 +373,26 @@ private func brainAgentTint(_ agent: String) -> Color {
 /// lo que cada agente fue formando contigo. Todo sale del registro local; no hay nada inventado.
 struct PetBrainView: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var dream = DreamKeeper.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 7) {
                 Image(systemName: "brain").font(.system(size: 12, weight: .semibold)).foregroundStyle(DashboardTheme.ember)
                 Text("cerebro").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
-                Text("compartido y carácter").dashboardLabel()
-                Spacer(minLength: 0)
+                if let r = dream.report, !r.seen {
+                    // el parte de la mañana: lo que hizo el cerebro mientras dormías
+                    Image(systemName: "moon.zzz.fill").font(.system(size: 10)).foregroundStyle(Color(hex: 0x8FB8FF))
+                    Text(r.headline).font(.system(size: 10.5)).foregroundStyle(DashboardTheme.ink.opacity(0.9)).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 4)
+                    Button("ok") { withAnimation(store.reduceMotion ? nil : .easeOut(duration: 0.2)) { dream.markSeen() } }
+                        .buttonStyle(.plain).font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundStyle(Color.black)
+                        .padding(.horizontal, 8).padding(.vertical, 2).background(Capsule().fill(Color(hex: 0x8FB8FF)))
+                        .help("entendido").accessibilityLabel("entendido, ocultar el parte")
+                } else {
+                    Text("compartido y carácter").dashboardLabel()
+                    Spacer(minLength: 0)
+                }
             }
             BrainPanel(project: store.terminalProject)
             PersonalityStrip()
