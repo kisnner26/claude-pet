@@ -51,6 +51,10 @@ final class DeskWorld {
     private var dockAt: TimeInterval = -10
     /// El icono que cada agente quiere encender mientras trabaja.
     private var glowWanted: [IslandAgentTab: DockItem] = [:]
+    /// El aviso que cada mascota quiere mostrar sobre su cabeza.
+    private(set) var noteWanted: [IslandAgentTab: String] = [:]
+    /// La app donde trabaja el agente ahora mismo, para saltar a ella.
+    private(set) var hostPID: Int32?
 
     /// Las ventanas se releen unas 7 veces por segundo; los titulos (accesibilidad) cada par de segundos.
     private func refresh(now: TimeInterval) {
@@ -79,7 +83,12 @@ final class DeskWorld {
     }
 
     func reset(_ agent: IslandAgentTab) { pets[agent]?.needsInit = true }
-    func forget(_ agent: IslandAgentTab) { pets[agent] = nil; glowWanted[agent] = nil; updateGlow(animated: false) }
+    func forget(_ agent: IslandAgentTab) { pets[agent] = nil; glowWanted[agent] = nil; noteWanted[agent] = nil; updateGlow(animated: false); DeskNotes.shared.hideAll() }
+
+    /// Salta a la app donde trabaja el agente (cambia de espacio si hace falta).
+    func focusHost() {
+        if let pid = hostPID, let app = NSRunningApplication(processIdentifier: pid) { app.activate(options: [.activateIgnoringOtherApps, .activateAllWindows]) } else { store.focusTerminal() }
+    }
 
     private func screen(containing x: CGFloat) -> CGRect {
         let frames = NSScreen.screens.map(\.visibleFrame)
@@ -102,10 +111,12 @@ final class DeskWorld {
         if effective == .thinking || effective == .tool || effective == .starting || effective == .waiting { pet.lastBusy = now }
         let hostIndex = WindowCatalog.agentWindow(project: store.terminalProject, in: windows)
         let goal = DeskGoal.decide(state: effective, hasWindow: hostIndex != nil, secondsSinceBusy: now - pet.lastBusy)
-        pet.otherSpace = hostIndex == nil && effective != .idle
+        pet.otherSpace = DeskGoal.windowElsewhere(state: effective, hasWindow: hostIndex != nil)
         let busy = effective == .thinking || effective == .tool || effective == .starting || effective == .waiting
         let dockItem = hostIndex.flatMap { DockInfo.item(forApp: windows[$0].owner, in: dockItems) }
         glowWanted[agent] = busy ? dockItem : nil
+        noteWanted[agent] = pet.otherSpace ? "su ventana no está aquí" : nil
+        hostPID = hostIndex.map { windows[$0].pid } ?? hostPID
 
         let screenFrame = screen(containing: pet.body.x)
         let floorY = screenFrame.minY

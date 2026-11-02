@@ -185,6 +185,9 @@ enum DeskGoal: Equatable {
         }
     }
 
+    /// El agente trabaja pero no hay ninguna ventana suya en este espacio (esta en otro escritorio o en otra pantalla completa).
+    static func windowElsewhere(state: PetState, hasWindow: Bool) -> Bool { !hasWindow && state != .idle }
+
     /// Donde se coloca sobre el borde de la ventana (fraccion del ancho): claude a la derecha del centro y codex mas a la derecha, para que no se pisen.
     static func perchFraction(claude: Bool, both: Bool) -> CGFloat { both ? (claude ? 0.64 : 0.82) : 0.75 }
 

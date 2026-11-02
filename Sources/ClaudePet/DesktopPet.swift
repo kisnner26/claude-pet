@@ -110,7 +110,7 @@ final class DesktopPets {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isMovableByWindowBackground = false
         panel.contentView = FirstMouseHostingView(rootView: DesktopPetView(agent: agent, store: store, model: model, onDrag: { [weak self] in self?.dragBegan(agent) },
-                                                                            onDrop: { [weak self] in self?.dragEnded(agent) }, onBack: { [weak self] in self?.putBack(agent) }))
+                                                                            onDrop: { [weak self] in self?.dragEnded(agent) }, onBack: { [weak self] in if self?.store.deskWorld == true { self?.setWorld(false) } else { self?.putBack(agent) } }, onFocus: { DeskWorld.shared.focusHost() }))
         panel.setFrameOrigin(NSPoint(x: center.x - DeskMotion.size / 2, y: center.y - DeskMotion.size / 2))
         panel.orderFrontRegardless()
         panels[agent] = panel; models[agent] = model
@@ -204,6 +204,7 @@ final class DesktopPets {
             FileFlights.shared.tick(now: now, store: store, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }),
                                     windows: DeskWorld.shared.windows, animated: animated)
             GhostCursor.shared.tick(now: now)
+            DeskNotes.shared.update(notes: DeskWorld.shared.noteWanted, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }))
         }
     }
 }
@@ -215,6 +216,7 @@ struct DesktopPetView: View {
     var onDrag: () -> Void
     var onDrop: () -> Void
     var onBack: () -> Void
+    var onFocus: () -> Void = {}
     @State private var dragging = false
 
     var body: some View {
@@ -225,13 +227,14 @@ struct DesktopPetView: View {
         .scaleEffect(x: model.deskFlip ? -1 : 1, y: 1)
         .frame(width: DeskMotion.size, height: DeskMotion.size)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onBack() }
+        .onTapGesture(count: 2) { if store.deskWorld { onFocus() } else { onBack() } }
         .onTapGesture { if agent == .claude { model.poke() } else { model.pokeCodex() } }
         .onHover { model.petHoverSince = $0 ? ProcessInfo.processInfo.systemUptime : nil }
         .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .global)
             .onChanged { _ in if !dragging { dragging = true; onDrag() } }
             .onEnded { _ in dragging = false })
         .contextMenu {
+            if store.deskWorld { Button("ir a la ventana del agente", systemImage: "macwindow") { onFocus() } }
             Button("volver a la isla", systemImage: "arrow.uturn.backward") { onBack() }
             Toggle("seguir el cursor", isOn: $store.deskFollow)
             Divider()
@@ -241,6 +244,6 @@ struct DesktopPetView: View {
                 Toggle(unlocked ? outfit.title : "\(outfit.title) · nivel \(Evolution.unlockLevel(outfit))", isOn: Binding(get: { store.worn(outfit, by: who) }, set: { _ in store.toggleOutfit(outfit, for: who) })).disabled(!unlocked)
             }
         }
-        .accessibilityLabel("\(agent.rawValue) en el escritorio: arrástrala, toca dos veces para volver a la isla")
+        .accessibilityLabel(store.deskWorld ? "\(agent.rawValue) en el escritorio vivo: arrástrala o toca dos veces para ir a la ventana del agente" : "\(agent.rawValue) en el escritorio: arrástrala, toca dos veces para volver a la isla")
     }
 }
