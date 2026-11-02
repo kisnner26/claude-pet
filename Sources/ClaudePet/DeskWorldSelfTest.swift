@@ -76,6 +76,21 @@ enum DeskWorldSelfTest {
         check("una ventana lejos no la molesta", DeskPhysics.sidestep(centerX: 900, feetY: 80, height: 90, windows: [dragged], supporting: nil) == nil)
         check("una ventana con el borde a sus pies es suelo, no estorbo", DeskPhysics.sidestep(centerX: 400, feetY: 510, height: 90, windows: [back], supporting: nil) == nil)
 
+        // saltos
+        let leap = DeskLeap.make(from: CGPoint(x: 100, y: 80), to: CGPoint(x: 500, y: 300), now: 10)
+        check("el salto empieza y acaba donde debe", leap.position(at: 10).point == CGPoint(x: 100, y: 80) && leap.position(at: 20).point == CGPoint(x: 500, y: 300) && leap.position(at: 20).done)
+        let mid = leap.position(at: 10 + leap.duration / 2).point
+        check("a mitad de camino va por encima de la recta (parabola)", mid.y > (80 + 300) / 2 + 20 && mid.x > 100 && mid.x < 500)
+        check("un salto largo dura mas que uno corto", DeskLeap.make(from: .zero, to: CGPoint(x: 900, y: 0), now: 0).duration > DeskLeap.make(from: .zero, to: CGPoint(x: 60, y: 0), now: 0).duration)
+        check("durante el salto no atraviesa el suelo al bajar", stride(from: 0.0, through: 1.0, by: 0.05).allSatisfy { leap.position(at: 10 + $0 * leap.duration).point.y >= 80 - 0.01 })
+
+        // que quiere hacer cada mascota
+        check("sin ventana donde posarse, descansa", DeskGoal.decide(state: .tool, hasWindow: false, secondsSinceBusy: 0) == .rest)
+        check("trabajando se posa en la ventana", DeskGoal.decide(state: .tool, hasWindow: true, secondsSinceBusy: 0) == .perch && DeskGoal.decide(state: .thinking, hasWindow: true, secondsSinceBusy: 0) == .perch)
+        check("esperando un permiso se asoma por detras", DeskGoal.decide(state: .waiting, hasWindow: true, secondsSinceBusy: 0) == .peek)
+        check("al terminar sigue posada un rato y luego baja", DeskGoal.decide(state: .idle, hasWindow: true, secondsSinceBusy: 3) == .perch && DeskGoal.decide(state: .idle, hasWindow: true, secondsSinceBusy: 12) == .rest)
+        check("claude y codex no se pisan en la misma ventana", DeskGoal.perchFraction(claude: true, both: true) < DeskGoal.perchFraction(claude: false, both: true) && DeskGoal.perchFraction(claude: true, both: false) == 0.75)
+        check("el vaiven solo existe trabajando y no se sale de su amplitud", DeskGoal.pace(time: 3, working: false) == 0 && stride(from: 0.0, to: 20, by: 0.3).allSatisfy { abs(DeskGoal.pace(time: $0, working: true)) <= 34.001 })
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
