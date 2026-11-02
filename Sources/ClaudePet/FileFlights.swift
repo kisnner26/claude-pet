@@ -73,6 +73,9 @@ final class FileFlights {
         if panel?.isVisible != true { panel?.orderFrontRegardless() }
     }
 
+    /// Hay un archivo volando o esperando turno (el reloj del escritorio tiene que ir fluido).
+    var isBusy: Bool { current != nil || !queue.isEmpty }
+
     func stop() { queue.removeAll(); current = nil; panel?.orderOut(nil); GhostCursor.shared.stop() }
 
     private func ensurePanel() {

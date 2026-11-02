@@ -32,6 +32,8 @@ final class GhostCursor {
         if panel?.isVisible != true { panel?.orderFrontRegardless() }
     }
 
+    var isBusy: Bool { move != nil }
+
     func stop() { move = nil; panel?.orderOut(nil) }
 
     private func ensurePanel() {

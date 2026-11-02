@@ -157,10 +157,18 @@ final class DesktopPets {
         store.deskSpots = DeskMotion.encode(spots)
     }
 
+    private var timerFast = true
+
     private func startTimer() {
         guard timer == nil else { return }
         lastTick = ProcessInfo.processInfo.systemUptime
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
+        schedule(fast: true)
+    }
+
+    private func schedule(fast: Bool) {
+        timer?.invalidate()
+        timerFast = fast
+        timer = Timer.scheduledTimer(withTimeInterval: fast ? 1.0 / 30.0 : 1.0 / 10.0, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
     }
 
     private func stopTimerIfIdle() { if panels.isEmpty { timer?.invalidate(); timer = nil } }
@@ -199,6 +207,9 @@ final class DesktopPets {
             model.idleSeconds = store.idleForDesk
         }
         if store.deskWorld {
+            // quieta del todo (nadie camina, salta, la llevan en la mano ni hay un archivo volando) basta con 10 Hz
+            let calm = moving.isEmpty && carried.isEmpty && !DeskWorld.shared.anyLeaping && !FileFlights.shared.isBusy && !GhostCursor.shared.isBusy
+            if calm == timerFast { schedule(fast: !calm) }
             let animated = store.animationsEnabled && !store.reduceMotion
             DeskWorld.shared.updateGlow(animated: animated)
             FileFlights.shared.tick(now: now, store: store, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }),

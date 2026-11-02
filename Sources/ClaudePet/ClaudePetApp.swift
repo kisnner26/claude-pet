@@ -271,6 +271,19 @@ final class AppController: NSObject, NSApplicationDelegate {
             print("dock usable: \(DockInfo.currentLayoutUsable()) · iconos: \(items.count) · app del agente '\(host)': \(hit.map { "icono en x=\(Int($0.frame.midX)) y=\(Int($0.frame.maxY)) (\(Int($0.frame.width)) pt)" } ?? "sin icono")")
             exit(0)
         }
+        if CommandLine.arguments.contains("--probe-desk-cpu") {
+            // cuanta CPU gasta el escritorio vivo con dos agentes "trabajando" (tras 3 s de calentamiento, durante 10 s)
+            func cpuSeconds() -> Double { var u = rusage(); getrusage(RUSAGE_SELF, &u); return Double(u.ru_utime.tv_sec) + Double(u.ru_utime.tv_usec) / 1e6 + Double(u.ru_stime.tv_sec) + Double(u.ru_stime.tv_usec) / 1e6 }
+            PetStore.shared.startDemo()
+            if CommandLine.arguments.contains("--sin-mundo") { DesktopPets.shared.show(.claude); DesktopPets.shared.show(.codex) } else { DesktopPets.shared.setWorld(true) }
+            var start = 0.0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { start = cpuSeconds() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 13) {
+                print(String(format: "CPU %@ (dos agentes trabajando): %.1f %%", CommandLine.arguments.contains("--sin-mundo") ? "de las mascotas sueltas sin mundo" : "del escritorio vivo", (cpuSeconds() - start) / 10 * 100))
+                DesktopPets.shared.setWorld(false); exit(0)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--probe-keyboard") {
             // prueba real en tu Mac: simula un agente trabajando, muestrea el brillo y comprueba que se devuelve el original
             let store = PetStore.shared

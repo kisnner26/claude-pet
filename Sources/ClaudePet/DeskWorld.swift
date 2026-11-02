@@ -82,6 +82,8 @@ final class DeskWorld {
         DockGlow.shared.apply(frame: item.frame, tint: Color(hex: agent == .claude ? 0xE0824F : 0x5270E8), animated: animated)
     }
 
+    var anyLeaping: Bool { pets.values.contains { $0.leap != nil } }
+
     func reset(_ agent: IslandAgentTab) { pets[agent]?.needsInit = true }
     func forget(_ agent: IslandAgentTab) { pets[agent] = nil; glowWanted[agent] = nil; noteWanted[agent] = nil; updateGlow(animated: false); DeskNotes.shared.hideAll() }
 
