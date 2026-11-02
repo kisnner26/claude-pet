@@ -100,6 +100,14 @@ enum DeskWorldSelfTest {
         check("sin sitio arriba se asoma por el lado derecho si hay hueco", DeskPlacement.peek(window: CGRect(x: 400, y: 0, width: 1000, height: 1000), screen: screen, depth: 62) == .side(x: 1410, feetY: 830))
         check("sin hueco a la derecha, por la izquierda", DeskPlacement.peek(window: CGRect(x: 300, y: 0, width: 1380, height: 1000), screen: screen, depth: 62) == .side(x: 290, feetY: 830))
         check("si no cabe por ningun lado, se posa dentro", DeskPlacement.peek(window: CGRect(x: 0, y: 0, width: 1680, height: 1000), screen: screen, depth: 62) == .inside(feetY: 900))
+        // el Dock
+        let dock = [DockItem(title: "Finder", frame: CGRect(x: 100, y: 10, width: 50, height: 50)), DockItem(title: "Terminal", frame: CGRect(x: 160, y: 10, width: 50, height: 50)),
+                    DockItem(title: "Visual Studio Code", frame: CGRect(x: 220, y: 10, width: 50, height: 50)), DockItem(title: "Ghostty", frame: CGRect(x: 280, y: 10, width: 50, height: 50))]
+        check("encuentra el icono por nombre exacto", DockInfo.item(forApp: "Terminal", in: dock)?.frame.minX == 160 && DockInfo.item(forApp: "terminal", in: dock)?.frame.minX == 160)
+        check("encuentra un nombre parecido (Code en Visual Studio Code)", DockInfo.item(forApp: "Code", in: dock)?.frame.minX == 220)
+        check("sin icono para una app que no esta en el Dock", DockInfo.item(forApp: "Cursor", in: dock) == nil && DockInfo.item(forApp: "", in: dock) == nil)
+        check("el Dock solo sirve abajo y a la vista", DockInfo.isUsableLayout(orientation: "bottom", autohide: false) && DockInfo.isUsableLayout(orientation: nil, autohide: false)
+              && !DockInfo.isUsableLayout(orientation: "left", autohide: false) && !DockInfo.isUsableLayout(orientation: "bottom", autohide: true))
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
