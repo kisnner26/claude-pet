@@ -29,14 +29,15 @@ struct ProjectFileIndex {
     static func build(root: String, limit: Int = 25_000) -> ProjectFileIndex {
         var index = ProjectFileIndex()
         let fm = FileManager.default
-        guard let walker = fm.enumerator(at: URL(fileURLWithPath: root), includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return index }
+        guard let walker = fm.enumerator(atPath: root) else { return index }
         var seen = 0
-        for case let url as URL in walker {
-            if skipped.contains(url.lastPathComponent) { walker.skipDescendants(); continue }
+        while let relative = walker.nextObject() as? String {
+            let name = (relative as NSString).lastPathComponent
+            if skipped.contains(name) || name.hasPrefix(".") { walker.skipDescendants(); continue }
             seen += 1
             if seen > limit { break }
-            index.names.insert(url.lastPathComponent)
-            if url.path.hasPrefix(root + "/") { index.paths.insert(String(url.path.dropFirst(root.count + 1))) }
+            index.names.insert(name)
+            index.paths.insert(relative)
         }
         return index
     }
