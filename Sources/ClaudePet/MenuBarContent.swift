@@ -27,6 +27,7 @@ struct MenuBarContent: View {
             pomodoroItem
             trackpadTouchItem
             keyboardBreathItem
+            deskWorldItem
             if store.musicPlayer, let n = music.nowPlaying {
                 Menu(n.title, systemImage: "music.note") {
                     Text(n.artist.isEmpty ? n.app.title : "\(n.artist) · \(n.app.title)")
@@ -69,6 +70,10 @@ struct MenuBarContent: View {
             if !store.bridgeOK || !store.busOK { Label("puente local no disponible", systemImage: "link.badge.plus") }
             if store.reviewReady { Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() } }
         }
+    }
+
+    @ViewBuilder private var deskWorldItem: some View {
+        Toggle("escritorio vivo (experimental)", isOn: Binding(get: { store.deskWorld }, set: { DesktopPets.shared.setWorld($0) }))
     }
 
     @ViewBuilder private var keyboardBreathItem: some View {
