@@ -145,6 +145,36 @@ enum DeskWorldSelfTest {
         check("al final se desvanece y termina", ghost.frame(at: 3 + GhostMove.total - 0.02).alpha < 0.15 && ghost.frame(at: 3 + GhostMove.total).done)
         check("si trabaja y no hay ventana suya aqui, avisa; en calma no", DeskGoal.windowElsewhere(state: .tool, hasWindow: false) && DeskGoal.windowElsewhere(state: .waiting, hasWindow: false)
               && !DeskGoal.windowElsewhere(state: .idle, hasWindow: false) && !DeskGoal.windowElsewhere(state: .tool, hasWindow: true))
+        // sacar y volver a la isla
+        let island = CGPoint(x: 840, y: 1010), spot = CGPoint(x: 1300, y: 140)
+        let e0 = DeskPortal.emerge(from: island, to: spot, at: 0)
+        check("al salir empieza pequeña y transparente dentro de la isla", e0.scale < 0.2 && e0.alpha < 0.05 && abs(e0.center.x - island.x) < 1 && abs(e0.center.y - island.y) < 12)
+        check("al salir termina exactamente en su sitio y entera", DeskPortal.emerge(from: island, to: spot, at: DeskPortal.emergeDuration) == DeskPortal.Frame(center: spot, scale: 1, squash: 0, rotation: 0, alpha: 1, done: true))
+        let outFlight = stride(from: 0.0, through: DeskPortal.emergeDuration, by: 0.01).map { DeskPortal.emerge(from: island, to: spot, at: $0) }
+        check("al salir va en arco: sube por encima de la recta", outFlight.contains { $0.center.y > island.y } || outFlight.contains { $0.center.y > (island.y + spot.y) / 2 + 80 })
+        check("al salir nunca se hace invisible a mitad de vuelo", outFlight.dropFirst(14).dropLast(2).allSatisfy { $0.alpha == 1 })
+        check("la escala nunca explota al salir", outFlight.allSatisfy { $0.scale > 0 && $0.scale < 1.2 })
+        check("el recorrido es continuo: ningun salto brusco entre fotogramas", zip(outFlight, outFlight.dropFirst()).allSatisfy { hypot($0.center.x - $1.center.x, $0.center.y - $1.center.y) < 60 })
+        let landing = outFlight.filter { $0.squash > 0.1 }
+        check("al caer se aplasta (y vuelve a la forma)", !landing.isEmpty && (outFlight.last?.squash ?? 1) == 0)
+        let dive0 = DeskPortal.dive(from: spot, to: island, at: 0)
+        check("al volver empieza entera donde esta", dive0.center == spot && dive0.scale == 1 && dive0.alpha == 1 && dive0.rotation == 0)
+        let dive1 = DeskPortal.dive(from: spot, to: island, at: DeskPortal.diveDuration)
+        check("al volver termina diminuta, apagada y en la isla", dive1.done && dive1.center == island && dive1.alpha == 0 && dive1.scale < 0.2)
+        let dives = stride(from: 0.0, through: DeskPortal.diveDuration, by: 0.01).map { DeskPortal.dive(from: spot, to: island, at: $0) }
+        check("al volver gira mas de una vuelta", (dives.last?.rotation ?? 0) >= 360)
+        check("al volver se encoge sin parar", zip(dives, dives.dropFirst()).allSatisfy { $1.scale <= $0.scale + 0.0001 })
+        check("al volver acelera: el final recorre mas que el principio", { let d = dives.map(\.center); let first = hypot(d[10].x - d[0].x, d[10].y - d[0].y), last = hypot(d[d.count - 1].x - d[d.count - 11].x, d[d.count - 1].y - d[d.count - 11].y); return last > first * 1.5 }())
+        check("al volver el camino es continuo", zip(dives, dives.dropFirst()).allSatisfy { hypot($0.center.x - $1.center.x, $0.center.y - $1.center.y) < 90 })
+        let pops = stride(from: 0.0, through: DeskPortal.popDuration, by: 0.01).map { DeskPortal.pop(at: $0) }
+        check("el pop se pasa de tamano y se asienta en 1", (pops.map(\.scale).max() ?? 0) > 1.05 && abs((pops.dropLast().last?.scale ?? 0) - 1) < 0.08 && (pops.first?.scale ?? 1) < 0.35 && pops.last?.done == true)
+        check("el pop aparece rapido y entero", pops[10].alpha == 1)
+        check("las chispas parten del centro y se apagan", DeskPortal.burst(center: island, t: 0, seed: 1).allSatisfy { hypot($0.point.x - island.x, $0.point.y - island.y) < 1 } && DeskPortal.burst(center: island, t: 1, seed: 1).isEmpty && DeskPortal.burst(center: island, t: 0.9, seed: 1).allSatisfy { $0.alpha < 0.02 })
+        check("las chispas se reparten alrededor, no hacia un solo lado", { let b = DeskPortal.burst(center: .zero, t: 0.5, seed: 4); return b.contains { $0.point.x > 5 } && b.contains { $0.point.x < -5 } && b.contains { $0.point.y > 5 } && b.contains { $0.point.y < -5 } }())
+        check("las chispas son deterministas", DeskPortal.burst(center: island, t: 0.4, seed: 9) == DeskPortal.burst(center: island, t: 0.4, seed: 9) && DeskPortal.burst(center: island, t: 0.4, seed: 9) != DeskPortal.burst(center: island, t: 0.4, seed: 10))
+        check("la onda crece y se apaga, y espera su turno", DeskPortal.ring(t: 0.2, delay: 0.3) == nil && (DeskPortal.ring(t: 0.1)?.radius ?? 0) < (DeskPortal.ring(t: 0.3)?.radius ?? 0) && (DeskPortal.ring(t: 0.1)?.alpha ?? 0) > (DeskPortal.ring(t: 0.4)?.alpha ?? 1) && DeskPortal.ring(t: 0.6) == nil)
+        let trail = DeskPortal.trail(path: { CGPoint(x: CGFloat($0) * 100, y: 0) }, t: 0.5)
+        check("la estela son puntos del camino ya hecho, cada vez mas tenues", trail.count == 9 && zip(trail, trail.dropFirst()).allSatisfy { $0.point.x > $1.point.x && $0.alpha > $1.alpha } && DeskPortal.trail(path: { _ in .zero }, t: 0.02).isEmpty)
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
