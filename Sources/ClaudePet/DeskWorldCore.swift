@@ -191,3 +191,59 @@ enum DeskGoal: Equatable {
     /// Un vaiven suave mientras trabaja, para que se vea que esta ocupada y no clavada en la ventana.
     static func pace(time: TimeInterval, working: Bool, amplitude: CGFloat = 34) -> CGFloat { working ? CGFloat(sin(time * 2 * .pi / 9)) * amplitude : 0 }
 }
+
+/// Llevar el archivo: cuando el agente edita algo, la mascota lo muestra con el icono de su tipo y lo deja en la ventana del editor.
+enum FileCarry {
+    private static let editTools: Set<String> = ["edit", "write", "multiedit", "notebookedit", "apply_patch", "patch", "str_replace", "create"]
+
+    /// El nombre y la extension del archivo si la herramienta lo modifica; nil para leer, buscar o ejecutar.
+    static func editedFile(tool: String, target: String) -> (name: String, ext: String)? {
+        guard editTools.contains(tool.lowercased()) else { return nil }
+        let name = (target as NSString).lastPathComponent
+        guard !name.isEmpty, name != "/" else { return nil }
+        return (name, (name as NSString).pathExtension.lowercased())
+    }
+
+    static let editors = ["xcode", "visual studio code", "code", "cursor", "zed", "sublime", "textmate", "nova", "bbedit", "intellij", "pycharm", "webstorm", "android studio", "windsurf", "textedit"]
+
+    static func isEditor(_ owner: String) -> Bool { let o = owner.lowercased(); return editors.contains { o == $0 || o.contains($0) } }
+
+    /// Donde cae el archivo: la ventana de un editor (mejor la que menciona el archivo o el proyecto) y, si no hay, la ventana del agente.
+    static func destination(file: String, project: String, windows: [DeskWindow], host: Int?) -> CGPoint? {
+        let editors = windows.indices.filter { isEditor(windows[$0].owner) }
+        let named = editors.first { windows[$0].title.lowercased().contains(file.lowercased()) }
+            ?? editors.first { !project.isEmpty && windows[$0].title.lowercased().contains(project.lowercased()) }
+            ?? editors.first
+        guard let i = named ?? host, windows.indices.contains(i) else { return nil }
+        let f = windows[i].frame
+        return CGPoint(x: f.midX, y: f.maxY - 24)
+    }
+}
+
+/// El vuelo de un archivo: sube sobre la cabeza de la mascota, cruza en arco hasta su destino y se posa encogiendose.
+struct FileFlight: Equatable {
+    var from: CGPoint
+    var to: CGPoint
+    var start: TimeInterval
+    static let hold: TimeInterval = 0.55, fly: TimeInterval = 0.85, land: TimeInterval = 0.3
+    static var total: TimeInterval { hold + fly + land }
+
+    struct Frame: Equatable { var point: CGPoint; var scale: CGFloat; var alpha: CGFloat; var done: Bool }
+
+    func frame(at now: TimeInterval) -> Frame {
+        let t = now - start
+        if t >= Self.total { return Frame(point: to, scale: 0, alpha: 0, done: true) }
+        if t < Self.hold {
+            // aparece sobre la cabeza y crece
+            let k = CGFloat(max(0, t) / Self.hold)
+            return Frame(point: CGPoint(x: from.x, y: from.y + 6 * k), scale: 0.3 + 0.7 * k, alpha: min(1, k * 2.5), done: false)
+        }
+        if t < Self.hold + Self.fly {
+            let k = CGFloat((t - Self.hold) / Self.fly), e = k * k * (3 - 2 * k)
+            let arc = 4 * 70 * k * (1 - k)
+            return Frame(point: CGPoint(x: from.x + (to.x - from.x) * e, y: from.y + 6 + (to.y - from.y - 6) * e + arc), scale: 1, alpha: 1, done: false)
+        }
+        let k = CGFloat((t - Self.hold - Self.fly) / Self.land)
+        return Frame(point: to, scale: 1 - 0.7 * k, alpha: 1 - k, done: false)
+    }
+}
