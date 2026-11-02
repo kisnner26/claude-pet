@@ -47,18 +47,7 @@ import Foundation
     func dream(now: Date = Date(), store: BrainStore = .shared, perimeterRoots: [String]) async -> DreamReport {
         running = true
         defer { running = false }
-        let result = await Task.detached(priority: .utility) { () -> DreamReport in
-            var r = DreamReport(at: now)
-            for project in store.projects() {
-                let root = DreamRoots.root(for: project.name, perimeterRoots: perimeterRoots)
-                let index = root.map { ProjectFileIndex.build(root: $0) }
-                // sin carpeta conocida no se puede juzgar si un archivo existe: se deja como esta
-                let outcome = store.dream(project: project.name, now: now, exists: { index?.exists($0) ?? true })
-                r.projects += 1; r.merged += outcome.merged; r.stale += outcome.stale.count; r.lingering += outcome.lingering.count
-                r.notesAfter += outcome.notes.count
-            }
-            return r
-        }.value
+        let result = await Task.detached(priority: .utility) { BrainDream.run(store: store, perimeterRoots: perimeterRoots, now: now) }.value
         report = result
         save()
         return result

@@ -80,6 +80,21 @@ enum BrainDream {
     }
 }
 
+extension BrainDream {
+    /// Repasa todos los proyectos con notas y suma el resultado. Sin carpeta conocida para un proyecto no se juzga si sus archivos existen.
+    static func run(store: BrainStore = .shared, perimeterRoots: [String], now: Date = Date()) -> DreamReport {
+        var r = DreamReport(at: now)
+        for project in store.projects() {
+            let root = DreamRoots.root(for: project.name, perimeterRoots: perimeterRoots)
+            let index = root.map { ProjectFileIndex.build(root: $0) }
+            let outcome = store.dream(project: project.name, now: now, exists: { index?.exists($0) ?? true })
+            r.projects += 1; r.merged += outcome.merged; r.stale += outcome.stale.count; r.lingering += outcome.lingering.count
+            r.notesAfter += outcome.notes.count
+        }
+        return r
+    }
+}
+
 /// Lo que se cuenta por la manana.
 struct DreamReport: Codable, Equatable {
     var at: Date
