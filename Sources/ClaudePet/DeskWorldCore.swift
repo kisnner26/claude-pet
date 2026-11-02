@@ -111,6 +111,13 @@ enum DeskPhysics {
         return (x + (d > 0 ? step : -step), true, d > 0 ? 1 : -1)
     }
 
+    /// Hay alguna ventana (que no sea su suelo) entre los pies y el destino, a la altura del cuerpo: caminar hacia alla seria atravesarla.
+    static func pathBlocked(from x: CGFloat, to target: CGFloat, feetY: CGFloat, height: CGFloat, windows: [DeskWindow]) -> Bool {
+        let lo = min(x, target) - half, hi = max(x, target) + half
+        let body = CGRect(x: lo, y: feetY + 4, width: hi - lo, height: max(1, height - 8))
+        return windows.contains { $0.frame.maxY > feetY + reach && $0.frame.intersects(body) }
+    }
+
     /// Si una ventana (que no es su suelo) le cae encima, a donde se aparta: el lado libre mas cercano. nil si nada le estorba.
     static func sidestep(centerX: CGFloat, feetY: CGFloat, height: CGFloat, windows: [DeskWindow], supporting: Int?, margin: CGFloat = 10) -> CGFloat? {
         let body = CGRect(x: centerX - half, y: feetY + 4, width: half * 2, height: max(1, height - 8))

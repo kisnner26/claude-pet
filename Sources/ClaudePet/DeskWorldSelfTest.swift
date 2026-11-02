@@ -75,6 +75,9 @@ enum DeskWorldSelfTest {
         check("la ventana que la sostiene no la aparta", DeskPhysics.sidestep(centerX: 400, feetY: 500, height: 90, windows: [back], supporting: 0) == nil)
         check("una ventana lejos no la molesta", DeskPhysics.sidestep(centerX: 900, feetY: 80, height: 90, windows: [dragged], supporting: nil) == nil)
         check("una ventana con el borde a sus pies es suelo, no estorbo", DeskPhysics.sidestep(centerX: 400, feetY: 510, height: 90, windows: [back], supporting: nil) == nil)
+        check("si su sitio queda tras una ventana, el camino esta bloqueado", DeskPhysics.pathBlocked(from: 300, to: 800, feetY: 80, height: 90, windows: [dragged]))
+        check("sin ventana en medio el camino esta libre", !DeskPhysics.pathBlocked(from: 800, to: 950, feetY: 80, height: 90, windows: [dragged]))
+        check("el camino libre no se bloquea por una ventana que es suelo", !DeskPhysics.pathBlocked(from: 300, to: 800, feetY: 510, height: 90, windows: [back]))
 
         // saltos
         let leap = DeskLeap.make(from: CGPoint(x: 100, y: 80), to: CGPoint(x: 500, y: 300), now: 10)

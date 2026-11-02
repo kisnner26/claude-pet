@@ -195,7 +195,12 @@ final class DeskWorld {
             // en el suelo: se aparta de lo que le cae encima y, si no, va a su sitio de descanso
             var goalX = target.x
             var speed: CGFloat = 130
-            if let away = DeskPhysics.sidestep(centerX: pet.body.x, feetY: pet.body.feetY, height: 96, windows: windows, supporting: nil) { goalX = away; speed = 300 }
+            if let away = DeskPhysics.sidestep(centerX: pet.body.x, feetY: pet.body.feetY, height: 96, windows: windows, supporting: nil) {
+                goalX = away; speed = 300
+            } else if DeskPhysics.pathBlocked(from: pet.body.x, to: target.x, feetY: pet.body.feetY, height: 96, windows: windows) {
+                // su sitio queda tras una ventana: se queda donde esta en vez de meterse y salir una y otra vez
+                goalX = pet.body.x
+            }
             let r = DeskPhysics.walk(x: pet.body.x, toward: goalX, dt: dt, speed: speed)
             pet.body.x = r.x; pet.walking = r.walking
             if r.walking { pet.facing = r.facing }
