@@ -57,6 +57,8 @@ final class DeskWorld {
     private(set) var noteWanted: [IslandAgentTab: String] = [:]
     /// La app donde trabaja el agente ahora mismo, para saltar a ella.
     private(set) var hostPID: Int32?
+    private var lastHostID: Int?
+    private var lastHostSwitch: TimeInterval = -10
 
     /// Las ventanas se releen unas 7 veces por segundo; los titulos (accesibilidad) cada par de segundos.
     private func refresh(now: TimeInterval) {
@@ -113,7 +115,11 @@ final class DeskWorld {
         let waiting = state == .waiting || (agent == .claude && !store.permissionAsks.isEmpty)
         let effective: PetState = waiting ? .waiting : state
         if effective == .thinking || effective == .tool || effective == .starting || effective == .waiting { pet.lastBusy = now }
-        let hostIndex = WindowCatalog.agentWindow(project: store.terminalProject, in: windows)
+        var hostIndex = WindowCatalog.agentWindow(project: store.terminalProject, in: windows)
+        // si hay varias ventanas candidatas no salta de una a otra cada vez que cambia cual esta delante: se queda con la que ya tenia
+        if let keep = lastHostID, let i = windows.firstIndex(where: { $0.id == keep }), WindowCatalog.isAgentHost(windows[i].owner),
+           let h = hostIndex, windows[h].id != keep, now - lastHostSwitch < 3 { hostIndex = i }
+        if let h = hostIndex, windows[h].id != lastHostID { lastHostID = windows[h].id; lastHostSwitch = now }
         let goal = DeskGoal.decide(state: effective, hasWindow: hostIndex != nil, secondsSinceBusy: now - pet.lastBusy)
         pet.otherSpace = DeskGoal.windowElsewhere(state: effective, hasWindow: hostIndex != nil)
         let busy = effective == .thinking || effective == .tool || effective == .starting || effective == .waiting
