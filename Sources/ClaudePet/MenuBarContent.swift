@@ -26,6 +26,7 @@ struct MenuBarContent: View {
             }
             pomodoroItem
             trackpadTouchItem
+            keyboardBreathItem
             if store.musicPlayer, let n = music.nowPlaying {
                 Menu(n.title, systemImage: "music.note") {
                     Text(n.artist.isEmpty ? n.app.title : "\(n.artist) · \(n.app.title)")
@@ -67,6 +68,12 @@ struct MenuBarContent: View {
             if store.pendingAttentionCount > 0 { Label(store.attentionLabel, systemImage: "hand.raised.fill") }
             if !store.bridgeOK || !store.busOK { Label("puente local no disponible", systemImage: "link.badge.plus") }
             if store.reviewReady { Button("abrir diff listo para revisión", systemImage: "arrow.left.arrow.right") { store.openReview() } }
+        }
+    }
+
+    @ViewBuilder private var keyboardBreathItem: some View {
+        if KeyboardBreath.shared.available {
+            Toggle("teclado respira (experimental)", isOn: Binding(get: { KeyboardBreath.shared.enabled }, set: { KeyboardBreath.shared.enabled = $0 }))
         }
     }
 
