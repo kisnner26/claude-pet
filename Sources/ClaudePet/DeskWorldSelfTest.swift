@@ -108,6 +108,24 @@ enum DeskWorldSelfTest {
         check("sin icono para una app que no esta en el Dock", DockInfo.item(forApp: "Cursor", in: dock) == nil && DockInfo.item(forApp: "", in: dock) == nil)
         check("el Dock solo sirve abajo y a la vista", DockInfo.isUsableLayout(orientation: "bottom", autohide: false) && DockInfo.isUsableLayout(orientation: nil, autohide: false)
               && !DockInfo.isUsableLayout(orientation: "left", autohide: false) && !DockInfo.isUsableLayout(orientation: "bottom", autohide: true))
+        // llevar el archivo
+        check("editar un archivo se lleva con su nombre y extension", FileCarry.editedFile(tool: "Edit", target: "/proyecto/Sources/App/Brain.swift")?.name == "Brain.swift" && FileCarry.editedFile(tool: "Write", target: "README.md")?.ext == "md")
+        check("las herramientas de codex tambien cuentan", FileCarry.editedFile(tool: "apply_patch", target: "main.py")?.ext == "py")
+        check("leer, buscar o ejecutar no llevan nada", FileCarry.editedFile(tool: "Read", target: "a.swift") == nil && FileCarry.editedFile(tool: "Bash", target: "swift build") == nil && FileCarry.editedFile(tool: "Grep", target: "x") == nil)
+        check("sin nombre no hay archivo", FileCarry.editedFile(tool: "Edit", target: "") == nil && FileCarry.editedFile(tool: "Edit", target: "/") == nil)
+        let editorWins = [win(1, 0, 0, 800, 600, owner: "Terminal", title: "claude"), win(2, 100, 100, 700, 500, owner: "Cursor", title: "Brain.swift — mi-app"), win(3, 200, 150, 700, 500, owner: "Xcode", title: "App.swift")]
+        check("cae en la ventana del editor que menciona el archivo", FileCarry.destination(file: "App.swift", project: "mi-app", windows: editorWins, host: 0) == CGPoint(x: 550, y: 626))
+        check("si ninguno lo menciona, en el editor del proyecto", FileCarry.destination(file: "Otro.swift", project: "mi-app", windows: editorWins, host: 0) == CGPoint(x: 450, y: 576))
+        check("sin editores, en la ventana del agente", FileCarry.destination(file: "x.py", project: "p", windows: [editorWins[0]], host: 0) == CGPoint(x: 400, y: 576))
+        check("sin ninguna ventana no hay destino", FileCarry.destination(file: "x", project: "p", windows: [], host: nil) == nil)
+        let flight = FileFlight(from: CGPoint(x: 100, y: 200), to: CGPoint(x: 700, y: 400), start: 5)
+        check("el vuelo empieza sobre la cabeza invisible y pequeno", flight.frame(at: 5).alpha == 0 && flight.frame(at: 5).scale < 0.35)
+        check("antes de volar ya se ve entero", abs(flight.frame(at: 5 + FileFlight.hold).scale - 1) < 0.01 && abs(flight.frame(at: 5 + FileFlight.hold).alpha - 1) < 0.01)
+        check("llega al destino al acabar el vuelo", abs(flight.frame(at: 5 + FileFlight.hold + FileFlight.fly).point.x - 700) < 0.01 && abs(flight.frame(at: 5 + FileFlight.hold + FileFlight.fly).point.y - 400) < 0.01)
+        let halfway = flight.frame(at: 5 + FileFlight.hold + FileFlight.fly / 2).point
+        check("a mitad de vuelo va en arco por encima de la recta", halfway.y > (206 + 400) / 2 + 30 && halfway.x > 100 && halfway.x < 700)
+        check("al aterrizar se encoge y se apaga", flight.frame(at: 5 + FileFlight.total - 0.02).alpha < 0.15 && flight.frame(at: 5 + FileFlight.total).done)
+        check("el vuelo dura menos de dos segundos", FileFlight.total < 2)
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
