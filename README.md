@@ -17,6 +17,8 @@ página: https://kisnner26.github.io/claude-pet/ · windows: [instalación](wind
 - **visto**: app de iPhone y Apple Watch para aprobar permisos con un toque. [más abajo](#visto).
 - **plugins y taller**: acciones, ajustes y eventos con una carpeta y un `plugin.json`, y un catálogo para instalar los de otros.
 - **vivas**: claude y codex tienen las mismas expresiones y su propio guardarropa; se visten según el tiempo (opcional), sudan, tiritan, se mosquean si las golpeas seguido y se pueden sacar al escritorio, donde te siguen el cursor.
+- **escritorio vivo (experimental)**: las mascotas se posan en la ventana donde trabaja el agente, se asoman por detrás si espera un permiso, caminan por el Dock hasta el icono de su app, llevan volando el archivo que se edita y se apartan si arrastras una ventana encima. sin cámara.
+- **ritmo y sueño**: tu ritmo por horas (cuándo trabajas más y cuándo fallas más) y un cerebro que de noche une notas casi iguales y marca las obsoletas. el teclado puede respirar con el estado de los agentes.
 - **claudwler**: recorre los enlaces de la página abierta (o de todo un sitio, con `robots.txt` y sin cookies), avisa de rotos, redirecciones y lentitud, y deja un informe html, un csv y un prompt listo para claude code.
 - **trackpad táctil (experimental)**: el trackpad como superficie absoluta de toda la pantalla, sin cámara.
 - **laboratorio**: [galaxia](tools/galaxia) (tu repo como estrellas), [ciudad](tools/ciudad) (tus repos como edificios), [radar](tools/radar) (sondeo de red), [trazo](tools/trazo) (triage visual de cambios), [pulso](tools/pulso) (deuda y próximos pasos) y [ritmo](tools/ritmo) (bloques de foco) vienen incluidos: un clic desde la isla. son programas de node 20+ sin dependencias que solo escuchan en 127.0.0.1.
@@ -96,7 +98,8 @@ tests/selftests.sh    # todas las pruebas internas (--selftest-*), una por una y
 node --test relay/test # relay de visto
 .build/debug/ClaudePet --selftest-quest quest   # servidor de Meta Quest con tls real
 # también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang,
-#          --selftest-brain, --selftest-memory, --selftest-touchbar, --selftest-trackpad, --selftest-claudwler-extras
+#          --selftest-brain, --selftest-memory, --selftest-touchbar, --selftest-trackpad, --selftest-claudwler-extras,
+#          --selftest-desk-world, --selftest-keyboard
 ```
 
 las imágenes de este readme son renders con el propio código de dibujo de la app, no capturas de pantalla.
