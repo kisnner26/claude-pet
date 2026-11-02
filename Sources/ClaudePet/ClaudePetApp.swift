@@ -271,6 +271,28 @@ final class AppController: NSObject, NSApplicationDelegate {
             print("dock usable: \(DockInfo.currentLayoutUsable()) · iconos: \(items.count) · app del agente '\(host)': \(hit.map { "icono en x=\(Int($0.frame.midX)) y=\(Int($0.frame.maxY)) (\(Int($0.frame.width)) pt)" } ?? "sin icono")")
             exit(0)
         }
+        if CommandLine.arguments.contains("--probe-portal") {
+            // prueba real: saca y vuelve a meter a claude y cuenta por donde pasa y cuando
+            let store = PetStore.shared
+            store.startDemo()
+            let anchor = DesktopPets.islandAnchor()
+            print("ancla de la isla: x=\(Int(anchor.x)) y=\(Int(anchor.y))")
+            func sample(_ label: String) {
+                let panels = DesktopPets.shared.debugPanels().filter { $0.agent == .claude }
+                let fx = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []).filter { ($0[kCGWindowOwnerPID as String] as? Int32) == ProcessInfo.processInfo.processIdentifier && ($0[kCGWindowLayer as String] as? Int) == Int(CGWindowLevelForKey(.statusWindow)) && (($0[kCGWindowBounds as String] as? [String: CGFloat])?["Width"] ?? 0) > 500 }
+                print("  \(label): \(panels.first.map { "mascota en x=\(Int($0.frame.midX)) y=\(Int($0.frame.midY))" } ?? "sin mascota") · efectos \(fx.isEmpty ? "no" : "sí") · en el escritorio: \(store.deskOut.contains(.claude))")
+            }
+            print("salir:")
+            DesktopPets.shared.show(.claude)
+            for t in stride(from: 0.02, through: 1.0, by: 0.06) { DispatchQueue.main.asyncAfter(deadline: .now() + t) { sample(String(format: "t=%.2f s", t)) } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                print("volver:")
+                DesktopPets.shared.putBack(.claude)
+                for t in [0.05, 0.25, 0.45, 0.7, 1.2, 1.8] { DispatchQueue.main.asyncAfter(deadline: .now() + t) { sample("t=\(t) s") } }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.9) { exit(0) }
+            return
+        }
         if CommandLine.arguments.contains("--probe-desk-cpu") {
             // cuanta CPU gasta el escritorio vivo con dos agentes "trabajando" (tras 3 s de calentamiento, durante 10 s)
             func cpuSeconds() -> Double { var u = rusage(); getrusage(RUSAGE_SELF, &u); return Double(u.ru_utime.tv_sec) + Double(u.ru_utime.tv_usec) / 1e6 + Double(u.ru_stime.tv_sec) + Double(u.ru_stime.tv_usec) / 1e6 }

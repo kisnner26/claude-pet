@@ -78,6 +78,14 @@ final class IslandController {
         SoundEngine.shared.play(.greeting)
         relocate()
         p.orderFrontRegardless()
+        // una mascota del escritorio acaba de volver: la de la isla da un saltito de bienvenida
+        observers.append(NotificationCenter.default.addObserver(forName: .deskPetArrived, object: nil, queue: .main) { [weak self] n in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                if (n.object as? String) == IslandAgentTab.codex.rawValue { self.model.codexDoneAt = now } else { self.model.hopStart = now }
+            }
+        })
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.relocate() }
         })
@@ -128,7 +136,12 @@ final class IslandController {
         model.placement = placement
         model.menuBarHidden = placement == .top && m.menuBarHidden
         panel?.setFrame(NotchGeometry.panelFrame(m, placement: placement), display: false)
+        let pill = NotchGeometry.islandFrame(.compact, metrics: m, placement: placement)
+        Self.anchor = CGPoint(x: pill.midX, y: pill.midY)
     }
+
+    /// El centro de la pastilla de la isla en pantalla: a donde vuelven las mascotas y de donde salen.
+    static var anchor: CGPoint?
 
     private func tasksRunning() -> Bool {
         [store.state, store.codexState].contains { $0 != .idle && $0 != .done }
