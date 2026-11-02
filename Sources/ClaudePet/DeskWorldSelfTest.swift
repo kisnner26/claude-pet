@@ -143,6 +143,8 @@ enum DeskWorldSelfTest {
         check("el fantasma sale de donde cayo el archivo y acaba sobre la pestana", ghost.frame(at: 3).point == CGPoint(x: 500, y: 600) && ghost.frame(at: 3 + GhostMove.glide + 0.1).point == CGPoint(x: 215, y: 595))
         check("al llegar late: el anillo crece dos veces", { let rings = stride(from: 0.0, to: GhostMove.pulse, by: 0.02).map { ghost.frame(at: 3 + GhostMove.glide + $0).ring }; return (rings.max() ?? 0) > 0.9 && rings.indices.dropFirst().filter { rings[$0] < rings[$0 - 1] - 0.5 }.count == 1 }())
         check("al final se desvanece y termina", ghost.frame(at: 3 + GhostMove.total - 0.02).alpha < 0.15 && ghost.frame(at: 3 + GhostMove.total).done)
+        check("si trabaja y no hay ventana suya aqui, avisa; en calma no", DeskGoal.windowElsewhere(state: .tool, hasWindow: false) && DeskGoal.windowElsewhere(state: .waiting, hasWindow: false)
+              && !DeskGoal.windowElsewhere(state: .idle, hasWindow: false) && !DeskGoal.windowElsewhere(state: .tool, hasWindow: true))
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
