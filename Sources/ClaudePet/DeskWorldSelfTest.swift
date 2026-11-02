@@ -169,6 +169,14 @@ enum DeskWorldSelfTest {
         let pops = stride(from: 0.0, through: DeskPortal.popDuration, by: 0.01).map { DeskPortal.pop(at: $0) }
         check("el pop se pasa de tamano y se asienta en 1", (pops.map(\.scale).max() ?? 0) > 1.05 && abs((pops.dropLast().last?.scale ?? 0) - 1) < 0.08 && (pops.first?.scale ?? 1) < 0.35 && pops.last?.done == true)
         check("el pop aparece rapido y entero", pops[10].alpha == 1)
+        let capped = stride(from: 0.0, through: DeskPortal.emergeDuration, by: 0.01).map { DeskPortal.emerge(from: island, to: spot, at: $0, ceiling: 990).center.y }
+        check("con techo, el arco al salir no se sube por encima de la isla", (capped.max() ?? 0) <= island.y + 8 + 0.01)
+        let lowArc = stride(from: 0.0, through: DeskPortal.emergeDuration, by: 0.01).map { DeskPortal.emerge(from: CGPoint(x: 200, y: 300), to: CGPoint(x: 900, y: 200), at: $0, ceiling: 700).center.y }
+        check("con techo, un salto entre dos puntos bajos no pasa de ese techo", (lowArc.max() ?? 0) <= 700 + 20)
+        check("con techo el arco sigue siendo un arco (sube por encima de los extremos)", (lowArc.max() ?? 0) > 340)
+        check("sin techo el comportamiento no cambia", DeskPortal.emerge(from: island, to: spot, at: 0.3) == DeskPortal.emerge(from: island, to: spot, at: 0.3, ceiling: nil))
+        let diveCapped = stride(from: 0.0, through: DeskPortal.diveDuration, by: 0.01).map { DeskPortal.dive(from: spot, to: island, at: $0, ceiling: 990).center.y }
+        check("al volver con techo no se sale por arriba antes de llegar a la isla", diveCapped.dropLast(3).allSatisfy { $0 <= island.y + 0.01 })
         check("las chispas parten del centro y se apagan", DeskPortal.burst(center: island, t: 0, seed: 1).allSatisfy { hypot($0.point.x - island.x, $0.point.y - island.y) < 1 } && DeskPortal.burst(center: island, t: 1, seed: 1).isEmpty && DeskPortal.burst(center: island, t: 0.9, seed: 1).allSatisfy { $0.alpha < 0.02 })
         check("las chispas se reparten alrededor, no hacia un solo lado", { let b = DeskPortal.burst(center: .zero, t: 0.5, seed: 4); return b.contains { $0.point.x > 5 } && b.contains { $0.point.x < -5 } && b.contains { $0.point.y > 5 } && b.contains { $0.point.y < -5 } }())
         check("las chispas son deterministas", DeskPortal.burst(center: island, t: 0.4, seed: 9) == DeskPortal.burst(center: island, t: 0.4, seed: 9) && DeskPortal.burst(center: island, t: 0.4, seed: 9) != DeskPortal.burst(center: island, t: 0.4, seed: 10))
