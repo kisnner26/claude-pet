@@ -247,3 +247,73 @@ struct FileFlight: Equatable {
         return Frame(point: to, scale: 1 - 0.7 * k, alpha: 1 - k, done: false)
     }
 }
+
+/// Una foto de un trozo del arbol de accesibilidad de una ventana: lo justo para encontrar la pestana de un archivo.
+struct AXSnap: Equatable {
+    var role: String
+    var texts: [String]            // titulo, descripcion y valor, los que haya
+    var frame: CGRect?             // en coordenadas de AppKit
+    var children: [AXSnap] = []
+}
+
+enum TabFinder {
+    /// Cuanto se parece el rol a una pestana (mas alto, mejor).
+    static func rank(_ role: String) -> Int {
+        switch role {
+        case "AXTab", "AXRadioButton", "AXTabButton": return 3
+        case "AXButton", "AXMenuButton", "AXPopUpButton": return 2
+        case "AXStaticText", "AXGroup", "AXCell", "AXRow": return 1
+        default: return 0
+        }
+    }
+
+    static func matches(_ texts: [String], file: String) -> Bool {
+        let f = file.lowercased()
+        let base = ((file as NSString).deletingPathExtension).lowercased()
+        return texts.contains { t in
+            let l = t.lowercased()
+            return l.contains(f) || (base.count >= 5 && l.contains(base))
+        }
+    }
+
+    /// La pestana (o lo mas parecido) cuyo texto menciona el archivo: gana el rol mas de pestana y, a igualdad, el mas pequeno (el mas concreto).
+    static func find(_ root: AXSnap, file: String) -> CGRect? {
+        var best: (rank: Int, area: CGFloat, frame: CGRect)?
+        func visit(_ n: AXSnap) {
+            if let f = n.frame, f.width > 8, f.height > 8, matches(n.texts, file: file) {
+                let r = rank(n.role), area = f.width * f.height
+                if r > 0, best == nil || r > best!.rank || (r == best!.rank && area < best!.area) { best = (r, area, f) }
+            }
+            n.children.forEach(visit)
+        }
+        visit(root)
+        return best?.frame
+    }
+}
+
+/// El cursor fantasma: sale de donde cayo el archivo, se desliza hasta la pestana y late un momento sobre ella.
+struct GhostMove: Equatable {
+    var from: CGPoint
+    var to: CGPoint
+    var start: TimeInterval
+    static let glide: TimeInterval = 0.55, pulse: TimeInterval = 1.1, fade: TimeInterval = 0.3
+    static var total: TimeInterval { glide + pulse + fade }
+
+    struct Frame: Equatable { var point: CGPoint; var ring: CGFloat; var alpha: CGFloat; var done: Bool }
+
+    func frame(at now: TimeInterval) -> Frame {
+        let t = now - start
+        if t >= Self.total { return Frame(point: to, ring: 0, alpha: 0, done: true) }
+        if t < Self.glide {
+            let k = CGFloat(max(0, t) / Self.glide), e = k * k * (3 - 2 * k)
+            return Frame(point: CGPoint(x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e), ring: 0, alpha: min(1, k * 4), done: false)
+        }
+        if t < Self.glide + Self.pulse {
+            // el anillo se ensancha dos veces
+            let k = CGFloat((t - Self.glide) / Self.pulse)
+            return Frame(point: to, ring: (k * 2).truncatingRemainder(dividingBy: 1), alpha: 1, done: false)
+        }
+        let k = CGFloat((t - Self.glide - Self.pulse) / Self.fade)
+        return Frame(point: to, ring: 0, alpha: 1 - k, done: false)
+    }
+}
