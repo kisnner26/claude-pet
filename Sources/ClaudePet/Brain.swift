@@ -110,6 +110,15 @@ final class BrainStore {
         return true
     }
 
+    /// Repasa las notas de un proyecto (une duplicados, marca lo obsoleto) y guarda el resultado solo si algo cambio.
+    func dream(project: String, now: Date = Date(), exists: (String) -> Bool) -> BrainDream.Outcome {
+        lock.lock(); defer { lock.unlock() }
+        let before = load(project)
+        let outcome = BrainDream.consolidate(before, now: now, exists: exists)
+        if outcome.notes != before { save(outcome.notes, project) }
+        return outcome
+    }
+
     func projects() -> [(name: String, count: Int)] {
         guard let files = try? FileManager.default.contentsOfDirectory(atPath: directory) else { return [] }
         return files.filter { $0.hasSuffix(".json") }.map { String($0.dropLast(5)) }.map { ($0, notes($0).count) }.filter { $0.1 > 0 }.sorted { $0.name < $1.name }
