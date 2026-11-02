@@ -71,7 +71,7 @@ final class DesktopPets {
     /// Enciende o apaga el escritorio vivo: encendido, las mascotas salen a tus ventanas; apagado, vuelven a la isla.
     func setWorld(_ on: Bool) {
         store.deskWorld = on
-        if on { showWorldPets() } else { putBackAll(); for a in IslandAgentTab.allCases { DeskWorld.shared.forget(a) } }
+        if on { showWorldPets() } else { putBackAll(); FileFlights.shared.stop(); for a in IslandAgentTab.allCases { DeskWorld.shared.forget(a) } }
     }
 
     private func showWorldPets() {
@@ -198,7 +198,12 @@ final class DesktopPets {
             if model.gaze != g { model.gaze = g }
             model.idleSeconds = store.idleForDesk
         }
-        if store.deskWorld { DeskWorld.shared.updateGlow(animated: store.animationsEnabled && !store.reduceMotion) }
+        if store.deskWorld {
+            let animated = store.animationsEnabled && !store.reduceMotion
+            DeskWorld.shared.updateGlow(animated: animated)
+            FileFlights.shared.tick(now: now, store: store, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }),
+                                    windows: DeskWorld.shared.windows, animated: animated)
+        }
     }
 }
 
