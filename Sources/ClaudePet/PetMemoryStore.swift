@@ -48,6 +48,7 @@ final class PetMemoryStore {
         if events.count > Self.keepEvents { events.removeLast(events.count - Self.keepEvents) }
         lock.unlock()
         save()
+        ChronotypeStore.shared.add(kind, at: at)
     }
 
     func snapshot() -> [PetMemoryEvent] { lock.lock(); defer { lock.unlock() }; return events }

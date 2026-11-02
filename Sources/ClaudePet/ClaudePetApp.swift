@@ -403,6 +403,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         ActivityStats.shared.load()
         PetMemoryStore.shared.load()
+        ChronotypeStore.shared.load(seed: PetMemoryStore.shared.snapshot())
         PetStore.shared.refreshWeeklyRecap()
         PetStore.shared.startAmbient()
         PetStore.shared.plan.onAlert = { text in PetStore.shared.pushToPhone(.plan, agent: "claude", project: "", detail: text, key: "plan-" + text) }
