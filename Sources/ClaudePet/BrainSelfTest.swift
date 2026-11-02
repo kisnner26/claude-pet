@@ -72,6 +72,33 @@ enum BrainSelfTest {
         check("el resumen del agente trae tono y limite", Personality.briefing(rich).contains("nunca a costa de la precisión") && Personality.briefing(few).contains("trato"))
         s.add(agent: "claude", kind: "trato", text: "prefiere respuestas cortas y en español", project: "trato")
         check("las notas de trato van primero en el resumen", s.briefing(agent: "claude", project: "trato").contains("como trabajar con el usuario"))
+        // el cerebro sueña
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func note(_ text: String, _ kind: BrainKind = .hecho, agent: String = "claude", daysAgo: Double = 0) -> BrainNote {
+            BrainNote(id: UUID(), at: now.addingTimeInterval(-daysAgo * 86_400), agent: agent, kind: kind, text: text)
+        }
+        check("dos frases casi iguales son duplicados", BrainDream.areDuplicates("usamos swiftpm, no xcodeproj para compilar", "Usamos SwiftPM no xcodeproj para compilar el proyecto"))
+        check("dos notas distintas no se confunden", !BrainDream.areDuplicates("usamos swiftpm, no xcodeproj", "el relay vive en un archivo de node"))
+        check("una nota dentro de otra mas larga cuenta como la misma", BrainDream.areDuplicates("los hooks fallan abiertos siempre", "los hooks fallan abiertos siempre: si algo va mal claude pregunta en la terminal"))
+        check("las acentos y mayusculas no importan", BrainDream.tokens("Decisión: SIN cámara") == BrainDream.tokens("decision sin camara"))
+        let dupes = BrainDream.consolidate([note("usamos swiftpm no xcodeproj para compilar", daysAgo: 3), note("Usamos SwiftPM, no xcodeproj, para compilar el proyecto", daysAgo: 1), note("el relay es un archivo de node", daysAgo: 2)], now: now, exists: { _ in true })
+        check("une los duplicados y se queda con tres menos una", dupes.merged == 1 && dupes.notes.count == 2)
+        check("se queda con la mas nueva", dupes.notes.first?.text.hasPrefix("Usamos SwiftPM") == true)
+        let mixed = BrainDream.consolidate([note("no se usa la camara jamas en las apps", .trato, agent: "tu", daysAgo: 5), note("no se usa la camara jamas en las apps de kisnner", .trato, daysAgo: 1)], now: now, exists: { _ in true })
+        check("tus palabras no se pierden aunque haya una copia mas nueva", mixed.merged == 1 && mixed.notes.count == 1 && mixed.notes[0].agent == "tu" && mixed.notes[0].text.hasPrefix("no se usa la camara jamas en las apps") && mixed.notes[0].at == now.addingTimeInterval(-86_400))
+        check("nunca une notas de tipos distintos", BrainDream.consolidate([note("usamos swiftpm para compilar", .decision), note("usamos swiftpm para compilar", .hecho)], now: now, exists: { _ in true }).notes.count == 2)
+        check("detecta rutas y archivos en el texto", BrainDream.mentionedPaths("mira `Sources/App/Brain.swift` y config.json, no http://x.com/a.js ni a@b.com.") == ["Sources/App/Brain.swift", "config.json"])
+        let gone = BrainDream.consolidate([note("el limite esta en Sources/Viejo.swift"), note("mira Brain.swift y Nuevo.swift"), note("sin archivos en esta")], now: now, exists: { $0 == "Brain.swift" })
+        check("marca como obsoleta la que solo habla de archivos que no estan", gone.stale.map(\.text) == ["el limite esta en Sources/Viejo.swift"])
+        check("si queda algun archivo vivo no se marca", gone.notes.first { $0.text.hasPrefix("mira Brain") }?.stale == nil)
+        let lingering = BrainDream.consolidate([note("arreglar el relay", .pendiente, daysAgo: 20), note("subir la version", .pendiente, daysAgo: 2), note("un hecho viejo", .hecho, daysAgo: 90)], now: now, exists: { _ in true })
+        check("senala solo los pendientes que llevan mas de 14 dias", lingering.lingering.map(\.text) == ["arreglar el relay"])
+        check("no borra nada que no sea un duplicado", lingering.notes.count == 3 && lingering.merged == 0)
+        var report = DreamReport(at: now); report.merged = 2; report.stale = 1; report.lingering = 3
+        check("el parte de la mañana lo cuenta en español", report.lines == ["uní 2 notas casi iguales a otras", "1 nota habla de archivos que ya no existen", "3 pendientes llevan más de 14 días abiertos"])
+        check("sin novedades dice que todo esta en orden", DreamReport(at: now).headline == "mientras dormías: todo en orden" && DreamReport(at: now).isQuiet)
+        check("el aviso de obsoleta sobrevive a guardar y leer", { var n = note("mira Viejo.swift"); n.stale = true; let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601; let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601; return (try? dec.decode(BrainNote.self, from: enc.encode(n)))?.stale == true }())
+        check("las notas guardadas antes de esto se siguen leyendo", { let old = #"{"id":"\#(UUID().uuidString)","at":"2026-10-01T10:00:00Z","agent":"claude","kind":"hecho","text":"vieja"}"#; let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601; return (try? dec.decode(BrainNote.self, from: Data(old.utf8)))?.text == "vieja" }())
         print(ok ? "CEREBRO OK" : "CEREBRO FALLO")
         return ok
     }
