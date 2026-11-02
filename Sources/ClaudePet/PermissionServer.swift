@@ -141,6 +141,8 @@ final class PermissionServer: @unchecked Sendable {
         if let question = QuestionServer.parse(line) {
             // AskUserQuestion comparte el socket y queda abierto hasta la respuesta.
             let response = QuestionConn(fd: c, ask: question)
+            // el limite se mira antes de crear la fuente de eventos: soltar una DispatchSource que nunca se activo aborta el proceso
+            lock.lock(); guard questionPending.count < Self.maxPending else { lock.unlock(); close(c); return }; questionPending.append(response); lock.unlock()
             let src = DispatchSource.makeReadSource(fileDescriptor: c, queue: queue)
             src.setEventHandler { [weak self, weak response] in
                 guard let self, let response, !response.closed else { return }
@@ -148,7 +150,6 @@ final class PermissionServer: @unchecked Sendable {
                 if n == 0 || (n < 0 && errno != EAGAIN && errno != EINTR) { self.dropQuestion(response) }
             }
             response.source = src
-            lock.lock(); guard questionPending.count < Self.maxPending else { lock.unlock(); close(c); return }; questionPending.append(response); lock.unlock()
             src.resume()
             lock.lock(); let questions = questionPending.map(\.ask); lock.unlock(); onQuestionsChange?(questions)
             return
