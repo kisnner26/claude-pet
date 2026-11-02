@@ -632,12 +632,27 @@ enum IslandSnapshot {
 }
 
 extension IslandSnapshot {
+    /// Una semana inventada: mucha actividad por la tarde y una franja de noche donde se falla el doble.
+    static func demoRhythm() -> Chronotype {
+        var c = Chronotype()
+        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+        for day in 1...6 {
+            for (hour, tools, errors) in [(9, 8, 0), (10, 14, 1), (11, 11, 1), (14, 20, 1), (15, 26, 2), (16, 22, 1), (17, 12, 1), (21, 9, 3), (22, 10, 4), (23, 6, 3)] {
+                let date = utc.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: 30))!
+                for _ in 0..<tools { c.add(.tool, at: date, calendar: utc) }
+                for _ in 0..<errors { c.add(.error, at: date, calendar: utc) }
+            }
+        }
+        return c
+    }
+
     /// `ClaudePet --snapshot-memory <ruta.png>`: la pagina de actividad y la del cerebro, una sobre otra.
     static func memory(to path: String) {
         let store = PetStore.shared
         let view = VStack(spacing: 14) {
             PetMemoryView(store: store).frame(width: 470, height: 190, alignment: .top)
             PetBrainView(store: store).frame(width: 470, height: 190, alignment: .top)
+            RhythmPanel(chrono: Self.demoRhythm()).frame(width: 470, height: 170, alignment: .top)
         }.padding(16).background(Color(hex: 0x1B1210))
         let r = ImageRenderer(content: view)
         r.scale = 2
