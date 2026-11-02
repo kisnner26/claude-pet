@@ -23,6 +23,7 @@ import AppKit
     private var runningFast = false
     private var state: PetState = .idle
     private var since = Date()
+    private var ack: (allow: Bool, at: Date)?
     private weak var store: PetStore?
 
     var available: Bool { light.available }
@@ -49,12 +50,24 @@ import AppKit
         timer = Timer.scheduledTimer(withTimeInterval: fast ? 1.0 / 15.0 : 0.5, repeats: true) { _ in MainActor.assumeIsolated { KeyboardBreath.shared.tick() } }
     }
 
+    /// El destello de confirmar un atajo (aprobar o rechazar un permiso). Solo se ve con el teclado respirando encendido.
+    func acknowledge(allow: Bool) {
+        guard enabled else { return }
+        ack = (allow, Date())
+        schedule(fast: true)
+    }
+
     func tick() {
         guard enabled, light.available, let store else { restore(); return }
         if light.systemOwnsLight { restore(); schedule(fast: false); return }
         let now = KeyboardWave.combined(store.state, store.codexPresent ? store.codexState : .idle)
         if now != state { state = now; since = Date() }
         let base = original ?? light.brightness ?? 0
+        if let a = ack, let flash = KeyboardWave.ack(allow: a.allow, age: Date().timeIntervalSince(a.at), base: base) {
+            if original == nil { original = base; UserDefaults.standard.set(base, forKey: Self.recoveryKey) }
+            light.set(flash)
+            return
+        } else if ack != nil { ack = nil }
         if let target = KeyboardWave.level(state: state, age: Date().timeIntervalSince(since), time: ProcessInfo.processInfo.systemUptime, base: base) {
             if original == nil { original = base; UserDefaults.standard.set(base, forKey: Self.recoveryKey) }
             light.set(target)

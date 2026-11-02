@@ -27,6 +27,13 @@ enum KeyboardWaveSelfTest {
         check("entre dos agentes manda el que mas urge", KeyboardWave.combined(.thinking, .waiting) == .waiting && KeyboardWave.combined(.error, .tool) == .error && KeyboardWave.combined(.idle, .done) == .done && KeyboardWave.combined(.tool, .tool) == .tool)
 
         print(ok ? "TECLADO OK" : "TECLADO FALLO")
+        let allow = stride(from: 0.0, to: 0.7, by: 0.02).compactMap { KeyboardWave.ack(allow: true, age: $0, base: base) }
+        check("aprobar es una ola que sube y baja y acaba", (allow.max() ?? 0) > 0.95 && allow.allSatisfy { $0 >= base - 0.001 && $0 <= 1 } && KeyboardWave.ack(allow: true, age: 0.7, base: base) == nil)
+        let deny = stride(from: 0.0, to: 0.5, by: 0.01).compactMap { KeyboardWave.ack(allow: false, age: $0, base: base) }
+        var flashes = 0, prevHigh = false
+        for v in deny { let high = v > 0.9; if high && !prevHigh { flashes += 1 }; prevHigh = high }
+        check("rechazar son dos destellos secos y acaba", flashes == 2 && KeyboardWave.ack(allow: false, age: 0.5, base: base) == nil)
+        check("la confirmacion no enciende un teclado apagado", KeyboardWave.ack(allow: true, age: 0.2, base: 0.02) == nil && KeyboardWave.ack(allow: false, age: 0.1, base: 0.02) == nil)
         return ok
     }
 }

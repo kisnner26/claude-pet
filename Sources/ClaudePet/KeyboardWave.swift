@@ -16,6 +16,17 @@ enum KeyboardWave {
 
     static func combined(_ a: PetState, _ b: PetState) -> PetState { urgency(b) > urgency(a) ? b : a }
 
+    /// La confirmacion de un atajo: aprobar es una ola suave que sube y baja; rechazar son dos destellos secos. nil cuando acaba.
+    static func ack(allow: Bool, age: TimeInterval, base: Float) -> Float? {
+        guard base >= 0.05 else { return nil }
+        if allow {
+            guard age < 0.6 else { return nil }
+            return min(1, base + (1 - base) * Float(sin(.pi * age / 0.6)))
+        }
+        guard age < 0.5 else { return nil }
+        return sin(2 * .pi * 4 * age) > 0 ? 1 : 0.15 * base
+    }
+
     private static func wave(_ time: TimeInterval, period: TimeInterval) -> Float { Float(0.5 + 0.5 * sin(2 * .pi * time / period - .pi / 2)) }
 
     /// Brillo objetivo de 0 a 1, o nil para dejar el teclado como lo tiene el usuario.

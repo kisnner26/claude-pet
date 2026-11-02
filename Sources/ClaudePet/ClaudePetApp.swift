@@ -1046,8 +1046,13 @@ final class AppController: NSObject, NSApplicationDelegate {
         shortcutMonitor.onShortcut = { [weak self] shortcut in
             guard let self else { return }
             switch shortcut {
-            case .allow: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .allow) }
-            case .deny: if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .deny) }
+            case .allow:
+                if let ask = PetStore.shared.permissionAsks.first { askServer.resolve(id: ask.id, .allow); KeyboardBreath.shared.acknowledge(allow: true); TouchBarHaptics.tap(.levelChange) }
+            case .deny:
+                if let ask = PetStore.shared.permissionAsks.first {
+                    askServer.resolve(id: ask.id, .deny); KeyboardBreath.shared.acknowledge(allow: false)
+                    TouchBarHaptics.tap(.generic); DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { TouchBarHaptics.tap(.generic) }
+                }
             case .island: PetStore.shared.layout = .island; PetStore.shared.userHidden = false
             case .snooze: PetStore.shared.snoozeAlerts()
             case .pin: PetStore.shared.pinSession.toggle()
