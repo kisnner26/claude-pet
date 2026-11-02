@@ -223,6 +223,14 @@ final class AppController: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if CommandLine.arguments.contains("--probe-windows") {
+            // cuenta lo que ve el catalogo, sin imprimir titulos ni contenido
+            let windows = WindowCatalog.fillTitles(WindowCatalog.snapshot())
+            let titled = windows.filter { !$0.title.isEmpty }.count
+            let project = PetStore.shared.terminalProject.isEmpty ? (CommandLine.arguments.last ?? "") : PetStore.shared.terminalProject
+            print("ventanas útiles: \(windows.count) · con título: \(titled) · apps: \(Set(windows.map(\.owner)).count) · ventana del agente para '\(project)': \(WindowCatalog.agentWindow(project: project, in: windows).map { "sí (posición \($0))" } ?? "no")")
+            exit(0)
+        }
         if CommandLine.arguments.contains("--probe-keyboard") {
             // prueba real en tu Mac: simula un agente trabajando, muestrea el brillo y comprueba que se devuelve el original
             let store = PetStore.shared
