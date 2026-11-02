@@ -14,7 +14,9 @@ final class FileFlights {
         @Published var tint = Color(hex: 0xE0824F)
     }
 
-    private struct Job { var flight: FileFlight; var icon: NSImage; var name: String; var tint: Color }
+    /// Donde esta la pestana del archivo, que se busca mientras vuela (puede quedar vacio si el editor no la expone).
+    private final class TabBox: @unchecked Sendable { var rect: CGRect? }
+    private struct Job { var flight: FileFlight; var icon: NSImage; var name: String; var tint: Color; var tab: TabBox; var landing: CGPoint }
     private var queue: [Job] = []
     private var current: Job?
     private var seen: Set<String> = []
@@ -36,8 +38,14 @@ final class FileFlights {
                       let to = FileCarry.destination(file: file.name, project: store.terminalProject, windows: windows, host: host) else { continue }
                 let icon = NSWorkspace.shared.icon(forFileType: file.ext.isEmpty ? "txt" : file.ext)
                 icon.size = NSSize(width: 34, height: 34)
+                // mientras el archivo vuela se busca su pestana en el editor, fuera del hilo principal
+                let box = TabBox()
+                if let w = FileCarry.destinationWindow(file: file.name, project: store.terminalProject, windows: windows, host: host) {
+                    let target = windows[w], name = file.name, primary = NSScreen.screens.first?.frame.height ?? 0
+                    Task.detached(priority: .utility) { box.rect = EditorLocator.snapshot(pid: target.pid, frame: target.frame, primaryHeight: primary).flatMap { TabFinder.find($0, file: name) } }
+                }
                 queue.append(Job(flight: FileFlight(from: CGPoint(x: pet.x, y: pet.y + 58), to: to, start: now), icon: icon, name: String(file.name.prefix(22)),
-                                 tint: Color(hex: agent == .claude ? 0xE0824F : 0x5270E8)))
+                                 tint: Color(hex: agent == .claude ? 0xE0824F : 0x5270E8), tab: box, landing: to))
                 if queue.count > 3 { queue.removeFirst() }
             }
         } else { for s in steps { seen.insert(Self.key(s)) } }
@@ -54,13 +62,18 @@ final class FileFlights {
         }
         guard let job = current else { return }
         let f = job.flight.frame(at: now)
-        if f.done { current = nil; panel?.orderOut(nil); return }
+        if f.done {
+            // el archivo aterrizo: el cursor fantasma sale de ahi hacia su pestana (o late donde cayo si no se encontro)
+            let tab = job.tab.rect.map { CGPoint(x: $0.midX, y: $0.midY) } ?? job.landing
+            GhostCursor.shared.start(from: job.landing, to: tab, tint: job.tint, now: now)
+            current = nil; panel?.orderOut(nil); return
+        }
         model.scale = f.scale; model.alpha = f.alpha
         panel?.setFrameOrigin(NSPoint(x: f.point.x - 70, y: f.point.y - 30))
         if panel?.isVisible != true { panel?.orderFrontRegardless() }
     }
 
-    func stop() { queue.removeAll(); current = nil; panel?.orderOut(nil) }
+    func stop() { queue.removeAll(); current = nil; panel?.orderOut(nil); GhostCursor.shared.stop() }
 
     private func ensurePanel() {
         guard panel == nil else { return }

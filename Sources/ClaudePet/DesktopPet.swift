@@ -203,6 +203,7 @@ final class DesktopPets {
             DeskWorld.shared.updateGlow(animated: animated)
             FileFlights.shared.tick(now: now, store: store, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }),
                                     windows: DeskWorld.shared.windows, animated: animated)
+            GhostCursor.shared.tick(now: now)
         }
     }
 }

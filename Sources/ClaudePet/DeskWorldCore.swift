@@ -209,12 +209,17 @@ enum FileCarry {
     static func isEditor(_ owner: String) -> Bool { let o = owner.lowercased(); return editors.contains { o == $0 || o.contains($0) } }
 
     /// Donde cae el archivo: la ventana de un editor (mejor la que menciona el archivo o el proyecto) y, si no hay, la ventana del agente.
-    static func destination(file: String, project: String, windows: [DeskWindow], host: Int?) -> CGPoint? {
+    static func destinationWindow(file: String, project: String, windows: [DeskWindow], host: Int?) -> Int? {
         let editors = windows.indices.filter { isEditor(windows[$0].owner) }
         let named = editors.first { windows[$0].title.lowercased().contains(file.lowercased()) }
             ?? editors.first { !project.isEmpty && windows[$0].title.lowercased().contains(project.lowercased()) }
             ?? editors.first
         guard let i = named ?? host, windows.indices.contains(i) else { return nil }
+        return i
+    }
+
+    static func destination(file: String, project: String, windows: [DeskWindow], host: Int?) -> CGPoint? {
+        guard let i = destinationWindow(file: file, project: project, windows: windows, host: host) else { return nil }
         let f = windows[i].frame
         return CGPoint(x: f.midX, y: f.maxY - 24)
     }
