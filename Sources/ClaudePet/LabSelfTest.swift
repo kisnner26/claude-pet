@@ -20,7 +20,7 @@ enum LabSelfTest {
         check("un puerto ocupado de verdad se detecta", { let p = 34_000 + Int.random(in: 0..<2_000); return R.portIsFree(p) }())
         check("la direccion solo se acepta si es local", R.url(in: "galaxia de x en http://127.0.0.1:4950/")?.port == 4950 && R.url(in: "http://evil.example:4950/") == nil && R.url(in: "http://localhost:4950/") == nil && R.url(in: "sin url") == nil)
         check("encuentra las herramientas incluidas", R.toolsRoot(resources: nil, env: ["CLAUDE_PET_TOOLS": root]) == root)
-        check("cada herramienta tiene titulo, simbolo y puerto propio", Set(LabTool.allCases.map(\.defaultPort)).count == 3 && LabTool.allCases.allSatisfy { !$0.title.isEmpty && !$0.symbol.isEmpty && !$0.detail.isEmpty })
+        check("cada herramienta tiene titulo, simbolo y puerto propio", Set(LabTool.allCases.map(\.defaultPort)).count == LabTool.allCases.count && LabTool.allCases.allSatisfy { !$0.title.isEmpty && !$0.symbol.isEmpty && !$0.detail.isEmpty })
 
         let lab = LabLauncher.shared
         guard lab.nodePath != nil else { print("(node 20+ no disponible: se omiten los lanzamientos reales)"); print(failures == 0 ? "LABORATORIO OK" : "LABORATORIO \(failures) FALLOS"); return failures == 0 }
