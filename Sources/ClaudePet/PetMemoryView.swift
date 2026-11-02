@@ -497,7 +497,12 @@ private struct BrainPanel: View {
             Text(n.kind.label).font(.system(size: 8.5, weight: .bold, design: .monospaced)).textCase(.uppercase)
                 .foregroundStyle(Color.black).padding(.horizontal, 5).padding(.vertical, 2)
                 .background(Capsule().fill(n.kind.tint)).frame(width: 66, alignment: .leading)
-            Text(n.text).font(.system(size: 11.5)).foregroundStyle(DashboardTheme.ink).lineLimit(1).truncationMode(.tail)
+            Text(n.text).font(.system(size: 11.5)).foregroundStyle(n.stale == true ? DashboardTheme.ink.opacity(0.55) : DashboardTheme.ink).lineLimit(1).truncationMode(.tail)
+            if n.stale == true {
+                Text("¿obsoleta?").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundStyle(Color(hex: 0xE7B45B))
+                    .padding(.horizontal, 5).padding(.vertical, 1).overlay(Capsule().stroke(Color(hex: 0xE7B45B).opacity(0.7), lineWidth: 1))
+                    .help("habla de archivos que ya no existen: decide si sigue valiendo").fixedSize()
+            }
             Spacer(minLength: 4)
             Circle().fill(brainAgentTint(n.agent)).frame(width: 5, height: 5)
             Text(BrainStore.ago(n.at)).font(.system(size: 9, design: .monospaced)).foregroundStyle(DashboardTheme.muted).fixedSize()
