@@ -249,6 +249,16 @@ final class AppController: NSObject, NSApplicationDelegate {
                     print("  \(p.agent.rawValue): pies y=\(Int(feet)) x=\(Int(p.frame.midX)) nivel \(p.level) posicion z \(all.firstIndex(of: p.number) ?? -1) · \(abs(feet - h.frame.maxY) < 3 ? "SOBRE el borde" : abs(feet - (h.frame.maxY - DeskWorld.peekDepth)) < 3 ? "ASOMADA" : "en otro sitio")")
                 }
             }
+            // un archivo que se edita a los 1,2 s: se mira el vuelo (ventana de nivel barra de estado) en cuatro momentos
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                store.setSnapshotSteps(store.recentIslandSteps + [IslandStep(agent: "claude", tool: "Edit", target: "/proyecto/Sources/App/Brain.swift", added: 3, deleted: 1, workspace: "demo", at: Date())])
+            }
+            func flight(_ label: String) {
+                let mine = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []).filter { ($0[kCGWindowOwnerPID as String] as? Int32) == ProcessInfo.processInfo.processIdentifier && ($0[kCGWindowLayer as String] as? Int) == Int(CGWindowLevelForKey(.statusWindow)) }
+                let b = mine.first.flatMap { $0[kCGWindowBounds as String] as? [String: CGFloat] }
+                print("  vuelo \(label): \(mine.isEmpty ? "sin ventana" : "ventana en x=\(Int(b?["X"] ?? 0)) y(cg)=\(Int(b?["Y"] ?? 0))")")
+            }
+            for t in [1.4, 2.0, 2.6, 3.4] { DispatchQueue.main.asyncAfter(deadline: .now() + t) { flight("t=\(t) s") } }
             for (i, t) in [1.0, 3.0, 5.0].enumerated() { DispatchQueue.main.asyncAfter(deadline: .now() + t) { report("t=\(Int(t)) s") ; if i == 2 { DesktopPets.shared.setWorld(false); exit(0) } } }
             return
         }
