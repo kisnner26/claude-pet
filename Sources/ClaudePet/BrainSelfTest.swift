@@ -132,6 +132,12 @@ enum BrainSelfTest {
         var dreamed = ""
         let dreamCode = BrainStore.cli(["dream"], cwd: "/tmp/x", out: { dreamed += $0 }, err: { _ in })
         check("el comando dream une y lo cuenta", dreamCode == 0 && dreamed.contains("- uní 1 nota casi igual a otra") && BrainStore.shared.notes("dreamcli").count == 1)
+        // el agente recibe el aviso de las dudosas
+        let staleStore = BrainStore(); staleStore.directory = NSTemporaryDirectory() + "dream-stale-\(UUID().uuidString)"
+        defer { try? FileManager.default.removeItem(atPath: staleStore.directory) }
+        staleStore.add(agent: "claude", kind: "cuidado", text: "no tocar Viejo.swift", project: "p", at: now)
+        _ = staleStore.dream(project: "p", now: now, exists: { _ in false })
+        check("el briefing avisa de que una nota puede estar obsoleta", staleStore.briefing(agent: "claude", project: "p", now: now).contains("posible obsoleta (cita archivos que ya no existen) · cuidado"))
         // cuando suena
         let t = Date(timeIntervalSince1970: 1_800_000_000)
         check("de noche y sin haber sonado nunca, toca", DreamKeeper.isDue(last: nil, now: t, hour: 3, idle: 0, busy: false))

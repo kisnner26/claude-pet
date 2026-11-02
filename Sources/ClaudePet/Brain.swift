@@ -143,7 +143,7 @@ final class BrainStore {
             for n in trato { out += "- [\(n.agent) · \(Self.ago(n.at, now: now))] \(n.text)\n" }
         }
         for n in all where n.kind != .trato {
-            let tag = shared.contains(n) ? "global · " : ""
+            let tag = (shared.contains(n) ? "global · " : "") + (n.stale == true ? "posible obsoleta (cita archivos que ya no existen) · " : "")
             out += "- [\(tag)\(n.kind.label) · \(n.agent) · \(Self.ago(n.at, now: now))] \(n.text)\n"
         }
         if all.isEmpty { out += "(sin notas todavia)\n" }
