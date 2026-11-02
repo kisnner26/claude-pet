@@ -29,7 +29,7 @@ enum SoundCue: String, CaseIterable {
     }
 
     var notes: [Note] {
-        let d4 = 293.66, a4 = 440.00, d5 = 587.33, e5 = 659.25, f5 = 739.99, a5 = 880.00, b5 = 987.77, d6 = 1174.66
+        let d4 = 293.66, d5 = 587.33, e5 = 659.25, f5 = 739.99, a5 = 880.00, b5 = 987.77, d6 = 1174.66
         switch self {
         case .peek: return [Note(frequency: a5, start: 0, duration: 0.09, gain: 0.5, voice: .bell)]
         case .open: return [Note(frequency: d5, start: 0, duration: 0.09, gain: 0.8, voice: .marimba), Note(frequency: a5, start: 0.07, duration: 0.14, gain: 0.8, voice: .marimba)]
