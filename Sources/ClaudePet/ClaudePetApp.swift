@@ -250,6 +250,15 @@ final class AppController: NSObject, NSApplicationDelegate {
             for (i, t) in [1.0, 3.0, 5.0].enumerated() { DispatchQueue.main.asyncAfter(deadline: .now() + t) { report("t=\(Int(t)) s") ; if i == 2 { DesktopPets.shared.setWorld(false); exit(0) } } }
             return
         }
+        if CommandLine.arguments.contains("--probe-dock") {
+            // cuenta lo que ve del Dock y si encuentra el icono de la app del agente (sin imprimir el resto de nombres)
+            let items = DockInfo.items()
+            let windows = WindowCatalog.fillTitles(WindowCatalog.snapshot())
+            let host = WindowCatalog.agentWindow(project: PetStore.shared.terminalProject, in: windows).map { windows[$0].owner } ?? ""
+            let hit = DockInfo.item(forApp: host, in: items)
+            print("dock usable: \(DockInfo.currentLayoutUsable()) · iconos: \(items.count) · app del agente '\(host)': \(hit.map { "icono en x=\(Int($0.frame.midX)) y=\(Int($0.frame.maxY)) (\(Int($0.frame.width)) pt)" } ?? "sin icono")")
+            exit(0)
+        }
         if CommandLine.arguments.contains("--probe-keyboard") {
             // prueba real en tu Mac: simula un agente trabajando, muestrea el brillo y comprueba que se devuelve el original
             let store = PetStore.shared
