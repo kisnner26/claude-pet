@@ -14,7 +14,8 @@ enum BrainDream {
     static func tokens(_ text: String) -> Set<String> {
         let folded = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil).lowercased()
         let words = folded.split(whereSeparator: { !($0.isLetter || $0.isNumber) }).map(String.init)
-        return Set(words.filter { $0.count >= 3 && !stopwords.contains($0) })
+        // los numeros cuentan aunque sean cortos: "version 2" y "version 3" no son la misma nota
+        return Set(words.filter { ($0.count >= 3 || $0.contains(where: \.isNumber)) && !stopwords.contains($0) })
     }
 
     /// Dos notas son la misma si comparten casi todas sus palabras, o si una esta entera dentro de la otra y no es trivial.
