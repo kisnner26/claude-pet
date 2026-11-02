@@ -461,6 +461,17 @@ final class AppController: NSObject, NSApplicationDelegate {
         } }
         touchBar = TouchBarController(store: PetStore.shared)
         touchBar?.start()
+        // el cerebro suena de noche o tras una hora sin usar la Mac: se comprueba al arrancar y cada 10 minutos
+        DreamKeeper.shared.load()
+        let dreamCheck: @MainActor () -> Void = {
+            let store = PetStore.shared
+            let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+            let working: Set<PetState> = [.thinking, .tool, .starting, .waiting]
+            let busy = working.contains(store.state) || working.contains(store.codexState)
+            DreamKeeper.shared.tick(idle: idle, busy: busy, perimeterRoots: PerimeterStore.shared.perimeters.map(\.root))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 90) { MainActor.assumeIsolated { dreamCheck() } }
+        Timer.scheduledTimer(withTimeInterval: 600, repeats: true) { _ in MainActor.assumeIsolated { dreamCheck() } }
         PetStore.shared.answerPermission = { [weak self] id, decision in
             if decision != .deny, let ask = PetStore.shared.permissionAsks.first(where: { $0.id == id }) { Self.checkpoint(before: ask) }
             SoundEngine.shared.play(decision == .deny ? .denied : .allowed)
