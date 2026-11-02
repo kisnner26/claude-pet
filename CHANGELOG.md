@@ -5,6 +5,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Ritmo de escritura (opcional, apagado por defecto): cuenta cuándo pulsas teclas y si borras, nunca cuáles ni qué escribes. Si tecleas y borras muchísimo a la vez, la mascota dice «respira un momento»; tras 50 minutos seguidos sin una pausa de cinco, avisa de que descanses. Las pulsaciones por hora entran en «tu ritmo» («tecleas más entre las X h»). Usa el mismo permiso que los atajos globales.
+- Confirmación de los atajos de permiso: aprobar con el atajo da una ola de luz en el teclado y una vibración suave en el trackpad; rechazar, dos destellos secos y dos toques.
 - Salir y volver a la isla con otra cara: la mascota sale del notch escalando entre destellos, anillos y una estela, cruza en arco hasta su sitio y aterriza con polvo y un pequeño rebote; al volver gira, se encoge siguiendo la estela y entra en la isla con un anillo, y la isla responde con un saltito. `ClaudePet --snapshot-portal` dibuja la hoja de contacto de ambas.
 - Cerebro compartido: claude y codex dejan notas cortas por proyecto (decisión, hecho, cuidado, pendiente y trato) que el siguiente agente recibe al empezar una sesión. Se editan desde la isla o con `ClaudePet --brain`. Rechaza claves y textos largos. `./install-brain.sh` instala los hooks con copia de respaldo.
 - Carácter de cada agente: una personalidad que se va formando con lo vivido contigo (constancia, precisión, noctámbulo, exploración y memoria) y cuatro etapas de relación. Solo usa datos locales.
@@ -29,6 +31,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - La Touch Bar en reposo bajó de 9,2 % a 5,45 % de CPU total (su coste propio, de +6,3 a +2,5 puntos): cada imagen viaja entera a su pantalla, así que en calma se redibuja a 2 fps y se vuelve fluida solo con un agente trabajando, un paseo, un toque o un evento nuevo, con fotogramas extra para no perder parpadeos. El contenido va a tamaño fijo para no recalcular la maquetación. `CPU_EXTRA="--cpu-touchbar" tests/cpu.sh` lo mide.
 
 ### corregido
+- El halo del Dock y el aviso sobre la mascota se quedaban encendidos al devolverla a la isla mientras el agente trabajaba.
 - La app se abortaba si llegaban más preguntas a la vez que el límite de pendientes: la fuente de eventos del socket se creaba antes de comprobar el límite y soltarla sin activar hace que libdispatch cierre el proceso.
 - El contexto marcaba 0 % en sesiones largas porque se medía contra 160 000 tokens fijos. Ahora la ventana se deduce de lo usado: pasados 200 000 tokens es la de 1M y compacta a los 800 000.
 - La prueba del laboratorio esperaba 3 herramientas y ya hay 6.
