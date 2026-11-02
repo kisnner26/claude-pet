@@ -101,7 +101,11 @@ final class DeskWorld {
             let preferred = host.frame.minX + host.frame.width * DeskGoal.perchFraction(claude: agent == .claude, both: both)
                 + DeskGoal.pace(time: now + (agent == .codex ? 2.5 : 0), working: effective == .tool || effective == .thinking)
             if let x = DeskGeo.nearest(preferred, in: visible, margin: 44) {
-                target = CGPoint(x: x, y: host.frame.maxY - (goal == .peek ? Self.peekDepth : 0))
+                let place = goal == .peek ? DeskPlacement.peek(window: host.frame, screen: screenFrame, depth: Self.peekDepth) : DeskPlacement.perch(window: host.frame, screen: screenFrame)
+                switch place {
+                case .above(let feet), .inside(let feet): target = CGPoint(x: x, y: feet)
+                case .side(let sx, let feet): target = CGPoint(x: sx, y: feet)
+                }
             } else {
                 // el borde esta tapado del todo por otras ventanas: no hay donde posarse
                 targetWindow = nil

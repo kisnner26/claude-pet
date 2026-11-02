@@ -125,6 +125,30 @@ enum DeskPhysics {
     }
 }
 
+/// Donde se coloca una mascota respecto a una ventana segun el sitio que haya alrededor.
+enum DeskPlacement: Equatable {
+    case above(feetY: CGFloat)                 // encima del borde superior
+    case inside(feetY: CGFloat)                // dentro, bajo la barra de titulo: la ventana llega al tope de la pantalla
+    case side(x: CGFloat, feetY: CGFloat)      // asomada por un lado: la mitad del cuerpo detras de la ventana
+
+    static let bodyHeight: CGFloat = 96
+    static let sideNeeded: CGFloat = 70
+
+    /// Perchada: encima si cabe entera; si no, dentro, sin salirse por arriba de la pantalla.
+    static func perch(window: CGRect, screen: CGRect) -> DeskPlacement {
+        screen.maxY - window.maxY >= bodyHeight + 4 ? .above(feetY: window.maxY) : .inside(feetY: min(window.maxY, screen.maxY - bodyHeight - 4))
+    }
+
+    /// Asomada: la cabeza por encima del borde de arriba si cabe; si no, por el lado derecho o izquierdo con sitio; y si nada cabe, perchada dentro.
+    static func peek(window: CGRect, screen: CGRect, depth: CGFloat) -> DeskPlacement {
+        if screen.maxY - window.maxY >= bodyHeight - depth + 6 { return .above(feetY: window.maxY - depth) }
+        let feet = max(window.minY + 24, window.maxY - 170)
+        if screen.maxX - window.maxX >= sideNeeded { return .side(x: window.maxX + 10, feetY: feet) }
+        if window.minX - screen.minX >= sideNeeded { return .side(x: window.minX - 10, feetY: feet) }
+        return perch(window: window, screen: screen)
+    }
+}
+
 /// Un salto en parabola de un punto a otro (para subirse a una ventana o bajar al suelo).
 struct DeskLeap: Equatable {
     var from: CGPoint
