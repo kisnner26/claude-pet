@@ -11,6 +11,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Pronóstico de contexto: a partir de las lecturas recientes calcula en cuántos minutos se compacta y avisa cuando quedan 10.
 - Trackpad táctil (experimental): el trackpad como superficie absoluta de toda la pantalla. Sin cámara. Usa el framework privado `MultitouchSupport`.
 - claudwler: avisos de redirecciones permanentes, caídas a http y enlaces lentos; exportación a CSV; prompt de arreglo para claude code; guardar el informe en una carpeta; y recorrido de todo el sitio con `robots.txt`, avisos por página (título, descripción, h1, idioma, `alt`, `noindex`), informe html y modo terminal `--crawl-site`.
+- `tests/selftests.sh` corre las 64 pruebas internas una por una, cada una con un HOME limpio (`WITH_NET=1` suma las de red y `ONLY="brain memory"` elige).
 - Pruebas nuevas sin red: `--selftest-brain`, `--selftest-memory`, `--selftest-touchbar`, `--selftest-trackpad` y `--selftest-claudwler-extras`.
 - Vídeo de presentación hecho con el propio código de la app: `ClaudePet --render-promo salida.mp4` renderiza 53 s a 1080p con las vistas y el animador reales (la isla, las mascotas, los atuendos, el enfado) y lo codifica con AVFoundation, sin ffmpeg. Los menús nativos se sustituyen por su icono en las capturas.
 
@@ -19,8 +20,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - La isla ya no tiene el botón ni la pestaña de música: el reproductor vive en la Touch Bar y la mascota sigue mostrando el disco y bailando.
 - La isla abierta mide 236 pt de alto y deja más aire arriba; las cifras de memoria cuentan sesiones y registran también a codex.
 
+### rendimiento
+- La Touch Bar en reposo bajó de 9,2 % a 5,45 % de CPU total (su coste propio, de +6,3 a +2,5 puntos): cada imagen viaja entera a su pantalla, así que en calma se redibuja a 2 fps y se vuelve fluida solo con un agente trabajando, un paseo, un toque o un evento nuevo, con fotogramas extra para no perder parpadeos. El contenido va a tamaño fijo para no recalcular la maquetación. `CPU_EXTRA="--cpu-touchbar" tests/cpu.sh` lo mide.
+
 ### corregido
+- La app se abortaba si llegaban más preguntas a la vez que el límite de pendientes: la fuente de eventos del socket se creaba antes de comprobar el límite y soltarla sin activar hace que libdispatch cierre el proceso.
 - El contexto marcaba 0 % en sesiones largas porque se medía contra 160 000 tokens fijos. Ahora la ventana se deduce de lo usado: pasados 200 000 tokens es la de 1M y compacta a los 800 000.
+- La prueba del laboratorio esperaba 3 herramientas y ya hay 6.
 - La duración de una tarea no se calculaba bien y las sesiones no se contaban nunca.
 
 ## [2.11.0] - 2026-10-28
