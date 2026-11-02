@@ -176,6 +176,11 @@ final class BrainStore {
             case .failure(.badKind): err("tipo: decision, hecho, cuidado, pendiente o trato"); return 2
             case .failure(.badAgent): err("agente: claude, codex o tu"); return 2
             }
+        case "dream":
+            // repaso inmediato de todos los proyectos: une duplicados y marca lo obsoleto (lo mismo que hace de noche)
+            let report = BrainDream.run(store: store, perimeterRoots: PerimeterStore.shared.perimeters.map(\.root))
+            out(report.projects == 0 ? "no hay notas que repasar\n" : report.lines.map { "- \($0)\n" }.joined() + "\(report.projects) \(report.projects == 1 ? "proyecto" : "proyectos") · \(report.notesAfter) notas\n")
+            return 0
         case "forget":
             guard args.count >= 2 else { err("uso: --brain forget <id> [proyecto]"); return 2 }
             if store.forget(id: args[1], project: args.count > 2 ? args[2] : defaultProject) { out("olvidado\n"); return 0 }
