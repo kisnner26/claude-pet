@@ -223,6 +223,28 @@ final class AppController: NSObject, NSApplicationDelegate {
             }
             return
         }
+        if CommandLine.arguments.contains("--probe-keyboard") {
+            // prueba real en tu Mac: simula un agente trabajando, muestrea el brillo y comprueba que se devuelve el original
+            let store = PetStore.shared
+            store.startDemo()
+            let light = KeyboardBacklight()
+            guard light.available else { print("sin teclado con retroiluminación controlable"); exit(1) }
+            let base = light.brightness ?? -1
+            KeyboardBreath.shared.start(store: store)
+            KeyboardBreath.shared.enabled = true
+            var samples: [Float] = []
+            let sampler = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in samples.append(light.brightness ?? -1) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                sampler.invalidate()
+                KeyboardBreath.shared.enabled = false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.4) {
+                let final = light.brightness ?? -1
+                print(String(format: "base %.3f · durante el trabajo: min %.3f max %.3f (%d muestras) · tras apagar: %.3f · restaurado: %@", base, samples.min() ?? -1, samples.max() ?? -1, samples.count, final, abs(final - base) < 0.01 ? "si" : "NO"))
+                exit(abs(final - base) < 0.01 ? 0 : 1)
+            }
+            return
+        }
         if CommandLine.arguments.contains("--probe-trackpad") {
             let c = TrackpadTouchController.shared
             c.enabled = true
