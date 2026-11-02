@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Salir y volver a la isla con otra cara: la mascota sale del notch escalando entre destellos, anillos y una estela, cruza en arco hasta su sitio y aterriza con polvo y un pequeño rebote; al volver gira, se encoge siguiendo la estela y entra en la isla con un anillo, y la isla responde con un saltito. `ClaudePet --snapshot-portal` dibuja la hoja de contacto de ambas.
 - Cerebro compartido: claude y codex dejan notas cortas por proyecto (decisión, hecho, cuidado, pendiente y trato) que el siguiente agente recibe al empezar una sesión. Se editan desde la isla o con `ClaudePet --brain`. Rechaza claves y textos largos. `./install-brain.sh` instala los hooks con copia de respaldo.
 - Carácter de cada agente: una personalidad que se va formando con lo vivido contigo (constancia, precisión, noctámbulo, exploración y memoria) y cuatro etapas de relación. Solo usa datos locales.
 - Touch Bar para los MacBook Pro que la tienen: páginas de pulso, límites, pronóstico, foco, música y cerebro; deslizador para aprobar permisos, preguntas como botones, confeti al terminar, captura de la barra y vibración en el trackpad. `CLAUDE_PET_TOUCHBAR=1/0` la fuerza o la apaga.
