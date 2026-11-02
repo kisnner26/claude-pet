@@ -259,6 +259,8 @@ tests/bus.sh                 # pet bus con un codex simulado
 tests/football.sh            # reglas del partido y escenarios visuales
 tests/permission.sh          # permisos de la isla de punta a punta con el hook real
 tests/cpu.sh                 # cpu medio en reposo durante 30 s (falla sobre 5 %)
+CPU_EXTRA="--cpu-touchbar" tests/cpu.sh   # lo mismo con la Touch Bar encendida (solo en Macs que la tienen)
+tests/selftests.sh           # todas las pruebas internas, cada una con un HOME limpio (WITH_NET=1 incluye las de red; ONLY="brain memory" elige)
 swift build && .build/debug/ClaudePet --selftest-island      # maquina de estados, geometria, animacion
 .build/debug/ClaudePet --selftest-question   # preguntas de la isla
 .build/debug/ClaudePet --selftest-cleanup    # socket y bandera se borran al cerrar

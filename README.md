@@ -92,6 +92,7 @@ tests/workshop.sh     # catálogo del taller y paquetes manipulados
 tests/plan.sh         # consumo del plan
 tests/remote.sh       # visto: política, canal y respuestas
 tests/cpu.sh          # cpu medio en reposo durante 30 s (falla sobre 5 %)
+tests/selftests.sh    # todas las pruebas internas (--selftest-*), una por una y con un HOME limpio
 node --test relay/test # relay de visto
 .build/debug/ClaudePet --selftest-quest quest   # servidor de Meta Quest con tls real
 # también: --selftest-weather, --selftest-desk, --selftest-rage, --selftest-phone, --selftest-lang,
