@@ -65,6 +65,17 @@ final class DesktopPets {
             guard let agent = IslandAgentTab(rawValue: k) else { continue }
             show(agent, at: DeskMotion.clamp(p, in: screens))
         }
+        if store.deskWorld { showWorldPets() }
+    }
+
+    /// Enciende o apaga el escritorio vivo: encendido, las mascotas salen a tus ventanas; apagado, vuelven a la isla.
+    func setWorld(_ on: Bool) {
+        store.deskWorld = on
+        if on { showWorldPets() } else { putBackAll(); for a in IslandAgentTab.allCases { DeskWorld.shared.forget(a) } }
+    }
+
+    private func showWorldPets() {
+        for agent in IslandAgentTab.allCases where panels[agent] == nil && (agent == .claude || store.codexPresent) { show(agent) }
     }
 
     /// La coge de la isla: aparece bajo el cursor y la lleva mientras el boton siga pulsado.
@@ -107,6 +118,25 @@ final class DesktopPets {
         startTimer()
     }
 
+    private var lastOrder: [IslandAgentTab: (id: Int, above: Bool, at: TimeInterval)] = [:]
+
+    /// Posada o asomada: la mascota pasa a ser una ventana normal colocada justo encima (o detras) de la del agente, y el sistema se
+    /// encarga de taparla con lo que pase por delante. En el suelo vuelve a flotar sobre todo.
+    private func applyOrder(_ agent: IslandAgentTab, _ panel: NSPanel, _ rel: (id: Int, above: Bool)?, now: TimeInterval) {
+        guard let rel else {
+            if panel.level != .floating { panel.level = .floating; panel.orderFrontRegardless() }
+            lastOrder[agent] = nil
+            return
+        }
+        if panel.level != .normal { panel.level = .normal }
+        let last = lastOrder[agent]
+        // se vuelve a ordenar si cambia la ventana o la relacion, y unas cuatro veces por segundo por si la ventana sube o baja
+        if last == nil || last!.id != rel.id || last!.above != rel.above || now - last!.at > 0.25 {
+            panel.order(rel.above ? .above : .below, relativeTo: rel.id)
+            lastOrder[agent] = (rel.id, rel.above, now)
+        }
+    }
+
     private func dragBegan(_ agent: IslandAgentTab) { carried.insert(agent) }
 
     private func dragEnded(_ agent: IslandAgentTab) {
@@ -135,11 +165,19 @@ final class DesktopPets {
         let dt = CGFloat(min(0.1, now - lastTick)); lastTick = now
         let mouse = NSEvent.mouseLocation
         let buttonDown = NSEvent.pressedMouseButtons & 1 != 0
+        if store.deskWorld, store.codexPresent, panels[.codex] == nil { showWorldPets() }
         for (agent, panel) in panels {
             guard let model = models[agent] else { continue }
             var c = CGPoint(x: panel.frame.midX, y: panel.frame.midY)
             if carried.contains(agent) {
                 if buttonDown { c = mouse } else { dragEnded(agent) }
+                if store.deskWorld { DeskWorld.shared.reset(agent) }       // al soltarla cae desde donde la sueltes
+            } else if store.deskWorld {
+                let r = DeskWorld.shared.step(agent: agent, current: c, dt: dt, now: now)
+                c = r.center
+                if r.walking { moving.insert(agent) } else { moving.remove(agent) }
+                if r.walking, model.deskFlip != (r.facing < 0) { model.deskFlip = r.facing < 0 }
+                applyOrder(agent, panel, r.relativeTo, now: now)
             } else if store.deskFollow {
                 let r = DeskMotion.follow(from: c, mouse: mouse, dt: dt, moving: moving.contains(agent))
                 c = r.point
@@ -147,7 +185,7 @@ final class DesktopPets {
             }
             // un saltito al andar: se nota que camina
             let bob: CGFloat = moving.contains(agent) ? abs(sin(CGFloat(now) * 11)) * 7 : 0
-            c = DeskMotion.clamp(c, in: screens)
+            if !store.deskWorld || carried.contains(agent) { c = DeskMotion.clamp(c, in: screens) }
             panel.setFrameOrigin(NSPoint(x: c.x - DeskMotion.size / 2, y: c.y - DeskMotion.size / 2 + bob))
             // la mirada sigue al cursor
             let dx = max(-1, min(1, (mouse.x - c.x) / 400)), dy = max(-1, min(1, (c.y - mouse.y) / 400))
@@ -172,6 +210,7 @@ struct DesktopPetView: View {
             if agent == .claude { PetFace(store: store, model: model) } else { CodexMini(store: store, model: model, greet: false) }
         }
         .frame(width: DeskMotion.size * 0.86, height: DeskMotion.size * 0.86)
+        .scaleEffect(x: model.deskFlip ? -1 : 1, y: 1)
         .frame(width: DeskMotion.size, height: DeskMotion.size)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { onBack() }
