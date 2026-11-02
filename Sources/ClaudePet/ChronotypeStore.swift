@@ -31,6 +31,11 @@ final class ChronotypeStore: @unchecked Sendable {
         save()
     }
 
+    func addTyped(_ n: Int, at date: Date = Date()) {
+        lock.lock(); value.addTyped(n, at: date); lock.unlock()
+        save()
+    }
+
     private func save() {
         lock.lock(); let snapshot = value; lock.unlock()
         let url = URL(fileURLWithPath: Self.path)

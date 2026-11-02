@@ -7,6 +7,19 @@ struct HourBucket: Codable, Equatable {
     var errors = 0
     var sessions = 0
     var permissions = 0
+    /// Pulsaciones (solo el recuento, de `TypingMonitor`). No entra en `activity` para no mover los umbrales del resto.
+    var typed = 0
+
+    init() {}
+    // los archivos de antes no tienen `typed`: se leen igual
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tools = try c.decodeIfPresent(Int.self, forKey: .tools) ?? 0
+        errors = try c.decodeIfPresent(Int.self, forKey: .errors) ?? 0
+        sessions = try c.decodeIfPresent(Int.self, forKey: .sessions) ?? 0
+        permissions = try c.decodeIfPresent(Int.self, forKey: .permissions) ?? 0
+        typed = try c.decodeIfPresent(Int.self, forKey: .typed) ?? 0
+    }
 
     var activity: Int { tools + errors + sessions }
     /// Fallos sobre intentos (herramientas y fallos).
@@ -18,6 +31,7 @@ struct Chronotype: Codable, Equatable {
     static let minEvents = 40
     static let minDays = 2
     static let blockHours = 3
+    static let minTyped = 500
 
     var hours = [HourBucket](repeating: HourBucket(), count: 24)
     /// Dias distintos con actividad (aaaa-mm-dd), los mas recientes.
@@ -40,6 +54,13 @@ struct Chronotype: Codable, Equatable {
         if !days.contains(key) { days.append(key); days.sort(); if days.count > Self.maxDays { days.removeFirst(days.count - Self.maxDays) } }
     }
 
+    mutating func addTyped(_ n: Int, at date: Date, calendar: Calendar = .current) {
+        guard n > 0 else { return }
+        hours[min(23, max(0, calendar.component(.hour, from: date)))].typed += n
+    }
+
+    var totalTyped: Int { hours.reduce(0) { $0 + $1.typed } }
+
     var totalEvents: Int { hours.reduce(0) { $0 + $1.activity } }
     var overallErrorRate: Double {
         let tools = hours.reduce(0) { $0 + $1.tools }, errors = hours.reduce(0) { $0 + $1.errors }
@@ -58,7 +79,7 @@ struct Chronotype: Codable, Equatable {
         stride(from: 0, to: 24, by: Self.blockHours).map { start in
             var b = HourBucket()
             for h in start..<(start + Self.blockHours) {
-                b.tools += hours[h].tools; b.errors += hours[h].errors; b.sessions += hours[h].sessions; b.permissions += hours[h].permissions
+                b.tools += hours[h].tools; b.errors += hours[h].errors; b.sessions += hours[h].sessions; b.permissions += hours[h].permissions; b.typed += hours[h].typed
             }
             return Block(start: start, end: start + Self.blockHours, bucket: b)
         }
@@ -67,6 +88,7 @@ struct Chronotype: Codable, Equatable {
     struct Insight: Equatable {
         var peak: Block?
         var best: Block?
+        var typingPeak: Block?
         var hard: Block?
         var hardRatio = 0.0
         var lines: [String] = []
@@ -91,6 +113,10 @@ struct Chronotype: Codable, Equatable {
             }
         }
         if let peak = out.peak, peak.bucket.activity > 0 { out.lines.append("trabajas más entre las \(peak.label)") }
+        if totalTyped >= Self.minTyped, let tp = all.max(by: { $0.bucket.typed < $1.bucket.typed }), tp.bucket.typed > 0 {
+            out.typingPeak = tp
+            out.lines.append("tecleas más entre las \(tp.label)")
+        }
         if let hard = out.hard {
             out.lines.append("en \(hard.label) fallas \(Self.ratio(out.hardRatio))× más que de media: déjalo para otro rato")
         }
