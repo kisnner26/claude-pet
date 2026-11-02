@@ -47,6 +47,23 @@ enum MemorySelfTest {
         for d in 1...28 { capped.add(.tool, at: at(d, 10), calendar: utc) }
         check("el historial de dias tiene tope", capped.days.count == 28 && Chronotype.maxDays == 60)
         check("se guarda y se lee igual", (try? JSONDecoder().decode(Chronotype.self, from: JSONEncoder().encode(rhythm))) == rhythm)
+        // persistencia del cronotipo (en una carpeta temporal, nunca en la tuya)
+        let tmpMemory = NSTemporaryDirectory() + "claudepet-hours-\(UUID().uuidString)"
+        setenv("CLAUDE_PET_MEMORY", tmpMemory, 1)
+        defer { try? FileManager.default.removeItem(atPath: tmpMemory); unsetenv("CLAUDE_PET_MEMORY") }
+        let seed = (0..<30).map { ev(.tool, ago: Double($0) * 600) }
+        let store = ChronotypeStore()
+        store.load(seed: seed)
+        check("la primera vez se siembra con los eventos que habia", store.current.totalEvents == 30 && FileManager.default.fileExists(atPath: ChronotypeStore.path))
+        store.add(.error, at: now)
+        let again = ChronotypeStore()
+        again.load()
+        check("lo registrado sobrevive a un reinicio", again.current.totalEvents == 31 && again.current == store.current)
+        check("el archivo solo lo lee el usuario", ((try? FileManager.default.attributesOfItem(atPath: ChronotypeStore.path)[.posixPermissions]) as? NSNumber)?.intValue == 0o600)
+        try? Data("no es json".utf8).write(to: URL(fileURLWithPath: ChronotypeStore.path))
+        let broken = ChronotypeStore()
+        broken.load(seed: [])
+        check("un archivo estropeado no rompe nada", broken.current.totalEvents == 0)
         print(ok ? "MEMORIA OK" : "MEMORIA FALLO")
         return ok
     }
