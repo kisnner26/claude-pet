@@ -71,6 +71,7 @@ struct PetMemoryView: View {
     @ObservedObject var store: PetStore
     @State private var events: [PetMemoryEvent] = []
     @State private var range: MemoryRange = .day
+    @State private var showRhythm = false
 
     private var now: Date { Date() }
     private var scoped: [PetMemoryEvent] { MemoryStats.window(events, range: range, now: now) }
@@ -80,6 +81,9 @@ struct PetMemoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             header
+            if showRhythm {
+                RhythmPanel(chrono: ChronotypeStore.shared.current, reduceMotion: store.reduceMotion)
+            } else {
                 HStack(alignment: .center, spacing: 14) {
                     MemoryHealth(percent: Int((recall * 100).rounded()), incidents: count(.error), total: scoped.count, reduceMotion: store.reduceMotion)
                         .frame(width: 128, alignment: .leading)
@@ -95,6 +99,7 @@ struct PetMemoryView: View {
                 }
                 MemoryBreakdown(parts: PetMemoryEvent.Kind.allCases.map { ($0, count($0)) })
                 MemoryAgents(claude: MemoryStats.share(scoped, agent: "claude"), codex: MemoryStats.share(scoped, agent: "codex"), top: MemoryStats.topProject(scoped))
+            }
         }
         .onAppear(perform: reload)
         .accessibilityElement(children: .contain)
@@ -107,7 +112,8 @@ struct PetMemoryView: View {
             Text("memoria").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(DashboardTheme.ink)
             Text("registro local").dashboardLabel()
             Spacer(minLength: 0)
-            pill(MemoryRange.allCases, selection: $range) { $0.rawValue }
+            rhythmToggle
+            if !showRhythm { pill(MemoryRange.allCases, selection: $range) { $0.rawValue } }
             Button("actualizar", systemImage: "arrow.clockwise", action: reload)
                 .labelStyle(.iconOnly)
                 .font(.system(size: 10, weight: .semibold))
@@ -116,6 +122,20 @@ struct PetMemoryView: View {
                 .help("actualizar recuerdos")
                 .accessibilityLabel("actualizar recuerdos")
         }
+    }
+
+    /// Cambia entre el resumen de siempre y "tu ritmo" (las 24 horas del dia).
+    private var rhythmToggle: some View {
+        Button { withAnimation(store.reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.85)) { showRhythm.toggle() } } label: {
+            Label("ritmo", systemImage: "clock").labelStyle(.titleAndIcon)
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(showRhythm ? Color.black : DashboardTheme.muted)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(showRhythm ? DashboardTheme.ember : Color.white.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+        .help("a qué horas trabajas más y a cuáles fallas más")
+        .accessibilityLabel(showRhythm ? "volver al resumen" : "ver mi ritmo por horas")
     }
 
     private func pill<T: Identifiable & Equatable>(_ items: [T], selection: Binding<T>, title: @escaping (T) -> String) -> some View {
