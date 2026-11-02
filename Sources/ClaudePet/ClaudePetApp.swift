@@ -349,6 +349,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-portal"), i + 1 < CommandLine.arguments.count {
+            DeskPortalFX.renderSheet(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-touchbar"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.touchBar(to: CommandLine.arguments[i + 1]); exit(0)
         }

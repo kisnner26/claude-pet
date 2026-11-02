@@ -13,7 +13,7 @@ final class DeskPortalFX {
         case dive(from: CGPoint, to: CGPoint)
     }
 
-    struct Item {
+    fileprivate struct Item {
         var kind: Kind
         var start: TimeInterval
         var tint: Color
@@ -21,7 +21,7 @@ final class DeskPortalFX {
         var duration: TimeInterval
     }
 
-    private final class Model: ObservableObject { var items: [Item] = []; var origin = CGPoint.zero; var top: CGFloat = 0 }
+    fileprivate final class Model: ObservableObject { var items: [Item] = []; var origin = CGPoint.zero; var top: CGFloat = 0 }
     private let model = Model()
     private var panel: NSPanel?
     private var cleanup: Timer?
@@ -67,9 +67,70 @@ final class DeskPortalFX {
         if panel?.isVisible != true { panel?.orderFrontRegardless() }
     }
 
+    // MARK: hoja de contacto
+
+    /// `ClaudePet --snapshot-portal <ruta.png>`: fotogramas de salir y de volver, dibujados con el mismo codigo que usan las ventanas de efectos.
+    static func renderSheet(to path: String) {
+        let anchor = CGPoint(x: 840, y: 1030), spot = CGPoint(x: 1090, y: 700)
+        let origin = CGPoint(x: 690, y: 640), top: CGFloat = 1060
+        let cell = CGSize(width: 520, height: 420)
+        func p(_ a: CGPoint) -> CGPoint { CGPoint(x: a.x - origin.x, y: top - a.y) }
+        let tint = Color(hex: 0xE0824F)
+        func cellView(_ label: String, _ build: @escaping (inout GraphicsContext) -> Void) -> some View {
+            Canvas { gc, size in
+                gc.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(Gradient(colors: [Color(hex: 0x2A2D36), Color(hex: 0x15161A)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+                gc.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: 30)), with: .color(Color.white.opacity(0.08)))      // la barra de menus
+                let a = p(anchor)
+                gc.fill(Path(roundedRect: CGRect(x: a.x - 70, y: a.y - 14, width: 140, height: 30), cornerRadius: 15), with: .color(.black))      // la isla
+                build(&gc)
+                gc.draw(Text(label).font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundColor(.white.opacity(0.75)), at: CGPoint(x: 8, y: size.height - 16), anchor: .leading)
+            }.frame(width: cell.width, height: cell.height)
+        }
+        func pet(_ gc: inout GraphicsContext, _ f: DeskPortal.Frame) {
+            guard f.alpha > 0.01 else { return }
+            let c = p(f.center)
+            var g = gc
+            g.opacity = Double(f.alpha)
+            g.translateBy(x: c.x, y: c.y)
+            g.rotate(by: .degrees(f.rotation))
+            g.scaleBy(x: f.scale * (1 + f.squash), y: f.scale * (1 - f.squash))
+            let px = Sprite.pixels(.tool, tick: 2)
+            g.translateBy(x: -48, y: -48)
+            PetFace.draw(&g, size: CGSize(width: 96, height: 96), pixels: px, pose: PetPose())
+        }
+        let ceiling = anchor.y + 10
+        let outTimes: [Double] = [0.04, 0.14, 0.26, 0.4, 0.55, 0.68, 0.8]
+        let backTimes: [Double] = [0.08, 0.22, 0.36, 0.5, 0.6, 0.72, 0.95]
+        let view = VStack(spacing: 2) {
+            HStack(spacing: 2) {
+                ForEach(Array(outTimes.enumerated()), id: \.offset) { _, t in
+                    cellView(String(format: "salir  %.2f s", t)) { gc in
+                        let item = Item(kind: .emerge(from: anchor, to: spot), start: 0, tint: tint, seed: 3, duration: 2)
+                        FXView.draw(item, now: t, in: &gc, p)
+                        pet(&gc, DeskPortal.emerge(from: anchor, to: spot, at: t, ceiling: ceiling))
+                    }
+                }
+            }
+            HStack(spacing: 2) {
+                ForEach(Array(backTimes.enumerated()), id: \.offset) { _, t in
+                    cellView(String(format: "volver  %.2f s", t)) { gc in
+                        let item = Item(kind: .dive(from: spot, to: anchor), start: 0, tint: tint, seed: 3, duration: 2)
+                        FXView.draw(item, now: t, in: &gc, p)
+                        pet(&gc, DeskPortal.dive(from: spot, to: anchor, at: t, ceiling: ceiling))
+                    }
+                }
+            }
+        }.background(Color.black)
+        let r = ImageRenderer(content: view)
+        r.scale = 1
+        guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+
     // MARK: dibujo
 
-    private struct FXView: View {
+    fileprivate struct FXView: View {
         let model: Model
         var body: some View {
             TimelineView(.animation) { ctx in
