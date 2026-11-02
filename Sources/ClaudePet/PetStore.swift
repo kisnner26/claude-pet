@@ -146,6 +146,10 @@ final class PetStore: ObservableObject {
     @Published var deskFollow: Bool = UserDefaults.standard.object(forKey: "deskFollow") == nil ? true : UserDefaults.standard.bool(forKey: "deskFollow") {
         didSet { UserDefaults.standard.set(deskFollow, forKey: "deskFollow") }
     }
+    /// Escritorio vivo (experimental): las mascotas salen de la isla y se posan en tus ventanas segun lo que hace su agente.
+    @Published var deskWorld: Bool = UserDefaults.standard.bool(forKey: "deskWorld") {
+        didSet { UserDefaults.standard.set(deskWorld, forKey: "deskWorld") }
+    }
     var idleForDesk: TimeInterval { 0 }
     // MARK: acceso remoto (relay)
     /// Usar Visto fuera de la red local por un relay propio (ver `relay/`). Apagado de serie.

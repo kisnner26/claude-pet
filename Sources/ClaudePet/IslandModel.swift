@@ -13,6 +13,8 @@ final class IslandModel: ObservableObject {
     @Published var menuBarHidden = false
     @Published var countdown: Double?
     @Published var gaze = CGPoint.zero
+    /// En el escritorio vivo: camina hacia la izquierda, asi que se dibuja volteada.
+    @Published var deskFlip = false
     @Published var hover = false
     var pokes: [TimeInterval] = []
     /// Toques sobre la mascota de codex (llevan su propio mareo).
