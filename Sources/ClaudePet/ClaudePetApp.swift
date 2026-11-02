@@ -462,6 +462,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         } }
         touchBar = TouchBarController(store: PetStore.shared)
         touchBar?.start()
+        KeyboardBreath.shared.start(store: PetStore.shared)
         // el cerebro suena de noche o tras una hora sin usar la Mac: se comprueba al arrancar y cada 10 minutos
         DreamKeeper.shared.load()
         let dreamCheck: @MainActor () -> Void = {
