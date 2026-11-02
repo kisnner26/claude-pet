@@ -126,6 +126,23 @@ enum DeskWorldSelfTest {
         check("a mitad de vuelo va en arco por encima de la recta", halfway.y > (206 + 400) / 2 + 30 && halfway.x > 100 && halfway.x < 700)
         check("al aterrizar se encoge y se apaga", flight.frame(at: 5 + FileFlight.total - 0.02).alpha < 0.15 && flight.frame(at: 5 + FileFlight.total).done)
         check("el vuelo dura menos de dos segundos", FileFlight.total < 2)
+        // la pestana del archivo en un arbol de accesibilidad inventado
+        func node(_ role: String, _ texts: [String], _ frame: CGRect?, _ kids: [AXSnap] = []) -> AXSnap { AXSnap(role: role, texts: texts, frame: frame, children: kids) }
+        let tabBar = node("AXGroup", [], CGRect(x: 0, y: 580, width: 800, height: 30), [
+            node("AXRadioButton", ["App.swift"], CGRect(x: 10, y: 582, width: 120, height: 26)),
+            node("AXRadioButton", ["Brain.swift — Modificado"], CGRect(x: 135, y: 582, width: 160, height: 26), [node("AXStaticText", ["Brain.swift"], CGRect(x: 150, y: 588, width: 70, height: 14))]),
+            node("AXRadioButton", ["Notas.md"], CGRect(x: 300, y: 582, width: 100, height: 26))])
+        let tree = node("AXWindow", ["mi-app"], CGRect(x: 0, y: 0, width: 800, height: 610), [tabBar, node("AXTextArea", ["func dream() { Brain.swift }"], CGRect(x: 0, y: 0, width: 800, height: 570))])
+        check("encuentra la pestana del archivo", TabFinder.find(tree, file: "Brain.swift") == CGRect(x: 135, y: 582, width: 160, height: 26))
+        check("prefiere la pestana al texto suelto que la menciona", TabFinder.find(tree, file: "Brain.swift")?.width == 160)
+        check("no confunde el cuerpo del editor con una pestana", TabFinder.find(tree, file: "dream") == nil)
+        check("sin pestana con ese archivo no hay nada", TabFinder.find(tree, file: "Otro.swift") == nil)
+        check("sin extension tambien lo reconoce si el nombre es largo", TabFinder.matches(["Brain — Editado"], file: "Brain.swift") && !TabFinder.matches(["App — Editado"], file: "App.swift"))
+        check("un hueco diminuto no cuenta como pestana", TabFinder.find(node("AXWindow", [], nil, [node("AXButton", ["Brain.swift"], CGRect(x: 0, y: 0, width: 4, height: 4))]), file: "Brain.swift") == nil)
+        let ghost = GhostMove(from: CGPoint(x: 500, y: 600), to: CGPoint(x: 215, y: 595), start: 3)
+        check("el fantasma sale de donde cayo el archivo y acaba sobre la pestana", ghost.frame(at: 3).point == CGPoint(x: 500, y: 600) && ghost.frame(at: 3 + GhostMove.glide + 0.1).point == CGPoint(x: 215, y: 595))
+        check("al llegar late: el anillo crece dos veces", { let rings = stride(from: 0.0, to: GhostMove.pulse, by: 0.02).map { ghost.frame(at: 3 + GhostMove.glide + $0).ring }; return (rings.max() ?? 0) > 0.9 && rings.indices.dropFirst().filter { rings[$0] < rings[$0 - 1] - 0.5 }.count == 1 }())
+        check("al final se desvanece y termina", ghost.frame(at: 3 + GhostMove.total - 0.02).alpha < 0.15 && ghost.frame(at: 3 + GhostMove.total).done)
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }
