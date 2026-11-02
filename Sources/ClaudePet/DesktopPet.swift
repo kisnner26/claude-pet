@@ -45,6 +45,11 @@ enum DeskMotion {
     }
 }
 
+extension Notification.Name {
+    /// Una mascota acaba de volver a la isla: la isla la recibe con un saltito.
+    static let deskPetArrived = Notification.Name("claudepet.desk.arrived")
+}
+
 @MainActor
 final class DesktopPets {
     static let shared = DesktopPets()
@@ -53,8 +58,32 @@ final class DesktopPets {
     private var carried: Set<IslandAgentTab> = []
     private var moving: Set<IslandAgentTab> = []
     private var timer: Timer?
+    private var timerInterval: Double = 1.0 / 30.0
     private var lastTick = ProcessInfo.processInfo.systemUptime
     private let store = PetStore.shared
+
+    /// Salir y volver a la isla: la mascota vuela, gira o hace "pop" durante menos de un segundo.
+    private enum Transition {
+        case emerge(from: CGPoint, to: CGPoint, start: TimeInterval)
+        case pop(start: TimeInterval)
+        case dive(from: CGPoint, start: TimeInterval)
+        var moves: Bool { if case .pop = self { return false } else { return true } }
+    }
+    private enum Intro { case none, emerge, pop }
+    private var transitions: [IslandAgentTab: Transition] = [:]
+    private var animationsOn: Bool { store.animationsEnabled && !store.reduceMotion }
+
+    /// Donde esta la isla (el centro de su pastilla compacta); si todavia no hay isla, arriba al centro de la pantalla principal.
+    static func islandAnchor() -> CGPoint {
+        if let a = IslandController.anchor { return a }
+        let f = (NSScreen.screens.first ?? NSScreen.main)?.frame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        return CGPoint(x: f.midX, y: f.maxY - 20)
+    }
+
+    /// Lo mas alto a lo que puede llegar el centro de una mascota sin salirse de la pantalla.
+    static func ceiling() -> CGFloat? { NSScreen.screens.map { $0.frame.maxY }.max().map { $0 - 62 } }
+
+    private func tint(_ agent: IslandAgentTab) -> Color { Color(hex: agent == .claude ? 0xE0824F : 0x5270E8) }
 
     var out: Set<IslandAgentTab> { Set(panels.keys) }
     private var screens: [CGRect] { NSScreen.screens.map(\.visibleFrame) }
@@ -81,7 +110,7 @@ final class DesktopPets {
     /// La coge de la isla: aparece bajo el cursor y la lleva mientras el boton siga pulsado.
     func pickUp(_ agent: IslandAgentTab) {
         guard panels[agent] == nil else { return }
-        show(agent, at: NSEvent.mouseLocation)
+        show(agent, at: NSEvent.mouseLocation, intro: .pop)
         carried.insert(agent)
     }
 
@@ -90,17 +119,40 @@ final class DesktopPets {
         guard panels[agent] == nil else { return }
         let f = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 800, height: 600)
         let saved = DeskMotion.decode(store.deskSpots)[agent.rawValue]
-        show(agent, at: DeskMotion.clamp(saved ?? CGPoint(x: f.maxX - 120 - (agent == .codex ? 130 : 0), y: f.minY + 120), in: screens))
+        show(agent, at: DeskMotion.clamp(saved ?? CGPoint(x: f.maxX - 120 - (agent == .codex ? 130 : 0), y: f.minY + 120), in: screens), intro: .emerge)
     }
 
-    func putBack(_ agent: IslandAgentTab) {
-        panels[agent]?.orderOut(nil); panels[agent] = nil; models[agent] = nil; carried.remove(agent); moving.remove(agent)
+    /// Vuelve a la isla: se lanza hacia ella girando y encogiendose y la isla la recibe. Sin animaciones, desaparece al instante.
+    func putBack(_ agent: IslandAgentTab, delay: TimeInterval = 0) {
+        guard let panel = panels[agent] else { return }
+        if case .dive? = transitions[agent] { return }
+        guard animationsOn else { remove(agent); return }
+        let from = CGPoint(x: panel.frame.midX, y: panel.frame.midY)
+        let start = ProcessInfo.processInfo.systemUptime + delay
+        carried.remove(agent); moving.remove(agent)
+        transitions[agent] = .dive(from: from, start: start)
+        panel.level = .statusBar                  // para poder entrar en la isla, que esta bajo la barra de menus
+        DeskPortalFX.shared.play(.dive(from: from, to: Self.islandAnchor()), tint: tint(agent), now: start)
+        if delay == 0 { SoundEngine.shared.play(.fold) } else { DispatchQueue.main.asyncAfter(deadline: .now() + delay) { SoundEngine.shared.play(.fold) } }
+        startTimer()
+    }
+
+    /// Quita a la mascota del escritorio de verdad (sin animacion).
+    private func remove(_ agent: IslandAgentTab) {
+        panels[agent]?.orderOut(nil); panels[agent] = nil; models[agent] = nil; carried.remove(agent); moving.remove(agent); transitions[agent] = nil
         store.deskOut = out; saveSpots(); stopTimerIfIdle()
     }
 
-    func putBackAll() { for a in out { putBack(a) } }
+    /// La animacion de volver termino: ya esta dentro, y la isla la recibe con un saltito.
+    private func finishDive(_ agent: IslandAgentTab) {
+        remove(agent)
+        NotificationCenter.default.post(name: .deskPetArrived, object: agent.rawValue)
+        SoundEngine.shared.play(.greeting)
+    }
 
-    private func show(_ agent: IslandAgentTab, at center: CGPoint) {
+    func putBackAll() { for (i, a) in out.sorted(by: { $0.rawValue < $1.rawValue }).enumerated() { putBack(a, delay: Double(i) * 0.14) } }
+
+    private func show(_ agent: IslandAgentTab, at center: CGPoint, intro: Intro = .none) {
         let model = IslandModel()
         model.mode = .expanded
         model.onRage = { a in Task { @MainActor in RageController.shared.start(agent: a, store: PetStore.shared) } }
@@ -112,8 +164,24 @@ final class DesktopPets {
         panel.contentView = FirstMouseHostingView(rootView: DesktopPetView(agent: agent, store: store, model: model, onDrag: { [weak self] in self?.dragBegan(agent) },
                                                                             onDrop: { [weak self] in self?.dragEnded(agent) }, onBack: { [weak self] in if self?.store.deskWorld == true { self?.setWorld(false) } else { self?.putBack(agent) } }, onFocus: { DeskWorld.shared.focusHost() }))
         panel.setFrameOrigin(NSPoint(x: center.x - DeskMotion.size / 2, y: center.y - DeskMotion.size / 2))
-        panel.orderFrontRegardless()
         panels[agent] = panel; models[agent] = model
+        let now = ProcessInfo.processInfo.systemUptime
+        if animationsOn, intro != .none {
+            // empieza invisible y pequena: la animacion la hace aparecer
+            model.deskScale = 0.12; model.deskAlpha = 0
+            if intro == .emerge {
+                let from = Self.islandAnchor()
+                panel.level = .statusBar          // asi puede salir por encima de la barra de menus, de donde esta la isla
+                panel.setFrameOrigin(NSPoint(x: from.x - DeskMotion.size / 2, y: from.y - DeskMotion.size / 2))
+                transitions[agent] = .emerge(from: from, to: center, start: now)
+                DeskPortalFX.shared.play(.emerge(from: from, to: center), tint: tint(agent), now: now)
+            } else {
+                transitions[agent] = .pop(start: now)
+                DeskPortalFX.shared.play(.pop(at: center), tint: tint(agent), now: now)
+            }
+            SoundEngine.shared.play(.open)
+        }
+        panel.orderFrontRegardless()
         store.deskOut = out
         startTimer()
     }
@@ -157,18 +225,16 @@ final class DesktopPets {
         store.deskSpots = DeskMotion.encode(spots)
     }
 
-    private var timerFast = true
-
     private func startTimer() {
         guard timer == nil else { return }
         lastTick = ProcessInfo.processInfo.systemUptime
-        schedule(fast: true)
+        schedule(interval: 1.0 / 30.0)
     }
 
-    private func schedule(fast: Bool) {
+    private func schedule(interval: Double) {
         timer?.invalidate()
-        timerFast = fast
-        timer = Timer.scheduledTimer(withTimeInterval: fast ? 1.0 / 30.0 : 1.0 / 10.0, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
+        timerInterval = interval
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
     }
 
     private func stopTimerIfIdle() { if panels.isEmpty { timer?.invalidate(); timer = nil } }
@@ -182,7 +248,28 @@ final class DesktopPets {
         for (agent, panel) in panels {
             guard let model = models[agent] else { continue }
             var c = CGPoint(x: panel.frame.midX, y: panel.frame.midY)
-            if carried.contains(agent) {
+            // salir y volver a la isla mandan sobre todo lo demas mientras duran
+            var anim: DeskPortal.Frame?
+            if let tr = transitions[agent] {
+                switch tr {
+                case .emerge(let from, let to, let start):
+                    let f = DeskPortal.emerge(from: from, to: to, at: now - start, ceiling: Self.ceiling()); anim = f
+                    if f.done { transitions[agent] = nil; panel.level = .floating; DeskWorld.shared.reset(agent) }
+                case .pop(let start):
+                    let f = DeskPortal.pop(at: now - start); anim = f
+                    if f.done { transitions[agent] = nil }
+                case .dive(let from, let start):
+                    let f = DeskPortal.dive(from: from, to: Self.islandAnchor(), at: now - start, ceiling: Self.ceiling()); anim = f
+                    if f.done { finishDive(agent); continue }
+                }
+                if let f = anim {
+                    model.deskScale = f.done ? 1 : f.scale; model.deskSquash = f.done ? 0 : f.squash; model.deskSpin = f.done ? 0 : f.rotation; model.deskAlpha = f.done ? 1 : f.alpha
+                    if tr.moves, !f.done { c = f.center }
+                }
+            }
+            if let tr = transitions[agent], tr.moves {
+                // la animacion pone la posicion
+            } else if carried.contains(agent) {
                 if buttonDown { c = mouse } else { dragEnded(agent) }
                 if store.deskWorld { DeskWorld.shared.reset(agent) }       // al soltarla cae desde donde la sueltes
             } else if store.deskWorld {
@@ -198,7 +285,8 @@ final class DesktopPets {
             }
             // un saltito al andar: se nota que camina
             let bob: CGFloat = moving.contains(agent) ? abs(sin(CGFloat(now) * 11)) * 7 : 0
-            if !store.deskWorld || carried.contains(agent) { c = DeskMotion.clamp(c, in: screens) }
+            let flying = transitions[agent]?.moves == true
+            if !flying, !store.deskWorld || carried.contains(agent) { c = DeskMotion.clamp(c, in: screens) }
             panel.setFrameOrigin(NSPoint(x: c.x - DeskMotion.size / 2, y: c.y - DeskMotion.size / 2 + bob))
             // la mirada sigue al cursor
             let dx = max(-1, min(1, (mouse.x - c.x) / 400)), dy = max(-1, min(1, (c.y - mouse.y) / 400))
@@ -206,10 +294,11 @@ final class DesktopPets {
             if model.gaze != g { model.gaze = g }
             model.idleSeconds = store.idleForDesk
         }
+        // 60 Hz mientras una mascota sale o vuelve; en el escritorio vivo, 10 Hz si nada se mueve; si no, 30 Hz
+        let calm = store.deskWorld && moving.isEmpty && carried.isEmpty && transitions.isEmpty && !DeskWorld.shared.anyLeaping && !FileFlights.shared.isBusy && !GhostCursor.shared.isBusy
+        let desired: Double = !transitions.isEmpty ? 1.0 / 60.0 : (calm ? 0.1 : 1.0 / 30.0)
+        if abs(desired - timerInterval) > 1e-6, timer != nil { schedule(interval: desired) }
         if store.deskWorld {
-            // quieta del todo (nadie camina, salta, la llevan en la mano ni hay un archivo volando) basta con 10 Hz
-            let calm = moving.isEmpty && carried.isEmpty && !DeskWorld.shared.anyLeaping && !FileFlights.shared.isBusy && !GhostCursor.shared.isBusy
-            if calm == timerFast { schedule(fast: !calm) }
             let animated = store.animationsEnabled && !store.reduceMotion
             DeskWorld.shared.updateGlow(animated: animated)
             FileFlights.shared.tick(now: now, store: store, centers: Dictionary(uniqueKeysWithValues: panels.map { ($0.key, CGPoint(x: $0.value.frame.midX, y: $0.value.frame.midY)) }),

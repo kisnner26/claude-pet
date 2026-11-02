@@ -31,16 +31,20 @@ enum DeskPortal {
     }
 
     /// El punto de control del arco: por encima de la recta, mas alto cuanto mas lejos va.
-    static func arcControl(from a: CGPoint, to b: CGPoint, lift: CGFloat? = nil, side: CGFloat = 0) -> CGPoint {
+    /// `ceiling`: lo mas alto a lo que puede subir el arco (el borde de la pantalla menos el cuerpo); la curva no pasa de ahi,
+    /// salvo en los extremos si ya estan mas arriba (la isla esta casi en el borde).
+    static func arcControl(from a: CGPoint, to b: CGPoint, lift: CGFloat? = nil, side: CGFloat = 0, ceiling: CGFloat? = nil) -> CGPoint {
         let d = hypot(b.x - a.x, b.y - a.y)
         let up = lift ?? (110 + d / 5)
-        return CGPoint(x: (a.x + b.x) / 2 + side * d * 0.18, y: max(a.y, b.y) + up)
+        var y = max(a.y, b.y) + up
+        if let ceiling { y = min(y, max(ceiling, max(a.y, b.y))) }
+        return CGPoint(x: (a.x + b.x) / 2 + side * d * 0.18, y: y)
     }
 
     // MARK: salir de la isla
 
     /// Emerge del resplandor de la isla (0 a 14 %), vuela en arco (14 a 66 %) y cae con un aplastado y un rebote (66 a 100 %).
-    static func emerge(from: CGPoint, to: CGPoint, at t: TimeInterval) -> Frame {
+    static func emerge(from: CGPoint, to: CGPoint, at t: TimeInterval, ceiling: CGFloat? = nil) -> Frame {
         let p = clamp01(t / emergeDuration)
         if t >= emergeDuration { return Frame(center: to, done: true) }
         let launch: CGFloat = 0.14, landAt: CGFloat = 0.66
@@ -51,7 +55,7 @@ enum DeskPortal {
         if p < landAt {
             let k = (p - launch) / (landAt - launch)
             let e = easeInOut(k)
-            let c = bezier(from, arcControl(from: from, to: to), to, e)
+            let c = bezier(from, arcControl(from: from, to: to, ceiling: ceiling), to, e)
             return Frame(center: c, scale: 0.52 + 0.58 * easeOut(k), rotation: 14 * sin(Double(k) * 2 * .pi) * Double(1 - k * 0.4), alpha: 1)
         }
         let k = (p - landAt) / (1 - landAt)
@@ -74,12 +78,12 @@ enum DeskPortal {
     // MARK: volver a la isla
 
     /// Se lanza hacia la isla en una curva, girando y encogiendose cada vez mas rapido, y se apaga al entrar.
-    static func dive(from: CGPoint, to: CGPoint, at t: TimeInterval) -> Frame {
+    static func dive(from: CGPoint, to: CGPoint, at t: TimeInterval, ceiling: CGFloat? = nil) -> Frame {
         if t >= diveDuration { return Frame(center: to, scale: 0.12, rotation: 540, alpha: 0, done: true) }
         let p = clamp01(t / diveDuration)
         let e = easeIn(p) * 0.85 + easeInOut(p) * 0.15
         let side: CGFloat = from.x < to.x ? -1 : 1
-        let c = bezier(from, arcControl(from: from, to: to, lift: 40 + hypot(to.x - from.x, to.y - from.y) / 6, side: side), to, e)
+        let c = bezier(from, arcControl(from: from, to: to, lift: 40 + hypot(to.x - from.x, to.y - from.y) / 6, side: side, ceiling: ceiling), to, e)
         return Frame(center: c, scale: 1 - 0.88 * e, squash: -0.22 * sin(e * .pi), rotation: Double(540 * e), alpha: p < 0.82 ? 1 : max(0, (1 - p) / 0.18))
     }
 

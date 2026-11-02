@@ -138,7 +138,7 @@ final class DeskPortalFX {
                 ring(&gc, at: a, t: t, radius: 70, tint: tint); ring(&gc, at: a, t: t, radius: 96, delay: 0.09, tint: .white, line: 2)
                 for s in DeskPortal.burst(center: from, t: t / 0.6, seed: item.seed, count: 16, radius: 80) { spark(&gc, s, tint: tint, p) }
                 // la estela del vuelo
-                if t < DeskPortal.emergeDuration { trail(&gc, path: { DeskPortal.emerge(from: from, to: to, at: $0).center }, t: t, tint: tint, p) }
+                if t < DeskPortal.emergeDuration { trail(&gc, path: { DeskPortal.emerge(from: from, to: to, at: $0, ceiling: DesktopPets.ceiling()).center }, t: t, tint: tint, p) }
                 // y al caer: onda, chispas pequenas y polvo
                 let tl = DeskPortal.emergeDuration * 0.66
                 if t > tl {
@@ -153,7 +153,7 @@ final class DeskPortalFX {
                 for s in DeskPortal.burst(center: at, t: t / 0.5, seed: item.seed, count: 12, radius: 66) { spark(&gc, s, tint: tint, p) }
             case .dive(let from, let to):
                 let b = p(to)
-                if t < DeskPortal.diveDuration { trail(&gc, path: { DeskPortal.dive(from: from, to: to, at: $0).center }, t: t, tint: tint, p) }
+                if t < DeskPortal.diveDuration { trail(&gc, path: { DeskPortal.dive(from: from, to: to, at: $0, ceiling: DesktopPets.ceiling()).center }, t: t, tint: tint, p) }
                 // la isla se enciende al acercarse y la recibe con ondas y chispas
                 let near = DeskPortal.clamp01((t - DeskPortal.diveDuration * 0.55) / (DeskPortal.diveDuration * 0.45))
                 glow(&gc, at: b, radius: 70, alpha: Double(near) * 0.45 * (t < DeskPortal.diveDuration ? 1 : max(0, 1 - (t - DeskPortal.diveDuration) / 0.6)), tint: tint)
