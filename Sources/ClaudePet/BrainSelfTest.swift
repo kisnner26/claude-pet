@@ -78,6 +78,7 @@ enum BrainSelfTest {
             BrainNote(id: UUID(), at: now.addingTimeInterval(-daysAgo * 86_400), agent: agent, kind: kind, text: text)
         }
         check("dos frases casi iguales son duplicados", BrainDream.areDuplicates("usamos swiftpm, no xcodeproj para compilar", "Usamos SwiftPM no xcodeproj para compilar el proyecto"))
+        check("dos notas que solo cambian en un numero no son la misma", !BrainDream.areDuplicates("la version 2 usa swiftpm", "la version 3 usa swiftpm") && !BrainDream.areDuplicates("nota 17", "nota 18") && !BrainDream.areDuplicates("usar puerto 80 para el relay", "usar puerto 81 para el relay"))
         check("dos notas distintas no se confunden", !BrainDream.areDuplicates("usamos swiftpm, no xcodeproj", "el relay vive en un archivo de node"))
         check("una nota dentro de otra mas larga cuenta como la misma", BrainDream.areDuplicates("los hooks fallan abiertos siempre", "los hooks fallan abiertos siempre: si algo va mal claude pregunta en la terminal"))
         check("las acentos y mayusculas no importan", BrainDream.tokens("Decisión: SIN cámara") == BrainDream.tokens("decision sin camara"))
@@ -125,6 +126,12 @@ enum BrainSelfTest {
         let result = dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) })
         check("el repaso une y marca en el disco", result.merged == 1 && result.stale.count == 1 && dreamStore.notes("mi-app").count == 2 && dreamStore.notes("mi-app").contains { $0.stale == true })
         check("repasar otra vez no cambia nada", dreamStore.dream(project: "mi-app", now: now, exists: { index.exists($0) }).merged == 0 && dreamStore.notes("mi-app").count == 2)
+        // el comando de terminal
+        BrainStore.cli(["add", "claude", "hecho", "las pruebas viven en tests con un script propio para cada una", "dreamcli"], cwd: "/tmp/x", out: { _ in }, err: { _ in })
+        BrainStore.cli(["add", "codex", "hecho", "Las pruebas viven en tests con un script propio para cada una de ellas", "dreamcli"], cwd: "/tmp/x", out: { _ in }, err: { _ in })
+        var dreamed = ""
+        let dreamCode = BrainStore.cli(["dream"], cwd: "/tmp/x", out: { dreamed += $0 }, err: { _ in })
+        check("el comando dream une y lo cuenta", dreamCode == 0 && dreamed.contains("- uní 1 nota casi igual a otra") && BrainStore.shared.notes("dreamcli").count == 1)
         // cuando suena
         let t = Date(timeIntervalSince1970: 1_800_000_000)
         check("de noche y sin haber sonado nunca, toca", DreamKeeper.isDue(last: nil, now: t, hour: 3, idle: 0, busy: false))
