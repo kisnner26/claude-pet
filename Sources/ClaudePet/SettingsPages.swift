@@ -258,6 +258,7 @@ struct QuickActionsCard: View {
 
 struct ComportamientoPage: View {
     @ObservedObject var store: PetStore
+    @ObservedObject private var keyboard = KeyboardBreath.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -266,6 +267,8 @@ struct ComportamientoPage: View {
                       options: Lang.allCases.map { ($0, $0.name) })
             }
             SCard(title: "en el escritorio", footer: "arrastra la mascota fuera de la isla y se queda donde la sueltes (vuelve a su sitio al abrir la app). doble toque, o soltarla sobre la isla, la devuelve.") {
+                SToggle(title: "escritorio vivo (experimental)", detail: "salen a tus ventanas: se posan en la del agente al trabajar, se asoman por detrás si esperan un permiso, caminan por el Dock, llevan el archivo que se edita y se apartan si arrastras una ventana encima.",
+                        isOn: Binding(get: { store.deskWorld }, set: { DesktopPets.shared.setWorld($0) }))
                 SToggle(title: "seguir el cursor", detail: "camina hacia el cursor cuando te alejas de ella.", isOn: $store.deskFollow)
                 SDivider()
                 SRow(title: "claude", detail: store.deskOut.contains(.claude) ? "está en el escritorio" : "en la isla") {
@@ -278,6 +281,11 @@ struct ComportamientoPage: View {
                     SButton(title: store.deskOut.contains(.codex) ? "volver" : "sacar", symbol: store.deskOut.contains(.codex) ? "arrow.uturn.backward" : "arrow.up.right") {
                         if store.deskOut.contains(.codex) { DesktopPets.shared.putBack(.codex) } else { DesktopPets.shared.show(.codex) }
                     }
+                }
+            }
+            if KeyboardBreath.shared.available {
+                SCard(title: "teclado (experimental)", footer: "la luz del teclado sigue a los agentes: respira lenta al pensar, más viva al trabajar, da dos latidos fuertes si esperan un permiso y un destello al terminar. Siempre devuelve tu brillo al acabar o al cerrar la app, y no despierta la luz si el sistema la ha atenuado. Usa un framework privado de macOS que Apple puede cambiar.") {
+                    SToggle(title: "el teclado respira", detail: "retroiluminación del teclado integrado.", isOn: $keyboard.enabled)
                 }
             }
             SCard(title: "energía", footer: "con el modo de bajo consumo de macOS o con menos de un 15 % de batería, la isla deja los brillos y las hebras animadas y gasta menos.") {
