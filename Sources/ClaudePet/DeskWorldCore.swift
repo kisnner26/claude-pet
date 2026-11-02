@@ -124,3 +124,46 @@ enum DeskPhysics {
         return nil
     }
 }
+
+/// Un salto en parabola de un punto a otro (para subirse a una ventana o bajar al suelo).
+struct DeskLeap: Equatable {
+    var from: CGPoint
+    var to: CGPoint
+    var start: TimeInterval
+    var duration: TimeInterval
+    var apex: CGFloat
+
+    static func make(from: CGPoint, to: CGPoint, now: TimeInterval) -> DeskLeap {
+        let distance = hypot(to.x - from.x, to.y - from.y)
+        return DeskLeap(from: from, to: to, start: now, duration: 0.35 + min(0.5, Double(distance) / 1400), apex: 26 + min(80, distance / 6))
+    }
+
+    func position(at now: TimeInterval) -> (point: CGPoint, done: Bool) {
+        let t = CGFloat(min(1, max(0, (now - start) / duration)))
+        let ease = t * t * (3 - 2 * t)
+        return (CGPoint(x: from.x + (to.x - from.x) * ease, y: from.y + (to.y - from.y) * t + 4 * apex * t * (1 - t)), t >= 1)
+    }
+}
+
+/// Lo que quiere hacer una mascota segun lo que hace su agente.
+enum DeskGoal: Equatable {
+    case perch      // posada sobre la ventana donde trabaja el agente
+    case peek       // asomada por detras de esa ventana: el agente espera tu permiso
+    case rest       // en el suelo (encima del Dock), esperando
+
+    /// `secondsSinceBusy`: cuanto lleva el agente sin trabajar; sigue posada un rato tras terminar antes de bajar.
+    static func decide(state: PetState, hasWindow: Bool, secondsSinceBusy: TimeInterval, linger: TimeInterval = 8) -> DeskGoal {
+        guard hasWindow else { return .rest }
+        switch state {
+        case .waiting: return .peek
+        case .thinking, .tool, .starting, .error, .done: return .perch
+        case .idle: return secondsSinceBusy < linger ? .perch : .rest
+        }
+    }
+
+    /// Donde se coloca sobre el borde de la ventana (fraccion del ancho): claude a la derecha del centro y codex mas a la derecha, para que no se pisen.
+    static func perchFraction(claude: Bool, both: Bool) -> CGFloat { both ? (claude ? 0.64 : 0.82) : 0.75 }
+
+    /// Un vaiven suave mientras trabaja, para que se vea que esta ocupada y no clavada en la ventana.
+    static func pace(time: TimeInterval, working: Bool, amplitude: CGFloat = 34) -> CGFloat { working ? CGFloat(sin(time * 2 * .pi / 9)) * amplitude : 0 }
+}
