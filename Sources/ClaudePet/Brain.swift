@@ -12,6 +12,8 @@ struct BrainNote: Codable, Identifiable, Equatable {
     let agent: String          // claude, codex o tu
     var kind: BrainKind
     var text: String
+    /// El repaso nocturno vio que habla de archivos que ya no existen. Solo se marca: decides tu si sigue valiendo.
+    var stale: Bool? = nil
     var short: String { String(id.uuidString.prefix(8)).lowercased() }
 }
 
