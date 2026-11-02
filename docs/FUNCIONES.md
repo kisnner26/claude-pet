@@ -138,6 +138,30 @@ debajo de las notas, el **carácter**: cada agente va formando una personalidad 
 
 convierte el trackpad en una superficie absoluta, como una tableta: tocar la esquina de arriba a la izquierda lleva el cursor a la esquina de arriba a la izquierda de la pantalla. con un dedo mueve el cursor; con dos se desplaza y se hace zoom como siempre; el clic físico y arrastrar funcionan donde esté el cursor. se activa en ajustes → trackpad táctil, en el menú de la barra o desde la Touch Bar. lee los contactos con `MultitouchSupport`, un framework privado de macos que Apple puede cambiar en cualquier actualización, y necesita el permiso de accesibilidad. no usa la cámara ni nada fuera de la Mac, y se apaga al cerrar la app.
 
+## escritorio vivo (experimental)
+
+las mascotas salen de la isla y viven en tus ventanas reales. se enciende en ajustes → comportamiento, o desde el menú de la barra. no usa la cámara ni captura la pantalla: solo lee la posición y el título de las ventanas (los títulos, por accesibilidad) y los iconos del Dock.
+
+- **se posa** sobre el borde de la ventana donde trabaja el agente (terminal, editor o la app de Claude) y la acompaña si la mueves. si la ventana llega al tope de la pantalla, se posa dentro, bajo la barra de título.
+- **se asoma** por detrás de esa ventana cuando el agente espera un permiso: la cabeza por encima o medio cuerpo por un lado libre. el orden lo pone el propio sistema (`order(.below, relativeTo:)` funciona con ventanas de otras apps), así que cualquier ventana que pase por delante la tapa de verdad.
+- **camina por el Dock** hasta el icono de la app del agente y, mientras trabaja, ese icono se enciende con un halo del color de su mascota. solo con el Dock abajo y visible.
+- **lleva el archivo**: cuando el agente edita algo aparece el icono real de ese tipo de archivo con su nombre sobre la mascota y vuela hasta el editor.
+- **cursor fantasma**: tras aterrizar el archivo, una flecha del color de la mascota se desliza hasta su pestaña en el editor si el editor la expone por accesibilidad (Xcode y editores nativos; los de Electron como VS Code o Cursor no suelen exponerla y entonces late donde cayó el archivo). nunca lee el texto de los documentos ni de las páginas.
+- **física**: cae con gravedad, salta entre superficies en parábola y se aparta si arrastras una ventana encima.
+- **sus ventanas en otro espacio**: si el agente trabaja y su ventana no está en este espacio, la mascota lo dice ("su ventana no está aquí"). doble toque sobre ella salta a esa ventana. las mascotas están en todos los espacios y en todas las pantallas.
+
+## teclado que respira (experimental)
+
+la retroiluminación del teclado integrado sigue a los agentes: respira despacio al pensar, más viva al trabajar, da dos latidos fuertes si esperan un permiso, tres destellos secos en un error y una ola al terminar. siempre devuelve tu brillo (al apagarla, al cerrar la app, o al volver a abrirla si se cayó) y no despierta la luz si el sistema la ha atenuado o suprimido. con la luz apagada no enciende nada. usa `CoreBrightness`, un framework privado de macos que Apple puede cambiar. ajustes → comportamiento → teclado, o el menú de la barra.
+
+## tu ritmo
+
+en memoria → actividad, el botón `ritmo` cambia el resumen por las 24 horas del día: la altura es la actividad y el color los fallos (verde si fallas poco, rojo si fallas mucho). cuando hay datos suficientes (unos 40 eventos en 2 días) dice a qué horas trabajas más, en qué franja fallas más y cuál es tu mejor. el resumen por hora (`~/.claude-pet/memory/hours.json`) solo guarda contadores, no proyectos ni contenido.
+
+## el cerebro sueña
+
+de noche (de 0 a 7 h) o tras una hora sin usar la Mac, y nunca mientras un agente trabaja, el cerebro repasa sus notas: une las que dicen casi lo mismo (conserva la más nueva, o la tuya si la escribiste tú), marca como "¿obsoleta?" las que solo hablan de archivos que ya no existen (se comprueba en la carpeta del proyecto, si se encuentra) y cuenta los pendientes que llevan más de 14 días abiertos. nunca borra nada que no sea un duplicado. por la mañana, la cabecera del cerebro dice qué hizo (`mientras dormías: uní 2 notas...`). a los agentes les llega el aviso de las dudosas. también a mano: `ClaudePet --brain dream`.
+
 ## ocho sistemas visuales
 
 en macos, ambas mascotas convierten señales reales de su propio proyecto y sesión en ocho capas compactas. nunca reutilizan los datos de la otra para aparentar paridad:
@@ -252,6 +276,10 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler  # verificador
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-claudwler-extras  # avisos, csv, prompt de arreglo y recorrido del sitio (sin red)
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-touchbar  # touch bar: calor, pronóstico, ritmo, deslizador
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-trackpad  # trackpad táctil: contactos, mapeo y suavizado
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-desk-world  # escritorio vivo: ventanas, física, Dock, archivo y cursor fantasma
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-keyboard  # teclado que respira: la onda por estado
+build/ClaudePet.app/Contents/MacOS/ClaudePet --probe-keyboard    # en tu Mac: mueve la luz 3 s y comprueba que se devuelve
+build/ClaudePet.app/Contents/MacOS/ClaudePet --probe-desk-world  # en tu Mac: donde se posa cada mascota respecto a la ventana del agente
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-brain     # cerebro compartido y carácter
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-memory    # actividad y memoria local
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
