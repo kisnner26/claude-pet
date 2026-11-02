@@ -15,6 +15,11 @@ final class IslandModel: ObservableObject {
     @Published var gaze = CGPoint.zero
     /// En el escritorio vivo: camina hacia la izquierda, asi que se dibuja volteada.
     @Published var deskFlip = false
+    /// Animacion de salir o volver a la isla: tamano, aplastado, giro y opacidad de la mascota del escritorio.
+    @Published var deskScale: CGFloat = 1
+    @Published var deskSquash: CGFloat = 0
+    @Published var deskSpin: Double = 0
+    @Published var deskAlpha: CGFloat = 1
     @Published var hover = false
     var pokes: [TimeInterval] = []
     /// Toques sobre la mascota de codex (llevan su propio mareo).

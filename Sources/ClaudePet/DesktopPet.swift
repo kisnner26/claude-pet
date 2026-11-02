@@ -236,6 +236,11 @@ struct DesktopPetView: View {
         }
         .frame(width: DeskMotion.size * 0.86, height: DeskMotion.size * 0.86)
         .scaleEffect(x: model.deskFlip ? -1 : 1, y: 1)
+        // salir y volver a la isla: giro y tamano desde el centro, y el aplastado al caer desde los pies
+        .scaleEffect(x: 1 + model.deskSquash, y: 1 - model.deskSquash, anchor: .bottom)
+        .rotationEffect(.degrees(model.deskSpin))
+        .scaleEffect(model.deskScale)
+        .opacity(model.deskAlpha)
         .frame(width: DeskMotion.size, height: DeskMotion.size)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { if store.deskWorld { onFocus() } else { onBack() } }
