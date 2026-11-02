@@ -118,6 +118,11 @@ final class DesktopPets {
         startTimer()
     }
 
+    /// Para las pruebas en vivo: donde esta cada panel y su numero de ventana.
+    func debugPanels() -> [(agent: IslandAgentTab, frame: CGRect, level: Int, number: Int)] {
+        panels.map { ($0.key, $0.value.frame, $0.value.level.rawValue, $0.value.windowNumber) }.sorted { $0.agent.rawValue < $1.agent.rawValue }
+    }
+
     private var lastOrder: [IslandAgentTab: (id: Int, above: Bool, at: TimeInterval)] = [:]
 
     /// Posada o asomada: la mascota pasa a ser una ventana normal colocada justo encima (o detras) de la del agente, y el sistema se

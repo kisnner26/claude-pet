@@ -91,6 +91,15 @@ enum DeskWorldSelfTest {
         check("al terminar sigue posada un rato y luego baja", DeskGoal.decide(state: .idle, hasWindow: true, secondsSinceBusy: 3) == .perch && DeskGoal.decide(state: .idle, hasWindow: true, secondsSinceBusy: 12) == .rest)
         check("claude y codex no se pisan en la misma ventana", DeskGoal.perchFraction(claude: true, both: true) < DeskGoal.perchFraction(claude: false, both: true) && DeskGoal.perchFraction(claude: true, both: false) == 0.75)
         check("el vaiven solo existe trabajando y no se sale de su amplitud", DeskGoal.pace(time: 3, working: false) == 0 && stride(from: 0.0, to: 20, by: 0.3).allSatisfy { abs(DeskGoal.pace(time: $0, working: true)) <= 34.001 })
+        // donde se coloca segun el sitio que haya
+        let screen = CGRect(x: 0, y: 0, width: 1680, height: 1000)
+        check("con sitio encima se posa sobre el borde", DeskPlacement.perch(window: CGRect(x: 300, y: 100, width: 800, height: 500), screen: screen) == .above(feetY: 600))
+        check("una ventana maximizada la deja dentro, bajo el tope de la pantalla", DeskPlacement.perch(window: CGRect(x: 0, y: 0, width: 1680, height: 1000), screen: screen) == .inside(feetY: 900))
+        check("dentro nunca se sale por arriba", { if case .inside(let y) = DeskPlacement.perch(window: CGRect(x: 0, y: 0, width: 1680, height: 960), screen: screen) { return y + DeskPlacement.bodyHeight <= screen.maxY } else { return false } }())
+        check("asomada con sitio encima, saca solo la cabeza", DeskPlacement.peek(window: CGRect(x: 300, y: 100, width: 800, height: 500), screen: screen, depth: 62) == .above(feetY: 538))
+        check("sin sitio arriba se asoma por el lado derecho si hay hueco", DeskPlacement.peek(window: CGRect(x: 400, y: 0, width: 1000, height: 1000), screen: screen, depth: 62) == .side(x: 1410, feetY: 830))
+        check("sin hueco a la derecha, por la izquierda", DeskPlacement.peek(window: CGRect(x: 300, y: 0, width: 1380, height: 1000), screen: screen, depth: 62) == .side(x: 290, feetY: 830))
+        check("si no cabe por ningun lado, se posa dentro", DeskPlacement.peek(window: CGRect(x: 0, y: 0, width: 1680, height: 1000), screen: screen, depth: 62) == .inside(feetY: 900))
         print(ok ? "ESCRITORIO OK" : "ESCRITORIO FALLO")
         return ok
     }

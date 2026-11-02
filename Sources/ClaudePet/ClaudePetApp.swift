@@ -231,6 +231,25 @@ final class AppController: NSObject, NSApplicationDelegate {
             print("ventanas útiles: \(windows.count) · con título: \(titled) · apps: \(Set(windows.map(\.owner)).count) · ventana del agente para '\(project)': \(WindowCatalog.agentWindow(project: project, in: windows).map { "sí (posición \($0))" } ?? "no")")
             exit(0)
         }
+        if CommandLine.arguments.contains("--probe-desk-world") {
+            // prueba real: enciende el escritorio vivo con un agente "trabajando" y dice donde se posa cada mascota respecto a la ventana del agente
+            let store = PetStore.shared
+            store.startDemo()
+            DesktopPets.shared.setWorld(true)
+            func report(_ label: String) {
+                let windows = WindowCatalog.fillTitles(WindowCatalog.snapshot())
+                let all = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []).compactMap { $0[kCGWindowNumber as String] as? Int }
+                guard let host = WindowCatalog.agentWindow(project: store.terminalProject, in: windows) else { print("\(label): sin ventana para el agente"); return }
+                let h = windows[host]
+                print("\(label): ventana del agente \(h.owner) borde superior y=\(Int(h.frame.maxY)) x \(Int(h.frame.minX))...\(Int(h.frame.maxX)) (posicion z \(all.firstIndex(of: h.id) ?? -1))")
+                for p in DesktopPets.shared.debugPanels() {
+                    let feet = p.frame.minY + DeskWorld.feetOffset
+                    print("  \(p.agent.rawValue): pies y=\(Int(feet)) x=\(Int(p.frame.midX)) nivel \(p.level) posicion z \(all.firstIndex(of: p.number) ?? -1) · \(abs(feet - h.frame.maxY) < 3 ? "SOBRE el borde" : abs(feet - (h.frame.maxY - DeskWorld.peekDepth)) < 3 ? "ASOMADA" : "en otro sitio")")
+                }
+            }
+            for (i, t) in [1.0, 3.0, 5.0].enumerated() { DispatchQueue.main.asyncAfter(deadline: .now() + t) { report("t=\(Int(t)) s") ; if i == 2 { DesktopPets.shared.setWorld(false); exit(0) } } }
+            return
+        }
         if CommandLine.arguments.contains("--probe-keyboard") {
             // prueba real en tu Mac: simula un agente trabajando, muestrea el brillo y comprueba que se devuelve el original
             let store = PetStore.shared
