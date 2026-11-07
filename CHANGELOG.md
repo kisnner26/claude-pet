@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Volver a la barra del Mac sin cerrar la app: la Touch Bar de claude pet tiene un botón con flecha a la izquierda que la suelta para que el Mac recupere volumen, brillo y el resto. Una tecla pequeña en la tira de control (y la entrada «devolver la Touch Bar al Mac» del menú de la barra superior) la vuelve a poner. Un permiso o una pregunta pendiente la reabren solos, porque piden respuesta, y al acabar vuelve la del Mac. Se recuerda entre arranques.
 - Ritmo de escritura (opcional, apagado por defecto): cuenta cuándo pulsas teclas y si borras, nunca cuáles ni qué escribes. Si tecleas y borras muchísimo a la vez, la mascota dice «respira un momento»; tras 50 minutos seguidos sin una pausa de cinco, avisa de que descanses. Las pulsaciones por hora entran en «tu ritmo» («tecleas más entre las X h»). Usa el mismo permiso que los atajos globales.
 - Confirmación de los atajos de permiso: aprobar con el atajo da una ola de luz en el teclado y una vibración suave en el trackpad; rechazar, dos destellos secos y dos toques.
 - Salir y volver a la isla con otra cara: la mascota sale del notch escalando entre destellos, anillos y una estela, cruza en arco hasta su sitio y aterriza con polvo y un pequeño rebote; al volver gira, se encoge siguiendo la estela y entra en la isla con un anillo, y la isla responde con un saltito. `ClaudePet --snapshot-portal` dibuja la hoja de contacto de ambas.

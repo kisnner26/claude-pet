@@ -799,6 +799,8 @@ extension NSTouchBarItem.Identifier {
     static let pager = NSTouchBarItem.Identifier("claudepet.pager")
     static let content = NSTouchBarItem.Identifier("claudepet.content")
     static let shot = NSTouchBarItem.Identifier("claudepet.shot")
+    static let close = NSTouchBarItem.Identifier("claudepet.close")
+    static let tray = NSTouchBarItem.Identifier("claudepet.tray")
     static let trackpadMode = NSTouchBarItem.Identifier("claudepet.trackpadmode")
     static let askLabel = NSTouchBarItem.Identifier("claudepet.ask.label")
     static let askSlide = NSTouchBarItem.Identifier("claudepet.ask.slide")
@@ -812,7 +814,7 @@ extension NSTouchBarItem.Identifier {
 @MainActor final class TouchBarController: NSObject, NSTouchBarDelegate {
     private let store: PetStore
     private let state = TouchBarState()
-    private lazy var pulseBar: NSTouchBar = makeBar([.pager, .content, .shot, .trackpadMode])
+    private lazy var pulseBar: NSTouchBar = makeBar([.close, .pager, .content, .shot, .trackpadMode])
     private var askBar = NSTouchBar()
     private var questionBar = NSTouchBar()
     private var shown: TouchBarPulse.Mode?
@@ -824,18 +826,74 @@ extension NSTouchBarItem.Identifier {
     private var qIndex = 0
     private var qSelected = Set<Int>()
     private var qAnswers: [String: String] = [:]
+    private var trayItem: NSCustomTouchBarItem?
+    /// El controlador vivo, para que el menu de la barra superior pueda abrir o soltar la Touch Bar.
+    static weak var current: TouchBarController?
+    private static let suppressedKey = "touchBarReturnedToSystem"
+    /// El usuario devolvio la Touch Bar al Mac (volumen, brillo...): la barra de claude pet no se vuelve a poner sola.
+    /// Solo un permiso o una pregunta la reabren, porque piden respuesta; al acabar, vuelve la del Mac.
+    private(set) var returnedToSystem: Bool = UserDefaults.standard.bool(forKey: TouchBarController.suppressedKey)
 
-    init(store: PetStore) { self.store = store }
+    init(store: PetStore) { self.store = store; super.init(); Self.current = self }
+
+    /// Suelta la Touch Bar para que el Mac use la suya, sin cerrar la app.
+    func returnToSystem() { setReturned(true) }
+    /// Vuelve a poner la barra de claude pet.
+    func takeBack() { setReturned(false) }
+    func toggleReturned() { setReturned(!returnedToSystem) }
+
+    private func setReturned(_ value: Bool) {
+        returnedToSystem = value
+        UserDefaults.standard.set(value, forKey: Self.suppressedKey)
+        shown = nil          // fuerza a rehacer lo que se ve
+        refresh()
+        if value { TouchBarHaptics.tap(.alignment) }
+    }
 
     func start() {
         guard TouchBarHardware.enabled(), timer == nil else { return }
+        registerTray()
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.refresh() } }
     }
 
+    // Una tecla pequena en la tira de control del Mac para volver a la barra de claude pet cuando la has soltado.
+    // Usa la API privada de la tira (DFRFoundation); si el sistema no la ofrece no pasa nada: queda el menu de la barra superior.
+    private func registerTray() {
+        guard trayItem == nil else { return }
+        let sel = NSSelectorFromString("addSystemTrayItem:")
+        guard (NSTouchBarItem.self as AnyObject).responds(to: sel) else { return }
+        let item = NSCustomTouchBarItem(identifier: .tray)
+        let b = NSButton(image: NSImage(systemSymbolName: "sparkle", accessibilityDescription: "claude pet") ?? NSImage(), target: self, action: #selector(trayTapped))
+        b.bezelColor = Self.ember
+        item.view = b
+        _ = (NSTouchBarItem.self as AnyObject).perform(sel, with: item)
+        setTrayPresence(true)
+        trayItem = item
+    }
+
+    private func unregisterTray() {
+        guard let item = trayItem else { return }
+        setTrayPresence(false)
+        let sel = NSSelectorFromString("removeSystemTrayItem:")
+        if (NSTouchBarItem.self as AnyObject).responds(to: sel) { _ = (NSTouchBarItem.self as AnyObject).perform(sel, with: item) }
+        trayItem = nil
+    }
+
+    private func setTrayPresence(_ on: Bool) {
+        typealias Presence = @convention(c) (NSString, Bool) -> Void
+        guard let h = dlopen("/System/Library/PrivateFrameworks/DFRFoundation.framework/DFRFoundation", RTLD_NOW),
+              let f = dlsym(h, "DFRElementSetControlStripPresenceForIdentifier") else { return }
+        unsafeBitCast(f, to: Presence.self)(NSTouchBarItem.Identifier.tray.rawValue as NSString, on)
+    }
+
+    @objc private func trayTapped() { takeBack() }
+    @objc private func closeTapped() { returnToSystem() }
+
     func stop() {
         timer?.invalidate(); timer = nil
         dismiss()
+        unregisterTray()
         shown = nil
     }
 
@@ -868,9 +926,12 @@ extension NSTouchBarItem.Identifier {
 
         guard changed else { return }
         dismiss()
+        shown = mode
+        // soltada por el usuario: solo un permiso o una pregunta ocupan la barra; el resto del tiempo es la del Mac
+        if mode == .pulse && returnedToSystem { return }
         let bar = mode == .permission ? askBar : mode == .question ? questionBar : pulseBar
         present(bar)
-        shown = mode; shownBar = bar
+        shownBar = bar
         if mode != .pulse { TouchBarHaptics.tap(.levelChange) }
     }
 
@@ -951,6 +1012,13 @@ extension NSTouchBarItem.Identifier {
             host.widthAnchor.constraint(equalToConstant: 640).isActive = true
             host.heightAnchor.constraint(equalToConstant: 30).isActive = true
             item.view = host
+            return item
+        case .close:
+            let item = NSCustomTouchBarItem(identifier: id)
+            let b = NSButton(image: NSImage(systemSymbolName: "chevron.backward", accessibilityDescription: "volver a la barra del Mac") ?? NSImage(), target: self, action: #selector(closeTapped))
+            b.toolTip = "volver a la barra del Mac (volumen, brillo...)"
+            b.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            item.view = b
             return item
         case .shot:
             let item = NSCustomTouchBarItem(identifier: id)
