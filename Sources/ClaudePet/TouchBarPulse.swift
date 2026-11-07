@@ -864,8 +864,9 @@ extension NSTouchBarItem.Identifier {
         let sel = NSSelectorFromString("addSystemTrayItem:")
         guard (NSTouchBarItem.self as AnyObject).responds(to: sel) else { return }
         let item = NSCustomTouchBarItem(identifier: .tray)
-        let b = NSButton(image: NSImage(systemSymbolName: "sparkle", accessibilityDescription: "claude pet") ?? NSImage(), target: self, action: #selector(trayTapped))
-        b.bezelColor = Self.ember
+        let b = NSButton(image: PixelIcon.claude(), target: self, action: #selector(trayTapped))
+        b.imageScaling = .scaleNone
+        b.setAccessibilityLabel("claude pet: volver a su Touch Bar")
         item.view = b
         _ = (NSTouchBarItem.self as AnyObject).perform(sel, with: item)
         setTrayPresence(true)
