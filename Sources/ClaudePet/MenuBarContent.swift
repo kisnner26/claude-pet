@@ -26,6 +26,7 @@ struct MenuBarContent: View {
             }
             pomodoroItem
             trackpadTouchItem
+            touchBarItem
             keyboardBreathItem
             deskWorldItem
             if store.musicPlayer, let n = music.nowPlaying {
@@ -79,6 +80,12 @@ struct MenuBarContent: View {
     @ViewBuilder private var keyboardBreathItem: some View {
         if KeyboardBreath.shared.available {
             Toggle("teclado respira (experimental)", isOn: Binding(get: { KeyboardBreath.shared.enabled }, set: { KeyboardBreath.shared.enabled = $0 }))
+        }
+    }
+
+    @ViewBuilder private var touchBarItem: some View {
+        if let bar = TouchBarController.current {
+            Button(bar.returnedToSystem ? "mostrar la Touch Bar de claude pet" : "devolver la Touch Bar al Mac", systemImage: bar.returnedToSystem ? "rectangle.bottomthird.inset.filled" : "chevron.backward") { bar.toggleReturned() }
         }
     }
 
