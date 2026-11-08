@@ -932,14 +932,32 @@ final class AppController: NSObject, NSApplicationDelegate {
             w.contentMinSize = NSSize(width: 960, height: 660)
             w.setFrameAutosaveName("claude-pet-ajustes")
             w.center()
-            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak w] _ in w?.contentView = NSView() }
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak w] _ in
+                w?.contentView = NSView()
+                // sin ventana de ajustes la app vuelve a vivir solo en la barra de menus: el icono del Dock se va
+                DispatchQueue.main.async { AppController.shared.leaveDockIfNoWindows() }
+            }
             settingsWindow = w
         }
+        // mientras los ajustes estan abiertos claude pet es una app mas: icono en el Dock y menu propio
+        if NSApp.activationPolicy() != .regular { NSApp.setActivationPolicy(.regular) }
         if fresh || page != nil {
             settingsWindow?.contentView = NSHostingView(rootView: SettingsView(store: PetStore.shared, page: page ?? .resumen))
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Devuelve la app al modo de solo barra de menus cuando ya no queda ninguna ventana normal abierta.
+    func leaveDockIfNoWindows() {
+        let open = NSApp.windows.contains { $0.isVisible && $0.styleMask.contains(.titled) && !($0 is NSPanel) }
+        if !open, NSApp.activationPolicy() == .regular { NSApp.setActivationPolicy(.accessory) }
+    }
+
+    /// Un clic en su icono del Dock sin ventanas abiertas abre los ajustes.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showSettings() }
+        return true
     }
 
     func showRelay() {
