@@ -262,6 +262,9 @@ final class AppController: NSObject, NSApplicationDelegate {
             for (i, t) in [1.0, 3.0, 6.0].enumerated() { DispatchQueue.main.asyncAfter(deadline: .now() + t) { report("t=\(Int(t)) s") ; if i == 2 { DesktopPets.shared.setWorld(false); exit(0) } } }
             return
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--dump-sprites"), i + 1 < CommandLine.arguments.count {
+            PixelIcon.dumpSprites(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-pixel-icon"), i + 1 < CommandLine.arguments.count {
             PixelIcon.snapshot(to: CommandLine.arguments[i + 1]); exit(0)
         }
