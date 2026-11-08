@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Icono nuevo de la app: el sprite de 8 bits de la mascota, celda a celda y sin suavizar, con sombra dura sobre un fondo casi negro con brasa. `tools/make-icon.py` lo genera desde el sprite real (`ClaudePet --dump-sprites` lo extrae).
 - Los ajustes de claude pet se abren como una app más: mientras la ventana está abierta aparece el icono de la mascota en el Dock (con su menú de app) y, al cerrarla, desaparece y vuelve a vivir solo en la barra de menús. Un clic en el icono del Dock sin ventanas abre los ajustes.
 - Volver a la barra del Mac sin cerrar la app: la Touch Bar de claude pet tiene un botón con flecha a la izquierda que la suelta para que el Mac recupere volumen, brillo y el resto. Una tecla en la tira de control con el pixel art de la mascota (y la entrada «devolver la Touch Bar al Mac» del menú de la barra superior) la vuelve a poner. Un permiso o una pregunta pendiente la reabren solos, porque piden respuesta, y al acabar vuelve la del Mac. Se recuerda entre arranques.
 - Ritmo de escritura (opcional, apagado por defecto): cuenta cuándo pulsas teclas y si borras, nunca cuáles ni qué escribes. Si tecleas y borras muchísimo a la vez, la mascota dice «respira un momento»; tras 50 minutos seguidos sin una pausa de cinco, avisa de que descanses. Las pulsaciones por hora entran en «tu ritmo» («tecleas más entre las X h»). Usa el mismo permiso que los atajos globales.
