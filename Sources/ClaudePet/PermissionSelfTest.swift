@@ -176,6 +176,150 @@ enum PermissionSelfTest {
         check("y se puede permitir con normalidad", decision(finish(p, o))?["behavior"] as? String == "allow")
         server3.stop()
 
+        // 13. el cambio real: Edit, Write, Bash y NotebookEdit pasan por el hook real y llegan a la app con el diff calculado
+        let server4 = PermissionServer(path: sock)
+        try? server4.start()
+        defer { server4.stop() }
+        func waitAsk4(_ n: Int, timeout: TimeInterval = 5) -> Bool {
+            let end = Date().addingTimeInterval(timeout)
+            while Date() < end { if server4.asks.count == n { return true }; usleep(20_000) }
+            return server4.asks.count == n
+        }
+        func hookInput(_ tool: String, _ input: [String: Any], cwd: String = "/Users/x/miproyecto") -> String {
+            let o: [String: Any] = ["session_id": "chg12345", "cwd": cwd, "tool_name": tool, "tool_input": input]
+            return String(decoding: (try? JSONSerialization.data(withJSONObject: o)) ?? Data(), as: UTF8.self)
+        }
+        func through(_ tool: String, _ input: [String: Any], wait: String = "20") -> PermissionAsk? {
+            let (pp, oo) = spawn(hookInput(tool, input), wait: wait)
+            let got = waitAsk4(1) ? server4.asks.first : nil
+            if let id = got?.id { server4.resolve(id: id, .allow) }
+            _ = finish(pp, oo)
+            return got
+        }
+        let work = home + "/work"
+        try? FileManager.default.createDirectory(atPath: work, withIntermediateDirectories: true)
+        let existing = work + "/viejo.swift"
+        try? "uno\ndos\ntres\ncuatro\n".write(toFile: existing, atomically: true, encoding: .utf8)
+
+        let ed = through("Edit", ["file_path": existing, "old_string": "dos\ntres", "new_string": "DOS\ntres\ntres bis", "replace_all": false])
+        check("Edit: el par old/new llega como diff +2 −1 y el detalle sigue siendo la ruta", ed?.change?.added == 2 && ed?.change?.removed == 1 && ed?.detail == existing && ed?.cwd == "/Users/x/miproyecto" && ed?.rawCommand == nil)
+        let wr = through("Write", ["file_path": existing, "content": "uno\nDOS\ntres\ncuatro\ncinco\n"])
+        check("Write sobre un archivo existente se compara con el disco", wr?.change?.shape == .rewrite && wr?.change?.added == 2 && wr?.change?.removed == 1)
+        let wn = through("Write", ["file_path": work + "/nuevo.swift", "content": "let a = 1\nlet b = 2\n"])
+        check("Write a un archivo que no existe es archivo nuevo", wn?.change?.shape == .newFile && wn?.change?.added == 2 && wn?.change?.tag == "archivo nuevo")
+        let me = through("MultiEdit", ["file_path": existing, "edits": [["old_string": "uno", "new_string": "1"], ["old_string": "cuatro", "new_string": "4"]]])
+        check("MultiEdit llega con sus dos ediciones", me?.change?.shape == .multiEdit(2) && me?.change?.added == 2)
+        let nb = through("NotebookEdit", ["notebook_path": work + "/n.ipynb", "new_source": "x = 1\ny = 2", "cell_type": "code", "edit_mode": "insert"])
+        check("NotebookEdit llega como celda nueva y su ruta es el detalle", nb?.change?.shape == .cellInsert && nb?.change?.added == 2 && nb?.detail == work + "/n.ipynb")
+        let secretWrite = through("Write", ["file_path": work + "/c.swift", "content": "let key = \"sk-live-abcdef123456\"\n"])
+        check("una credencial en el contenido nuevo se avisa", secretWrite?.change?.secret != nil)
+
+        // el comando de Bash llega integro, byte a byte, mientras el detalle sigue aplanado como siempre
+        let nasty = "echo \"a\\\"b\" 'c'\\\\d\te\nf\\\n$(printf '\\x00')\u{0}\u{1}fin # " + String(repeating: "é", count: 900)
+        let bash = through("Bash", ["command": nasty, "description": "x"])
+        check("Bash: el comando llega identico, con comillas, barras, tabuladores, saltos y nulos", bash?.rawCommand == nasty && bash?.cwd == "/Users/x/miproyecto" && bash?.change == nil)
+        check("Bash: el detalle sigue limpio y recortado como antes", bash.map { $0.detail.count <= 400 && !$0.detail.unicodeScalars.contains { $0.value < 32 || $0.value == 92 } } ?? false)
+        let tooLong = String(repeating: "x", count: ChangeWire.maxCommandChars + 1)
+        check("Bash: un comando que excede el tope no se envia (nil, no recortado)", through("Bash", ["command": tooLong])?.rawCommand == nil)
+        check("otras herramientas no llevan comando ni cambio pero si el cwd", { let a = through("Read", ["file_path": "/p/a.txt"]); return a?.rawCommand == nil && a?.change == nil && a?.cwd == "/Users/x/miproyecto" }())
+
+        // contenido hostil y enorme: el encuadre aguanta y el tope se respeta
+        let hostileText = "a\tb\u{0}c\r\n\u{1B}[31m" + String(repeating: "linea con tab\t y comillas \" y barra \\\n", count: 50)
+        let hz = through("Write", ["file_path": work + "/h.txt", "content": hostileText])
+        check("Write con tabuladores, nulos y saltos llega sin partir el mensaje", hz?.change?.shape == .newFile && hz?.change?.added == 51)
+        check("y lo dibujado no lleva controles", hz?.change?.lines.allSatisfy { !$0.text.unicodeScalars.contains { $0.value < 32 } } ?? false)
+        let hugeContent = (0..<6000).map { "linea numero \($0) con algo de texto" }.joined(separator: "\n")
+        let hg = through("Write", ["file_path": existing, "content": hugeContent])
+        check("un Write enorme se recorta, avisa de lo omitido y no se compara a medias", hg?.change?.partial == true && hg?.change?.shape == .rewriteUncompared && (hg?.change?.added ?? 0) == 6000 && (hg?.change?.lines.count ?? 0) <= ChangeWire.maxShownLines)
+        let emojis = String(repeating: "😀é", count: 30000)
+        let em = through("Write", ["file_path": work + "/e.txt", "content": emojis])
+        check("un Write de emojis recortado por el hook no deja utf-8 partido", em?.change.map { c in c.lines.allSatisfy { !$0.text.unicodeScalars.contains("\u{FFFD}") } && !c.lines.isEmpty } ?? false)
+
+        // compatibilidad: la linea de un hook nuevo vista por una app antigua y la de un hook antiguo vista por la app nueva
+        let base = "perm\tabcd\tEdit\tproj\t1\t/p/a.swift"
+        check("la marca del hook nuevo desaparece al limpiar el detalle: una app antigua ve lo de siempre", PermissionServer.parse(base + "\u{1F}")?.detail == "/p/a.swift" && PermissionServer.parse(base)?.detail == "/p/a.swift")
+        check("solo la marca anuncia un segundo mensaje", PermissionServer.announcesPayload(base + "\u{1F}") && !PermissionServer.announcesPayload(base) && !PermissionServer.announcesPayload("perm\ta\tEdit\tp\t1"))
+        func rawConn(_ bytes: Data) -> Int32 {
+            let c = socket(AF_UNIX, SOCK_STREAM, 0); var addr = makeSockAddr(sock)!
+            _ = withUnsafePointer(to: &addr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(c, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
+            bytes.withUnsafeBytes { _ = write(c, $0.baseAddress, bytes.count) }
+            return c
+        }
+        func cleanup() { for a in server4.asks { server4.resolve(id: a.id, .deny) } }
+        let first = Data((base + "\u{1F}\n").utf8)
+        // hook antiguo: sin marca, sin segundo mensaje
+        var c = rawConn(Data((base + "\n").utf8)); _ = waitAsk4(1)
+        check("un hook antiguo crea el permiso al instante y sin cambio", server4.asks.first.map { $0.change == nil && $0.rawCommand == nil && $0.cwd == nil && $0.detail == "/p/a.swift" } ?? false)
+        close(c); _ = waitAsk4(0)
+        // hook nuevo con carga valida escrita en dos trozos
+        let good = Data(#"{"k":"edit","cwd":"/c","p":"/p/a.swift","e":[{"o":{"t":"a","m":0},"n":{"t":"b","m":0}}]}"#.utf8)
+        c = rawConn(first + Data("diff\t\(good.count)\n".utf8) + good.prefix(10)); usleep(100_000)
+        good.dropFirst(10).withUnsafeBytes { _ = write(c, $0.baseAddress, good.count - 10) }
+        check("la carga puede llegar en trozos", waitAsk4(1) && server4.asks.first?.change?.added == 1 && server4.asks.first?.cwd == "/c")
+        close(c); _ = waitAsk4(0)
+        // anuncia una carga que nunca llega: el permiso aparece igual tras el plazo, sin cambio
+        let t1 = Date()
+        c = rawConn(first)
+        check("marca sin carga: el permiso aparece igual, sin cambio, tras el plazo", waitAsk4(1, timeout: 6) && server4.asks.first?.change == nil && Date().timeIntervalSince(t1) < 5)
+        close(c); _ = waitAsk4(0)
+        // cabecera invalida, tamano absurdo, carga que no es json, carga truncada, bytes sobrantes
+        for (name, bytes) in [("cabecera invalida", Data("hola\n".utf8) + good),
+                              ("tamano enorme", Data("diff\t99999999\n".utf8) + good),
+                              ("tamano cero", Data("diff\t0\n".utf8)),
+                              ("tamano negativo", Data("diff\t-5\n".utf8) + good),
+                              ("no es json", Data("diff\t6\nabcdef".utf8)),
+                              ("kind desconocido", Data("diff\t14\n{\"k\":\"rm -rf\"}".utf8))] as [(String, Data)] {
+            c = rawConn(first + bytes)
+            check("carga mala (\(name)): el permiso se crea sin cambio", waitAsk4(1, timeout: 6) && server4.asks.first?.change == nil && server4.asks.first?.detail == "/p/a.swift")
+            close(c); _ = waitAsk4(0)
+        }
+        // bytes de mas despues de la carga no se leen como otra linea ni crean otro permiso
+        c = rawConn(first + Data("diff\t\(good.count)\n".utf8) + good + Data("perm\tx\tBash\tp\t1\trm -rf /\n".utf8))
+        usleep(300_000)
+        check("lo que sobra tras la carga no inyecta otro permiso", server4.asks.count == 1 && server4.asks.first?.tool == "Edit")
+        close(c); _ = waitAsk4(0)
+        // una carga dentro de la linea: tabuladores en el contenido no crean campos
+        let tabby = Data(#"{"k":"write","cwd":"/c","p":"/p/t","c":{"t":"a\tb\tc\nperm\tx\tBash\tp\t1\tmalo","m":0}}"#.utf8)
+        c = rawConn(first + Data("diff\t\(tabby.count)\n".utf8) + tabby)
+        check("tabuladores y saltos dentro del contenido no inyectan campos ni permisos", waitAsk4(1) && server4.asks.first?.tool == "Edit" && server4.asks.first?.detail == "/p/a.swift")
+        close(c); cleanup(); _ = waitAsk4(0)
+
+        // una app antigua (lee la primera linea, ignora lo demas y responde) sigue funcionando con el hook nuevo
+        let oldSock = "/tmp/cp-old-\(getpid()).sock"
+        unlink(oldSock)
+        let ls = socket(AF_UNIX, SOCK_STREAM, 0); var oa = makeSockAddr(oldSock)!
+        _ = withUnsafePointer(to: &oa) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(ls, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
+        listen(ls, 4)
+        final class Box: @unchecked Sendable { let l = NSLock(); var v = ""; func set(_ s: String) { l.lock(); v = s; l.unlock() }; func get() -> String { l.lock(); defer { l.unlock() }; return v } }
+        let oldFirst = Box()
+        DispatchQueue.global().async {
+            let cfd = accept(ls, nil, nil); guard cfd >= 0 else { return }
+            var data = Data(); var b = [UInt8](repeating: 0, count: 512)
+            while !data.contains(0x0A) { let n = read(cfd, &b, b.count); if n <= 0 { break }; data.append(contentsOf: b[0..<n]) }
+            oldFirst.set(String(decoding: data.prefix(upTo: data.firstIndex(of: 0x0A) ?? data.endIndex), as: UTF8.self))
+            // como la app antigua: de ahi en adelante solo lee de a 64 bytes para notar que el hook murio
+            DispatchQueue.global().async { var d = [UInt8](repeating: 0, count: 64); while read(cfd, &d, d.count) > 0 {} }
+            usleep(300_000)
+            _ = "allow\n".withCString { write(cfd, $0, 6) }
+        }
+        let (po, oo) = spawn(hookInput("Write", ["file_path": existing, "content": hugeContent]), sockPath: oldSock)
+        let oldOut = finish(po, oo, timeout: 8)
+        check("hook nuevo con app antigua: la primera linea es la de siempre (la marca es un control) y la respuesta llega", decision(oldOut)?["behavior"] as? String == "allow" && oldFirst.get().hasPrefix("perm\tchg12345\tWrite\tmiproyecto\t0\t\(existing)"))
+        if decision(oldOut)?["behavior"] as? String != "allow" { print("  salida=[\(oldOut)] primera=[\(oldFirst.get().prefix(120))]") }
+        close(ls); unlink(oldSock)
+
+        // sin jq o con jq que falla no hay segundo mensaje y todo sigue como antes (el hook falla abierto)
+        server4.stop()
+        let server5 = PermissionServer(path: sock)
+        try? server5.start()
+        defer { server5.stop() }
+        let t2 = Date()
+        let (pn, on) = spawn(hookInput("Write", ["file_path": existing, "content": String(repeating: "z", count: 300_000)]), wait: "2")
+        usleep(500_000)
+        check("una entrada de mas de 256 KB sigue sin crear permiso (falla abierto)", server5.asks.isEmpty)
+        _ = finish(pn, on, timeout: 4)
+        check("y no tarda ni se cuelga", Date().timeIntervalSince(t2) < 5)
+
         print(failures == 0 ? "PERMISOS OK" : "PERMISOS FALLOS: \(failures)")
         return failures == 0
     }
