@@ -1,0 +1,45 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: comprobar que la version coincide con la etiqueta
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::la etiqueta $TAG no coincide con Info.plist (v$VERSION)"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: compilar y empaquetar
+        run: sh build.sh
+
+      - name: comprimir
+        run: |
+          ditto -c -k --keepParent build/ClaudePet.app "ClaudePet-${VERSION}-macOS.zip"
+          ls -l "ClaudePet-${VERSION}-macOS.zip"
+
+      - name: crear la release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES="docs/releases/${VERSION}.md"
+          if [ -f "$NOTES" ]; then
+            set -- --notes-file "$NOTES"
+          else
+            set -- --generate-notes
+          fi
+          gh release create "$GITHUB_REF_NAME" "ClaudePet-${VERSION}-macOS.zip" \
+            --title "claude-pet ${VERSION}" --verify-tag "$@"
