@@ -128,6 +128,8 @@ enum NotchGeometry {
     }
 
     static let permissionHeight: CGFloat = 208
+    /// Alto de la isla con el cambio de un permiso desplegado (la ventana mide 300).
+    static let permissionDiffHeight: CGFloat = 296
 
     static func contains(_ p: CGPoint, mode: IslandMode, metrics m: ScreenMetrics, placement: IslandPlacement = .top, expandedHeight: CGFloat = expandedHeight) -> Bool {
         islandFrame(mode, metrics: m, placement: placement, expandedHeight: expandedHeight).insetBy(dx: -hitMargin, dy: -hitMargin).contains(p)
