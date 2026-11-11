@@ -527,5 +527,9 @@ enum L10nEN {
         "atención": "attention",
         "abrir Ajustes del Sistema": "open System Settings",
         "si se abre al iniciar sesión, cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola.": "whether it opens at login, when it peeks out, how long it takes to fold and when it shows up on its own.",
+        "copiar diagnóstico": "copy diagnostics",
+        "versión, sistema, funciones activas y estado de los sockets.": "version, system, active features and socket status.",
+        "copiado": "copied",
+        "si algo falla en tu Mac, pega este texto al contarlo. no lleva rutas, nombres de proyecto ni códigos de emparejamiento. el registro completo está en Consola.app, filtrando por «local.claudepet.app».": "if something fails on your Mac, paste this text when you report it. It carries no paths, project names or pairing codes. The full log is in Console.app, filtering by «local.claudepet.app».",
     ]
 }
