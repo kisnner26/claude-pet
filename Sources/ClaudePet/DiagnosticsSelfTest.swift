@@ -27,13 +27,19 @@ enum DiagnosticsSelfTest {
         let user = NSUserName()
         let hostile = DiagnosticInfo(appVersion: "2.1.0", build: "7", packaged: true, macOS: "27.2.0", arch: "arm64", model: "Mac14,5", hasNotch: true, language: "es",
                                     loginItem: "activado", features: [("relay", true), ("Meta Quest", false)],
-                                    components: [("eventos", "activo"), ("permisos", "error \(home)/.claude-pet/ask.sock de \(user)")], plugins: (1, 3))
+                                    components: [("eventos", "activo"), ("permisos", "error \(home)/.claude-pet/ask.sock en /Users/\(user)/x")], plugins: (1, 3))
         let fake = DiagnosticReport.text(hostile)
         check("texto-version", fake.contains("claude-pet 2.1.0 (7)") && fake.contains("macOS 27.2.0") && fake.contains("Mac14,5"))
         check("texto-si-no", fake.contains("relay: sí") && fake.contains("Meta Quest: no") && fake.contains("notch: sí"))
-        check("texto-sin-home", !fake.contains(home) && (user.count < 2 || user == "root" || !fake.contains(user)))
+        check("texto-sin-home", !fake.contains(home) && !fake.contains("/Users/\(user)"))
         check("texto-con-home-ajeno", !DiagnosticReport.text(hostile, home: "/Users/otra", user: "otra").contains("/Users/otra"))
-        check("scrub-usuario", DiagnosticReport.scrub("/Users/ana/x y ana", home: "/Users/ana", user: "ana") == "~/x y usuario")
+        check("scrub-usuario-en-ruta", DiagnosticReport.scrub("/Users/ana/x y ana", home: "/Users/otra", user: "ana") == "/Users/usuario/x y ana")
+        check("scrub-usuario-final-de-ruta", DiagnosticReport.scrub("en /Users/ana", home: "/Users/otra", user: "ana") == "en /Users/usuario")
+        check("scrub-home", DiagnosticReport.scrub("/Users/ana/x", home: "/Users/ana", user: "ana") == "~/x")
+        for u in ["mac", "pet", "app", "si", "no"] {
+            let t = DiagnosticReport.text(hostile, home: "/Users/\(u)", user: u)
+            check("usuario-\(u)-macOS", t.contains("macOS 27.2.0") && t.contains("claude-pet 2.1.0") && t.contains("notch: sí") && t.contains("abrir al iniciar sesión"))
+        }
         check("scrub-home-raiz", DiagnosticReport.scrub("/ a", home: "/", user: "") == "/ a")
         check("componentes-sin-iniciar", DiagnosticReport.components(from: [:]).map(\.state) == Array(repeating: "sin iniciar", count: DiagnosticReport.componentOrder.count))
         check("componentes-estado", DiagnosticReport.components(from: ["bus": .up, "quest": .failed("X:1")]).filter { $0.name == "bus" || $0.name == "quest" }.map(\.state) == ["activo", "error X:1"])

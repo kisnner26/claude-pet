@@ -38,11 +38,15 @@ enum DiagnosticReport {
         return scrub(lines.joined(separator: "\n"), home: home, user: user)
     }
 
-    /// Defensa final: si por error se coló la carpeta personal o el nombre de usuario, no sale del equipo.
+    /// Defensa final: si por error se coló la carpeta personal o una ruta con el nombre de usuario, no sale del equipo.
     static func scrub(_ s: String, home: String, user: String) -> String {
         var out = s
         if home.count > 1 { out = out.replacingOccurrences(of: home, with: "~") }
-        if user.count > 1, user != "root" { out = out.replacingOccurrences(of: user, with: "usuario") }
+        // el usuario solo se toca como componente de ruta: como subcadena suelta rompe "macOS" o "claude-pet"
+        if !user.isEmpty, user != "root" {
+            out = out.replacingOccurrences(of: "/Users/\(user)/", with: "/Users/usuario/")
+            if out.hasSuffix("/Users/\(user)") { out = String(out.dropLast(user.count)) + "usuario" }
+        }
         return out
     }
 
