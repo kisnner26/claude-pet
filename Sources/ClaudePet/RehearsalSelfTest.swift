@@ -72,6 +72,9 @@ enum RehearsalSelfTest {
         r.gitAfter?.branch = "otra"
         check("git: cambio de rama", Rehearsal.headline(r).contains("cambiaría de rama: main → otra"))
         check("sin cambios lo dice", Rehearsal.headline(Rehearsal.Report()) == "No cambiaría ningún archivo")
+        var offline = Rehearsal.Report(); offline.usesNetwork = true; offline.exitCode = 6
+        check("sin red y sin cambios no afirma que no pasaria nada", Rehearsal.headline(offline).hasPrefix("Sin red") && RehearsalSeverity.of(offline) == .unknown && RehearsalSeverity.of(Rehearsal.Report()) == .calm)
+        check("borrar o descartar trabajo es lo mas serio", RehearsalSeverity.of(r) == .destructive)
         r.usesNetwork = true; r.timedOut = true; r.exitCode = 143
         let text = Rehearsal.text(r)
         check("el informe lleva lista agrupada, espacio y avisos", text.contains("- build/ (214)") && text.contains("~ a.txt") && text.contains("liberaría") && text.contains("! usa la red") && text.contains("se cortó"))
