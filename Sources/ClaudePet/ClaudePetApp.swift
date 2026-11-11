@@ -187,6 +187,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-lang") { exit(L10nSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-diag") { exit(DiagnosticsSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-plan") { exit(MainActor.assumeIsolated { PlanSelfTest.run(file: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : nil) } ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-remote") { exit(MainActor.assumeIsolated { RemoteApprovalsSelfTest.run() } ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
