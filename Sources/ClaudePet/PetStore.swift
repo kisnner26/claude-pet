@@ -400,6 +400,18 @@ final class PetStore: ObservableObject {
     @Published var remotePeers: [String] = []
     var regenerateRemoteCode: (() -> Void)?
     @Published var permissionAsks: [PermissionAsk] = []
+    /// Permiso cuyo cambio esta desplegado en la tarjeta. Solo es un id: el contenido sigue en el permiso, en memoria.
+    @Published var permissionDiffOpenID: String?
+    /// La isla crece para dar sitio a las lineas del cambio cuando el primer permiso lo tiene desplegado.
+    var permissionDiffOpen: Bool {
+        guard let first = permissionAsks.first, first.change?.lines.isEmpty == false else { return false }
+        return permissionDiffOpenID == first.id
+    }
+    /// Alto de la isla para el primer permiso: la tarjeta de siempre, o mas alta con el cambio desplegado.
+    var permissionCardHeight: CGFloat {
+        guard permissionDiffOpen, let change = permissionAsks.first?.change else { return NotchGeometry.permissionHeight }
+        return min(NotchGeometry.permissionDiffHeight, NotchGeometry.permissionHeight + change.listHeight + 4)
+    }
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     /// Permite varias lecturas iguales de una vez; cada una queda en la auditoria.
     func answerBatch(_ ids: [String]) { ids.forEach { answerPermission($0, .allow) } }

@@ -232,7 +232,7 @@ final class IslandController {
 
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
         let asking = !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty
-        let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
+        let eh = asking ? store.permissionCardHeight : NotchGeometry.expandedHeight
         // arrastrando archivos: la isla asoma y deja de ser transparente a los clics para poder recibirlos
         let dragging = NSEvent.pressedMouseButtons & 1 != 0 && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
         if Self.logPath != nil, dragging != lastLoggedDrag { lastLoggedDrag = dragging; Self.log("arrastre=\(dragging) botones=\(NSEvent.pressedMouseButtons) cursor=(\(Int(mouse.x)),\(Int(mouse.y)))") }

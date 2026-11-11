@@ -76,11 +76,15 @@ struct PermissionCardView: View {
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
                     .help("tu perímetro no deja que el agente toque este archivo; este permiso nunca se aprueba solo")
             }
-            if let secret = SecretDetector.find(in: ask.detail, path: ask.project) {
+            if let secret = SecretDetector.find(in: ask.detail, path: ask.project) ?? ask.change?.secret {
                 Label("posible secreto: \(secret.label) · \(secret.prefix)", systemImage: "exclamationmark.shield.fill")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
             }
-            if !ask.detail.isEmpty {
+            if let change = ask.change, !isPlan {
+                PermissionChangeBox(path: ask.detail, change: change, open: store.permissionDiffOpen) {
+                    store.permissionDiffOpenID = store.permissionDiffOpenID == ask.id ? nil : ask.id
+                }
+            } else if !ask.detail.isEmpty {
                 let shown = showMore ? preview.lines : Array(preview.lines.prefix(collapsed))
                 Text(shown.joined(separator: "\n"))
                     .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : collapsed)
