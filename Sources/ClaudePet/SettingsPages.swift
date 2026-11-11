@@ -266,6 +266,7 @@ struct ComportamientoPage: View {
                 SMenu(title: "idioma", detail: "elige el idioma de la interfaz. se aplica al momento.", selection: $store.language,
                       options: Lang.allCases.map { ($0, $0.name) })
             }
+            LoginItemCard()
             SCard(title: "en el escritorio", footer: "arrastra la mascota fuera de la isla y se queda donde la sueltes (vuelve a su sitio al abrir la app). doble toque, o soltarla sobre la isla, la devuelve.") {
                 SToggle(title: "escritorio vivo (experimental)", detail: "salen a tus ventanas: se posan en la del agente al trabajar, se asoman por detrás si esperan un permiso, caminan por el Dock, llevan el archivo que se edita y se apartan si arrastras una ventana encima.",
                         isOn: Binding(get: { store.deskWorld }, set: { DesktopPets.shared.setWorld($0) }))

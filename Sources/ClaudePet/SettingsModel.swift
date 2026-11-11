@@ -69,7 +69,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .resumen: return ["estadisticas", "racha", "nivel", "semana", "hoy", "sesiones", "inicio"]
         case .apariencia: return ["isla", "notch", "pantalla", "ubicacion", "reloj", "compacto", "animaciones", "futbol", "burbuja", "skin", "tema", "monitor"]
-        case .comportamiento: return ["activacion", "zona", "retraso", "plegar", "cerrar", "visibilidad", "asomar", "cursor", "raton"]
+        case .comportamiento: return ["activacion", "zona", "retraso", "plegar", "cerrar", "visibilidad", "asomar", "cursor", "raton", "iniciar sesion", "inicio", "arranque", "login", "abrir al encender", "automatico"]
         case .agentes: return ["claude", "codex", "contexto", "bloqueo", "avisos", "mostrar", "ocultar", "terminal"]
         case .permisos: return ["permitir", "denegar", "reglas", "puntos de restauracion", "riesgo", "bloquear", "aprobar", "siempre"]
         case .perimetro: return ["cerca", "limite", "carpeta", "archivos", "proteger", "proteccion", "env", "bloquear", "alcance", "glob", "zona"]

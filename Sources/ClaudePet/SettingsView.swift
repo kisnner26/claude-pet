@@ -6,7 +6,7 @@ extension SettingsPage {
         switch self {
         case .resumen: return "lo que ha pasado hoy y esta semana, y el estado de tus agentes."
         case .apariencia: return "dónde sale la isla, qué enseña y cómo se ven las mascotas."
-        case .comportamiento: return "cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola."
+        case .comportamiento: return "si se abre al iniciar sesión, cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola."
         case .agentes: return "qué agentes vigila claude-pet y qué detalle enseña de cada uno."
         case .permisos: return "responder desde la isla, reglas de aprobación y puntos de restauración."
         case .perimetro: return "por dónde puede moverse el agente en cada proyecto, comprobado en el permiso antes de que algo cambie."
