@@ -266,6 +266,8 @@ enum Rehearsal {
         }
         if parts.isEmpty && c.gitInternal > 0 { parts.append(L.t("solo tocaría el interior de .git", "would only touch .git internals")) }
         if !r.homeWrites.isEmpty { parts.append(L.t("escribiría en tu carpeta personal", "would write to your home folder")) }
+        // sin red y sin cambios no hay nada que contar: decir "no cambiaria nada" seria enganar
+        if parts.isEmpty && r.usesNetwork { return L.t("Sin red no llega a hacer nada: no se puede saber", "Without the network it does nothing: can't tell") }
         if parts.isEmpty { parts.append(L.t("no cambiaría ningún archivo", "would not change any file")) }
         var s = parts.joined(separator: ", ")
         s = s.prefix(1).uppercased() + s.dropFirst()
