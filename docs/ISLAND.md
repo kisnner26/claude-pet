@@ -29,6 +29,21 @@ swift build
 
 los hooks usan `~/.claude-pet/ask.sock`, un socket unix 0600 que solo acepta el mismo uid. `pet-permission.sh` envía `perm<TAB>sesión<TAB>herramienta<TAB>proyecto<TAB>siempre<TAB>detalle`; `pet-question.sh` envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)`.
 
+### segundo mensaje: el cambio real
+
+`pet-permission.sh` añade al final del detalle un carácter de control (`0x1F`) cuando va a mandar un segundo mensaje por la misma conexión, justo detrás de la línea:
+
+```
+diff<TAB>N<LF>
+N bytes de json (una sola línea, utf-8)
+```
+
+el json lleva `cwd`, `k` (`edit`, `multi`, `write`, `nb`, `bash` o `none`) y, según la herramienta: `p` (ruta), `e` (pares `o`/`n` de Edit y MultiEdit, hasta 20), `c` (contenido de Write o `new_source` de NotebookEdit), `md` (modo de celda) y `cmd` (el `command` de Bash sin recortar ni limpiar, solo si cabe en 32 K caracteres; si no, no se envía). cada texto es `{"t": texto, "m": líneas omitidas}`: el hook lo recorta por caracteres (nunca parte un utf-8) y cuenta lo que dejó fuera. jq escapa tabuladores, saltos y nulos, y la app lee exactamente N bytes (máximo 160 KiB; el hook envía como mucho 128 KiB y reintenta con topes más pequeños si el json se pasa), así que ningún byte del contenido puede cerrar el encuadre ni inyectar campos.
+
+compatibilidad: la marca es un carácter de control y las apps antiguas lo descartan al limpiar el detalle, leen solo hasta el primer salto de línea y vacían el resto de la conexión, así que un hook nuevo con una app vieja se comporta como siempre. un hook antiguo no trae marca y la app nueva no espera nada. si el segundo mensaje falta, llega mal o tarda más de 2 s, el permiso aparece igual, sin cambio.
+
+la app lee el archivo actual de un Write (solo archivos normales de hasta 512 KiB, sin bloquearse con FIFO) y calcula el diff por líneas (Myers, con contexto de dos líneas, hasta 160 líneas dibujadas y «y N líneas más»), todo en la cola del socket y nunca en el hilo principal. `PermissionAsk.change`, `rawCommand` y `cwd` viven solo en memoria mientras el permiso está pendiente: no se escriben a disco, no entran en la auditoría ni en los eventos para plugins, no pasan por el pet bus ni por `Diag`, y Visto sigue recibiendo solo lo de antes. `--snapshot-permission-diff <ruta.png>` dibuja la tarjeta con cambios inventados.
+
 las líneas tienen límite de 4096 bytes y deben terminar en salto de línea. hay un máximo de ocho pendientes por tipo. cualquier entrada inválida, socket ausente, hook muerto o plazo agotado produce salida vacía: claude code continúa en la terminal.
 
 las respuestas de preguntas se validan como json antes de envolverse en `updatedInput`; las decisiones de permisos solo pueden ser `allow`, `always` o `deny`. no se ejecuta shell con rutas, nombres o detalles recibidos del hook.
