@@ -582,6 +582,7 @@ struct CopiaPage: View {
 // MARK: acerca de
 
 struct AcercaPage: View {
+    @State private var copied = false
     private var version: String { (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "desarrollo" }
 
     var body: some View {
@@ -591,6 +592,16 @@ struct AcercaPage: View {
                 SDivider()
                 SRow(title: "código y documentación", detail: "github.com/kisnner26/claude-pet") {
                     SButton(title: "abrir", symbol: "arrow.up.right") { if let url = URL(string: "https://github.com/kisnner26/claude-pet") { NSWorkspace.shared.open(url) } }
+                }
+            }
+            SCard(title: "soporte", footer: "si algo falla en tu Mac, pega este texto al contarlo. no lleva rutas, nombres de proyecto ni códigos de emparejamiento. el registro completo está en Consola.app, filtrando por «local.claudepet.app».") {
+                SRow(title: "copiar diagnóstico", detail: "versión, sistema, funciones activas y estado de los sockets.") {
+                    SButton(title: copied ? "copiado" : "copiar", symbol: copied ? "checkmark" : "doc.on.doc") {
+                        let text = DiagnosticReport.text(DiagnosticReport.gather(store: PetStore.shared))
+                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+                        copied = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                    }
                 }
             }
             SCard(title: "herramientas relacionadas", footer: "son proyectos aparte que se complementan con claude-pet.") {

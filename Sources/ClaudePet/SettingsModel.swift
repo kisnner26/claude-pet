@@ -82,7 +82,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .plugins: return ["mod", "mods", "extension", "complemento", "addon", "script", "instalar", "commitero", "integracion", "automatizar"]
         case .atajos: return ["teclado", "teclas", "combinacion", "global", "control", "opcion"]
         case .copia: return ["exportar", "importar", "respaldo", "restablecer", "reiniciar", "configuracion", "json"]
-        case .acerca: return ["version", "licencia", "commitero", "ayuda", "codigo"]
+        case .acerca: return ["version", "licencia", "commitero", "ayuda", "codigo", "diagnostico", "soporte", "registro", "logs", "error"]
         }
     }
 
