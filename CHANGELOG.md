@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- Abrir al iniciar sesión: interruptor en ajustes, comportamiento, con `SMAppService`. Refleja el estado real del sistema, explica cuando macOS pide aprobación o el registro falla y se desactiva con el binario suelto sin paquete .app.
+- Registro de diagnóstico con `os.Logger` (subsystem `local.claudepet.app`): arranque y cierre con la versión, sockets de eventos, bus y permisos, enlace remoto, servidor de Quest y fallos de plugins. Solo guarda componentes, códigos de error y contadores, nunca rutas, comandos, contenido ni códigos de emparejamiento.
+- «copiar diagnóstico» en acerca de: versión, macOS, modelo de Mac, notch, funciones opcionales (sí o no) y estado de los sockets, sin rutas ni nombre de usuario.
+- Pruebas nuevas: `--selftest-login` y `--selftest-diag`.
 - Icono nuevo de la app: el sprite de 8 bits de la mascota, celda a celda y sin suavizar, con sombra dura sobre un fondo casi negro con brasa. `tools/make-icon.py` lo genera desde el sprite real (`ClaudePet --dump-sprites` lo extrae).
 - Los ajustes de claude pet se abren como una app más: mientras la ventana está abierta aparece el icono de la mascota en el Dock (con su menú de app) y, al cerrarla, desaparece y vuelve a vivir solo en la barra de menús. Un clic en el icono del Dock sin ventanas abre los ajustes.
 - Volver a la barra del Mac sin cerrar la app: la Touch Bar de claude pet tiene un botón con flecha a la izquierda que la suelta para que el Mac recupere volumen, brillo y el resto. Una tecla en la tira de control con el pixel art de la mascota (y la entrada «devolver la Touch Bar al Mac» del menú de la barra superior) la vuelve a poner. Un permiso o una pregunta pendiente la reabren solos, porque piden respuesta, y al acabar vuelve la del Mac. Se recuerda entre arranques.
