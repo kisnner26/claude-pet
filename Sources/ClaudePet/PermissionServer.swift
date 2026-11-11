@@ -57,6 +57,11 @@ final class PermissionServer: @unchecked Sendable {
     var questions: [QuestionAsk] { lock.lock(); defer { lock.unlock() }; return questionPending.map(\.ask) }
 
     func start() throws {
+        do { try bringUp(); Diag.socket("permisos", .up) }
+        catch { Diag.socket("permisos", .failed(Diag.code(error))); throw error }
+    }
+
+    private func bringUp() throws {
         let dir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         chmod(dir, 0o700)
@@ -89,6 +94,7 @@ final class PermissionServer: @unchecked Sendable {
         for q in questions { q.closed = true; q.source?.cancel(); close(q.fd) }
         onQuestionsChange?([])
         onChange?([])
+        Diag.socket("permisos", .down)
     }
 
     /// Responde a un permiso. Devuelve false si ya no estaba pendiente (lo resolvio otro o la terminal).

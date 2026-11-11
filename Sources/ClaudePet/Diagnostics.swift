@@ -30,6 +30,16 @@ enum Diag {
     /// Version corta de la app; "desarrollo" si se ejecuta sin bundle.
     static var appVersion: String { (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "desarrollo" }
 
+    static func architecture() -> String {
+        #if arch(arm64)
+        return "arm64"
+        #elseif arch(x86_64)
+        return "x86_64"
+        #else
+        return "otra"
+        #endif
+    }
+
     /// Anota el estado de un socket o servicio: lo usa el diagnostico para copiar, sin consultar nada a la red.
     static func socket(_ name: String, _ state: ComponentState) {
         ComponentStates.shared.set(name, state)
