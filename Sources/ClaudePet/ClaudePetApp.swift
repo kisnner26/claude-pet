@@ -89,6 +89,17 @@ final class AppController: NSObject, NSApplicationDelegate {
         _ = ConfigStore.shared.load()
         if CommandLine.arguments.contains("--selftest-approval-rules") { exit(ApprovalRulesSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-restore") { exit(RestorePointsSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--rehearse"), i + 1 < CommandLine.arguments.count {
+            // ensayo desde la terminal: ClaudePet --rehearse "rm -rf build" [carpeta]; ejecuta el comando en una copia aislada y dice que cambiaria
+            let dir = CommandLine.arguments.indices.contains(i + 2) ? CommandLine.arguments[i + 2] : FileManager.default.currentDirectoryPath
+            switch RehearsalRunner.run(command: CommandLine.arguments[i + 1], cwd: dir) {
+            case .success(let report):
+                print(Rehearsal.text(report))
+                if !report.outputTail.isEmpty { print("\n" + L.t("salida del comando", "command output") + "\n" + report.outputTail) }
+                exit(0)
+            case .failure(let why): FileHandle.standardError.write(Data((why.text + "\n").utf8)); exit(2)
+            }
+        }
         if CommandLine.arguments.contains("--selftest-loops") { exit(LoopDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-sound") { exit(SoundSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-wardrobe") { exit(WardrobeSelfTest.run() ? 0 : 1) }
