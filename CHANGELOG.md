@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 ## [Sin publicar]
 
 ### añadido
+- La tarjeta de permiso de Edit, MultiEdit, Write y NotebookEdit enseña el cambio real: resumen `+12 −3` (o «archivo nuevo») siempre visible y las líneas desplegables dentro de la tarjeta, con scroll, recorte explícito y aviso de credenciales en las líneas añadidas. El hook manda el contenido en un segundo mensaje con longitud, compatible con hooks y apps antiguos; vive solo en memoria y no va al disco, la auditoría, el bus, los plugins ni Visto. Pruebas: `--selftest-diff` y ampliación de `tests/permission.sh`; `--snapshot-permission-diff` dibuja la tarjeta.
 - Abrir al iniciar sesión: interruptor en ajustes, comportamiento, con `SMAppService`. Refleja el estado real del sistema, explica cuando macOS pide aprobación o el registro falla y se desactiva con el binario suelto sin paquete .app.
 - Registro de diagnóstico con `os.Logger` (subsystem `local.claudepet.app`): arranque y cierre con la versión, sockets de eventos, bus y permisos, enlace remoto, servidor de Quest y fallos de plugins. Solo guarda componentes, códigos de error y contadores, nunca rutas, comandos, contenido ni códigos de emparejamiento.
 - «copiar diagnóstico» en acerca de: versión, macOS, modelo de Mac, notch, funciones opcionales (sí o no) y estado de los sockets, sin rutas ni nombre de usuario.
