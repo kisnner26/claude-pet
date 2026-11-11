@@ -65,6 +65,13 @@ struct ChangeDiff: Equatable {
     }
 }
 
+/// Todo lo que el hook manda tras la linea: el cambio y los datos en bruto para otras funciones. Solo en memoria.
+struct ChangePayload: Equatable {
+    var change: ChangeRequest?
+    var command: String?
+    var cwd: String?
+}
+
 /// Texto que llega del hook: ya recortado por el, con cuantas lineas se quedaron fuera.
 struct ChangePart: Equatable {
     var text: String
@@ -97,6 +104,8 @@ enum ChangeWire {
     /// Lo mas que se acepta de la carga del cambio. El hook envia como mucho 128 KiB.
     static let maxPayload = 160 * 1024
     static let maxEdits = 20
+    /// Un comando de Bash mas largo que esto no se envia entero (se deja nil antes que darlo recortado).
+    static let maxCommandChars = 32 * 1024
     static let maxPartChars = 64 * 1024
     static let maxLineChars = 240
     static let maxShownLines = 160
@@ -110,10 +119,22 @@ enum ChangeWire {
     // MARK: decodificar
 
     /// `{"k":"edit|multi|write|nb","p":ruta,"e":[{"o":{"t":texto,"m":omitidas},"n":{...}}],"x":ediciones omitidas,"c":{...},"md":modo de celda}`
-    static func decode(_ data: Data) -> ChangeRequest? {
+    static func decode(_ data: Data) -> ChangeRequest? { decodePayload(data)?.change }
+
+    /// Carga completa: el cambio (si lo hay) y, aparte, el comando integro de Bash y el directorio de trabajo.
+    /// `{"k":"none|bash|edit|...","cwd":ruta,"cmd":comando sin tocar, ...}`. Un cambio mal formado no tira el resto.
+    static func decodePayload(_ data: Data) -> ChangePayload? {
         guard !data.isEmpty, data.count <= maxPayload,
-              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let raw = root["k"] as? String else { return nil }
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        var out = ChangePayload()
+        if let cwd = root["cwd"] as? String, !cwd.isEmpty { out.cwd = cleanPath(cwd) }
+        if let cmd = root["cmd"] as? String, !cmd.isEmpty, cmd.unicodeScalars.count <= maxCommandChars { out.command = cmd }
+        out.change = decodeChange(root)
+        return out
+    }
+
+    private static func decodeChange(_ root: [String: Any]) -> ChangeRequest? {
+        guard let raw = root["k"] as? String else { return nil }
         let kind: ChangeRequest.Kind
         switch raw {
         case "edit": kind = .edit

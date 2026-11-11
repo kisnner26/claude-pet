@@ -12,6 +12,14 @@ struct PermissionAsk: Identifiable, Equatable {
     /// Claude Code envio una regla sugerida, asi que "siempre permitir" tiene sentido.
     let canAlways: Bool
     let at: Date
+    // Lo que sigue llega por el segundo mensaje del hook (ver docs/ISLAND.md). Solo en memoria mientras el permiso esta pendiente:
+    // nunca va a disco, a la auditoria, al bus, a los plugins, al registro de diagnostico ni a Visto.
+    /// El cambio de un Edit, MultiEdit, Write o NotebookEdit, ya calculado. nil con un hook antiguo.
+    var change: ChangeDiff?
+    /// `tool_input.command` de Bash, integro y sin limpiar. nil con un hook antiguo o si excede el tope.
+    var rawCommand: String?
+    /// Ruta completa del proyecto (`cwd`); `project` solo trae el nombre corto.
+    var cwd: String?
 
     var clipboardText: String {
         var lines = ["permiso: \(tool)"]
@@ -142,8 +150,10 @@ final class PermissionServer: @unchecked Sendable {
             data.append(contentsOf: buf[0..<n])
             if data.contains(0x0A) { break }
         }
-        guard data.count <= Self.maxLine, data.contains(0x0A) else { close(c); return }
-        let line = String(decoding: data, as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
+        // la linea mide como mucho maxLine; lo que venga despues del salto es el segundo mensaje (o nada)
+        guard let nl = data.firstIndex(of: 0x0A), nl <= Self.maxLine else { close(c); return }
+        let leftover = Data(data[(nl + 1)...])
+        let line = String(decoding: data[..<nl], as: UTF8.self).split(separator: "\n").first.map(String.init) ?? ""
         if let question = QuestionServer.parse(line) {
             // AskUserQuestion comparte el socket y queda abierto hasta la respuesta.
             let response = QuestionConn(fd: c, ask: question)
@@ -162,7 +172,13 @@ final class PermissionServer: @unchecked Sendable {
         }
         lock.lock(); let full = pending.count >= Self.maxPending; lock.unlock()
         // lleno o linea invalida: se cierra sin respuesta y Claude Code pregunta en la terminal
-        guard !full, let ask = Self.parse(line) else { close(c); return }
+        guard !full, var ask = Self.parse(line) else { close(c); return }
+        if Self.announcesPayload(line), let raw = Self.readPayload(fd: c, leftover: leftover), let payload = ChangeWire.decodePayload(raw) {
+            // fuera del hilo principal: leer el archivo y calcular el diff ocurre aqui, en la cola del socket
+            ask.cwd = payload.cwd
+            ask.rawCommand = payload.command
+            if let req = payload.change { ask.change = ChangeWire.build(req, base: ChangeWire.readBase(path: req.path)) }
+        }
         _ = fcntl(c, F_SETFL, fcntl(c, F_GETFL) | O_NONBLOCK)
         let conn = Conn(fd: c, ask: ask)
         // si el hook muere (respondiste en la terminal o se agoto su plazo) la conexion se cierra: se retira el permiso
@@ -233,6 +249,43 @@ final class PermissionServer: @unchecked Sendable {
         guard !tool.isEmpty else { return nil }
         return PermissionAsk(id: UUID().uuidString, session: clean(p[1], 12), tool: tool, project: clean(p[3], 40),
                              detail: p.count > 5 ? clean(p[5], 400) : "", canAlways: p[4] == "1", at: Date())
+    }
+
+    /// El detalle termina en la marca de control: tras esta linea viene `diff<TAB>N<LF>` y N bytes de json.
+    static func announcesPayload(_ line: String) -> Bool {
+        let p = line.split(separator: "\t", maxSplits: 5, omittingEmptySubsequences: false)
+        return p.count > 5 && p[5].unicodeScalars.last == ChangeWire.marker
+    }
+
+    /// Lee el segundo mensaje con plazo propio. Cualquier fallo devuelve nil y el permiso sigue como en un hook antiguo.
+    /// Lee solo lo anunciado: ni un byte de mas, asi el contenido no puede colarse como otra linea.
+    static func readPayload(fd: Int32, leftover: Data, deadline: TimeInterval = 2) -> Data? {
+        let end = Date().addingTimeInterval(deadline)
+        var buf = leftover
+        var chunk = [UInt8](repeating: 0, count: 8192)
+        func more(_ limit: Int) -> Bool {
+            guard Date() < end else { return false }
+            let n = read(fd, &chunk, min(chunk.count, max(1, limit)))
+            if n < 0 && errno == EINTR { return true }
+            guard n > 0 else { return false }
+            buf.append(contentsOf: chunk[0..<n])
+            return true
+        }
+        while !buf.contains(0x0A) && buf.count <= 32 { if !more(32) { return nil } }
+        guard let nl = buf.firstIndex(of: 0x0A), nl <= 32 else { return nil }
+        let head = String(decoding: buf[..<nl], as: UTF8.self).split(separator: "\t", omittingEmptySubsequences: false)
+        guard head.count == 2, head[0] == "diff", let size = Int(head[1]), size > 0, size <= ChangeWire.maxPayload else { return nil }
+        var body = Data(buf[(nl + 1)...])
+        while body.count < size {
+            let before = body.count
+            guard Date() < end else { return nil }
+            let n = read(fd, &chunk, min(chunk.count, size - body.count))
+            if n < 0 && errno == EINTR { continue }
+            guard n > 0 else { return nil }
+            body.append(contentsOf: chunk[0..<n])
+            if body.count == before { return nil }
+        }
+        return body.prefix(size)
     }
 
     private func posix(_ what: String) -> NSError {
