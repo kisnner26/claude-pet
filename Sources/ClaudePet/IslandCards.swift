@@ -36,7 +36,10 @@ private struct IslandPressStyle: ButtonStyle {
 struct PermissionCardView: View {
     @ObservedObject var store: PetStore
     let ask: PermissionAsk
+    @ObservedObject private var rehearsals = RehearsalBoard.shared
     @State private var showMore = false
+    /// Alto que deja libre el comando al quedarse en una linea mientras se ve un ensayo (dos lineas de 14).
+    static let commandLinesSaved: CGFloat = 28
 
     /// Permitir recordando la decision. Sin objetivo claro (comando compuesto) o con riesgo alto no hay alcance.
     @ViewBuilder private func scopeMenu(for ask: PermissionAsk, risk: PermissionRisk) -> some View {
@@ -57,7 +60,8 @@ struct PermissionCardView: View {
         let reading = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project)
         let isPlan = ask.tool == "ExitPlanMode"
         let preview = PermissionPreviewBuilder.make(tool: ask.tool, detail: ask.detail, project: ask.project)
-        let collapsed = 3
+        let rehearsal = rehearsals.phase(ask.id)
+        let collapsed = rehearsal == nil ? 3 : 1
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(ask.project.isEmpty ? "claude" : ask.project).font(.system(size: 11, weight: .bold)).foregroundColor(.white).lineLimit(1)
@@ -87,16 +91,30 @@ struct PermissionCardView: View {
             } else if !ask.detail.isEmpty {
                 let shown = showMore ? preview.lines : Array(preview.lines.prefix(collapsed))
                 Text(shown.joined(separator: "\n"))
-                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : collapsed)
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore && rehearsal == nil ? nil : collapsed)
                     .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
                     .contextMenu {
                         Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }
                         Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }
                     }
-                if preview.lines.count > collapsed {
+                if preview.lines.count > collapsed, rehearsal == nil {
                     Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.7))
                 }
+            }
+            if let rehearsal {
+                RehearsalStrip(phase: rehearsal)
+            } else if ask.tool == "Bash", let command = ask.rawCommand, let cwd = ask.cwd, !cwd.isEmpty {
+                // ensayar: ejecuta el comando en una copia aislada del proyecto y dice que cambiaria, sin tocar nada real
+                Button { rehearsals.start(id: ask.id, command: command, cwd: cwd) } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.on.square.dashed").font(.system(size: 9, weight: .semibold))
+                        Text(verbatim: L.t("ensayar en una copia", "rehearse on a copy")).font(.system(size: 10, design: .monospaced))
+                    }.foregroundColor(Color(hex: 0xE0824F))
+                }
+                .buttonStyle(.plain)
+                .help(L.t("lo ejecuta en una copia del proyecto, sin red y sin tocar tus archivos, y te dice qué cambiaría", "runs it on a copy of the project, with no network and without touching your files, and tells you what would change"))
+                .accessibilityHint(Text(verbatim: L.t("ejecuta el comando en una copia aislada y muestra qué cambiaría", "runs the command on an isolated copy and shows what would change")))
             }
             HStack(spacing: 6) {
                 IslandActionButton(title: isPlan ? "rechazar" : "denegar", fill: Color.white.opacity(0.1), ink: .white, hint: store.globalShortcutsEnabled ? "⌃⌥D" : nil) { store.answerPermission(ask.id, .deny) }
