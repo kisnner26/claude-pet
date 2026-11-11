@@ -142,6 +142,16 @@ enum PermissionChangeSelfTest {
         check("un FIFO no bloquea y no se lee", ChangeWire.readBase(path: dir + "/fifo") == .unreadable && Date().timeIntervalSince(f0) < 1)
         check("una ruta relativa o con nulo no se lee", ChangeWire.readBase(path: "relativa.txt") == .unreadable && ChangeWire.readBase(path: "/a\0b") == .unreadable)
 
+        // --- cada texto visible tiene su traduccion ---
+        let saved = L.current
+        L.current = .en
+        let shapes: [ChangeDiff] = [ChangeWire.build(req(.edit, edits: [("a", "a")])), ChangeWire.build(req(.write, content: "x"), base: .missing), ChangeWire.build(req(.write, content: "x"), base: .unreadable),
+                                    ChangeWire.build(req(.multi, edits: [("a", "b"), ("c", "d")])), ChangeWire.build(req(.notebook, content: "x", mode: "replace")),
+                                    ChangeWire.build(req(.notebook, content: "x", mode: "insert")), ChangeWire.build(req(.notebook, mode: "delete"))]
+        check("todas las etiquetas del cambio se traducen", shapes.allSatisfy { $0.tag.isEmpty || L.tr($0.tag) != $0.tag })
+        check("los textos de la tarjeta se traducen", ["parcial", "ver cambio", "ocultar", "12 líneas sin cambios", "y 7 líneas más", "línea 3", "copiar ruta"].allSatisfy { L.tr($0) != $0 })
+        L.current = saved
+
         print(failures == 0 ? "DIFF OK" : "DIFF FALLOS: \(failures)")
         return failures == 0
     }
