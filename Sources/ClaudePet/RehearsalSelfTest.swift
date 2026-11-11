@@ -78,6 +78,15 @@ enum RehearsalSelfTest {
         r.usesNetwork = true; r.timedOut = true; r.exitCode = 143
         let text = Rehearsal.text(r)
         check("el informe lleva lista agrupada, espacio y avisos", text.contains("- build/ (214)") && text.contains("~ a.txt") && text.contains("liberaría") && text.contains("! usa la red") && text.contains("se cortó"))
+        // lo que cabe en la tarjeta
+        var big = Rehearsal.Report()
+        big.changes.deleted = (0..<30).map { "d\($0)/f" }; big.changes.modified = ["a", "b", "c"]; big.changes.created = ["n"]; big.homeWrites = [".zshrc"]; big.usesNetwork = true
+        let rows = RehearsalLayout.rows(big)
+        check("el bloque respeta su presupuesto de filas y avisa de que hay mas", rows.count == 2 && rows.first?.kind == .deleted && rows.last?.kind == .more)
+        check("un titular de dos lineas deja una fila menos", RehearsalLayout.headlineLines(r) == 2 && RehearsalLayout.rows(r).count <= 2)
+        check("pocas filas van todas, sin el aviso", RehearsalLayout.rows(offline).map(\.kind) == [.note] && RehearsalLayout.rows(Rehearsal.Report()).isEmpty)
+        let tallest = [RehearsalBoard.Phase.running(since: Date()), .failed(.tooBig), .done(big), .done(r), .done(Rehearsal.Report())].map(RehearsalLayout.height).max() ?? 0
+        check("el bloque mas alto cabe en la isla junto a la tarjeta", NotchGeometry.permissionHeight + tallest + 6 - PermissionCardView.commandLinesSaved <= NotchGeometry.permissionDiffHeight)
         L.current = .en
         check("en ingles tambien", Rehearsal.headline(r).hasPrefix("Would delete 214 files") && Rehearsal.Failure.tooBig.text.contains("too large"))
         L.current = .es
