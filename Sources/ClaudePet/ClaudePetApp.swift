@@ -89,6 +89,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         _ = ConfigStore.shared.load()
         if CommandLine.arguments.contains("--selftest-approval-rules") { exit(ApprovalRulesSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-restore") { exit(RestorePointsSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-rehearsal") { exit(RehearsalSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--rehearse"), i + 1 < CommandLine.arguments.count {
             // ensayo desde la terminal: ClaudePet --rehearse "rm -rf build" [carpeta]; ejecuta el comando en una copia aislada y dice que cambiaria
             let dir = CommandLine.arguments.indices.contains(i + 2) ? CommandLine.arguments[i + 2] : FileManager.default.currentDirectoryPath
