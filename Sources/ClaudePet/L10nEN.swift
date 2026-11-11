@@ -517,5 +517,15 @@ enum L10nEN {
         "no se pudo conectar con el relay": "couldn't connect to the relay",
         "para usar Visto fuera de la red local hace falta un relay: un servidor tuyo con node 20+ (`relay/relay.js`, ver relay/README.md). tanto la Mac como el móvil se conectan a él y solo copia bytes cifrados de extremo a extremo con la clave del código; no puede leer nada, pero sí ve que hay una Mac y un móvil conectados. el QR de arriba ya trae su dirección.": "to use Visto outside the local network you need a relay: a server of yours with node 20+ (`relay/relay.js`, see relay/README.md). Both the Mac and the phone connect to it and it only copies end-to-end encrypted bytes with the code's key; it can't read anything, but it does see that a Mac and a phone are connected. The QR above already carries its address.",
         "TLS": "TLS",
+        "al iniciar sesión": "at login",
+        "abrir al iniciar sesión": "open at login",
+        "abre claude pet en la barra de menús cada vez que inicias sesión en este Mac.": "opens claude pet in the menu bar every time you log in to this Mac.",
+        "solo está disponible con la app instalada: este binario se ejecuta suelto, sin paquete .app.": "only available with the installed app: this binary is running loose, without an .app bundle.",
+        "macOS necesita tu aprobación: actívala en Ajustes del Sistema, General, Ítems de inicio.": "macOS needs your approval: turn it on in System Settings, General, Login Items.",
+        "macOS no encuentra la app. muévela a Aplicaciones y vuelve a intentarlo.": "macOS can't find the app. Move it to Applications and try again.",
+        "no se pudo cambiar (código #). prueba otra vez o revisa Ajustes del Sistema.": "couldn't change it (code #). Try again or check System Settings.",
+        "atención": "attention",
+        "abrir Ajustes del Sistema": "open System Settings",
+        "si se abre al iniciar sesión, cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola.": "whether it opens at login, when it peeks out, how long it takes to fold and when it shows up on its own.",
     ]
 }
