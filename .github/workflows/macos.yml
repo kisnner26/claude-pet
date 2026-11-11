@@ -1,0 +1,75 @@
+name: macos
+on:
+  push:
+    paths:
+      - 'Sources/**'
+      - 'companion/VistoCore/**'
+      - 'hooks/**'
+      - 'tests/**'
+      - 'relay/**'
+      - 'Package.swift'
+      - 'build.sh'
+      - '.github/workflows/macos.yml'
+  pull_request:
+    paths:
+      - 'Sources/**'
+      - 'companion/VistoCore/**'
+      - 'hooks/**'
+      - 'tests/**'
+      - 'relay/**'
+      - 'Package.swift'
+      - 'build.sh'
+      - '.github/workflows/macos.yml'
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: cache de .build
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.swift', 'companion/VistoCore/Package.swift') }}-${{ github.sha }}
+          restore-keys: |
+            spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.swift', 'companion/VistoCore/Package.swift') }}-
+            spm-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: compilar
+        run: swift build
+
+      # Todo lo que sigue corre con un HOME desechable: ninguna prueba toca el llavero ni las carpetas del usuario del runner.
+      - name: pruebas internas (--selftest-*)
+        run: |
+          export HOME="$RUNNER_TEMP/home"; mkdir -p "$HOME"
+          export CLAUDE_PET_NODE="$(command -v node)"
+          # quest queda fuera: necesita el llavero real del usuario (selftests.sh ya salta claudwler, que usa red, y workshop, que cubre tests/workshop.sh)
+          NAMES=$(grep -o '"--selftest-[a-z0-9-]*"' Sources/ClaudePet/ClaudePetApp.swift | tr -d '"' | sed 's/^--selftest-//' | sort -u | grep -vx quest)
+          ONLY="$NAMES" sh tests/selftests.sh
+
+      # Fuera a proposito: bus.sh, companion.sh, presence.sh, football.sh y manual.sh (necesitan ClaudePet.app abierta y mirar la pantalla),
+      # cpu.sh (mide 30 s de CPU en reposo, no es determinista en un runner compartido) y snapshots-sin-notch.sh (genera imagenes en docs/).
+      - name: scripts de pruebas
+        run: |
+          export HOME="$RUNNER_TEMP/home"; mkdir -p "$HOME"
+          fail=0
+          for s in permission plugins plan remote hook-guard bridge-capture plugins-utiles workshop; do
+            echo "::group::tests/$s.sh"
+            sh "tests/$s.sh" || { echo "FALLA tests/$s.sh"; fail=1; }
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: relay (node --test)
+        working-directory: relay
+        run: node --test test/
