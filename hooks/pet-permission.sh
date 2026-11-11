@@ -34,7 +34,7 @@ cwd=$(printf '%s' "$input" | jq -r '.cwd // ""' 2>/dev/null)
 proj=$(printf '%s' "${cwd##*/}" | tr -cd 'A-Za-z0-9_.-' | cut -c1-40)
 # un plan (ExitPlanMode) trae su texto en .plan: se aplana a una linea y admite mas largo que un comando
 lim=400; [ "$tool" = "ExitPlanMode" ] && lim=1500
-detail=$(printf '%s' "$input" | jq -r '.tool_input | (.command // .file_path // .url // .pattern // .path // ((.plan // "") | gsub("[\r\n]+"; " ~ ")))' 2>/dev/null | flat "$lim")
+detail=$(printf '%s' "$input" | jq -r '.tool_input | (.command // .file_path // .notebook_path // .url // .pattern // .path // ((.plan // "") | gsub("[\r\n]+"; " ~ ")))' 2>/dev/null | flat "$lim")
 always=0
 printf '%s' "$input" | jq -e '[.permission_suggestions[]? | select(.type == "addRules" and .behavior == "allow")] | length > 0' >/dev/null 2>&1 && always=1
 
@@ -45,22 +45,50 @@ ALWAYS=$(printf '%s' "$input" | jq -c '[.permission_suggestions[]? | select(.typ
   | {hookSpecificOutput: {hookEventName: "PermissionRequest", decision: ({behavior: "allow"} + (if $s then {updatedPermissions: [$s]} else {} end))}}' 2>/dev/null)
 [ -n "$ALWAYS" ] || ALWAYS="$ALLOW"
 
-line=$(printf 'perm\t%s\t%s\t%s\t%s\t%s\n' "$sid" "$tool" "$proj" "$always" "$detail")
+# Segundo mensaje: el cambio que pide Edit/MultiEdit/Write/NotebookEdit, el comando de Bash sin tocar y el cwd, como un
+# unico json en una linea (jq escapa tabuladores, saltos y nulos, asi que ningun byte del contenido rompe el encuadre) y
+# con el texto ya recortado por caracteres (nunca parte un utf-8). Si algo falla, no hay segundo mensaje y el permiso
+# sale exactamente como antes. La app antigua descarta la marca (un caracter de control) y el resto de la conexion.
+JQ_CHANGE='
+  def cut($n): if length > $n then .[:$n] else . end;
+  def part($n): (. // "" | tostring) as $s | ($s | cut(($n / $sc) | floor)) as $k
+    | {t: $k, m: (($s | split("\n") | length) - ($k | split("\n") | length))};
+  .tool_input as $i | .tool_name as $t
+  | {cwd: ((.cwd // "") | tostring | cut(1024))}
+  + (if $t == "Edit" then {k: "edit", p: ($i.file_path // ""), e: [{o: ($i.old_string | part(8000)), n: ($i.new_string | part(8000))}]}
+     elif $t == "MultiEdit" then {k: "multi", p: ($i.file_path // ""), e: [($i.edits // [])[:20][] | {o: (.old_string | part(3000)), n: (.new_string | part(3000))}], x: ((($i.edits // []) | length) - 20 | if . > 0 then . else 0 end)}
+     elif $t == "Write" then {k: "write", p: ($i.file_path // ""), c: ($i.content | part(40000))}
+     elif $t == "NotebookEdit" then {k: "nb", p: ($i.notebook_path // ""), md: ($i.edit_mode // "replace"), c: ($i.new_source | part(16000))}
+     elif $t == "Bash" then {k: "bash"} + (if (($i.command | type) == "string") and (($i.command | length) <= $cm) and (($i.command | length) > 0) then {cmd: $i.command} else {} end)
+     else {k: "none"} end)'
+diff=""
+for try in "1 32768" "8 32768" "8 0"; do
+  set -- $try
+  diff=$(printf '%s' "$input" | jq -c --argjson sc "$1" --argjson cm "$2" "$JQ_CHANGE" 2>/dev/null)
+  [ -n "$diff" ] || break
+  [ "$(printf '%s' "$diff" | wc -c)" -le 131072 ] && break
+  diff=""
+done
+marker=""; [ -n "$diff" ] && marker=$(printf '\037')
+
+line=$(printf 'perm\t%s\t%s\t%s\t%s\t%s%s\n' "$sid" "$tool" "$proj" "$always" "$detail" "$marker")
 
 # Se queda esperando la respuesta en la misma conexion. `exec` deja a perl como el proceso del hook: si Claude Code
 # lo cierra (por ejemplo porque respondiste en la terminal) la conexion se cierra y la isla retira la tarjeta.
 # Sin respuesta, error o plazo agotado no imprime nada y Claude Code pregunta en la terminal.
 exec perl -e '
   use strict; use IO::Socket::UNIX;
-  my ($path, $wait, $line, $allow, $always, $deny) = @ARGV;
+  my ($path, $wait, $line, $allow, $always, $deny, $diff) = @ARGV;
+  $SIG{PIPE} = "IGNORE";
+  $SIG{ALRM} = sub { exit 0 };
   my $s = IO::Socket::UNIX->new(Peer => $path) or exit 0;
   $s->autoflush(1);
-  print $s $line, "\n";
-  $SIG{ALRM} = sub { exit 0 };
   alarm $wait;
+  print $s $line, "\n";
+  print $s "diff\t", length($diff), "\n", $diff if length($diff);
   my $r = <$s>;
   exit 0 unless defined $r;
   $r =~ s/\s+//g;
   print(($r eq "allow" ? $allow : $r eq "always" ? $always : $r eq "deny" ? $deny : ""), "\n") if $r =~ /^(allow|always|deny)$/;
   exit 0;
-' "$SOCK" "$WAIT" "$line" "$ALLOW" "$ALWAYS" "$DENY"
+' "$SOCK" "$WAIT" "$line" "$ALLOW" "$ALWAYS" "$DENY" "$diff"
