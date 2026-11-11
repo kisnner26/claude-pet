@@ -29,6 +29,9 @@ import AppKit
         }
     }
 
+    /// Fija una fase sin ejecutar nada: solo para las capturas.
+    func show(_ id: String, _ phase: Phase?) { phases[id] = phase }
+
     /// Olvida los ensayos de permisos que ya no estan pendientes.
     func prune(keeping ids: Set<String>) {
         let gone = phases.keys.filter { !ids.contains($0) }
@@ -54,6 +57,54 @@ enum RehearsalSeverity {
         case .changes: return Color(hex: 0xE0824F)
         case .destructive: return Color(hex: 0xD85C5C)
         case .unknown: return Color.white.opacity(0.45)
+        }
+    }
+}
+
+/// Una fila del bloque: lo que se borraria, cambiaria o crearia, o un aviso.
+struct RehearsalRow: Equatable, Identifiable {
+    enum Kind { case deleted, modified, created, home, note, more }
+    var kind: Kind
+    var text: String
+    var id: String { "\(kind)-\(text)" }
+
+    var sign: String {
+        switch kind {
+        case .deleted: return "−"
+        case .modified: return "~"
+        case .created, .home: return "+"
+        case .note: return "!"
+        case .more: return "…"
+        }
+    }
+}
+
+/// Lo que cabe en la tarjeta: la isla tiene un alto maximo, asi que el bloque lleva un presupuesto de filas.
+/// El informe entero se copia con el menu contextual.
+enum RehearsalLayout {
+    /// Titulares mas largos que esto ocupan dos lineas en el ancho de la tarjeta.
+    static let headlineWrap = 50
+
+    static func headlineLines(_ r: Rehearsal.Report) -> Int { Rehearsal.headline(r).count > headlineWrap ? 2 : 1 }
+
+    static func rows(_ r: Rehearsal.Report) -> [RehearsalRow] {
+        let budget = headlineLines(r) == 2 ? 2 : 3
+        var all: [RehearsalRow] = []
+        all += Rehearsal.grouped(r.changes.deleted, max: 2).map { RehearsalRow(kind: .deleted, text: $0) }
+        all += Rehearsal.grouped(r.homeWrites.map { "~/" + $0 }, max: 2).map { RehearsalRow(kind: .home, text: $0) }
+        all += Rehearsal.grouped(r.changes.modified, max: 2).map { RehearsalRow(kind: .modified, text: $0) }
+        all += Rehearsal.grouped(r.changes.created, max: 2).map { RehearsalRow(kind: .created, text: $0) }
+        all += Rehearsal.caveats(r).prefix(1).map { RehearsalRow(kind: .note, text: $0) }
+        guard all.count > budget else { return all }
+        return Array(all.prefix(budget - 1)) + [RehearsalRow(kind: .more, text: L.t("hay más: clic derecho para copiar el informe", "there is more: right-click to copy the report"))]
+    }
+
+    /// Alto del bloque para cada fase; la isla lo suma a la tarjeta.
+    static func height(_ phase: RehearsalBoard.Phase) -> CGFloat {
+        switch phase {
+        case .running: return 46
+        case .failed: return 60
+        case .done(let r): return 14 + 12 + 4 + CGFloat(headlineLines(r)) * 16 + CGFloat(rows(r).count) * 19
         }
     }
 }
@@ -117,13 +168,14 @@ struct RehearsalStrip: View {
             let red = RehearsalSeverity.destructive.color, amber = RehearsalSeverity.changes.color, green = RehearsalSeverity.calm.color
             frame(accent) {
                 header(accent, trailing: Rehearsal.outcome(r))
-                Text(verbatim: Rehearsal.headline(r)).font(.system(size: 12, weight: .semibold)).foregroundColor(.white).fixedSize(horizontal: false, vertical: true)
-                ForEach(Rehearsal.grouped(r.changes.deleted, max: 3), id: \.self) { row("−", $0, red) }
-                ForEach(Rehearsal.grouped(r.changes.modified, max: 3), id: \.self) { row("~", $0, amber) }
-                ForEach(Rehearsal.grouped(r.changes.created, max: 3), id: \.self) { row("+", $0, green) }
-                ForEach(Rehearsal.grouped(r.homeWrites.map { "~/" + $0 }, max: 2), id: \.self) { row("+", $0, red) }
-                ForEach(Rehearsal.caveats(r), id: \.self) { note in
-                    Text(verbatim: note).font(.system(size: 10)).foregroundColor(.white.opacity(0.58)).fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: Rehearsal.headline(r)).font(.system(size: 12, weight: .semibold)).foregroundColor(.white).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                ForEach(RehearsalLayout.rows(r)) { item in
+                    switch item.kind {
+                    case .deleted, .home: row(item.sign, item.text, red)
+                    case .modified: row(item.sign, item.text, amber)
+                    case .created: row(item.sign, item.text, green)
+                    case .note, .more: row(item.sign, item.text, Color.white.opacity(0.5))
+                    }
                 }
             }
             .contextMenu {
@@ -161,5 +213,32 @@ extension IslandSnapshot {
         guard let img = r.nsImage, let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+
+        // la isla entera con el permiso de un comando: antes de ensayar, ensayando y con el resultado. Escribe `<ruta>-isla-<escena>.png`
+        let store = PetStore.shared
+        let previousState = store.state
+        PerimeterStore.shared.storagePath = nil
+        defer { store.permissionAsks = []; store.setSnapshotState(previousState) }
+        let metrics = ScreenMetrics(frame: CGRect(x: 0, y: 0, width: 1512, height: 982), safeTop: 38, auxLeft: 664, auxRight: 664)
+        var ask = PermissionAsk(id: "ensayo-demo", session: "abc", tool: "Bash", project: "mi-app", detail: "git reset --hard && git clean -fd && rm -rf build dist", canAlways: false, at: Date())
+        ask.rawCommand = ask.detail; ask.cwd = "/Users/demo/mi-app"
+        var both = reset
+        both.changes.deleted += (0..<214).map { "build/o\($0).o" }
+        let scenes: [(String, RehearsalBoard.Phase?)] = [("antes", nil), ("ensayando", .running(since: Date())), ("resultado", .done(both)), ("limpio", .done(build))]
+        let base = path.hasSuffix(".png") ? String(path.dropLast(4)) : path
+        for (name, phase) in scenes {
+            let model = IslandModel()
+            model.mode = .expanded; model.placement = .top; model.hasNotch = true
+            store.setSnapshotState(.waiting)
+            store.permissionAsks = [ask]
+            RehearsalBoard.shared.show(ask.id, phase)
+            model.size = NotchGeometry.islandSize(.expanded, metrics: metrics, placement: .top, expandedHeight: store.permissionCardHeight)
+            let island = IslandView(model: model, store: store)
+                .frame(width: NotchGeometry.panelSize.width, height: NotchGeometry.panelSize.height, alignment: .top)
+                .background(Color(hex: 0x6C7A89))
+            let ir = ImageRenderer(content: island); ir.scale = 2
+            guard let i = ir.nsImage, let t = i.tiffRepresentation, let b = NSBitmapImageRep(data: t), let out = b.representation(using: .png, properties: [:]) else { continue }
+            try? out.write(to: URL(fileURLWithPath: "\(base)-isla-\(name).png"))
+        }
     }
 }
