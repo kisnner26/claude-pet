@@ -4,6 +4,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 
 ## [Sin publicar]
 
+### rediseño
+- Ajustes: kit de controles nuevo (interruptor, selector, ficha, fila, tarjeta, medidor, barras y anillo) con un solo acento, el naranja de Claude, y el azul de Codex solo para Codex; sin degradados ni cajas anidadas. Densidad cómoda o compacta, «reducir movimiento» y contraste alto respetados.
+- Resumen como tablero: tarjeta por agente con su mascota, hoy, racha de siete días, semana en barras con el cambio frente a la anterior, plan de 5 h y 7 d, y contexto. Las gráficas son `Canvas` propio que se dibuja una vez y solo se anima al cambiar.
+- Buscador de ajustes con fichas de filtro (categoría, solo activados, solo experimentales), contador de funciones encendidas por grupo y punto de estado en cada página.
+- Registro de páginas de ajustes (`SettingsRegistry.swift`): añadir una página son un `case` y una entrada.
+- Mission control rediseñado: filtros visibles por agente, proyecto, estado, rango y texto, orden, tres vistas (lista, cuadrícula de proyectos con salud git y actividad semanal, línea de tiempo) y estados vacíos. `MissionFilter` amplía los filtros que ya existían; la ventana pasa a 760 pt de ancho. `--snapshot-mission` dibuja las vistas.
+- Traducciones al inglés de todo lo nuevo y de los subtítulos de ajustes que faltaban. Pruebas nuevas en `--selftest-settings` y `--selftest-mission-filter`.
+- Capturas de `docs/img/ajustes-*.jpg` regeneradas y `docs/img/mission-*.jpg` nuevas.
+
 ### añadido
 - Recuperación inteligente del cerebro (opcional, apagada por defecto con `ClaudePet --brain config smart on`): en cada mensaje un hook `UserPromptSubmit` inyecta solo las notas relevantes (BM25 + semántica local de NaturalLanguage + RRF, re-ranking heurístico, padre-hijo) en un formato compacto y dentro de un presupuesto de tokens; `ClaudePet --brain recall "consulta"`, condensación extractiva de notas antiguas en el repaso (las originales se archivan, no se borran) y arreglo del `cwd` de `pet-brain.sh start` con `jq`. Pruebas: `--selftest-brain-recall` y `tests/brain-hook.sh`. Detalle, límites y técnicas que quedan fuera en [docs/RECUPERACION.md](docs/RECUPERACION.md).
 - Ensayo: en el permiso de un comando, «ensayar en una copia» lo ejecuta en un clon instantáneo del proyecto (APFS, sin ocupar espacio), dentro de una caja de arena sin red y sin escritura fuera de la copia, y la tarjeta dice qué pasaría: archivos que borraría, cambiaría o crearía, si movería HEAD o descartaría trabajo sin commitear y si quiso escribir en tu carpeta personal. El proyecto real no se toca. También desde la terminal con `ClaudePet --rehearse "comando" [carpeta]`. Detalle y límites en [docs/ENSAYO.md](docs/ENSAYO.md).
