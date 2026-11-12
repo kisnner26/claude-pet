@@ -1,7 +1,7 @@
 import Foundation
 
 enum MissionStateFilter: String, CaseIterable, Identifiable {
-    case all = "todos", active = "activos", waiting = "esperando", done = "terminados", error = "con error"
+    case all = "todos", active = "activos", waiting = "esperando", done = "listos", error = "error"
     var id: String { rawValue }
     func matches(_ s: PetState) -> Bool {
         switch self {

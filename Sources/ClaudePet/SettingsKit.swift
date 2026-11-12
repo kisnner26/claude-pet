@@ -257,7 +257,7 @@ struct SChip: View {
             HStack(spacing: 5) {
                 if selected { Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)) }
                 else if let symbol { Image(systemName: symbol).font(.system(size: 9, weight: .medium)) }
-                Text(title).font(.system(size: 11, weight: selected ? .semibold : .regular, design: .monospaced))
+                Text(title).font(.system(size: 11, weight: selected ? .semibold : .regular, design: .monospaced)).lineLimit(1).fixedSize()
                 if let count { Text("\(count)").font(.system(size: 10, design: .monospaced)).opacity(0.7) }
             }
             .padding(.horizontal, 10).padding(.vertical, 5)

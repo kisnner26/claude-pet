@@ -416,6 +416,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-settings"), i + 1 < CommandLine.arguments.count {
             SettingsSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-mission"), i + 1 < CommandLine.arguments.count {
+            MissionSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-rehearsal"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.rehearsal(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -917,7 +920,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func setUpMissionPanel() {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 590, height: 560),
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 760, height: 660),
                             styleMask: [.titled, .closable, .utilityWindow, .fullSizeContentView], backing: .buffered, defer: false)
         panel.title = "Mission Control"
         panel.titlebarAppearsTransparent = true
