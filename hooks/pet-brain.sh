@@ -7,9 +7,19 @@
 BIN="${CLAUDE_PET_BIN:-/Applications/ClaudePet.app/Contents/MacOS/ClaudePet}"
 [ -x "$BIN" ] || exit 0
 if [ "$1" = "start" ]; then
-  input=$(head -c 8192 2>/dev/null)
-  cwd=$(printf '%s' "$input" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+  # Mismo criterio que pet-hook.sh: con jq se lee el payload completo (hasta 1 MiB) y solo el "cwd" de primer nivel,
+  # sin confundirlo con claves anidadas ni con comillas escapadas; sin jq, o si jq falla, sed sobre los primeros 8 KB.
+  full=$(head -c 1048577 2>/dev/null)
+  cwd=""; jqok=""
+  if command -v jq >/dev/null 2>&1; then
+    if cwd=$(printf '%s' "$full" | jq -r 'if type == "object" and (.cwd | type) == "string" then .cwd else "" end' 2>/dev/null); then jqok=1; else cwd=""; fi
+  fi
+  if [ -z "$jqok" ]; then
+    cwd=$(printf '%s' "$full" | head -c 8192 | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
+  fi
   [ -n "$cwd" ] && cd "$cwd" 2>/dev/null
-  exec "$BIN" --brain show claude
+  # falla abierto: si la app da error, no se imprime nada y se sale con 0
+  out=$("$BIN" --brain show claude 2>/dev/null) && [ -n "$out" ] && printf '%s\n' "$out"
+  exit 0
 fi
 exec "$BIN" --brain "$@"
