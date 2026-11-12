@@ -78,6 +78,31 @@ struct LiquidView: View {
     }
 }
 
+/// El nivel de contexto como una linea fina en el borde inferior de la isla: un carril casi invisible y, encima, lo usado.
+/// Sin ola ni animacion continua; solo se desliza cuando el nivel cambia.
+struct ContextLine: View {
+    let level: Double
+    let color: UInt32
+    var body: some View {
+        GeometryReader { geo in
+            let width = max(0, geo.size.width - 44)
+            let filled = level <= 0 ? 0 : max(2, width * CGFloat(min(1, level)))
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.07))
+                    Capsule().fill(fxColor(color, 0.6)).frame(width: filled)
+                }
+                .frame(width: width, height: 2)
+                .padding(.bottom, 12)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .animation(.easeOut(duration: 0.6), value: level)
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
 /// Aurora: fondo de luz que ondula con el color del estado. MeshGradient (GPU) donde existe; si no, nada.
 struct AuroraView: View {
     let color: UInt32
