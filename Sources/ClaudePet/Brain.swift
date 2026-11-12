@@ -14,6 +14,10 @@ struct BrainNote: Codable, Identifiable, Equatable {
     var text: String
     /// El repaso nocturno vio que habla de archivos que ya no existen. Solo se marca: decides tu si sigue valiendo.
     var stale: Bool? = nil
+    /// La condenso el repaso en una nota-resumen: sigue en el archivo (recuperable) pero ya no se muestra ni se busca.
+    var archived: Bool? = nil
+    /// Solo en una nota-resumen: ids cortos de las notas que condensa, que quedan archivadas.
+    var sources: [String]? = nil
     var short: String { String(id.uuidString.prefix(8)).lowercased() }
 }
 
@@ -44,7 +48,14 @@ final class BrainStore {
 
     private func url(_ project: String) -> URL { URL(fileURLWithPath: directory + "/" + Self.clean(project: project) + ".json") }
 
+    /// Notas vivas: las archivadas por la condensacion no cuentan.
     func notes(_ project: String) -> [BrainNote] {
+        lock.lock(); defer { lock.unlock() }
+        return load(project).filter { $0.archived != true }
+    }
+
+    /// Todas, con las archivadas: nada se pierde al condensar.
+    func allNotes(_ project: String) -> [BrainNote] {
         lock.lock(); defer { lock.unlock() }
         return load(project)
     }
@@ -76,10 +87,10 @@ final class BrainStore {
         lock.lock(); defer { lock.unlock() }
         var all = load(project)
         // la misma nota no se duplica: se refresca y conserva al primer autor
-        if let i = all.firstIndex(where: { $0.text.lowercased() == text.lowercased() }) { all[i].at = at; save(all, project); return .success(all[i]) }
+        if let i = all.firstIndex(where: { $0.archived != true && $0.text.lowercased() == text.lowercased() }) { all[i].at = at; save(all, project); return .success(all[i]) }
         let note = BrainNote(id: UUID(), at: at, agent: agent, kind: k, text: text)
         all.insert(note, at: 0)
-        while all.count > Self.maxNotes, let drop = all.lastIndex(where: { $0.kind != .pendiente }) ?? all.indices.last { all.remove(at: drop) }
+        while all.filter({ $0.archived != true }).count > Self.maxNotes, let drop = all.lastIndex(where: { $0.archived != true && $0.kind != .pendiente }) ?? all.lastIndex(where: { $0.archived != true }) { all.remove(at: drop) }
         save(all, project)
         return .success(note)
     }
