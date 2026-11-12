@@ -29,6 +29,8 @@ extension SettingsPage {
                                subtitle: "si se abre al iniciar sesión, cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola.", experimental: true, isOn: { $0.autoVisibility }, build: { AnyView(ComportamientoPage(store: $0)) }),
         .agentes: .init(title: "agentes", symbol: "person.2", group: .agentes, keywords: ["claude", "codex", "contexto", "bloqueo", "avisos", "mostrar", "ocultar", "terminal"],
                         subtitle: "qué agentes vigila claude-pet y qué detalle enseña de cada uno.", isOn: { $0.claudePresent || $0.codexPresent }, build: { AnyView(AgentesPage(store: $0)) }),
+        .ahorro: .init(title: "ahorro", symbol: "leaf", group: .agentes, keywords: ["tokens", "gasto", "cache", "caché", "conciso", "consejos", "claude.md", "borrador", "squeeze", "contexto", "ahorrar"],
+                       subtitle: "cuántos tokens gastas, dónde se van y qué puedes hacer para gastar menos.", build: { AnyView(TokenSavingsPage(store: $0)) }),
         .permisos: .init(title: "permisos", symbol: "checkmark.shield", group: .seguridad, keywords: ["permitir", "denegar", "reglas", "puntos de restauracion", "riesgo", "bloquear", "aprobar", "siempre"],
                          subtitle: "responder desde la isla, reglas de aprobación y puntos de restauración.", isOn: { $0.islandPermissions }, build: { AnyView(PermisosPage(store: $0)) }),
         .perimetro: .init(title: "perímetro", symbol: "scope", group: .seguridad, keywords: ["cerca", "limite", "carpeta", "archivos", "proteger", "proteccion", "env", "bloquear", "alcance", "glob", "zona"],

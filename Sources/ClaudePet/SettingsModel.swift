@@ -8,7 +8,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 }
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case resumen, apariencia, comportamiento, agentes, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, trackpad, plugins, atajos, copia, acerca
+    case resumen, apariencia, comportamiento, agentes, ahorro, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, trackpad, plugins, atajos, copia, acerca
     var id: String { rawValue }
 }
 
