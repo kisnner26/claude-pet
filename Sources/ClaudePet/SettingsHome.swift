@@ -157,7 +157,7 @@ struct ResumenPage: View {
         let change = ActivityTrend.changeLabel(ActivityTrend.change(current: total, previous: previousWeek))
         let claude = days.reduce(0) { $0 + $1.claude }, codex = days.reduce(0) { $0 + $1.codex }
         let r = store.weeklyRecap
-        return STile(title: "esta semana", trailing: r.busiestDay.map { "día más activo: \($0)" }) {
+        return STile(title: "esta semana", trailing: r.busiestDay.map { L.tr("día más activo") + ": " + $0 }) {
             HStack(alignment: .bottom, spacing: 26) {
                 VStack(alignment: .leading, spacing: 10) {
                     SStat(value: "\(total)", label: "acciones")
