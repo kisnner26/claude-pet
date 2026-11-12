@@ -73,7 +73,7 @@ enum Hourglass {
 
 // MARK: nivel de contexto
 
-enum LiquidModel {
+enum ContextModel {
     static func level(used: Int, compactAt: Int) -> Double {
         guard compactAt > 0 else { return 0 }
         return max(0, min(1, Double(used) / Double(compactAt)))

@@ -24,8 +24,8 @@ enum VisualFxSelfTest {
         check("el hilo de arena solo cae mientras corre", sand(0.5).contains { $0.x == 4 && $0.y == 6 } && !sand(0).contains { $0.y == 6 } && !sand(1).contains { $0.y == 6 })
 
         // contexto
-        check("el nivel es la fraccion usada, acotada", LiquidModel.level(used: 80, compactAt: 160) == 0.5 && LiquidModel.level(used: 500, compactAt: 160) == 1 && LiquidModel.level(used: 5, compactAt: 0) == 0)
-        check("el color sigue la presion del contexto", LiquidModel.colorHex(.normal) == 0xE9E4DA && LiquidModel.colorHex(.critical) == 0xD85C5C)
+        check("el nivel es la fraccion usada, acotada", ContextModel.level(used: 80, compactAt: 160) == 0.5 && ContextModel.level(used: 500, compactAt: 160) == 1 && ContextModel.level(used: 5, compactAt: 0) == 0)
+        check("el color sigue la presion del contexto", ContextModel.colorHex(.normal) == 0xE9E4DA && ContextModel.colorHex(.critical) == 0xD85C5C)
 
         // escenarios
         for st in PetState.allCases {

@@ -358,7 +358,7 @@ struct IslandView: View {
                     if model.mode == .expanded && effectsOn {
                         ZStack {
                             if let g = glow { AuroraView(color: g.hex) }
-                            if let r = store.contextReading { ContextLine(level: LiquidModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: LiquidModel.colorHex(r.pressure)) }
+                            if let r = store.contextReading { ContextLine(level: ContextModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: ContextModel.colorHex(r.pressure)) }
                         }
                     }
                 }
@@ -971,7 +971,7 @@ extension IslandSnapshot {
             HStack(spacing: 14) {
                 cell("pulso de alerta", ZStack { AlertPulseViewStatic(color: 0xE7B45B); mascot(.waiting) })
                 cell("reloj de arena", HourglassView(top: 0.55).scaleEffect(2))
-                cell("contexto", ZStack { ContextLine(level: 0.62, color: LiquidModel.colorHex(.normal)); mascot() })
+                cell("contexto", ZStack { ContextLine(level: 0.62, color: ContextModel.colorHex(.normal)); mascot() })
                 cell("aurora", ZStack { if #available(macOS 15.0, *) { AuroraView(color: 0x6CCB8A, animated: false) }; mascot(.done) })
             }
             HStack(spacing: 14) {
