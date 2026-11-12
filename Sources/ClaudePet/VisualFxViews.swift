@@ -52,32 +52,6 @@ struct HourglassView: View {
     }
 }
 
-/// El nivel de contexto como un liquido que llena la isla desde abajo, con olas.
-struct LiquidView: View {
-    let level: Double
-    let color: UInt32
-    let amplitude: Double
-    var animated = true
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !animated)) { ctx in
-            let t = animated ? ctx.date.timeIntervalSinceReferenceDate : 0
-            Canvas { gc, size in
-                let line = LiquidModel.surface(at: t, level: level, amplitude: amplitude, width: size.width, height: size.height)
-                var path = Path()
-                path.move(to: CGPoint(x: 0, y: size.height))
-                for p in line { path.addLine(to: p) }
-                path.addLine(to: CGPoint(x: size.width, y: size.height))
-                path.closeSubpath()
-                gc.fill(path, with: .linearGradient(Gradient(colors: [fxColor(color, 0.30), fxColor(color, 0.06)]), startPoint: CGPoint(x: 0, y: size.height * (1 - level)), endPoint: CGPoint(x: 0, y: size.height)))
-                // la cresta brilla un poco
-                var crest = Path(); crest.addLines(line)
-                gc.stroke(crest, with: .color(fxColor(color, 0.45)), lineWidth: 1)
-            }
-        }
-        .allowsHitTesting(false).accessibilityHidden(true)
-    }
-}
-
 /// El nivel de contexto como una linea fina en el borde inferior de la isla: un carril casi invisible y, encima, lo usado.
 /// Sin ola ni animacion continua; solo se desliza cuando el nivel cambia.
 struct ContextLine: View {
