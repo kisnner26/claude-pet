@@ -58,7 +58,7 @@ final class ActivityStats {
         lock.lock(); var d = days[key(date)] ?? DayStats(); body(&d); days[key(date)] = d; lock.unlock()
     }
 
-    private static func clean(_ name: String) -> String { String(name.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." }.prefix(40)) }
+    static func clean(_ name: String) -> String { String(name.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." }.prefix(40)) }
 
     func recordTool(agent: String, project: String, at date: Date = Date()) {
         mutate(date) { $0.tools += 1; $0.agents[Self.clean(agent), default: 0] += 1; if !project.isEmpty { $0.projects[Self.clean(project), default: 0] += 1 } }
