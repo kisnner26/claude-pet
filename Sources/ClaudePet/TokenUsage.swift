@@ -33,6 +33,7 @@ enum TokenUsageParser {
         let id: String?
         let usage: TokenUsage
         let cwdName: String?   // solo el ultimo componente de la carpeta
+        var workspace: String? = nil   // la carpeta completa: solo en memoria, para auditar su CLAUDE.md; nunca se registra
     }
 
     static func parse(_ row: [String: Any]) -> Row? {
@@ -41,7 +42,7 @@ enum TokenUsageParser {
                            cacheCreate: count(usage["cache_creation_input_tokens"]), output: count(usage["output_tokens"]), messages: 1)
         guard u.total > 0 else { return nil }
         let cwd = (row["cwd"] as? String).flatMap { $0.split(separator: "/").last.map(String.init) }
-        return Row(id: message["id"] as? String, usage: u, cwdName: cwd)
+        return Row(id: message["id"] as? String, usage: u, cwdName: cwd, workspace: (row["cwd"] as? String).flatMap { $0.hasPrefix("/") ? $0 : nil })
     }
 
     /// Un mensaje de Claude se escribe en varias lineas (una por bloque de contenido) con el mismo `id` y el mismo uso:
@@ -50,10 +51,12 @@ enum TokenUsageParser {
         private var perID: [String: TokenUsage] = [:]
         private var loose = TokenUsage()
         private(set) var project: String?
+        private(set) var workspace: String?
         var maxTrackedIDs = 200_000
 
         mutating func add(_ row: Row) {
             if let name = row.cwdName { project = name }
+            if let path = row.workspace { workspace = path }
             guard let id = row.id else { loose += row.usage; return }
             if var old = perID[id] {
                 old.input = max(old.input, row.usage.input); old.cacheRead = max(old.cacheRead, row.usage.cacheRead)

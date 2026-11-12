@@ -5,6 +5,8 @@ struct SessionTokens: Equatable, Identifiable {
     let project: String       // ultimo componente de la carpeta de trabajo
     let usage: TokenUsage
     let modified: Date
+    let workspace: String?    // carpeta completa, solo en memoria (para auditar su CLAUDE.md)
+    let started: Date?
     let partial: Bool         // el transcript era mayor que el tope y se leyo solo la parte final
 }
 
@@ -13,6 +15,7 @@ struct ProjectTokens: Equatable, Identifiable {
     let name: String
     let usage: TokenUsage
     let sessions: Int
+    let workspace: String?
 }
 
 struct TokenSnapshot: Equatable {
@@ -23,9 +26,9 @@ struct TokenSnapshot: Equatable {
 
     static func build(_ sessions: [SessionTokens]) -> TokenSnapshot {
         let ordered = sessions.sorted { $0.modified > $1.modified }
-        var byProject: [String: (TokenUsage, Int)] = [:]
-        for s in ordered { let old = byProject[s.project] ?? (TokenUsage(), 0); byProject[s.project] = (old.0 + s.usage, old.1 + 1) }
-        let projects = byProject.map { ProjectTokens(name: $0.key, usage: $0.value.0, sessions: $0.value.1) }
+        var byProject: [String: (TokenUsage, Int, String?)] = [:]
+        for s in ordered { let old = byProject[s.project] ?? (TokenUsage(), 0, nil); byProject[s.project] = (old.0 + s.usage, old.1 + 1, old.2 ?? s.workspace) }
+        let projects = byProject.map { ProjectTokens(name: $0.key, usage: $0.value.0, sessions: $0.value.1, workspace: $0.value.2) }
             .sorted { ($0.usage.total, $1.name) > ($1.usage.total, $0.name) }
         return TokenSnapshot(sessions: ordered, projects: projects)
     }
@@ -47,6 +50,7 @@ actor TokenLedger {
         var acc = TokenUsageParser.Accumulator()
         var partial = false
         var modified = Date.distantPast
+        var started: Date?
     }
 
     private let root: URL
@@ -68,11 +72,12 @@ actor TokenLedger {
             live.insert(key)
             var state = files[key] ?? FileState()
             state.modified = modified
+            if state.started == nil { state.started = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate }
             advance(&state, url: url)
             files[key] = state
             let name = state.acc.project ?? folder
             out.append(SessionTokens(id: String(url.deletingPathExtension().lastPathComponent.prefix(8)), project: name,
-                                     usage: state.acc.usage, modified: modified, partial: state.partial))
+                                     usage: state.acc.usage, modified: modified, workspace: state.acc.workspace, started: state.started, partial: state.partial))
         }
         for key in files.keys where !live.contains(key) { files[key] = nil }
         return .build(out.filter { $0.usage.total > 0 })

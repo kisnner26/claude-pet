@@ -107,7 +107,9 @@ enum TokenUsageSelfTest {
 
         // nada de contenido en el resultado
         let dump = String(describing: snap)
-        check("el resultado no contiene texto de los mensajes", !dump.contains("privado") && !dump.contains("/Users/x"))
+        check("el resultado no contiene texto de los mensajes", !dump.contains("privado"))
+        check("la carpeta completa solo se guarda como dato en memoria para auditar", snap.projects.first { $0.name == "alfa" }?.workspace == "/Users/x/alfa")
+        check("las sesiones traen la fecha de inicio del transcript", snap.sessions.allSatisfy { $0.started != nil })
         return failures
     }
 }
