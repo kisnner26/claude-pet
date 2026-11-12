@@ -230,6 +230,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--squeeze") { exit(OutputSqueezer.cli()) }
         if CommandLine.arguments.contains("--selftest-squeeze") { exit(SqueezeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-advice") { exit(SavingsAdviceSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-concise") { exit(ConciseModeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-claudemd") { exit(ClaudeMdSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--project-summary") {
             exit(ProjectSummary.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
