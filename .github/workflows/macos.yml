@@ -72,4 +72,4 @@ jobs:
 
       - name: relay (node --test)
         working-directory: relay
-        run: node --test test/
+        run: node --test test/relay.test.js
