@@ -43,9 +43,18 @@ enum BrainRecall {
         out.children = childText.count
 
         // etapa 1: lexical + semantica, fusionadas
-        let lex = BM25Index(docs: childText.map(BrainText.terms)).scores(qTerms)
+        let bm25 = BM25Index(docs: childText.map(BrainText.terms))
+        let lex = bm25.scores(qTerms)
         let lexRank = Array(lex.indices.filter { lex[$0] > 0 }.sorted { lex[$0] > lex[$1] }.prefix(n))
         var rankings = [lexRank]
+        // semantica: (a) la consulta ampliada con vecinos de significado, puntuada con el mismo BM25;
+        //            (b) coseno del vector medio de palabras, solo parecidos fuertes
+        let expansion = BrainSemantic.expand(query: query, vectors: vectors)
+        if !expansion.isEmpty {
+            let ex = bm25.scores(expansion)
+            let exRank = Array(ex.indices.filter { ex[$0] > 0 }.sorted { ex[$0] > ex[$1] }.prefix(n))
+            if !exRank.isEmpty { rankings.append(exRank); out.usedSemantic = true }
+        }
         let sem = BrainSemantic.scores(query: query, docs: childText, vectors: vectors)
         let semRank = Array(sem.indices.filter { (sem[$0] ?? 0) >= minCosine }.sorted { (sem[$0] ?? 0) > (sem[$1] ?? 0) }.prefix(n))
         if !semRank.isEmpty { rankings.append(semRank); out.usedSemantic = true }
