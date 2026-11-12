@@ -32,6 +32,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Vídeo de presentación hecho con el propio código de la app: `ClaudePet --render-promo salida.mp4` renderiza 53 s a 1080p con las vistas y el animador reales (la isla, las mascotas, los atuendos, el enfado) y lo codifica con AVFoundation, sin ffmpeg. Los menús nativos se sustituyen por su icono en las capturas.
 
 ### cambiado
+- El nivel de contexto de la isla es una línea fina y quieta en el borde inferior, neutra en reposo y ámbar o roja con presión, en lugar de la ola azul que subía desde abajo. Ya no redibuja a 15 fps.
 - La memoria queda solo con la actividad: salud, cifras, gráfico y reparto por agente y tipo. El cerebro y el carácter pasan a su propia página, en un solo bloque.
 - La isla ya no tiene el botón ni la pestaña de música: el reproductor vive en la Touch Bar y la mascota sigue mostrando el disco y bailando.
 - La isla abierta mide 236 pt de alto y deja más aire arriba; las cifras de memoria cuentan sesiones y registran también a codex.
