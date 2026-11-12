@@ -225,6 +225,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             exit(WebCrawlerSelfTest.run(htmlOut: out) ? 0 : 1)
         }
         if CommandLine.arguments.contains("--selftest-brain") { exit(BrainSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-brain-recall") { exit(BrainRecallSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--brain") {
             exit(BrainStore.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
         }
