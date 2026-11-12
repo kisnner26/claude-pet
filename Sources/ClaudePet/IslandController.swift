@@ -353,12 +353,12 @@ struct IslandView: View {
                         }.clipShape(shape)
                     }
                 }
-                // nivel de contexto como liquido y aurora de luz: solo con la isla abierta y con animaciones
+                // nivel de contexto como una linea fina y aurora de luz: solo con la isla abierta y con animaciones
                 .overlay {
                     if model.mode == .expanded && effectsOn {
                         ZStack {
                             if let g = glow { AuroraView(color: g.hex) }
-                            if let r = store.contextReading { LiquidView(level: LiquidModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: LiquidModel.colorHex(r.pressure), amplitude: LiquidModel.amplitude(store.state)) }
+                            if let r = store.contextReading { ContextLine(level: LiquidModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: LiquidModel.colorHex(r.pressure)) }
                         }
                     }
                 }
@@ -971,7 +971,7 @@ extension IslandSnapshot {
             HStack(spacing: 14) {
                 cell("pulso de alerta", ZStack { AlertPulseViewStatic(color: 0xE7B45B); mascot(.waiting) })
                 cell("reloj de arena", HourglassView(top: 0.55).scaleEffect(2))
-                cell("contexto líquido", ZStack { LiquidView(level: 0.62, color: 0x2966ED, amplitude: 4, animated: false); mascot() })
+                cell("contexto", ZStack { ContextLine(level: 0.62, color: LiquidModel.colorHex(.normal)); mascot() })
                 cell("aurora", ZStack { if #available(macOS 15.0, *) { AuroraView(color: 0x6CCB8A, animated: false) }; mascot(.done) })
             }
             HStack(spacing: 14) {
