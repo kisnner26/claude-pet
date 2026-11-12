@@ -171,7 +171,7 @@ enum SettingsBackup {
         Entry(key: "skin", kind: .choice(Skin.allCases.map(\.rawValue))), Entry(key: "codexSkin", kind: .choice(CodexSkin.allCases.map(\.rawValue))),
         Entry(key: "codexGesturesEnabled", kind: .bool), Entry(key: "showBubble", kind: .bool), Entry(key: "showDetail", kind: .bool),
         Entry(key: "stallWatch", kind: .bool), Entry(key: "alertDisplayMode", kind: .choice(AlertDisplayMode.allCases.map(\.rawValue))),
-        Entry(key: "shareProject", kind: .bool), Entry(key: "claudwler.verify", kind: .bool),
+        Entry(key: "shareProject", kind: .bool), Entry(key: "settingsDensity", kind: .choice(SettingsDensity.allCases.map(\.rawValue))), Entry(key: "claudwler.verify", kind: .bool),
     ]
     static let maxBytes = 256 * 1024
     static let format = "claude-pet-settings"

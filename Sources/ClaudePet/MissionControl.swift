@@ -373,7 +373,7 @@ final class MissionControl: ObservableObject {
 
     private func append(agent: String, state: PetState, project: String, at: Date) {
         timeline.insert(MissionEvent(at: at, agent: agent, state: state, project: project), at: 0)
-        if timeline.count > 120 { timeline.removeLast(timeline.count - 120) }
+        if timeline.count > 16 { timeline.removeLast(timeline.count - 16) }
     }
 
     private func updateCollision(at date: Date) {
