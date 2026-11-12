@@ -25,7 +25,7 @@ enum VisualFxSelfTest {
 
         // liquido
         check("el nivel es la fraccion usada, acotada", LiquidModel.level(used: 80, compactAt: 160) == 0.5 && LiquidModel.level(used: 500, compactAt: 160) == 1 && LiquidModel.level(used: 5, compactAt: 0) == 0)
-        check("el color sigue la presion del contexto", LiquidModel.colorHex(.normal) == 0x2966ED && LiquidModel.colorHex(.critical) == 0xD85C5C)
+        check("el color sigue la presion del contexto", LiquidModel.colorHex(.normal) == 0xE9E4DA && LiquidModel.colorHex(.critical) == 0xD85C5C)
         check("trabajando hay mas olas que en reposo", LiquidModel.amplitude(.tool) > LiquidModel.amplitude(.idle))
         let low = LiquidModel.surface(at: 3, level: 0.2, amplitude: 4, width: 600, height: 200), high = LiquidModel.surface(at: 3, level: 0.8, amplitude: 4, width: 600, height: 200)
         let lowMean: Double = low.map { Double($0.y) }.reduce(0, +) / Double(low.count), highMean: Double = high.map { Double($0.y) }.reduce(0, +) / Double(high.count)

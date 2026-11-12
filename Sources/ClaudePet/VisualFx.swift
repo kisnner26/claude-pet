@@ -80,7 +80,7 @@ enum LiquidModel {
     }
 
     static func colorHex(_ pressure: ContextPressure) -> UInt32 {
-        switch pressure { case .normal: return 0x2966ED; case .caution: return 0xE7B45B; case .critical: return 0xD85C5C }
+        switch pressure { case .normal: return 0xE9E4DA; case .caution: return 0xE7B45B; case .critical: return 0xD85C5C }
     }
 
     /// Olas mas altas cuando el agente trabaja.
