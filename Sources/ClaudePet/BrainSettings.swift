@@ -28,9 +28,10 @@ enum BrainSettings {
     }
 
     /// Falla abierto: archivo ausente o roto = valores por defecto. CLAUDE_PET_BRAIN_SMART=1|0 manda sobre el archivo.
-    static func load(path: String = BrainSettings.path) -> Values {
+    static func load(path: String = BrainSettings.path, applyEnv: Bool = true) -> Values {
         var v = Values()
         if let data = try? Data(contentsOf: URL(fileURLWithPath: path)), data.count < 4096, let d = try? JSONDecoder().decode(Values.self, from: data) { v = d }
+        guard applyEnv else { return v }
         switch ProcessInfo.processInfo.environment["CLAUDE_PET_BRAIN_SMART"] {
         case "1": v.smartRecall = true
         case "0": v.smartRecall = false
