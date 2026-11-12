@@ -7,6 +7,10 @@
 #   pet-brain.sh forget <id> [proyecto]   |   pet-brain.sh list
 BIN="${CLAUDE_PET_BIN:-/Applications/ClaudePet.app/Contents/MacOS/ClaudePet}"
 [ -x "$BIN" ] || exit 0
+# Modo conciso (opt-in, lo gestiona la app en ajustes > ahorro). CONTRATO: ~/.claude-pet/conciso.txt, UTF-8, 0600.
+# Si existe y no esta vacio, su contenido ES la instruccion y se imprime tal cual antes del contexto de arranque;
+# si no existe, no se imprime nada. Maximo 1200 bytes. Quien reorganice este script solo debe conservar esa llamada en `start`.
+pet_concise() { f="$HOME/.claude-pet/conciso.txt"; [ -f "$f" ] && [ -s "$f" ] && { head -c 1200 "$f" 2>/dev/null; printf '\n\n'; }; return 0; }
 if [ "$1" = "start" ]; then
   # Mismo criterio que pet-hook.sh: con jq se lee el payload completo (hasta 1 MiB) y solo el "cwd" de primer nivel,
   # sin confundirlo con claves anidadas ni con comillas escapadas; sin jq, o si jq falla, sed sobre los primeros 8 KB.
@@ -19,6 +23,7 @@ if [ "$1" = "start" ]; then
     cwd=$(printf '%s' "$full" | head -c 8192 | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
   fi
   [ -n "$cwd" ] && cd "$cwd" 2>/dev/null
+  pet_concise
   # falla abierto: si la app da error, no se imprime nada y se sale con 0
   out=$("$BIN" --brain show claude 2>/dev/null) && [ -n "$out" ] && printf '%s\n' "$out"
   exit 0
