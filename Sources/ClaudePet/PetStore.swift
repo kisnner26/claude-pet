@@ -36,6 +36,8 @@ final class PetStore: ObservableObject {
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
     @Published private(set) var contextReading: ContextReading?
+    /// Consejo de ahorro vigente (solo con «consejos de ahorro» activado); la isla lo muestra como una linea y se borra solo.
+    @Published private(set) var savingsAdvice: Advice?
     @Published private(set) var contextHistory: [ContextSample] = []
     @Published private(set) var diffPull: DiffPull?
     @Published private(set) var radarTarget: String?
@@ -775,6 +777,9 @@ final class PetStore: ObservableObject {
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
         refresh()
+        if case .state = e.kind {
+            SavingsHub.shared.observe(session: e.session, task: e.task, tool: e.tool, detail: e.detail, context: contextReading, publish: { [weak self] in self?.savingsAdvice = $0 })
+        }
         if let toolEvent {
             mission.recordToolEvent(toolEvent)
             let target = e.detail.isEmpty ? e.project : e.detail

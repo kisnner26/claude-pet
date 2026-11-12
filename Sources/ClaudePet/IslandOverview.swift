@@ -29,6 +29,7 @@ struct IslandOverviewView: View {
     private var animated: Bool { store.animationsEnabled && !store.reduceMotion && !IslandSnapshot.isRendering }
 
     private var headline: String {
+        if isClaude, state == .done || state == .idle, let tip = store.savingsAdvice { return tip.message }
         let last = steps.last
         return IslandHeadline.make(state: state, tool: last?.tool ?? "", target: last?.target ?? "", idleSeconds: model.idleSeconds)
     }
