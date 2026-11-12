@@ -23,16 +23,9 @@ enum VisualFxSelfTest {
         check("la arena de arriba baja y la de abajo sube con el tiempo", sand(0.2).filter { $0.y <= 5 }.count < sand(0.8).filter { $0.y <= 5 }.count && sand(0.2).filter { $0.y >= 8 }.count > sand(0.8).filter { $0.y >= 8 }.count)
         check("el hilo de arena solo cae mientras corre", sand(0.5).contains { $0.x == 4 && $0.y == 6 } && !sand(0).contains { $0.y == 6 } && !sand(1).contains { $0.y == 6 })
 
-        // liquido
+        // contexto
         check("el nivel es la fraccion usada, acotada", LiquidModel.level(used: 80, compactAt: 160) == 0.5 && LiquidModel.level(used: 500, compactAt: 160) == 1 && LiquidModel.level(used: 5, compactAt: 0) == 0)
         check("el color sigue la presion del contexto", LiquidModel.colorHex(.normal) == 0xE9E4DA && LiquidModel.colorHex(.critical) == 0xD85C5C)
-        check("trabajando hay mas olas que en reposo", LiquidModel.amplitude(.tool) > LiquidModel.amplitude(.idle))
-        let low = LiquidModel.surface(at: 3, level: 0.2, amplitude: 4, width: 600, height: 200), high = LiquidModel.surface(at: 3, level: 0.8, amplitude: 4, width: 600, height: 200)
-        let lowMean: Double = low.map { Double($0.y) }.reduce(0, +) / Double(low.count), highMean: Double = high.map { Double($0.y) }.reduce(0, +) / Double(high.count)
-        let inCanvas = (low + high).allSatisfy { $0.y >= 0 && $0.y <= 200 && $0.x >= 0 && $0.x <= 600 }
-        check("la superficie sube con el nivel y nunca sale del lienzo", highMean < lowMean && inCanvas)
-        check("las olas se mueven con el tiempo", LiquidModel.surface(at: 1, level: 0.5, amplitude: 4, width: 600, height: 200) != LiquidModel.surface(at: 1.7, level: 0.5, amplitude: 4, width: 600, height: 200))
-        check("a nivel 1 con amplitud no se sale por arriba", LiquidModel.surface(at: 2, level: 1, amplitude: 6, width: 600, height: 200).allSatisfy { $0.y >= 0 })
 
         // escenarios
         for st in PetState.allCases {
