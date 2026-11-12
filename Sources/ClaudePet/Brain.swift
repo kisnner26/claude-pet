@@ -216,6 +216,7 @@ final class BrainStore {
                 case "--max": i += 1; maxNotes = i < args.count ? (Int(args[i]) ?? 5) : 5
                 case "--project": i += 1; if i < args.count { project = args[i] }
                 case "--hook": hook = true
+                case "--": i += 1; if i < args.count, query == nil { query = args[i] }
                 default: if query == nil { query = args[i] }
                 }
                 i += 1

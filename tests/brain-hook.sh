@@ -6,6 +6,7 @@
 #   REAL_BIN=.build/debug/ClaudePet tests/brain-hook.sh   ademas prueba el recall con el binario real y 200 notas
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 HOOK="${HOOK:-$ROOT/hooks/pet-brain.sh}"
+[ -n "$REAL_BIN" ] && REAL_BIN="$(cd "$(dirname "$REAL_BIN")" && pwd)/$(basename "$REAL_BIN")"
 fail=0
 ok() { echo "OK: $1"; }
 bad() { echo "FALLO: $1"; fail=1; }
@@ -18,6 +19,7 @@ unset CLAUDE_PROJECT_DIR CLAUDE_PET_BRAIN_SMART
 FAKE="$H/fake-bin"
 cat > "$FAKE" <<'EOF'
 #!/bin/sh
+[ -n "$FAKE_EMPTY" ] && exit 0
 echo "PWD=$(pwd -P)"
 echo "ARGS=$*"
 [ -n "$FAKE_EMPTY" ] && exit 0
@@ -80,6 +82,56 @@ OUT=$(printf '{}' | FAKE_RC=3 CLAUDE_PET_BIN="$FAKE" /bin/sh "$HOOK" start 2>/de
 # sin la app: sale 0 sin nada
 OUT=$(printf '{}' | CLAUDE_PET_BIN=/no/existe /bin/sh "$HOOK" start 2>&1); RC=$?
 [ "$RC" = 0 ] && [ -z "$OUT" ] && ok "sin la app instalada: nada y salida 0" || bad "sin la app: rc=$RC out=[$OUT]"
+
+# --- recall (UserPromptSubmit) con el binario falso ---
+rec() { OUT=$(printf '%s' "$1" | CLAUDE_PET_BIN="$FAKE" /bin/sh "$HOOK" recall 2>/dev/null); RC=$?; }
+rec "$(jq -nc --arg c "$H/proj" '{cwd:$c,prompt:"como corro las pruebas?",hook_event_name:"UserPromptSubmit"}')"
+ctx=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)
+ev=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null)
+[ "$RC" = 0 ] && [ "$ev" = UserPromptSubmit ] && printf '%s' "$ctx" | grep -qF 'ARGS=--brain recall --hook -- como corro las pruebas?' && ok "recall: JSON de hook valido con additionalContext y el prompt tras --" || bad "recall: salida [$OUT]"
+printf '%s' "$ctx" | grep -qxF "PWD=$(canon "$H/proj")" && ok "recall: corre en el cwd del payload" || bad "recall: cwd"
+rec "$(jq -nc --arg c "$H/proj" '{cwd:$c,prompt:"--max 99 \"comillas\" y $(rm -rf x) `ls`"}')"
+printf '%s' "$OUT" | jq -e '.hookSpecificOutput.additionalContext | contains("--max 99")' >/dev/null 2>&1 && ok "recall: un prompt con flags, comillas y shell se pasa como texto, no se interpreta" || bad "recall: prompt hostil [$OUT]"
+rec '{"cwd":"/tmp"}'
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: sin prompt no imprime nada" || bad "recall sin prompt"
+rec 'no es json'
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: entrada rota no imprime nada y sale con 0" || bad "recall rota"
+rec '{"prompt":42}'
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: prompt que no es texto se ignora" || bad "recall prompt numerico"
+OUT=$(printf '{"prompt":"hola mundo"}' | FAKE_EMPTY=1 CLAUDE_PET_BIN="$FAKE" /bin/sh "$HOOK" recall 2>/dev/null); RC=$?
+printf '%s' "$OUT" | jq -e '.hookSpecificOutput.additionalContext | contains("PWD=")' >/dev/null 2>&1 && bad "recall: con la app muda no deberia haber contexto" || ok "recall: si la app no devuelve nada, no se inyecta nada"
+OUT=$(printf '{"prompt":"hola mundo"}' | FAKE_RC=3 CLAUDE_PET_BIN="$FAKE" /bin/sh "$HOOK" recall 2>/dev/null); RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: la app falla, nada y salida 0" || bad "recall app falla rc=$RC out=[$OUT]"
+OUT=$(printf '{"prompt":"hola mundo"}' | PATH="$NOJQ" CLAUDE_PET_BIN="$FAKE" /bin/sh "$HOOK" recall 2>/dev/null); RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: sin jq no hace nada (falla abierto)" || bad "recall sin jq"
+OUT=$(printf '{"prompt":"hola"}' | CLAUDE_PET_BIN=/no/existe /bin/sh "$HOOK" recall 2>&1); RC=$?
+[ "$RC" = 0 ] && [ -z "$OUT" ] && ok "recall: sin la app, nada y salida 0" || bad "recall sin app"
+
+# --- recall con el binario real: interruptor, relevancia y tiempo con 200 notas ---
+if [ -n "$REAL_BIN" ] && [ -x "$REAL_BIN" ]; then
+  export CLAUDE_PET_BRAIN="$H/brain"; mkdir -p "$H/demo"
+  "$REAL_BIN" --brain add tu cuidado "no usar la camara jamas en las apps" demo >/dev/null
+  "$REAL_BIN" --brain add claude hecho "las pruebas se corren con tests/selftests.sh" demo >/dev/null
+  P=$(jq -nc --arg c "$H/demo" '{cwd:$c,prompt:"como corro las pruebas?"}')
+  OUT=$(printf '%s' "$P" | CLAUDE_PET_BIN="$REAL_BIN" /bin/sh "$HOOK" recall 2>/dev/null)
+  [ -z "$OUT" ] && ok "real: con el interruptor apagado (defecto) no inyecta nada" || bad "real: apagado inyecto [$OUT]"
+  "$REAL_BIN" --brain config smart on >/dev/null
+  OUT=$(printf '%s' "$P" | CLAUDE_PET_BIN="$REAL_BIN" /bin/sh "$HOOK" recall 2>/dev/null)
+  printf '%s' "$OUT" | jq -e '.hookSpecificOutput.additionalContext | contains("selftests.sh") and (contains("camara") | not)' >/dev/null 2>&1 && ok "real: activo, devuelve solo la nota relevante" || bad "real: activo [$OUT]"
+  # 200 notas: tiempo del hook completo
+  i=0; : > "$H/many.txt"
+  while [ $i -lt 200 ]; do echo "nota $i sobre el modulo numero $i que usa cache y relay con puerto $((8000+i))"; i=$((i+1)); done > "$H/many.txt"
+  mkdir -p "$H/brain"
+  jq -Rn '[inputs] | to_entries | map({id: ("00000000-0000-4000-8000-" + (("000000000000" + (.key|tostring)) | .[-12:])), at: "2026-11-01T10:00:00Z", agent: "claude", kind: "hecho", text: .value})' < "$H/many.txt" > "$H/brain/big.json"
+  mkdir -p "$H/big"; P=$(jq -nc --arg c "$H/big" '{cwd:$c,prompt:"que puerto usa el relay y el cache del modulo 150"}')
+  t0=$(date +%s%N 2>/dev/null); case "$t0" in *N) t0=$(python3 -c 'import time;print(int(time.time()*1e9))');; esac
+  OUT=$(printf '%s' "$P" | CLAUDE_PET_BIN="$REAL_BIN" /bin/sh "$HOOK" recall 2>/dev/null)
+  t1=$(date +%s%N 2>/dev/null); case "$t1" in *N) t1=$(python3 -c 'import time;print(int(time.time()*1e9))');; esac
+  ms=$(( (t1 - t0) / 1000000 ))
+  echo "tiempo del hook con 200 notas (binario real, incluye arranque del proceso): ${ms} ms"
+  [ "$ms" -lt 800 ] && ok "real: el hook con 200 notas tarda menos de 800 ms" || bad "real: ${ms} ms"
+  printf '%s' "$OUT" | jq -e '.hookSpecificOutput.additionalContext | contains("<notas-del-proyecto")' >/dev/null 2>&1 && ok "real: con 200 notas devuelve un bloque valido" || bad "real: 200 notas [$OUT]"
+fi
 
 rm -rf "$H"
 [ "$fail" = 0 ] && echo "TODO BIEN" || echo "HAY FALLOS"

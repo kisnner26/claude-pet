@@ -1,5 +1,5 @@
 #!/bin/sh
-# Conecta el cerebro compartido: hook SessionStart en ~/.claude/settings.json (claude) y un bloque marcado en ~/.codex/AGENTS.md (codex).
+# Conecta el cerebro compartido: hooks SessionStart y UserPromptSubmit en ~/.claude/settings.json (claude; el segundo solo actua con la recuperacion inteligente activa) y un bloque marcado en ~/.codex/AGENTS.md (codex).
 # Uso: ./install-brain.sh [--dry-run] [--yes]     |     ./install-brain.sh --uninstall
 set -e
 cd "$(dirname "$0")"
@@ -46,7 +46,7 @@ $START
 $END
 BLOCK
 
-echo "Se modificaran: $SETTINGS (hook SessionStart) y $CODEX (bloque entre marcas)."
+echo "Se modificaran: $SETTINGS (hooks SessionStart y UserPromptSubmit) y $CODEX (bloque entre marcas)."
 echo "Se copiara hooks/pet-brain.sh -> $DEST/"
 echo "Diferencia en settings.json:"; diff "$SETTINGS" "$merged" || true
 echo "Bloque para codex:"; cat "$block"
