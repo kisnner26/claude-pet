@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Agrupacion de la barra lateral de ajustes.
 enum SettingsGroup: String, CaseIterable, Identifiable {
@@ -10,81 +10,34 @@ enum SettingsGroup: String, CaseIterable, Identifiable {
 enum SettingsPage: String, CaseIterable, Identifiable {
     case resumen, apariencia, comportamiento, agentes, permisos, perimetro, privacidad, guardarropa, sonidos, musica, foco, trackpad, plugins, atajos, copia, acerca
     var id: String { rawValue }
+}
 
-    var title: String {
-        switch self {
-        case .resumen: return "resumen"
-        case .apariencia: return "apariencia"
-        case .comportamiento: return "comportamiento"
-        case .agentes: return "agentes"
-        case .permisos: return "permisos"
-        case .perimetro: return "perímetro"
-        case .privacidad: return "privacidad"
-        case .guardarropa: return "guardarropa"
-        case .sonidos: return "sonidos"
-        case .musica: return "música"
-        case .foco: return "foco y pomodoro"
-        case .trackpad: return "trackpad táctil"
-        case .plugins: return "plugins"
-        case .atajos: return "atajos"
-        case .copia: return "copia y restauración"
-        case .acerca: return "acerca de"
-        }
-    }
+/// Filtros del buscador de ajustes: texto, categoria y dos interruptores. Todo es de vista; no se guarda nada salvo la categoria.
+struct SettingsFilter: Equatable {
+    var query = ""
+    /// nil = todas las categorias.
+    var group: SettingsGroup?
+    var onlyEnabled = false
+    var onlyExperimental = false
 
-    var symbol: String {
-        switch self {
-        case .resumen: return "square.grid.2x2"
-        case .apariencia: return "capsule.tophalf.filled"
-        case .comportamiento: return "cursorarrow.motionlines"
-        case .agentes: return "person.2"
-        case .permisos: return "checkmark.shield"
-        case .perimetro: return "scope"
-        case .privacidad: return "lock"
-        case .guardarropa: return "tshirt"
-        case .sonidos: return "speaker.wave.2"
-        case .musica: return "music.note"
-        case .foco: return "timer"
-        case .trackpad: return "rectangle.and.hand.point.up.left"
-        case .plugins: return "puzzlepiece.extension"
-        case .atajos: return "command"
-        case .copia: return "arrow.up.arrow.down.circle"
-        case .acerca: return "info.circle"
-        }
-    }
+    var isActive: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty || group != nil || onlyEnabled || onlyExperimental }
+    mutating func clear() { self = SettingsFilter() }
 
-    var group: SettingsGroup {
-        switch self {
-        case .resumen: return .inicio
-        case .apariencia, .comportamiento: return .isla
-        case .agentes: return .agentes
-        case .permisos, .perimetro, .privacidad: return .seguridad
-        case .guardarropa, .sonidos, .musica, .foco: return .mascota
-        case .trackpad, .plugins, .atajos, .copia, .acerca: return .sistema
-        }
-    }
+    /// Las categorias que se ofrecen como ficha. «inicio» no es una: el resumen aparece en «todo».
+    static let categories: [SettingsGroup] = SettingsGroup.allCases.filter { $0 != .inicio }
+}
 
-    /// Palabras que el buscador reconoce ademas del titulo.
-    var keywords: [String] {
-        switch self {
-        case .resumen: return ["estadisticas", "racha", "nivel", "semana", "hoy", "sesiones", "inicio"]
-        case .apariencia: return ["isla", "notch", "pantalla", "ubicacion", "reloj", "compacto", "animaciones", "futbol", "burbuja", "skin", "tema", "monitor"]
-        case .comportamiento: return ["activacion", "zona", "retraso", "plegar", "cerrar", "visibilidad", "asomar", "cursor", "raton", "iniciar sesion", "inicio", "arranque", "login", "abrir al encender", "automatico"]
-        case .agentes: return ["claude", "codex", "contexto", "bloqueo", "avisos", "mostrar", "ocultar", "terminal"]
-        case .permisos: return ["permitir", "denegar", "reglas", "puntos de restauracion", "riesgo", "bloquear", "aprobar", "siempre"]
-        case .perimetro: return ["cerca", "limite", "carpeta", "archivos", "proteger", "proteccion", "env", "bloquear", "alcance", "glob", "zona"]
-        case .privacidad: return ["proyecto", "compartir", "secretos", "telemetria", "datos", "local"]
-        case .guardarropa: return ["atuendo", "gorro", "corona", "gafas", "bufanda", "temporada", "nivel", "ropa"]
-        case .sonidos: return ["volumen", "audio", "silencio", "carpeta", "personalizado", "alertas", "interfaz", "probar"]
-        case .musica: return ["spotify", "apple music", "reproductor", "cancion", "auriculares", "bailar", "notas", "portada", "reaccion", "player"]
-        case .foco: return ["pomodoro", "concentracion", "horario", "descanso", "no molestar"]
-        case .trackpad: return ["tactil", "touch", "tableta", "absoluto", "cursor", "pantalla", "tocar", "esquina"]
-        case .plugins: return ["mod", "mods", "extension", "complemento", "addon", "script", "instalar", "commitero", "integracion", "automatizar"]
-        case .atajos: return ["teclado", "teclas", "combinacion", "global", "control", "opcion"]
-        case .copia: return ["exportar", "importar", "respaldo", "restablecer", "reiniciar", "configuracion", "json"]
-        case .acerca: return ["version", "licencia", "commitero", "ayuda", "codigo", "diagnostico", "soporte", "registro", "logs", "error"]
-        }
-    }
+extension SettingsPage {
+    private var spec: SettingsPageSpec? { Self.registry[self] }
+    var title: String { spec?.title ?? rawValue }
+    var symbol: String { spec?.symbol ?? "circle" }
+    var group: SettingsGroup { spec?.group ?? .sistema }
+    var keywords: [String] { spec?.keywords ?? [] }
+    var subtitle: String { spec?.subtitle ?? "" }
+    var isExperimental: Bool { spec?.experimental ?? false }
+    /// nil si la pagina no gobierna una funcion que se encienda y apague.
+    @MainActor func isOn(_ store: PetStore) -> Bool? { spec?.isOn?(store) }
+    @MainActor func makeBody(_ store: PetStore) -> AnyView { spec?.build(store) ?? AnyView(EmptyView()) }
 
     static func matching(_ query: String) -> [SettingsPage] {
         let q = fold(query)
@@ -94,10 +47,36 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Buscador con filtros. `isOn` dice si una pagina tiene su funcion encendida (nil = no aplica); con
+    /// «solo activados» quedan fuera las apagadas y las que no se encienden.
+    static func filtered(_ filter: SettingsFilter, isOn: (SettingsPage) -> Bool?) -> [SettingsPage] {
+        matching(filter.query).filter { page in
+            if let g = filter.group, page.group != g { return false }
+            if filter.onlyEnabled, isOn(page) != true { return false }
+            if filter.onlyExperimental, !page.isExperimental { return false }
+            return true
+        }
+    }
+
+    /// Cuantas paginas quedarian en cada categoria con el texto y los interruptores actuales (sin contar la categoria elegida).
+    static func counts(_ filter: SettingsFilter, isOn: (SettingsPage) -> Bool?) -> [SettingsGroup: Int] {
+        var base = filter; base.group = nil
+        var out: [SettingsGroup: Int] = [:]
+        for page in filtered(base, isOn: isOn) { out[page.group, default: 0] += 1 }
+        return out
+    }
+
+    /// «2/3» por grupo: paginas encendidas entre las que se pueden encender. nil si el grupo no tiene ninguna.
+    static func activity(in group: SettingsGroup, isOn: (SettingsPage) -> Bool?) -> (on: Int, of: Int)? {
+        let states = allCases.filter { $0.group == group }.compactMap(isOn)
+        return states.isEmpty ? nil : (states.filter { $0 }.count, states.count)
+    }
+
     static func fold(_ s: String) -> String {
         s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .init(identifier: "es")).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
 
 /// Letras de los atajos globales (siempre con control + opcion). Valida letras y duplicados.
 struct ShortcutMap: Equatable {

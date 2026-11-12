@@ -267,6 +267,7 @@ struct SChip: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .opacity(count == 0 && !selected ? 0.45 : 1)
         .accessibilityLabel(title).accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
