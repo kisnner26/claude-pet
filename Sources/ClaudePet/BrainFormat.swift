@@ -21,13 +21,15 @@ enum BrainFormat {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
     }
 
-    private static func open(_ h: RecallHit, now: Date) -> String {
+    /// Cabecera de una linea: `[tipo edad autor]` y, si aplica, `global`, `obsoleta?` o `resume N`. Sin etiqueta de cierre por nota:
+    /// lo que encierra y delimita es `<notas-del-proyecto>`; asi cada nota cuesta menos que con una etiqueta XML propia.
+    private static func tag(_ h: RecallHit, now: Date) -> String {
         let n = h.note
-        var a = "<nota tipo=\"\(n.kind.label)\" edad=\"\(age(n.at, now: now))\" autor=\"\(n.agent)\""
-        if h.isGlobal { a += " ambito=\"global\"" }
-        if n.stale == true { a += " obsoleta=\"posible\"" }
-        if let s = n.sources, !s.isEmpty { a += " resume=\"\(s.count)\"" }
-        return a + ">"
+        var a = "[\(n.kind.label) \(age(n.at, now: now)) \(n.agent)"
+        if h.isGlobal { a += " global" }
+        if n.stale == true { a += " obsoleta?" }
+        if let s = n.sources, !s.isEmpty { a += " resume \(s.count)" }
+        return a + "] "
     }
 
     /// Una linea por nota. `maxChars` recorta el texto (dejando la frase que coincidio a la vista) si no cabe.
@@ -40,7 +42,7 @@ enum BrainFormat {
             if piece.count > maxChars { piece = String(piece.prefix(max(1, maxChars - 1))) + "…" }
             body = escape((from > 0 ? "…" : "") + piece)
         }
-        return open(h, now: now) + body + "</nota>"
+        return tag(h, now: now) + body
     }
 
     /// Mete notas en orden hasta agotar `budget` tokens estimados (cabecera y cierre incluidos). Nunca devuelve mas de `max`.
@@ -60,7 +62,7 @@ enum BrainFormat {
             if used + cost > budget {
                 guard lines.isEmpty else { break }
                 // la primera nota sola no cabe: se recorta a lo que quede
-                let room = Int(Double(budget - used) * 3.5) - open(h, now: now).count - "</nota>\n".count
+                let room = Int(Double(budget - used) * 3.5) - tag(h, now: now).count - 1
                 guard room >= 40 else { break }
                 l = line(h, now: now, maxChars: room); cost = BrainText.estimateTokens(l + "\n"); truncated = true
                 if used + cost > budget { break }
