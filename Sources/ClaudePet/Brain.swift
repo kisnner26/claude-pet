@@ -123,10 +123,10 @@ final class BrainStore {
     }
 
     /// Repasa las notas de un proyecto (une duplicados, marca lo obsoleto) y guarda el resultado solo si algo cambio.
-    func dream(project: String, now: Date = Date(), exists: (String) -> Bool) -> BrainDream.Outcome {
+    func dream(project: String, now: Date = Date(), condense: Bool = false, exists: (String) -> Bool) -> BrainDream.Outcome {
         lock.lock(); defer { lock.unlock() }
         let before = load(project)
-        let outcome = BrainDream.consolidate(before, now: now, exists: exists)
+        let outcome = BrainDream.consolidate(before, now: now, condense: condense, exists: exists)
         if outcome.notes != before { save(outcome.notes, project) }
         return outcome
     }
