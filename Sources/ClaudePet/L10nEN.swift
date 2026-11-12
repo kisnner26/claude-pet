@@ -5,6 +5,8 @@ import Foundation
 enum L10nEN {
     static let table: [String: String] = [
         "abrir": "open",
+        "condensé # tema antiguo en un resumen (las originales quedan archivadas)": "condensed # old topic into a summary (the originals stay archived)",
+        "condensé # temas antiguos en un resumen (las originales quedan archivadas)": "condensed # old topics into a summary (the originals stay archived)",
         "archivo nuevo": "new file",
         "sin comparar": "not compared",
         "sin cambios": "no changes",
