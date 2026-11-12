@@ -11,11 +11,13 @@ struct SettingsView: View {
     private let fixedSize: Bool
     private let densityOverride: SettingsDensity?
     private let forceHighContrast: Bool
+    private let fixedHeight: CGFloat
 
-    init(store: PetStore, page: SettingsPage = .resumen, fixedSize: Bool = false, filter: SettingsFilter = SettingsFilter(), filtersOpen: Bool = false,
+    init(store: PetStore, page: SettingsPage = .resumen, fixedSize: Bool = false, fixedHeight: CGFloat = 700, filter: SettingsFilter = SettingsFilter(), filtersOpen: Bool = false,
          density: SettingsDensity? = nil, highContrast: Bool = false) {
         self.store = store
         self.fixedSize = fixedSize
+        self.fixedHeight = fixedHeight
         self.densityOverride = density
         self.forceHighContrast = highContrast
         _page = State(initialValue: page)
@@ -39,7 +41,7 @@ struct SettingsView: View {
             content
         }
         .frame(minWidth: 940, idealWidth: 980, minHeight: 640, idealHeight: 700)
-        .frame(width: fixedSize ? 980 : nil, height: fixedSize ? 700 : nil)
+        .frame(width: fixedSize ? 980 : nil, height: fixedSize ? fixedHeight : nil)
         .background(SettingsTheme.background)
         .environment(\.settingsDensity, density)
         .environment(\.settingsHighContrast, highContrast)
@@ -295,11 +297,42 @@ struct FlowLayout: Layout {
 enum SettingsSnapshot {
     @MainActor static func render(to directory: String, pages: [SettingsPage] = SettingsPage.allCases) {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
-        for page in pages {
-            prepare(page)
+        // el inicio se captura con datos de ejemplo (una semana, el plan y el contexto), solo en memoria
+        setenv("CLAUDE_PET_REDUCE_MOTION", "1", 1)   // capturas deterministas: las graficas salen ya dibujadas
+        let demo = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_EMPTY"] != "1"
+        if demo { seedDemo() }
+        for page in pages where page == .resumen {
             write(SettingsView(store: PetStore.shared, page: page, fixedSize: true), to: directory + "/ajustes-\(page.rawValue).png")
         }
         variants(to: directory)
+        if demo { PetStore.shared.stopDemo() }
+        for page in pages where page != .resumen {
+            prepare(page)
+            write(SettingsView(store: PetStore.shared, page: page, fixedSize: true), to: directory + "/ajustes-\(page.rawValue).png")
+        }
+    }
+
+    /// Una semana de actividad inventada. Nada llega a disco: los contadores viven en memoria y su carpeta se desvia a una temporal.
+    @MainActor private static func seedDemo() {
+        let tmp = NSTemporaryDirectory() + "snap-stats-\(UUID().uuidString)"
+        setenv("CLAUDE_PET_STATS", tmp, 1)
+        let usage = tmp + "-usage.json"
+        let now = Date()
+        let json = "{\"five\":{\"p\":38,\"r\":\(Int(now.timeIntervalSince1970) + 8_400)},\"week\":{\"p\":83,\"r\":\(Int(now.timeIntervalSince1970) + 3 * 86_400)},\"at\":\(Int(now.timeIntervalSince1970))}"
+        try? json.write(toFile: usage, atomically: true, encoding: .utf8)
+        setenv("CLAUDE_PET_USAGE", usage, 1)
+        let cal = Calendar(identifier: .gregorian)
+        let sessions = [2, 4, 0, 5, 3, 1, 4], tools = [31, 58, 0, 74, 40, 9, 52]
+        for (i, n) in sessions.enumerated() {
+            guard let day = cal.date(byAdding: .day, value: i - 6, to: now) else { continue }
+            for _ in 0..<n { ActivityStats.shared.recordFinished(agent: i % 3 == 0 ? "codex" : "claude", project: i % 2 == 0 ? "claude-pet" : "volve", at: day) }
+            for _ in 0..<(tools[i] / 4) { ActivityStats.shared.recordTool(agent: "claude", project: "claude-pet", at: day) }
+            for _ in 0..<(tools[i] / 12) { ActivityStats.shared.recordPermission(at: day) }
+        }
+        ActivityStats.shared.recordError(at: now)
+        PetStore.shared.startDemo()
+        PetStore.shared.plan.ingest(PlanUsage.parse(Data(json.utf8)))
+        PetStore.shared.refreshWeeklyRecap()
     }
 
     /// Estados que las paginas normales no enseñan: filtros abiertos, densidad compacta y contraste alto.
@@ -310,7 +343,8 @@ enum SettingsSnapshot {
         write(SettingsView(store: PetStore.shared, page: .sonidos, fixedSize: true, filter: q, filtersOpen: true), to: directory + "/ajustes-filtro-busqueda.png")
         var none = SettingsFilter(); none.onlyExperimental = true; none.group = .agentes
         write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, filter: none, filtersOpen: true), to: directory + "/ajustes-filtro-vacio.png")
-        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, density: .compact), to: directory + "/ajustes-resumen-compacta.png")
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, fixedHeight: 1500), to: directory + "/ajustes-resumen-completo.png", height: 1500)
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, fixedHeight: 1500, density: .compact), to: directory + "/ajustes-resumen-compacta.png", height: 1500)
         write(SettingsView(store: PetStore.shared, page: .comportamiento, fixedSize: true, density: .compact), to: directory + "/ajustes-comportamiento-compacta.png")
         write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, highContrast: true), to: directory + "/ajustes-resumen-contraste.png")
     }
@@ -330,14 +364,16 @@ enum SettingsSnapshot {
         }
     }
 
-    @MainActor private static func write(_ view: SettingsView, to path: String) {
+    @MainActor private static func write(_ view: SettingsView, to path: String, height: CGFloat = 700) {
         let host = NSHostingView(rootView: view)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = host
-        host.frame = NSRect(x: 0, y: 0, width: 980, height: 700)
+        host.frame = NSRect(x: 0, y: 0, width: 980, height: height)
         host.layoutSubtreeIfNeeded()
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        // los temporizadores de la app borran la demo en medio segundo: se vuelve a poner justo antes de volcar la imagen
+        if PetStore.shared.demoMode { PetStore.shared.startDemo(); RunLoop.current.run(until: Date().addingTimeInterval(0.08)) }
         host.layoutSubtreeIfNeeded()
         guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
         host.cacheDisplay(in: host.bounds, to: rep)

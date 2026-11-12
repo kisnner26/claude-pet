@@ -388,7 +388,7 @@ struct STile<Content: View>: View {
             content
         }
         .padding(density == .comfortable ? 18 : 13)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: density.radius, style: .continuous).fill(Color.white.opacity(0.04)))
         .overlay(RoundedRectangle(cornerRadius: density.radius, style: .continuous).strokeBorder(high ? SettingsTheme.hairline(true) : Color.white.opacity(0.09), lineWidth: 1))
     }

@@ -44,10 +44,15 @@ final class ActivityStats {
 
     static var path: String { (ProcessInfo.processInfo.environment["CLAUDE_PET_STATS"] ?? (NSHomeDirectory() + "/.claude-pet/stats")) + "/days.json" }
 
-    func key(_ date: Date) -> String {
+    func key(_ date: Date) -> String { Self.dayKey(date, calendar: calendar) }
+
+    static func dayKey(_ date: Date, calendar: Calendar) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
+
+    /// Copia de los contadores para dibujar graficas sin tocar el candado desde la vista.
+    func snapshot() -> [String: DayStats] { lock.lock(); defer { lock.unlock() }; return days }
 
     private func mutate(_ date: Date, _ body: (inout DayStats) -> Void) {
         lock.lock(); var d = days[key(date)] ?? DayStats(); body(&d); days[key(date)] = d; lock.unlock()
