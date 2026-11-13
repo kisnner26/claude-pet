@@ -29,6 +29,9 @@ enum RehearsalRunner {
         guard realCwd == root || realCwd.hasPrefix(root + "/") else { return .failure(.noProject) }
         guard Rehearsal.isSafeRoot(root) else { return .failure(.unsafeRoot) }
 
+        // sin red un comando de red no llega a hacer su trabajo: no se ejecuta y se avisa al instante, en vez de esperar al plazo
+        if Rehearsal.needsNetwork(command) { return .failure(.needsNetwork) }
+
         sweep(base: base)
         let work = base + "/" + UUID().uuidString
         let clone = work + "/p", home = work + "/home", tmp = work + "/tmp"

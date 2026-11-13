@@ -246,7 +246,7 @@ enum Rehearsal {
     }
 
     enum Failure: Error, Equatable {
-        case noProject, unsafeRoot, cannotClone(Int32), tooBig, sandboxUnavailable, cannotLaunch
+        case noProject, unsafeRoot, cannotClone(Int32), tooBig, sandboxUnavailable, cannotLaunch, needsNetwork
 
         var text: String {
             switch self {
@@ -255,6 +255,7 @@ enum Rehearsal {
             case .cannotClone(let e): return L.t("no se pudo copiar el proyecto (código \(e)): hace falta un disco APFS", "the project could not be cloned (code \(e)): an APFS disk is required")
             case .tooBig: return L.t("el proyecto es demasiado grande para ensayarlo", "the project is too large to rehearse")
             case .sandboxUnavailable: return L.t("la caja de arena no está disponible aquí", "the sandbox is not available here")
+            case .needsNetwork: return L.t("usa la red y el ensayo corre sin ella: no se puede saber qué haría", "it uses the network and the rehearsal runs without it: it can't tell what it would do")
             case .cannotLaunch: return L.t("no se pudo lanzar el comando", "the command could not be launched")
             }
         }
