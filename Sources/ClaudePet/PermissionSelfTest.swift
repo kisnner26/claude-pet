@@ -117,8 +117,15 @@ enum PermissionSelfTest {
         }
         raw("hola\n"); raw("perm\tx\t\t\t0\tsin herramienta\n"); raw("perm\tx\n")
         check("lineas invalidas se rechazan sin crear permisos", server.asks.isEmpty)
-        raw("perm\ts\tBash\tp\t0\t" + String(repeating: "A", count: 3000) + "\n")
+        // la conexion se queda abierta hasta leer el permiso: cerrarla lo retira, y con una espera fija la lectura competia con ese cierre
+        let longConn = socket(AF_UNIX, SOCK_STREAM, 0); var longAddr = makeSockAddr(sock)!
+        _ = withUnsafePointer(to: &longAddr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(longConn, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
+        let longLine = "perm\ts\tBash\tp\t0\t" + String(repeating: "A", count: 3000) + "\n"
+        _ = longLine.withCString { write(longConn, $0, strlen($0)) }
+        var longWaits = 0
+        while server.asks.isEmpty && longWaits < 50 { usleep(100_000); longWaits += 1 }
         check("el detalle largo se recorta", server.asks.first.map { $0.detail.count <= 400 } ?? false)
+        close(longConn)
         if let a = server.asks.first { server.resolve(id: a.id, .deny) }
         raw("perm\ts\tBa\u{1B}sh\tp\t0\tcmd\u{7}\n")
         check("se quitan los caracteres de control", server.asks.first.map { $0.tool == "Bash" && $0.detail == "cmd" } ?? false)
