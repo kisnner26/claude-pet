@@ -24,7 +24,8 @@ Nada se ensaya solo: hace falta tu clic.
 ## límites
 
 - Es un ensayo, no una bóveda: evita accidentes, no detiene a un programa hecho para escapar de la caja de arena.
-- Sin red: un comando que depende de internet (`npm install`, `git push`, `curl`) no llega a hacer su trabajo. El informe lo dice («sin red no llega a hacer nada: no se puede saber») en lugar de afirmar que no cambiaría nada.
+- Sin red: un comando que depende de internet (`npm install`, `git push`, `curl`, `pip install`...) no llega a hacer su trabajo, así que no se ejecuta: el ensayo avisa al instante («usa la red y el ensayo corre sin ella: no se puede saber qué haría») en lugar de esperar al plazo. Si un comando sin esas palabras intenta salir a la red a mitad, el informe lo marca como incierto en vez de afirmar que no cambiaría nada.
+- En la carpeta personal solo se informa de lo que importa (por ejemplo `~/.zshrc`); los registros, cachés e historiales que escribe cualquier herramienta (`~/.npm/_logs`, `~/.cache`, `~/.zsh_history`...) se descartan.
 - Solo ve archivos. No ve lo que el comando haría en una base de datos, en un servicio o en otro proceso, porque no le deja llegar a ellos.
 - Leer sí puede: el comando lee tu disco como lo haría de verdad. Lo que no puede es sacar nada (no hay red) ni dejar nada fuera de la copia.
 - Necesita un disco APFS con el proyecto y la carpeta de caché en el mismo volumen. La carpeta personal entera o el disco no se ensayan; un proyecto de más de 400 000 entradas tampoco.
