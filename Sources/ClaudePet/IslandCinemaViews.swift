@@ -34,11 +34,27 @@ extension View {
     func cardReveal(age: Double, index: Int) -> some View { modifier(CardReveal(age: age, index: index)) }
 }
 
+/// El borde sin el lado de arriba (que en el notch queda pegado a la pantalla): baja por la izquierda, cruza el fondo y sube por la derecha.
+struct EdgeUShape: Shape {
+    var radius: CGFloat
+    func path(in r: CGRect) -> Path {
+        let rad = min(radius, r.width / 2, r.height / 2)
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.minX, y: r.maxY - rad))
+        p.addQuadCurve(to: CGPoint(x: r.minX + rad, y: r.maxY), control: CGPoint(x: r.minX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX - rad, y: r.maxY))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.maxY - rad), control: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+        return p
+    }
+}
+
 /// Un trazo de luz que recorre el borde una sola vez. `progress` (0...1) es el tiempo de la pasada: la cabeza avanza con
 /// su curva y la cola se apaga hacia atras. Sin estado propio, asi se dibuja igual en una captura.
 struct EdgeSweepView: View, Animatable {
     var progress: Double
-    let shape: IslandShape
+    let radius: CGFloat
     let color: Color
     var animatableData: Double { get { progress } set { progress = newValue } }
 
@@ -49,13 +65,14 @@ struct EdgeSweepView: View, Animatable {
         if let head = IslandCinema.sweepHead(age: age) {
             let alpha = IslandCinema.sweepAlpha(age: age)
             let tail = IslandCinema.sweepTail
+            let shape = EdgeUShape(radius: radius)
             ZStack {
                 ForEach(0..<Self.slices, id: \.self) { i in
                     let to = head - tail * Double(i) / Double(Self.slices)
                     let from = max(0, head - tail * Double(i + 1) / Double(Self.slices))
                     if to > 0, from < to {
                         let fall = pow(1 - Double(i) / Double(Self.slices), 1.7)
-                        shape.trim(from: from, to: min(1, to)).stroke(color.opacity(alpha * fall * 0.95), style: StrokeStyle(lineWidth: 3, lineCap: .butt))
+                        shape.trim(from: from, to: min(1, to)).stroke(color.opacity(alpha * fall), style: StrokeStyle(lineWidth: 4, lineCap: .butt))
                         if i < 3 { shape.trim(from: from, to: min(1, to)).stroke(color.opacity(alpha * fall * 0.16), style: StrokeStyle(lineWidth: 9, lineCap: .round)) }
                     }
                 }
@@ -83,7 +100,7 @@ struct PermissionEdgeFX: View {
             if plan.breathing || plan.staticRiskEdge {
                 shape.stroke(Color(hex: 0xD85C5C).opacity(plan.staticRiskEdge ? 0.5 : breathAlpha), lineWidth: 2)
             }
-            if plan.sweep { EdgeSweepView(progress: sweep, shape: shape, color: Color(hex: IslandCinema.accent(agent: agent, risk: risk))) }
+            if plan.sweep { EdgeSweepView(progress: sweep, radius: shape.radius, color: Color(hex: IslandCinema.accent(agent: agent, risk: risk))) }
         }
         .allowsHitTesting(false).accessibilityHidden(true)
         .task {
