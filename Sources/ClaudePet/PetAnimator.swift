@@ -56,6 +56,9 @@ struct PetScene: Equatable {
     /// Donde esta el otro agente respecto a ella (-1 izquierda, 1 derecha, 0 no hay) y si esta trabajando.
     var mateSide = 0
     var mateWorking = false
+    /// Animo ante un permiso pendiente (riesgo y ensayo) y desde cuando lo tiene.
+    var mood: PetMood = .neutral
+    var moodAt: TimeInterval?
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -178,7 +181,8 @@ enum PetAnimator {
         let look = eyes(gaze: gaze)
         p.eyeDX = look.dx; p.eyeDY = look.dy
         p.wideEyes = hover
-        guard motion else { return p }
+        // las expresiones del animo no son movimiento: con reducir movimiento se ven igual, sin temblor ni suspiro
+        guard motion else { IslandCinema.applyMood(&p, mood: scene.mood, t: t, since: nil, motion: false); return p }
 
         // respiracion: el cuerpo se estira un 4 % desde los pies
         let breath = (sin(t * 2 * .pi / breathPeriod) + 1) / 2
@@ -285,6 +289,7 @@ enum PetAnimator {
             // el entorno: con frio tirita, con calor suda y respira mas rapido
             if scene.ambient.cold || scene.ambient.snow { p.shivering = true; p.dx += CGFloat(sin(t * 55)) * 0.16 }
             if scene.ambient.hot { p.sweating = true; p.scaleY *= 1 + 0.012 * CGFloat(sin(t * 6)) }
+            if scene.mood != .neutral, scene.state != .error { IslandCinema.applyMood(&p, mood: scene.mood, t: t, since: scene.moodAt, motion: true) }
             // un salto al empezar y un suspiro al pausar, aunque no se baile
             if let m = scene.music, scene.state == .idle || scene.state == .done { MusicDance.transients(&p, music: m) }
             // trabajando no esta quieta: cavila meciendose y teclea rebotando

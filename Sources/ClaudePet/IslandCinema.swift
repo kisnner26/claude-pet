@@ -90,3 +90,51 @@ enum IslandCinema {
         Plan(sweep: effectsOn, staggered: effectsOn, breathing: effectsOn && risk == .high, staticRiskEdge: !effectsOn && risk == .high)
     }
 }
+
+// MARK: animo de la mascota ante un permiso
+
+/// Como se ve la mascota mientras un permiso espera: depende del riesgo del comando y de lo que vio el ensayo.
+enum PetMood: Equatable {
+    case neutral
+    /// riesgo alto sin ensayo: cejas preocupadas y la gota de sudor, quieta
+    case wary
+    /// el ensayo vio algo destructivo: ademas tiembla
+    case uneasy
+    /// el ensayo salio limpio: suspira y pone ojos contentos
+    case relieved
+}
+
+extension IslandCinema {
+    /// El ensayo manda sobre el riesgo estimado: lo que de verdad paso en la copia pesa mas que lo que se supone.
+    static func mood(risk: PermissionRisk?, severity: RehearsalSeverity?) -> PetMood {
+        let high = risk == .high
+        switch severity {
+        case .destructive: return .uneasy
+        case .calm: return high ? .neutral : .relieved
+        case .changes, .unknown: return high ? .wary : .neutral
+        case nil: return high ? .wary : .neutral
+        }
+    }
+
+    static let sighLength: TimeInterval = 0.9
+    static let uneasyShake: Double = 0.12
+
+    /// Ajusta la pose segun el animo. `since` es cuando empezo ese animo; sin movimiento solo cambian las expresiones.
+    static func applyMood(_ pose: inout PetPose, mood: PetMood, t: TimeInterval, since: TimeInterval?, motion: Bool) {
+        switch mood {
+        case .neutral: return
+        case .wary:
+            pose.worried = true
+        case .uneasy:
+            pose.worried = true
+            if motion { pose.dx += CGFloat(sin(t * 38) * uneasyShake) }
+        case .relieved:
+            pose.happy = true; pose.blink = false
+            if motion, let since, t >= since, t - since < sighLength {
+                let k = (t - since) / sighLength, w = sin(k * .pi)
+                pose.scaleY *= CGFloat(1 - 0.07 * w); pose.scaleX *= CGFloat(1 + 0.03 * w)
+                pose.dy += CGFloat(0.3 * w)
+            }
+        }
+    }
+}
