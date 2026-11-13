@@ -170,6 +170,11 @@ enum RehearsalSelfTest {
             check("y el trabajo sigue ahi", (try? String(contentsOfFile: proj + "/a.txt", encoding: .utf8)) == "trabajo sin guardar\n" && fm.fileExists(atPath: proj + "/src.swift"))
         } else { check("git", false) }
 
+        let t0 = Date()
+        let net = rehearse("npm install left-pad")
+        check("un comando de red no se ejecuta y responde al instante", net == .failure(.needsNetwork) && Date().timeIntervalSince(t0) < 2
+              && ((try? fm.contentsOfDirectory(atPath: base)) ?? []).filter { UUID(uuidString: $0) != nil }.isEmpty)
+        check("el aviso de red se traduce", { L.current = .en; defer { L.current = .es }; return Rehearsal.Failure.needsNetwork.text.contains("network") }())
         check("una carpeta que no existe no se ensaya", rehearse("true", cwd: tmpBase + "/nada") == .failure(.noProject))
         check("la carpeta personal no se ensaya", RehearsalRunner.run(command: "true", cwd: NSHomeDirectory(), base: base) == .failure(.unsafeRoot))
 
