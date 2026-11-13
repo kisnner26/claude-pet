@@ -43,6 +43,15 @@ final class IslandModel: ObservableObject {
     /// Cuando empezo a abrirse la isla (para las gotas).
     @Published var expandStart: TimeInterval?
     var claudeDoneAt: TimeInterval?
+    /// Desde cuando la mascota tiene su animo actual ante un permiso (no publicado: lo lee el dibujo de la mascota).
+    private var moodState: (mood: PetMood, since: TimeInterval)?
+    /// Anota el animo y devuelve desde cuando lo tiene; al cambiar, la cuenta empieza de nuevo.
+    func moodSince(_ mood: PetMood, now: TimeInterval) -> TimeInterval? {
+        if mood == .neutral { moodState = nil; return nil }
+        if let s = moodState, s.mood == mood { return s.since }
+        moodState = (mood, now)
+        return now
+    }
     var codexDoneAt: TimeInterval?
     /// Fraccion de arena que queda arriba en el reloj del pomodoro (nil = sin temporizador).
     @Published var hourglassTop: Double?

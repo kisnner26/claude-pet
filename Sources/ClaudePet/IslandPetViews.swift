@@ -64,6 +64,10 @@ struct PetFace: View {
         scene.openedAt = model.expandStart
         if let d = store.lastDecision { scene.decisionAllow = d.allow; scene.decisionAt = d.at }
         if let ask = store.permissionAsks.first { scene.waitingFor = Date().timeIntervalSince(ask.at) }
+        // animo ante el permiso: inquieta si el ensayo vio algo destructivo, aliviada si salio limpio
+        let mood = IslandCinema.mood(ask: store.permissionAsks.first, phase: store.permissionAsks.first.flatMap { RehearsalBoard.shared.phase($0.id) })
+        scene.mood = mood
+        scene.moodAt = model.moodSince(mood, now: ProcessInfo.processInfo.systemUptime)
         if let since = model.petHoverSince { scene.pettingFor = ProcessInfo.processInfo.systemUptime - since }
         let hour = Calendar.current.component(.hour, from: Date())
         scene.daytime = hour >= 6 && hour < 21

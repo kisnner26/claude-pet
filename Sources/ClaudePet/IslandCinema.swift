@@ -116,6 +116,15 @@ extension IslandCinema {
         }
     }
 
+    /// El animo de la mascota para el primer permiso pendiente y lo que dijo su ensayo (si lo hay).
+    static func mood(ask: PermissionAsk?, phase: RehearsalBoard.Phase?) -> PetMood {
+        guard let ask else { return .neutral }
+        let risk = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk
+        var severity: RehearsalSeverity?
+        if case .done(let report)? = phase { severity = RehearsalSeverity.of(report) }
+        return mood(risk: risk, severity: severity)
+    }
+
     static let sighLength: TimeInterval = 0.9
     static let uneasyShake: Double = 0.12
 
