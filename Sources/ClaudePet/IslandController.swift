@@ -362,6 +362,13 @@ struct IslandView: View {
                         }
                     }
                 }
+                // permiso pendiente: una pasada de luz por el borde y, en riesgo alto, un borde rojo apagado que respira
+                .overlay {
+                    if model.mode == .expanded, let ask = store.permissionAsks.first {
+                        let risk = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk
+                        PermissionEdgeFX(shape: shape, risk: risk, plan: IslandCinema.plan(effectsOn: effectsOn, risk: risk)).id(ask.id)
+                    }
+                }
                 .opacity(IslandRestingLook.pillVisible(mode: model.mode, hasNotch: model.hasNotch, menuBarHidden: model.menuBarHidden, hideCompact: store.islandHideCompact) ? 1 : 0)
             if drawsOwnEdge && model.mode != .hidden || (drawsOwnEdge && !model.menuBarHidden && !store.islandHideCompact) {
                 // el recorte deja visible solo la mitad interior del trazo
