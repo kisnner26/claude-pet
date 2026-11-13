@@ -149,3 +149,12 @@ struct FinishBurstHost: View {
             }
     }
 }
+
+extension View {
+    /// Las cifras ruedan al cambiar (macOS 14 o superior); antes y con reducir movimiento solo cambian.
+    @ViewBuilder func rollingNumber(_ value: Int) -> some View {
+        if #available(macOS 14.0, *), !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            self.contentTransition(.numericText()).animation(IslandMotion.spring, value: value)
+        } else { self }
+    }
+}

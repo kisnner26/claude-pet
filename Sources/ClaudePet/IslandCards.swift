@@ -8,6 +8,10 @@ struct IslandActionButton: View {
     var hint: String? = nil
     let action: () -> Void
     @State private var hovering = false
+    /// Posicion del cursor dentro del boton: la luz de la superficie lo sigue.
+    @State private var cursor: CGPoint?
+    private var darkInk: Bool { ink == .black }
+    private var lightOn: Bool { !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast }
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -17,9 +21,21 @@ struct IslandActionButton: View {
                 .foregroundColor(ink)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(Capsule().fill(fill))
+                // luz que sigue al cursor, solo mientras esta encima (sin temporizador: se redibuja con el movimiento)
+                .overlay {
+                    if hovering, lightOn, let cursor {
+                        GeometryReader { geo in
+                            RadialGradient(colors: [darkInk ? Color.black.opacity(0.13) : Color.white.opacity(0.22), .clear],
+                                           center: UnitPoint(x: cursor.x / max(1, geo.size.width), y: cursor.y / max(1, geo.size.height)), startRadius: 0, endRadius: 38)
+                        }
+                        .clipShape(Capsule()).allowsHitTesting(false)
+                    }
+                }
         }
         .buttonStyle(IslandPressStyle())
-        .onHover { hovering = $0 }
+        .onContinuousHover { phase in
+            switch phase { case .active(let p): hovering = true; cursor = p; case .ended: hovering = false; cursor = nil }
+        }
         .scaleEffect(hovering ? 1.03 : 1)
         .animation(.easeOut(duration: 0.07), value: hovering)
     }
@@ -72,7 +88,7 @@ struct PermissionCardView: View {
             HStack(spacing: 6) {
                 Text(ask.project.isEmpty ? "claude" : ask.project).font(.system(size: 11, weight: .bold)).foregroundColor(.white).lineLimit(1)
                 Text(isPlan ? "propone un plan" : "necesita permiso").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))
-                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)) }
+                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)).rollingNumber(store.permissionAsks.count) }
                 Spacer(minLength: 0)
                 Label(reading.risk.rawValue, systemImage: "shield.lefthalf.filled")
                     .font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundColor(reading.risk.color)
