@@ -35,6 +35,24 @@ enum IslandCinemaSelfTest {
         check("con efectos, el riesgo alto respira y el resto solo barre", c.plan(effectsOn: true, risk: .high) == .init(sweep: true, staggered: true, breathing: true, staticRiskEdge: false) && !c.plan(effectsOn: true, risk: .medium).breathing && !c.plan(effectsOn: true, risk: .low).breathing)
         check("sin efectos no hay barrido ni respiracion y el riesgo alto queda con un borde fijo", c.plan(effectsOn: false, risk: .high) == .init(sweep: false, staggered: false, breathing: false, staticRiskEdge: true) && !c.plan(effectsOn: false, risk: .low).staticRiskEdge)
 
+        // animo de la mascota
+        check("ensayo destructivo: inquieta, aunque el comando parezca de riesgo bajo", c.mood(risk: .low, severity: .destructive) == .uneasy && c.mood(risk: .high, severity: .destructive) == .uneasy)
+        check("ensayo limpio: aliviada, salvo que el comando sea de riesgo alto", c.mood(risk: .low, severity: .calm) == .relieved && c.mood(risk: .medium, severity: .calm) == .relieved && c.mood(risk: .high, severity: .calm) == .neutral)
+        check("sin ensayo: preocupada solo con riesgo alto", c.mood(risk: .high, severity: nil) == .wary && c.mood(risk: .medium, severity: nil) == .neutral && c.mood(risk: .low, severity: nil) == .neutral && c.mood(risk: nil, severity: nil) == .neutral)
+        check("ensayo con cambios o dudoso no cambia el animo salvo riesgo alto", c.mood(risk: .medium, severity: .changes) == .neutral && c.mood(risk: .high, severity: .changes) == .wary && c.mood(risk: .low, severity: .unknown) == .neutral)
+        let rm = PermissionAsk(id: "m", session: "s", tool: "Bash", project: "p", detail: "rm -rf build", canAlways: false, at: Date())
+        let ls = PermissionAsk(id: "l", session: "s", tool: "Read", project: "p", detail: "README.md", canAlways: false, at: Date())
+        check("un comando de borrado sin ensayo deja a la mascota preocupada y uno de lectura tranquila", c.mood(ask: rm, phase: nil) == .wary && c.mood(ask: ls, phase: nil) == .neutral && c.mood(ask: nil, phase: nil) == .neutral)
+        check("un ensayo en marcha o fallido no mueve el animo", c.mood(ask: ls, phase: .running(since: Date())) == .neutral && c.mood(ask: ls, phase: .failed(.tooBig)) == .neutral)
+
+        func pose(_ m: PetMood, t: TimeInterval = 10.3, since: TimeInterval? = 10, motion: Bool = true) -> PetPose { var p = PetPose(); c.applyMood(&p, mood: m, t: t, since: since, motion: motion); return p }
+        check("inquieta: cejas y temblor; preocupada: cejas sin temblor", pose(.uneasy).worried && pose(.uneasy).dx != 0 && pose(.wary).worried && pose(.wary).dx == 0)
+        check("aliviada: ojos contentos y un suspiro que se agacha al principio y termina en su sitio", pose(.relieved).happy && pose(.relieved, t: 10.45).scaleY < 1 && pose(.relieved, t: 11).scaleY == 1 && pose(.relieved, t: 11).dy == 0)
+        check("neutral no toca la pose", pose(.neutral) == PetPose())
+        check("con reducir movimiento se ven las expresiones pero no hay temblor ni suspiro", pose(.uneasy, motion: false).worried && pose(.uneasy, motion: false).dx == 0 && pose(.relieved, t: 10.45, motion: false).happy && pose(.relieved, t: 10.45, motion: false).scaleY == 1)
+        let scene = { () -> PetPose in var sc = PetScene(); sc.state = .waiting; sc.mood = .uneasy; sc.moodAt = 10; return PetAnimator.pose(at: 10.3, gaze: .zero, pokes: [], hopStart: nil, motion: false, scene: sc) }()
+        check("el animador respeta el animo tambien sin movimiento", scene.worried)
+
         print(failures == 0 ? "todo bien" : "\(failures) fallo(s)")
         return failures == 0
     }
