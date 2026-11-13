@@ -56,6 +56,11 @@ enum RehearsalSelfTest {
         check("los que no usan red no", !["rm -rf build", "git commit -m listo", "swift build", "echo curling", "git status", "npm test", "sshd-config --help"].contains(where: Rehearsal.needsNetwork))
         check("la salida delata un intento de red", Rehearsal.outputSaysNetwork("curl: (6) Could not resolve host: example.com") && !Rehearsal.outputSaysNetwork("todo bien"))
 
+        // MARK: ruido de la carpeta personal
+        check("los registros y cachés de las herramientas no cuentan como escritura en la carpeta personal",
+              [".npm/_logs/2026-11-13-debug-0.log", ".cache/pip/x", "Library/Caches/com.x/db", ".zsh_history", ".zcompdump-mac-5.9", ".zsh_sessions/a"].allSatisfy(Rehearsal.isHomeNoise))
+        check("un archivo de configuración sí cuenta", [".zshrc", ".gitconfig", ".config/tool/settings.json", ".ssh/config", ".npmrc", ".cachefile"].allSatisfy { !Rehearsal.isHomeNoise($0) })
+
         // MARK: perfil
         let profile = Rehearsal.profile(writable: ["/c/p", "/c/con \"comillas\"\\y"])
         check("el perfil niega red, apps y escritura, y abre solo lo dado", profile.contains("(deny network*)") && profile.contains("(deny file-write*)") && profile.contains("(subpath \"/c/p\")") && profile.contains("(deny lsopen)"))
