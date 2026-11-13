@@ -69,7 +69,7 @@ enum IslandCinema {
 
     /// Respiracion del borde en riesgo alto: periodo lento, sin picos (entre 0,25 y 0,7).
     static let breathPeriod: TimeInterval = 3.2
-    static let breathCycles = 6
+    static let breathCycles = 4
     static func breath(at t: TimeInterval) -> Double {
         0.25 + 0.45 * (0.5 - 0.5 * cos(2 * .pi * t / breathPeriod))
     }

@@ -30,7 +30,7 @@ enum IslandCinemaSelfTest {
         check("el acento azul de codex tambien se mezcla sin salirse de rango", [PermissionRisk.low, .medium, .high].allSatisfy { c.accent(agent: 0x5270E8, risk: $0) <= 0xFFFFFF })
 
         check("la respiracion del borde es lenta y acotada", stride(from: 0.0, to: 7.0, by: 0.05).allSatisfy { (0.249...0.701).contains(c.breath(at: $0)) } && c.breathPeriod >= 3)
-        check("la respiracion se detiene tras unos ciclos", c.breathLength == c.breathPeriod * 6 && c.breathLength < 25)
+        check("la respiracion se detiene tras unos ciclos", c.breathLength == c.breathPeriod * 4 && c.breathLength < 15)
 
         check("con efectos, el riesgo alto respira y el resto solo barre", c.plan(effectsOn: true, risk: .high) == .init(sweep: true, staggered: true, breathing: true, staticRiskEdge: false) && !c.plan(effectsOn: true, risk: .medium).breathing && !c.plan(effectsOn: true, risk: .low).breathing)
         check("sin efectos no hay barrido ni respiracion y el riesgo alto queda con un borde fijo", c.plan(effectsOn: false, risk: .high) == .init(sweep: false, staggered: false, breathing: false, staticRiskEdge: true) && !c.plan(effectsOn: false, risk: .low).staticRiskEdge)

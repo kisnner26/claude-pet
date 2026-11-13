@@ -398,10 +398,14 @@ enum PetAnimator {
         var pixels = pixels
         if pose.earLift { pixels = pixels.map { ($0.x <= 1 || $0.x >= 14) && $0.y <= 12 ? Px(x: $0.x, y: $0.y - 1, c: $0.c) : $0 } }
         let eyes = pixels.filter(isEye)
-        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn || pose.happy else { return pixels }
+        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn || pose.happy || pose.worried else { return pixels }
         var out = pixels.filter { !isEye($0) }
         if pose.yawn { for (x, y) in [(7, 10), (8, 10), (7, 11), (8, 11)] { out.append(Px(x: x, y: y, c: Pal.charcoal)) } }
         let ink = Pal.charcoal
+        // cejas preocupadas: el extremo interior sube, como en el resto de la rejilla (una celda de grosor)
+        if pose.worried && !pose.happy && !pose.dizzy && !pose.annoyed {
+            for (x, y) in [(3, 6), (4, 6), (5, 5), (6, 5), (12, 6), (11, 6), (10, 5), (9, 5)] { out.append(Px(x: x, y: y, c: ink)) }
+        }
         if pose.happy {
             for cx in [5, 10] { for (x, y) in [(-1, 1), (0, 0), (1, 1)] { out.append(Px(x: cx + x, y: 8 + y, c: ink)) } }
         } else if pose.dizzy {
