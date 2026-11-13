@@ -72,7 +72,7 @@ struct ContextLine: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .animation(.easeOut(duration: 0.6), value: level)
+        .animation(IslandMotion.slide, value: level)
         .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
