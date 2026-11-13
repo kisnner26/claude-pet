@@ -20,8 +20,8 @@ enum IslandCinemaSelfTest {
         check("sin movimiento solo cambia la opacidad", stride(from: 0.0, to: 0.6, by: 0.05).allSatisfy { let r = c.reveal(age: $0, index: 2, motion: false); return r.offsetY == 0 && r.blur == 0 })
         check("la aparicion total cabe en medio segundo con seis bloques", c.revealTotal(blocks: 6) < 0.72 && c.revealTotal(blocks: 1) == c.cardRevealLength)
 
-        check("riesgo bajo no tine el acento", c.accent(agent: 0xE0824F, risk: .low) == 0xE0824F)
-        check("riesgo medio tine poco y alto tine mas, hacia el rojo apagado", {
+        check("riesgo bajo no tiñe el acento", c.accent(agent: 0xE0824F, risk: .low) == 0xE0824F)
+        check("riesgo medio tiñe poco y alto tiñe más, hacia el rojo apagado", {
             func r(_ x: UInt32) -> Int { Int((x >> 16) & 0xFF) }
             func g(_ x: UInt32) -> Int { Int((x >> 8) & 0xFF) }
             let m = c.accent(agent: 0xE0824F, risk: .medium), h = c.accent(agent: 0xE0824F, risk: .high)
