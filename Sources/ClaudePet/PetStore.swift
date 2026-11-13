@@ -36,6 +36,8 @@ final class PetStore: ObservableObject {
     @Published private(set) var reviewReady = false
     @Published private(set) var bugBattleLevel = 0
     @Published private(set) var contextReading: ContextReading?
+    /// Consejo de ahorro vigente (solo con «consejos de ahorro» activado); la isla lo muestra como una linea y se borra solo.
+    @Published private(set) var savingsAdvice: Advice?
     @Published private(set) var contextHistory: [ContextSample] = []
     @Published private(set) var diffPull: DiffPull?
     @Published private(set) var radarTarget: String?
@@ -399,7 +401,26 @@ final class PetStore: ObservableObject {
     @Published var remoteCode = ""
     @Published var remotePeers: [String] = []
     var regenerateRemoteCode: (() -> Void)?
-    @Published var permissionAsks: [PermissionAsk] = []
+    @Published var permissionAsks: [PermissionAsk] = [] {
+        // un ensayo solo vive mientras su permiso esta pendiente
+        didSet { RehearsalBoard.shared.prune(keeping: Set(permissionAsks.map(\.id))) }
+    }
+    /// Permiso cuyo cambio esta desplegado en la tarjeta. Solo es un id: el contenido sigue en el permiso, en memoria.
+    @Published var permissionDiffOpenID: String?
+    /// La isla crece para dar sitio a las lineas del cambio cuando el primer permiso lo tiene desplegado.
+    var permissionDiffOpen: Bool {
+        guard let first = permissionAsks.first, first.change?.lines.isEmpty == false else { return false }
+        return permissionDiffOpenID == first.id
+    }
+    /// Alto de la isla para el primer permiso: la tarjeta de siempre, o mas alta con el cambio desplegado.
+    var permissionCardHeight: CGFloat {
+        guard let first = permissionAsks.first else { return NotchGeometry.permissionHeight }
+        var h = NotchGeometry.permissionHeight
+        if permissionDiffOpen, let change = first.change { h += change.listHeight + 4 }
+        // con un ensayo a la vista el comando se queda en una linea y el bloque ocupa su sitio
+        if let phase = RehearsalBoard.shared.phase(first.id) { h += RehearsalLayout.height(phase) + 6 - PermissionCardView.commandLinesSaved }
+        return min(NotchGeometry.permissionDiffHeight, h)
+    }
     var answerPermission: (String, PermissionDecision) -> Void = { _, _ in }
     /// Permite varias lecturas iguales de una vez; cada una queda en la auditoria.
     func answerBatch(_ ids: [String]) { ids.forEach { answerPermission($0, .allow) } }
@@ -756,6 +777,9 @@ final class PetStore: ObservableObject {
             if s == .done && testSessions.remove(e.session) != nil, bugBattleLevel > 0 { bugBattleLevel -= 1; lastBugChange = Date() }
         }
         refresh()
+        if case .state = e.kind {
+            SavingsHub.shared.observe(session: e.session, task: e.task, tool: e.tool, detail: e.detail, context: contextReading, publish: { [weak self] in self?.savingsAdvice = $0 })
+        }
         if let toolEvent {
             mission.recordToolEvent(toolEvent)
             let target = e.detail.isEmpty ? e.project : e.detail

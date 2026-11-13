@@ -71,32 +71,16 @@ enum Hourglass {
     }
 }
 
-// MARK: nivel de contexto como liquido
+// MARK: nivel de contexto
 
-enum LiquidModel {
+enum ContextModel {
     static func level(used: Int, compactAt: Int) -> Double {
         guard compactAt > 0 else { return 0 }
         return max(0, min(1, Double(used) / Double(compactAt)))
     }
 
     static func colorHex(_ pressure: ContextPressure) -> UInt32 {
-        switch pressure { case .normal: return 0x2966ED; case .caution: return 0xE7B45B; case .critical: return 0xD85C5C }
-    }
-
-    /// Olas mas altas cuando el agente trabaja.
-    static func amplitude(_ state: PetState) -> Double {
-        switch state { case .tool, .thinking, .starting: return 5; case .waiting, .error: return 3.5; case .done, .idle: return 2 }
-    }
-
-    /// Linea de la superficie del liquido: `samples` puntos de izquierda a derecha, siempre dentro de [0, height].
-    static func surface(at t: TimeInterval, level: Double, amplitude: Double, width: Double, height: Double, samples: Int = 40) -> [CGPoint] {
-        let base = height * (1 - max(0, min(1, level)))
-        return (0...samples).map { i in
-            let x = width * Double(i) / Double(samples)
-            let u = x / max(1, width)
-            let wave = sin(2 * .pi * (u * 1.5 + t * 0.35)) + 0.5 * sin(2 * .pi * (u * 2.3 - t * 0.5))
-            return CGPoint(x: x, y: max(0, min(height, base + amplitude * wave)))
-        }
+        switch pressure { case .normal: return 0xE9E4DA; case .caution: return 0xE7B45B; case .critical: return 0xD85C5C }
     }
 }
 

@@ -77,9 +77,21 @@ final class MissionControl: ObservableObject {
     @Published private(set) var recovery: RecoveryCapsule?
     @Published private(set) var toolCalls = 0
     @Published private(set) var activeSince: Date?
-    @Published var timelineFilter: MissionAgentFilter = .all
-    @Published var timelineOrder: MissionTimelineOrder = .newest
+    // preferencias de vista: lo unico que mission control guarda en disco (UserDefaults), nunca contenido
+    @Published var timelineFilter: MissionAgentFilter = Pref.get("missionAgent", MissionAgentFilter.self) { didSet { Pref.set("missionAgent", timelineFilter.rawValue) } }
+    @Published var timelineOrder: MissionTimelineOrder = Pref.get("missionOrder", MissionTimelineOrder.self) { didSet { Pref.set("missionOrder", timelineOrder.rawValue) } }
     @Published var timelineProject = ""
+    @Published var timelineState: MissionStateFilter = Pref.get("missionState", MissionStateFilter.self) { didSet { Pref.set("missionState", timelineState.rawValue) } }
+    @Published var timelineRange: MissionRange = Pref.get("missionRange", MissionRange.self) { didSet { Pref.set("missionRange", timelineRange.rawValue) } }
+    @Published var viewMode: MissionViewMode = Pref.get("missionView", MissionViewMode.self) { didSet { Pref.set("missionView", viewMode.rawValue) } }
+    @Published var searchText = ""
+
+    enum Pref {
+        static func get<T: RawRepresentable & CaseIterable>(_ key: String, _ type: T.Type) -> T where T.RawValue == String {
+            UserDefaults.standard.string(forKey: key).flatMap(T.init(rawValue:)) ?? T.allCases.first!
+        }
+        static func set(_ key: String, _ value: String) { UserDefaults.standard.set(value, forKey: key) }
+    }
 
     private struct PendingError: Equatable {
         let session: String
@@ -100,7 +112,7 @@ final class MissionControl: ObservableObject {
     private var collisionClearSince: Date?
     private var lastActiveScan = Date.distantPast
     private var lastManualScan = Date.distantPast
-    private var workspaceHealth: [String: GitHealth] = [:]
+    private(set) var workspaceHealth: [String: GitHealth] = [:]
     private var pendingError: PendingError?
     private var dismissedError: PendingError?
     private var handledError: PendingError?
@@ -159,14 +171,23 @@ final class MissionControl: ObservableObject {
         return events.prefix(8).map { "\($0.agent): \($0.state.label.lowercased())" }.joined(separator: " · ")
     }
 
-    var filteredTimeline: [MissionEvent] {
-        let byAgent = timelineFilter == .all ? timeline : timeline.filter { $0.agent == timelineFilter.rawValue }
-        let selected = timelineProject.isEmpty ? byAgent : byAgent.filter { event in
-            let name = event.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: event.project).lastPathComponent
-            return name == timelineProject
-        }
-        return timelineOrder == .newest ? selected : Array(selected.reversed())
+    var filter: MissionFilter {
+        MissionFilter(agent: timelineFilter, project: timelineProject, state: timelineState, range: timelineRange, query: searchText, order: timelineOrder)
     }
+    var filteredTimeline: [MissionEvent] { filter.apply(timeline, now: now()) }
+    /// Tarjetas de proyecto con los mismos filtros salvo el de proyecto, con su git y su actividad semanal.
+    var projectCards: [MissionProjectCard] {
+        let data = ActivityStats.shared.snapshot()
+        let date = now()
+        return MissionProjectCard.group(filter.apply(timeline, now: date, ignoringProject: true)).map { card in
+            var c = card
+            c.git = workspaceHealth.first { URL(fileURLWithPath: $0.key).lastPathComponent == card.name }?.value
+                ?? (URL(fileURLWithPath: localWorkspace).lastPathComponent == card.name ? git : nil)
+            c.series = MissionProjectCard.series(card.name, data, endingAt: date)
+            return c
+        }
+    }
+    func clearFilters() { timelineFilter = .all; timelineProject = ""; timelineState = .all; timelineRange = .all; searchText = "" }
     var timelineProjects: [String] {
         ["todos"] + Set(timeline.map { $0.project.isEmpty ? "sin proyecto" : URL(fileURLWithPath: $0.project).lastPathComponent }).sorted()
     }

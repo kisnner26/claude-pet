@@ -1,5 +1,6 @@
 {
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-brain.sh start", "timeout": 5 }] }]
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-brain.sh start", "timeout": 5 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "$HOME/.claude-pet/pet-brain.sh recall", "timeout": 3 }] }]
   }
 }

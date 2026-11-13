@@ -72,13 +72,63 @@ enum SessionTrail {
     }
 }
 
+/// Una celda de la estela: lo mas fuerte que paso en ese tramo de tiempo. El orden es la prioridad al dibujar.
+enum TrailCell: Int, Comparable {
+    case empty, thinking, tool, waiting, error
+    static func < (a: TrailCell, b: TrailCell) -> Bool { a.rawValue < b.rawValue }
+
+    /// Cuantas celdas de alto ocupa en la columna (como un ecualizador pixel-art).
+    var height: Int { switch self { case .empty: return 0; case .thinking: return 1; default: return 2 } }
+    var isWorking: Bool { self == .thinking || self == .tool }
+}
+
+extension SessionTrail {
+    /// Reparte los tramos de un agente en `count` columnas iguales de la ventana. Una columna se llena si el tramo la cubre
+    /// al menos un quinto: asi un destello de un segundo no ensucia la linea y uno real nunca se pierde.
+    static func cells(_ segments: [TrailSegment], agent: String, now: Date, span: TimeInterval, count: Int) -> [TrailCell] {
+        guard count > 0, span > 0 else { return [] }
+        let start = now.addingTimeInterval(-span), width = span / Double(count)
+        var out = [TrailCell](repeating: .empty, count: count)
+        for seg in segments where seg.agent == agent {
+            let kind: TrailCell
+            switch seg.state { case .tool: kind = .tool; case .waiting: kind = .waiting; case .error: kind = .error; default: kind = .thinking }
+            let lo = max(0, Int((seg.start.timeIntervalSince(start) / width).rounded(.down)))
+            let hi = min(count - 1, Int((seg.end.timeIntervalSince(start) / width).rounded(.down)))
+            guard lo <= hi else { continue }
+            for i in lo...hi {
+                let a = start.addingTimeInterval(Double(i) * width), b = a.addingTimeInterval(width)
+                let overlap = min(b, seg.end).timeIntervalSince(max(a, seg.start))
+                if overlap >= width * 0.2, kind > out[i] { out[i] = kind }
+            }
+        }
+        return out
+    }
+
+    /// Columnas en las que los dos agentes trabajaban a la vez.
+    static func togetherColumns(_ claude: [TrailCell], _ codex: [TrailCell]) -> [Int] {
+        (0..<min(claude.count, codex.count)).filter { claude[$0].isWorking && codex[$0].isWorking }
+    }
+
+    /// Opacidad por tramos de la ventana: lo antiguo se apaga en escalones, no en degradado.
+    static func ageAlpha(column: Int, count: Int) -> Double {
+        let k = count <= 1 ? 1 : Double(column) / Double(count - 1)
+        return k < 0.25 ? 0.38 : k < 0.5 ? 0.56 : k < 0.75 ? 0.78 : 1
+    }
+}
+
+/// La estela de la sesion en pixel-art: dos carriles (claude arriba, codex abajo), una columna por tramo de tiempo, de la
+/// altura de lo que hizo el agente. Nitida, sin desenfoque y en los colores de cada agente.
 struct SessionTrailView: View {
     let events: [MissionEvent]
     let reduceMotion: Bool
 
-    private let claude = Color(hex: 0xE0824F)
-    private let codex = Color(hex: 0x96EBFF)
-    private let glow = Color(hex: 0x7DB4FF)
+    static let claude = Color(hex: 0xE0824F)
+    static let codex = Color(hex: 0x5270E8)
+    static let alert = Color(hex: 0xD85C5C)
+    static let amber = Color(hex: 0xE7B45B)
+    /// Celda y separacion, en puntos: la rejilla del resto de la interfaz.
+    static let cell: CGFloat = 4
+    static let gap: CGFloat = 1
 
     @ViewBuilder var body: some View {
         if events.isEmpty {
@@ -89,14 +139,14 @@ struct SessionTrailView: View {
             let segs = SessionTrail.segments(events: events, now: now)
             let span = SessionTrail.window(events: events, now: now)
             VStack(alignment: .leading, spacing: 6) {
-                Canvas { gc, size in draw(&gc, size: size, segs: segs, now: now, span: span, t: ctx.date.timeIntervalSinceReferenceDate) }
+                Canvas { gc, size in Self.draw(&gc, size: size, segs: segs, events: events, now: now, span: span) }
                     .frame(height: 64)
                 HStack {
                     Text("hace \(max(1, Int(span / 60))) min")
                     Spacer()
                     Text("ahora")
                 }
-                .font(.caption2).foregroundStyle(Pal.cream.opacity(0.5))
+                .font(.system(size: 9, design: .monospaced)).foregroundStyle(Pal.cream.opacity(0.5))
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilitySummary(SessionTrail.summary(segs)))
@@ -109,60 +159,50 @@ struct SessionTrailView: View {
         return "estela de sesión: claude trabajó \(min(s.claude)), codex \(min(s.codex)), a la vez \(min(s.together))"
     }
 
-    private func draw(_ gc: inout GraphicsContext, size: CGSize, segs: [TrailSegment], now: Date, span: TimeInterval, t: Double) {
-        let start = now.addingTimeInterval(-span)
-        func x(_ d: Date) -> CGFloat { CGFloat(max(0, min(1, d.timeIntervalSince(start) / span))) * size.width }
-        let lanes: [(String, CGFloat, Color)] = [("claude", size.height * 0.27, claude), ("codex", size.height * 0.73, codex)]
+    static func draw(_ gc: inout GraphicsContext, size: CGSize, segs: [TrailSegment], events: [MissionEvent], now: Date, span: TimeInterval) {
+        let pitch = cell + gap
+        let count = max(1, Int(size.width / pitch))
+        let left = (size.width - CGFloat(count) * pitch + gap) / 2
+        let lanes: [(agent: String, base: CGFloat, color: Color)] = [("claude", 26, claude), ("codex", 58, codex)]
+        func rect(_ column: Int, row: Int, base: CGFloat) -> CGRect {
+            CGRect(x: left + CGFloat(column) * pitch, y: base - CGFloat(row + 1) * pitch + gap, width: cell, height: cell)
+        }
+        let columns = lanes.map { SessionTrail.cells(segs, agent: $0.agent, now: now, span: span, count: count) }
 
-        // carriles base
-        for (_, y, _) in lanes {
-            gc.fill(Path(roundedRect: CGRect(x: 0, y: y - 0.5, width: size.width, height: 1), cornerRadius: 0.5), with: .color(.white.opacity(0.08)))
+        // linea fina de cada carril
+        for lane in lanes {
+            gc.fill(Path(CGRect(x: left, y: lane.base + 1, width: CGFloat(count) * pitch - gap, height: 1)), with: .color(.white.opacity(0.1)))
         }
-        // coincidencias: banda de luz que une los dos carriles
-        for range in SessionTrail.overlaps(segs) {
-            let x0 = x(range.lowerBound), x1 = max(x(range.upperBound), x0 + 3)
-            let rect = CGRect(x: x0, y: lanes[0].1 - 2, width: x1 - x0, height: lanes[1].1 - lanes[0].1 + 4)
-            gc.drawLayer { layer in
-                layer.addFilter(.blur(radius: 9))
-                layer.fill(Path(roundedRect: rect.insetBy(dx: 3, dy: 5), cornerRadius: 8), with: .color(glow.opacity(0.4)))
-            }
-            gc.fill(Path(roundedRect: CGRect(x: x0, y: lanes[0].1, width: 1.5, height: lanes[1].1 - lanes[0].1), cornerRadius: 0.75), with: .color(glow.opacity(0.55)))
-            gc.fill(Path(roundedRect: CGRect(x: x1 - 1.5, y: lanes[0].1, width: 1.5, height: lanes[1].1 - lanes[0].1), cornerRadius: 0.75), with: .color(glow.opacity(0.55)))
+        // coincidencias: un corchete fino al principio y al final de cada tramo en que trabajan a la vez
+        let together = Set(SessionTrail.togetherColumns(columns[0], columns[1]))
+        for c in together.sorted() where !together.contains(c - 1) || !together.contains(c + 1) {
+            let x = left + CGFloat(c) * pitch + cell / 2 - 0.5
+            gc.fill(Path(CGRect(x: x, y: lanes[0].base + 5, width: 1, height: lanes[1].base - 2 * pitch - lanes[0].base - 4)), with: .color(Pal.cream.opacity(0.4)))
         }
-        // trazos: se desvanecen hacia el pasado
-        for seg in segs {
-            guard let lane = lanes.first(where: { $0.0 == seg.agent }) else { continue }
-            let x0 = x(seg.start), x1 = max(x(seg.end), x0 + 2)
-            let thickness: CGFloat
-            switch seg.state {
-            case .tool: thickness = 8
-            case .waiting: thickness = 6
-            case .error: thickness = 6
-            case .thinking: thickness = 4
-            default: thickness = 3
-            }
-            let tint = seg.state == .error ? Color(hex: 0xFF8A7A) : lane.2
-            var pulse = 1.0
-            if seg.state == .waiting && !reduceMotion && seg.end >= now.addingTimeInterval(-1) { pulse = 0.65 + 0.35 * sin(t * 6) }
-            let rect = CGRect(x: x0, y: lane.1 - thickness / 2, width: x1 - x0, height: thickness)
-            // el brillo depende de la posición absoluta: lo antiguo se apaga de forma continua entre tramos
-            func age(_ px: CGFloat) -> Double { 0.18 + 0.82 * Double(px / size.width) }
-            let fade = Gradient(colors: [tint.opacity(age(x0) * pulse), tint.opacity(age(x1) * pulse)])
-            gc.fill(Path(roundedRect: rect, cornerRadius: thickness / 2),
-                    with: .linearGradient(fade, startPoint: CGPoint(x: x0, y: 0), endPoint: CGPoint(x: x1, y: 0)))
-            // cabeza viva
-            if seg.end >= now.addingTimeInterval(-1) && SessionTrail.isWorking(seg.state) {
-                let head = CGRect(x: x1 - thickness, y: lane.1 - thickness, width: thickness * 2, height: thickness * 2)
-                gc.drawLayer { layer in
-                    layer.addFilter(.blur(radius: 5))
-                    layer.fill(Path(ellipseIn: head), with: .color(tint.opacity(0.9)))
+        // columnas
+        for (index, lane) in lanes.enumerated() {
+            for (c, kind) in columns[index].enumerated() where kind != .empty {
+                let alpha = SessionTrail.ageAlpha(column: c, count: count)
+                let tint = kind == .error ? alert : kind == .waiting ? amber : lane.color
+                for row in 0..<kind.height {
+                    let r = rect(c, row: row, base: lane.base)
+                    if kind == .waiting && row == 0 {
+                        // esperando tu respuesta: celda hueca
+                        gc.stroke(Path(r.insetBy(dx: 0.5, dy: 0.5)), with: .color(tint.opacity(alpha)), lineWidth: 1)
+                    } else if kind == .thinking {
+                        gc.fill(Path(r), with: .color(tint.opacity(alpha * 0.6)))
+                    } else {
+                        gc.fill(Path(r), with: .color(tint.opacity(alpha)))
+                    }
                 }
             }
         }
-        // cierres: una marca donde un agente terminó
-        for event in events where event.state == .done {
-            guard let lane = lanes.first(where: { $0.0 == event.agent }), event.at >= start else { continue }
-            gc.fill(Path(ellipseIn: CGRect(x: x(event.at) - 3, y: lane.1 - 3, width: 6, height: 6)), with: .color(Pal.cream.opacity(0.9)))
+        // cierres: una celda crema bajo el carril donde un agente termino
+        let start = now.addingTimeInterval(-span)
+        for event in events where event.state == .done && event.at >= start {
+            guard let lane = lanes.first(where: { $0.agent == event.agent }) else { continue }
+            let c = min(count - 1, max(0, Int(event.at.timeIntervalSince(start) / span * Double(count))))
+            gc.fill(Path(CGRect(x: left + CGFloat(c) * pitch, y: lane.base + 4, width: cell, height: cell)), with: .color(Pal.cream.opacity(0.9)))
         }
     }
 }

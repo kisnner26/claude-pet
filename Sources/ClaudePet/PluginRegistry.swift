@@ -57,6 +57,9 @@ final class PluginRegistry {
             out.append(LoadedPlugin(manifest: m, dir: dir, problems: Array(Set(problems)).sorted()))
         }
         plugins = out
+        let broken = out.filter { !$0.problems.isEmpty }.count
+        if broken > 0 { Diag.plugins.error("carga: \(out.count, privacy: .public) plugins, \(broken, privacy: .public) con problemas") }
+        else { Diag.plugins.info("carga: \(out.count, privacy: .public) plugins") }
     }
 
     func plugin(_ id: String) -> LoadedPlugin? { plugins.first { $0.id == id } }
@@ -228,7 +231,10 @@ final class PluginHost: ObservableObject {
 
     func install(from url: URL) {
         do { let p = try registry.install(from: url); lastError = nil; show("«\(p.manifest.name)» instalado. actívalo para usarlo.") }
-        catch { lastError = (error as? PluginRegistry.InstallError)?.description ?? error.localizedDescription }
+        catch {
+            lastError = (error as? PluginRegistry.InstallError)?.description ?? error.localizedDescription
+            Diag.plugins.error("instalacion fallida: \(Diag.code(error), privacy: .public)")
+        }
         refresh()
     }
 
@@ -244,7 +250,10 @@ final class PluginHost: ObservableObject {
         return w.isEmpty ? nil : (w, (w as NSString).lastPathComponent)
     }
 
-    private func apply(_ r: (result: PluginResult, effects: PluginEffects), name: String) {
+    private func apply(_ r: (result: PluginResult, effects: PluginEffects), name: String, id: String) {
+        if r.result.timedOut { Diag.plugins.error("plugin \(id, privacy: .public): se agoto el plazo") }
+        else if r.result.launchError != nil { Diag.plugins.error("plugin \(id, privacy: .public): no se pudo lanzar") }
+        else if !r.result.ok { Diag.plugins.error("plugin \(id, privacy: .public): termino con codigo \(r.result.status, privacy: .public)") }
         if let c = r.effects.copy { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(c, forType: .string) }
         if let u = r.effects.open { NSWorkspace.shared.open(u) }
         if let t = r.effects.toast { show(t) }
@@ -262,7 +271,7 @@ final class PluginHost: ObservableObject {
             await MainActor.run {
                 guard let self else { return }
                 self.running.remove(pluginID)
-                if let r { self.apply(r, name: name) } else { self.show("«\(name)» no se pudo ejecutar") }
+                if let r { self.apply(r, name: name, id: pluginID) } else { self.show("«\(name)» no se pudo ejecutar"); Diag.plugins.error("plugin \(pluginID, privacy: .public): no se pudo ejecutar la accion") }
             }
         }
     }
@@ -280,7 +289,7 @@ final class PluginHost: ObservableObject {
             Task { [weak self] in
                 guard let self else { return }
                 let r = await self.registry.runEvent(event, plugin: h.plugin, executable: h.executable, fields: fields, project: proj)
-                await MainActor.run { self.running.remove(h.plugin.id); self.apply(r, name: h.plugin.manifest.name) }
+                await MainActor.run { self.running.remove(h.plugin.id); self.apply(r, name: h.plugin.manifest.name, id: h.plugin.id) }
             }
         }
     }

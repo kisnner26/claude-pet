@@ -56,6 +56,9 @@ struct PetScene: Equatable {
     /// Donde esta el otro agente respecto a ella (-1 izquierda, 1 derecha, 0 no hay) y si esta trabajando.
     var mateSide = 0
     var mateWorking = false
+    /// Animo ante un permiso pendiente (riesgo y ensayo) y desde cuando lo tiene.
+    var mood: PetMood = .neutral
+    var moodAt: TimeInterval?
 }
 
 /// Animacion de personaje de la isla: respiracion, parpadeo, mirada, reaccion al toque y salto al terminar.
@@ -178,7 +181,8 @@ enum PetAnimator {
         let look = eyes(gaze: gaze)
         p.eyeDX = look.dx; p.eyeDY = look.dy
         p.wideEyes = hover
-        guard motion else { return p }
+        // las expresiones del animo no son movimiento: con reducir movimiento se ven igual, sin temblor ni suspiro
+        guard motion else { IslandCinema.applyMood(&p, mood: scene.mood, t: t, since: nil, motion: false); return p }
 
         // respiracion: el cuerpo se estira un 4 % desde los pies
         let breath = (sin(t * 2 * .pi / breathPeriod) + 1) / 2
@@ -285,6 +289,7 @@ enum PetAnimator {
             // el entorno: con frio tirita, con calor suda y respira mas rapido
             if scene.ambient.cold || scene.ambient.snow { p.shivering = true; p.dx += CGFloat(sin(t * 55)) * 0.16 }
             if scene.ambient.hot { p.sweating = true; p.scaleY *= 1 + 0.012 * CGFloat(sin(t * 6)) }
+            if scene.mood != .neutral, scene.state != .error { IslandCinema.applyMood(&p, mood: scene.mood, t: t, since: scene.moodAt, motion: true) }
             // un salto al empezar y un suspiro al pausar, aunque no se baile
             if let m = scene.music, scene.state == .idle || scene.state == .done { MusicDance.transients(&p, music: m) }
             // trabajando no esta quieta: cavila meciendose y teclea rebotando
@@ -368,7 +373,7 @@ enum PetAnimator {
                 for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
             }
         }
-        if pose.happy && !pose.dancing { out += Petting.hearts(at: t) }
+        if pose.happy && !pose.dancing && scene.mood != .relieved { out += Petting.hearts(at: t) }
         if scene.waitingFor >= alarmedAfter, Int(t * 3) % 2 == 0 {
             for (x, y) in [(7, 0), (8, 0), (7, 1), (8, 1), (7, 2), (8, 2), (7, 4), (8, 4)] { out.append(Px(x: x, y: y, c: Color(hex: 0xE7B45B))) }
         }
@@ -393,7 +398,7 @@ enum PetAnimator {
         var pixels = pixels
         if pose.earLift { pixels = pixels.map { ($0.x <= 1 || $0.x >= 14) && $0.y <= 12 ? Px(x: $0.x, y: $0.y - 1, c: $0.c) : $0 } }
         let eyes = pixels.filter(isEye)
-        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn || pose.happy else { return pixels }
+        guard !eyes.isEmpty, pose.eyeDX != 0 || pose.eyeDY != 0 || pose.blink || pose.dizzy || pose.wideEyes || pose.yawn || pose.happy || pose.worried else { return pixels }
         var out = pixels.filter { !isEye($0) }
         if pose.yawn { for (x, y) in [(7, 10), (8, 10), (7, 11), (8, 11)] { out.append(Px(x: x, y: y, c: Pal.charcoal)) } }
         let ink = Pal.charcoal
@@ -403,6 +408,9 @@ enum PetAnimator {
             for (cx, cy) in [(5, 8), (10, 8)] {
                 for (x, y) in [(-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)] { out.append(Px(x: cx + x, y: cy + y, c: ink)) }
             }
+        } else if pose.worried && !pose.blink {
+            // ojos preocupados: dos trazos en diagonal con el extremo interior arriba (rejilla de una celda)
+            for (x, y) in [(4, 9), (5, 8), (6, 7), (5, 9), (11, 9), (10, 8), (9, 7), (10, 9)] { out.append(Px(x: x + pose.eyeDX, y: y, c: ink)) }
         } else if pose.blink {
             for x in Set(eyes.map(\.x)) { out.append(Px(x: x + pose.eyeDX, y: 8, c: ink)) }
         } else {

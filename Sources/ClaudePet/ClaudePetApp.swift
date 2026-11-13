@@ -65,7 +65,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var foreground: ForegroundAppMonitor?
     private var cancellables = Set<AnyCancellable>()
     private let server = EventServer()
-    private let busServer = EventServer(path: PetBus.ownSocket)
+    private let busServer = EventServer(path: PetBus.ownSocket, label: "bus")
     private let askServer = PermissionServer()
     private let remoteLink = RemoteLink()
     private let questServer = QuestServer()
@@ -84,9 +84,23 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        Diag.app.info("arranque: version \(Diag.appVersion, privacy: .public) macOS \(os.majorVersion, privacy: .public).\(os.minorVersion, privacy: .public).\(os.patchVersion, privacy: .public) \(Diag.architecture(), privacy: .public) empaquetada \(Bundle.main.bundleURL.pathExtension == "app", privacy: .public)")
         _ = ConfigStore.shared.load()
         if CommandLine.arguments.contains("--selftest-approval-rules") { exit(ApprovalRulesSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-restore") { exit(RestorePointsSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-rehearsal") { exit(RehearsalSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--rehearse"), i + 1 < CommandLine.arguments.count {
+            // ensayo desde la terminal: ClaudePet --rehearse "rm -rf build" [carpeta]; ejecuta el comando en una copia aislada y dice que cambiaria
+            let dir = CommandLine.arguments.indices.contains(i + 2) ? CommandLine.arguments[i + 2] : FileManager.default.currentDirectoryPath
+            switch RehearsalRunner.run(command: CommandLine.arguments[i + 1], cwd: dir) {
+            case .success(let report):
+                print(Rehearsal.text(report))
+                if !report.outputTail.isEmpty { print("\n" + L.t("salida del comando", "command output") + "\n" + report.outputTail) }
+                exit(0)
+            case .failure(let why): FileHandle.standardError.write(Data((why.text + "\n").utf8)); exit(2)
+            }
+        }
         if CommandLine.arguments.contains("--selftest-loops") { exit(LoopDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-sound") { exit(SoundSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-wardrobe") { exit(WardrobeSelfTest.run() ? 0 : 1) }
@@ -140,6 +154,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-permission-risk") { exit(PermissionRiskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-secrets") { exit(SecretDetectorSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-permission-preview") { exit(PermissionPreviewSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-diff") { exit(PermissionChangeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-audit") { exit(AuditSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-approval-scope") { exit(ApprovalScopeSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-terminal") { exit(TerminalTargetSelfTest.run() ? 0 : 1) }
@@ -187,6 +202,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-desk") { exit(DeskSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-rage") { exit(RageSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-lang") { exit(L10nSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-login") { exit(LoginItemSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-diag") { exit(DiagnosticsSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--selftest-plan") { exit(MainActor.assumeIsolated { PlanSelfTest.run(file: i + 1 < CommandLine.arguments.count ? CommandLine.arguments[i + 1] : nil) } ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-remote") { exit(MainActor.assumeIsolated { RemoteApprovalsSelfTest.run() } ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-plugins") { exit(PluginSelfTest.run() ? 0 : 1) }
@@ -208,6 +225,16 @@ final class AppController: NSObject, NSApplicationDelegate {
             exit(WebCrawlerSelfTest.run(htmlOut: out) ? 0 : 1)
         }
         if CommandLine.arguments.contains("--selftest-brain") { exit(BrainSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-brain-recall") { exit(BrainRecallSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-usage") { exit(TokenUsageSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--squeeze") { exit(OutputSqueezer.cli()) }
+        if CommandLine.arguments.contains("--selftest-squeeze") { exit(SqueezeSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-advice") { exit(SavingsAdviceSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-concise") { exit(ConciseModeSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-claudemd") { exit(ClaudeMdSelfTest.run() ? 0 : 1) }
+        if let i = CommandLine.arguments.firstIndex(of: "--project-summary") {
+            exit(ProjectSummary.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--brain") {
             exit(BrainStore.cli(Array(CommandLine.arguments.dropFirst(i + 1)), cwd: FileManager.default.currentDirectoryPath))
         }
@@ -383,6 +410,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-memory") { exit(MemorySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-claudwler-extras") { exit(ClaudwlerExtrasSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-cinema") { exit(IslandCinemaSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
@@ -398,8 +426,20 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-settings"), i + 1 < CommandLine.arguments.count {
             SettingsSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-mission"), i + 1 < CommandLine.arguments.count {
+            MissionSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-rehearsal"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.rehearsal(to: CommandLine.arguments[i + 1]); exit(0)
+        }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.fence(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-cinema"), i + 1 < CommandLine.arguments.count {
+            CinemaSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
+        }
+        if let i = CommandLine.arguments.firstIndex(of: "--snapshot-permission-diff"), i + 1 < CommandLine.arguments.count {
+            IslandSnapshot.permissionDiff(to: CommandLine.arguments[i + 1]); exit(0)
         }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-plan"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.plan(to: CommandLine.arguments[i + 1]); exit(0)
@@ -545,7 +585,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             Task { @MainActor in PetStore.shared.apply(ev) }
         }
         do { try server.start(); PetStore.shared.setBridge(true) }
-        catch { PetStore.shared.setBridge(false); NSLog("ClaudePet: no se pudo abrir el socket: \(error)") }
+        catch { PetStore.shared.setBridge(false); Diag.app.error("sin socket de eventos: \(Diag.code(error), privacy: .public)") }
 
         // permisos desde la isla: el hook espera en ask.sock hasta que respondas
         ActivityStats.shared.load()
@@ -642,9 +682,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         PetStore.shared.$remoteApprovals.removeDuplicates().sink { [weak self] on in
             guard let self else { return }
             if on {
-                do { try self.remoteLink.start(); self.remoteLink.sync(self.askServer.asks); PetStore.shared.remoteCode = self.remoteLink.code() }
-                catch { NSLog("ClaudePet: no se pudo abrir el puente de Visto: \(error)") }
-            } else { self.remoteLink.stop(); PetStore.shared.remotePeers = [] }
+                do { try self.remoteLink.start(); self.remoteLink.sync(self.askServer.asks); PetStore.shared.remoteCode = self.remoteLink.code(); Diag.socket("visto", .up) }
+                catch { Diag.socket("visto", .failed(Diag.code(error))) }
+            } else { self.remoteLink.stop(); PetStore.shared.remotePeers = []; Diag.socket("visto", .down) }
         }.store(in: &cancellables)
         // relay: la Mac se registra en tu servidor y Visto la encuentra fuera de casa
         remoteLink.onRelayState = { state in
@@ -653,7 +693,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                 case .off: PetStore.shared.relayStatus = ""
                 case .connecting: PetStore.shared.relayStatus = "conectando con el relay…"
                 case .ready: PetStore.shared.relayStatus = "conectada al relay: Visto puede entrar desde fuera"
-                case .failed(let why): PetStore.shared.relayStatus = why
+                case .failed(let why): PetStore.shared.relayStatus = why; Diag.remote.error("relay: no se pudo conectar")
                 }
             }
         }
@@ -683,8 +723,9 @@ final class AppController: NSObject, NSApplicationDelegate {
                     let ip = QuestServer.lanAddress() ?? "la-ip-de-tu-mac"
                     PetStore.shared.questAddress = "https://\(ip):\(self.questServer.port)"
                     PetStore.shared.questStatus = ""
-                } catch { PetStore.shared.questStatus = "no se pudo abrir: \(error.localizedDescription)"; PetStore.shared.questAddress = "" }
-            } else { self.questServer.stop(); PetStore.shared.questAddress = ""; PetStore.shared.questClients = 0 }
+                    Diag.socket("quest", .up)
+                } catch { PetStore.shared.questStatus = "no se pudo abrir: \(error.localizedDescription)"; PetStore.shared.questAddress = ""; Diag.socket("quest", .failed(Diag.code(error))) }
+            } else { self.questServer.stop(); PetStore.shared.questAddress = ""; PetStore.shared.questClients = 0; Diag.socket("quest", .down) }
         }.store(in: &cancellables)
         remoteLink.onPeersChanged = { peers in Task { @MainActor in PetStore.shared.remotePeers = peers } }
         PetStore.shared.regenerateRemoteCode = { [weak self] in
@@ -731,7 +772,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             guard self?.askServer.dismissQuestion(id: id) == true else { return }
             Task { @MainActor in PetStore.shared.questionAsks.removeAll { $0.id == id } }
         }
-        do { try askServer.start() } catch { NSLog("ClaudePet: permisos desde la isla no disponibles: \(error)") }
+        do { try askServer.start() } catch { Diag.app.error("permisos desde la isla no disponibles: \(Diag.code(error), privacy: .public)") }
         syncPermissionFlag()
         PetStore.shared.onGlobalShortcutsChanged = { [weak self] enabled in self?.configureShortcuts(enabled) }
         configureShortcuts(PetStore.shared.globalShortcutsEnabled)
@@ -739,7 +780,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
         busServer.onLine = { line in Task { @MainActor in PetStore.shared.receive(line: line) } }
         do { try busServer.start(); PetStore.shared.setBus(true) }
-        catch { PetStore.shared.setBus(false); NSLog("ClaudePet: pet bus no disponible: \(error)") }
+        catch { PetStore.shared.setBus(false); Diag.app.error("pet bus no disponible: \(Diag.code(error), privacy: .public)") }
     }
 
     /// Renderiza cada estado (4 fotogramas) a un PNG para revisar el sprite sin abrir la ventana.
@@ -892,7 +933,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func setUpMissionPanel() {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 590, height: 560),
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 760, height: 660),
                             styleMask: [.titled, .closable, .utilityWindow, .fullSizeContentView], backing: .buffered, defer: false)
         panel.title = "Mission Control"
         panel.titlebarAppearsTransparent = true
@@ -1050,6 +1091,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ n: Notification) {
+        Diag.app.info("cierre: version \(Diag.appVersion, privacy: .public)")
         LabLauncher.shared.stopAll()
         PetStore.shared.shutdownBus()
         cleanupIsland()

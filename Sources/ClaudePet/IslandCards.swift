@@ -8,6 +8,10 @@ struct IslandActionButton: View {
     var hint: String? = nil
     let action: () -> Void
     @State private var hovering = false
+    /// Posicion del cursor dentro del boton: la luz de la superficie lo sigue.
+    @State private var cursor: CGPoint?
+    private var darkInk: Bool { ink == .black }
+    private var lightOn: Bool { !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast }
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -17,9 +21,21 @@ struct IslandActionButton: View {
                 .foregroundColor(ink)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(Capsule().fill(fill))
+                // luz que sigue al cursor, solo mientras esta encima (sin temporizador: se redibuja con el movimiento)
+                .overlay {
+                    if hovering, lightOn, let cursor {
+                        GeometryReader { geo in
+                            RadialGradient(colors: [darkInk ? Color.black.opacity(0.13) : Color.white.opacity(0.22), .clear],
+                                           center: UnitPoint(x: cursor.x / max(1, geo.size.width), y: cursor.y / max(1, geo.size.height)), startRadius: 0, endRadius: 38)
+                        }
+                        .clipShape(Capsule()).allowsHitTesting(false)
+                    }
+                }
         }
         .buttonStyle(IslandPressStyle())
-        .onHover { hovering = $0 }
+        .onContinuousHover { phase in
+            switch phase { case .active(let p): hovering = true; cursor = p; case .ended: hovering = false; cursor = nil }
+        }
         .scaleEffect(hovering ? 1.03 : 1)
         .animation(.easeOut(duration: 0.07), value: hovering)
     }
@@ -36,7 +52,12 @@ private struct IslandPressStyle: ButtonStyle {
 struct PermissionCardView: View {
     @ObservedObject var store: PetStore
     let ask: PermissionAsk
+    @ObservedObject private var rehearsals = RehearsalBoard.shared
     @State private var showMore = false
+    @State private var revealed = false
+    @Environment(\.cinemaRevealAge) private var frozenAge
+    /// Alto que deja libre el comando al quedarse en una linea mientras se ve un ensayo (dos lineas de 14).
+    static let commandLinesSaved: CGFloat = 28
 
     /// Permitir recordando la decision. Sin objetivo claro (comando compuesto) o con riesgo alto no hay alcance.
     @ViewBuilder private func scopeMenu(for ask: PermissionAsk, risk: PermissionRisk) -> some View {
@@ -57,12 +78,17 @@ struct PermissionCardView: View {
         let reading = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project)
         let isPlan = ask.tool == "ExitPlanMode"
         let preview = PermissionPreviewBuilder.make(tool: ask.tool, detail: ask.detail, project: ask.project)
-        let collapsed = 3
+        let rehearsal = rehearsals.phase(ask.id)
+        let collapsed = rehearsal == nil ? 3 : 1
+        // la aparicion escalonada solo corre con efectos; la edad es lo que se anima, el resto de la tarjeta no cambia de sitio
+        let total = IslandCinema.revealTotal(blocks: 5)
+        let animated = frozenAge != nil || store.cinemaEffectsOn
+        let age = frozenAge ?? (revealed || !animated ? total : 0)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(ask.project.isEmpty ? "claude" : ask.project).font(.system(size: 11, weight: .bold)).foregroundColor(.white).lineLimit(1)
                 Text(isPlan ? "propone un plan" : "necesita permiso").font(.system(size: 11)).foregroundColor(.white.opacity(0.55))
-                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)) }
+                if store.permissionAsks.count > 1 { Text("+\(store.permissionAsks.count - 1) en espera").font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.45)).rollingNumber(store.permissionAsks.count) }
                 Spacer(minLength: 0)
                 Label(reading.risk.rawValue, systemImage: "shield.lefthalf.filled")
                     .font(.system(size: 9, weight: .semibold, design: .monospaced)).foregroundColor(reading.risk.color)
@@ -70,29 +96,53 @@ struct PermissionCardView: View {
                     .help("riesgo \(reading.risk.rawValue): \(reading.reason)")
                     .accessibilityLabel("riesgo \(reading.risk.rawValue). \(reading.reason)")
             }
-            if reading.risk != .low { Text(reading.reason).font(.system(size: 10)).foregroundColor(.white.opacity(0.6)).lineLimit(1) }
+            .cardReveal(age: age, index: 0)
+            if reading.risk != .low { Text(reading.reason).font(.system(size: 10)).foregroundColor(.white.opacity(0.6)).lineLimit(1).cardReveal(age: age, index: 1) }
             if let fence = PerimeterStore.shared.check(ask), fence.verdict.isViolation {
                 Label(fence.verdict.reason, systemImage: "scope")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
                     .help("tu perímetro no deja que el agente toque este archivo; este permiso nunca se aprueba solo")
+                    .cardReveal(age: age, index: 1)
             }
-            if let secret = SecretDetector.find(in: ask.detail, path: ask.project) {
+            if let secret = SecretDetector.find(in: ask.detail, path: ask.project) ?? ask.change?.secret {
                 Label("posible secreto: \(secret.label) · \(secret.prefix)", systemImage: "exclamationmark.shield.fill")
                     .font(.system(size: 10, weight: .semibold, design: .monospaced)).foregroundColor(Color(hex: 0xD85C5C)).lineLimit(1)
+                    .cardReveal(age: age, index: 1)
             }
-            if !ask.detail.isEmpty {
+            if let change = ask.change, !isPlan {
+                PermissionChangeBox(path: ask.detail, change: change, open: store.permissionDiffOpen) {
+                    store.permissionDiffOpenID = store.permissionDiffOpenID == ask.id ? nil : ask.id
+                }
+                .cardReveal(age: age, index: 2)
+            } else if !ask.detail.isEmpty {
                 let shown = showMore ? preview.lines : Array(preview.lines.prefix(collapsed))
                 Text(shown.joined(separator: "\n"))
-                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore ? nil : collapsed)
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.white).lineLimit(showMore && rehearsal == nil ? nil : collapsed)
                     .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.08)))
+                    .cardReveal(age: age, index: 2)
                     .contextMenu {
                         Button("copiar detalle", systemImage: "doc.on.clipboard") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.detail, forType: .string) }
                         Button("copiar permiso completo", systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ask.clipboardText, forType: .string) }
                     }
-                if preview.lines.count > collapsed {
-                    Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.7))
+                if preview.lines.count > collapsed, rehearsal == nil {
+                    Button(showMore ? "ver menos" : "ver más") { showMore.toggle() }.buttonStyle(.plain).font(.system(size: 10, design: .monospaced)).foregroundColor(.white.opacity(0.7)).cardReveal(age: age, index: 2)
                 }
+            }
+            if let rehearsal {
+                RehearsalStrip(phase: rehearsal).cardReveal(age: age, index: 3)
+            } else if ask.tool == "Bash", let command = ask.rawCommand, let cwd = ask.cwd, !cwd.isEmpty {
+                // ensayar: ejecuta el comando en una copia aislada del proyecto y dice que cambiaria, sin tocar nada real
+                Button { rehearsals.start(id: ask.id, command: command, cwd: cwd) } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.on.square.dashed").font(.system(size: 9, weight: .semibold))
+                        Text(verbatim: L.t("ensayar en una copia", "rehearse on a copy")).font(.system(size: 10, design: .monospaced))
+                    }.foregroundColor(Color(hex: 0xE0824F))
+                }
+                .buttonStyle(.plain)
+                .help(L.t("lo ejecuta en una copia del proyecto, sin red y sin tocar tus archivos, y te dice qué cambiaría", "runs it on a copy of the project, with no network and without touching your files, and tells you what would change"))
+                .accessibilityHint(Text(verbatim: L.t("ejecuta el comando en una copia aislada y muestra qué cambiaría", "runs the command on an isolated copy and shows what would change")))
+                .cardReveal(age: age, index: 3)
             }
             HStack(spacing: 6) {
                 IslandActionButton(title: isPlan ? "rechazar" : "denegar", fill: Color.white.opacity(0.1), ink: .white, hint: store.globalShortcutsEnabled ? "⌃⌥D" : nil) { store.answerPermission(ask.id, .deny) }
@@ -108,7 +158,11 @@ struct PermissionCardView: View {
                 if ask.canAlways && !isPlan { IslandActionButton(title: "siempre", fill: Color.white.opacity(0.1), ink: .white) { store.answerPermission(ask.id, .always) } }
                 IslandActionButton(title: isPlan ? "aprobar plan" : "permitir", fill: .white, ink: .black, hint: store.globalShortcutsEnabled ? "⌃⌥A" : nil) { store.answerPermission(ask.id, .allow) }
             }
-        }.frame(maxWidth: .infinity, alignment: .leading)
+            .cardReveal(age: age, index: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.linear(duration: total), value: revealed)
+        .onAppear { if animated && frozenAge == nil { revealed = true } }
     }
 }
 

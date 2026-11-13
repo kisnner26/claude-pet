@@ -232,7 +232,7 @@ final class IslandController {
 
         let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
         let asking = !store.permissionAsks.isEmpty || !store.questionAsks.isEmpty
-        let eh = asking ? NotchGeometry.permissionHeight : NotchGeometry.expandedHeight
+        let eh = asking ? store.permissionCardHeight : NotchGeometry.expandedHeight
         // arrastrando archivos: la isla asoma y deja de ser transparente a los clics para poder recibirlos
         let dragging = NSEvent.pressedMouseButtons & 1 != 0 && NSPasteboard(name: .drag).canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
         if Self.logPath != nil, dragging != lastLoggedDrag { lastLoggedDrag = dragging; Self.log("arrastre=\(dragging) botones=\(NSEvent.pressedMouseButtons) cursor=(\(Int(mouse.x)),\(Int(mouse.y)))") }
@@ -353,13 +353,20 @@ struct IslandView: View {
                         }.clipShape(shape)
                     }
                 }
-                // nivel de contexto como liquido y aurora de luz: solo con la isla abierta y con animaciones
+                // nivel de contexto como una linea fina y aurora de luz: solo con la isla abierta y con animaciones
                 .overlay {
                     if model.mode == .expanded && effectsOn {
                         ZStack {
                             if let g = glow { AuroraView(color: g.hex) }
-                            if let r = store.contextReading { LiquidView(level: LiquidModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: LiquidModel.colorHex(r.pressure), amplitude: LiquidModel.amplitude(store.state)) }
+                            if let r = store.contextReading { ContextLine(level: ContextModel.level(used: r.usedTokens, compactAt: r.compactAtTokens), color: ContextModel.colorHex(r.pressure)) }
                         }
+                    }
+                }
+                // permiso pendiente: una pasada de luz por el borde y, en riesgo alto, un borde rojo apagado que respira
+                .overlay {
+                    if model.mode == .expanded, let ask = store.permissionAsks.first {
+                        let risk = PermissionRiskClassifier.classify(tool: ask.tool, detail: ask.detail, project: ask.project).risk
+                        PermissionEdgeFX(shape: shape, risk: risk, plan: IslandCinema.plan(effectsOn: effectsOn, risk: risk)).id(ask.id)
                     }
                 }
                 .opacity(IslandRestingLook.pillVisible(mode: model.mode, hasNotch: model.hasNotch, menuBarHidden: model.menuBarHidden, hideCompact: store.islandHideCompact) ? 1 : 0)
@@ -392,6 +399,11 @@ struct IslandView: View {
                         AlertPulseView(color: AlertPulse.riskColor(risk), askedAt: ask.at).frame(width: side * 2, height: side * 2)
                     } else if !compact, effectsOn, !store.questionAsks.isEmpty {
                         AlertPulseView(color: 0x5270E8).frame(width: side * 2, height: side * 2)
+                    } else if !compact, effectsOn, model.reason == .finished {
+                        // cierre de la tarea: una rafaga de pixeles y un anillo fino, en el color de quien termino
+                        FinishBurstHost(color: model.finishedAgent == .codex ? 0x5270E8 : 0xE0824F,
+                                        delay: IslandCinema.burstDelay(hasTrailer: !store.mission.changes.isEmpty))
+                            .id(model.hopStart ?? 0)
                     }
                 }
                 .overlay(alignment: .topLeading) {
@@ -519,7 +531,7 @@ struct IslandView: View {
         } else if let left = model.dizzyLeft {
             IslandDizzyNotice(seconds: left)
         } else if let ask = store.permissionAsks.first {
-            PermissionCardView(store: store, ask: ask)
+            PermissionCardView(store: store, ask: ask).id(ask.id)
         } else if let ask = store.questionAsks.first {
             QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion)
         } else if model.reason == .finished {
@@ -971,7 +983,7 @@ extension IslandSnapshot {
             HStack(spacing: 14) {
                 cell("pulso de alerta", ZStack { AlertPulseViewStatic(color: 0xE7B45B); mascot(.waiting) })
                 cell("reloj de arena", HourglassView(top: 0.55).scaleEffect(2))
-                cell("contexto líquido", ZStack { LiquidView(level: 0.62, color: 0x2966ED, amplitude: 4, animated: false); mascot() })
+                cell("contexto", ZStack { ContextLine(level: 0.62, color: ContextModel.colorHex(.normal)); mascot() })
                 cell("aurora", ZStack { if #available(macOS 15.0, *) { AuroraView(color: 0x6CCB8A, animated: false) }; mascot(.done) })
             }
             HStack(spacing: 14) {

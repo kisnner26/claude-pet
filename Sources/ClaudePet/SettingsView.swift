@@ -1,183 +1,295 @@
 import SwiftUI
 import AppKit
 
-extension SettingsPage {
-    var subtitle: String {
-        switch self {
-        case .resumen: return "lo que ha pasado hoy y esta semana, y el estado de tus agentes."
-        case .apariencia: return "dónde sale la isla, qué enseña y cómo se ven las mascotas."
-        case .comportamiento: return "cuándo asoma, cuánto tarda en plegarse y cuándo aparece sola."
-        case .agentes: return "qué agentes vigila claude-pet y qué detalle enseña de cada uno."
-        case .permisos: return "responder desde la isla, reglas de aprobación y puntos de restauración."
-        case .perimetro: return "por dónde puede moverse el agente en cada proyecto, comprobado en el permiso antes de que algo cambie."
-        case .privacidad: return "todo se queda en tu Mac. aquí decides qué se comparte y qué se borra."
-        case .guardarropa: return "atuendos que se desbloquean al subir de nivel."
-        case .sonidos: return "volumen por categoría, prueba de cada sonido y tus propios archivos."
-        case .musica: return "reproductor de Spotify y Apple Music en la isla, y cómo reacciona la mascota."
-        case .foco: return "silencia lo que no importa y trabaja por ciclos."
-        case .trackpad: return "experimental: usa el trackpad como una superficie táctil de toda la pantalla, sin cámara."
-        case .plugins: return "complementos creados por la comunidad que añaden acciones y ajustes a claude-pet."
-        case .atajos: return "combinaciones globales. siempre con control y opción más la letra que elijas."
-        case .copia: return "exporta tus ajustes, impórtalos en otro Mac o vuelve a empezar."
-        case .acerca: return "versión, herramientas relacionadas y dónde vive cada dato."
-        }
-    }
-}
-
 struct SettingsView: View {
     @ObservedObject var store: PetStore
     @State private var page: SettingsPage
-    @State private var query = ""
+    @State private var filter = SettingsFilter()
+    @State private var filtersOpen: Bool
+    @AppStorage(SettingsDensity.storageKey) private var densityRaw = SettingsDensity.comfortable.rawValue
+    @Environment(\.colorSchemeContrast) private var contrast
     private let fixedSize: Bool
+    private let densityOverride: SettingsDensity?
+    private let forceHighContrast: Bool
+    private let fixedHeight: CGFloat
 
-    init(store: PetStore, page: SettingsPage = .resumen, fixedSize: Bool = false) {
+    init(store: PetStore, page: SettingsPage = .resumen, fixedSize: Bool = false, fixedHeight: CGFloat = 700, filter: SettingsFilter = SettingsFilter(), filtersOpen: Bool = false,
+         density: SettingsDensity? = nil, highContrast: Bool = false) {
         self.store = store
         self.fixedSize = fixedSize
+        self.fixedHeight = fixedHeight
+        self.densityOverride = density
+        self.forceHighContrast = highContrast
         _page = State(initialValue: page)
+        _filter = State(initialValue: filter)
+        _filtersOpen = State(initialValue: filtersOpen || filter.isActive)
     }
 
-    private var results: [SettingsPage] { SettingsPage.matching(query) }
+    private var density: SettingsDensity { densityOverride ?? .decode(densityRaw) }
+    private var highContrast: Bool {
+        forceHighContrast || contrast == .increased || NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+            || ProcessInfo.processInfo.environment["CLAUDE_PET_HIGH_CONTRAST"] == "1"
+    }
+    private func isOn(_ p: SettingsPage) -> Bool? { p.isOn(store) }
+    private var results: [SettingsPage] { SettingsPage.filtered(filter, isOn: isOn) }
+    private var activeCount: Int { SettingsPage.allCases.filter { isOn($0) == true }.count }
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Rectangle().fill(SettingsTheme.line).frame(width: 1)
+            Rectangle().fill(SettingsTheme.hairline(highContrast)).frame(width: 1)
             content
         }
         .frame(minWidth: 940, idealWidth: 980, minHeight: 640, idealHeight: 700)
-        .frame(width: fixedSize ? 980 : nil, height: fixedSize ? 700 : nil)
+        .frame(width: fixedSize ? 980 : nil, height: fixedSize ? fixedHeight : nil)
         .background(SettingsTheme.background)
+        .environment(\.settingsDensity, density)
+        .environment(\.settingsHighContrast, highContrast)
+        .environment(\.settingsReduceMotion, store.reduceMotion)
         .preferredColorScheme(.dark)
     }
+
+    // MARK: barra lateral
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             brand
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsTheme.mute)
-                TextField("buscar un ajuste", text: $query).textFieldStyle(.plain).font(.system(size: 13))
-                if !query.isEmpty {
-                    Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(SettingsTheme.mute) }.buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .background(Capsule().fill(Color.white.opacity(0.07)))
-            .overlay(Capsule().stroke(SettingsTheme.line, lineWidth: 1))
-            .padding(.horizontal, 14).padding(.bottom, 12)
-
+            searchField
+            if filtersOpen { filterChips.padding(.horizontal, 14).padding(.bottom, 10) }
             ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(SettingsGroup.allCases) { group in
-                        let pages = results.filter { $0.group == group }
-                        if !pages.isEmpty {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(group.title.uppercased())
-                                    .font(.system(size: 9.5, weight: .medium, design: .monospaced)).tracking(1.5)
-                                    .foregroundStyle(SettingsTheme.mute.opacity(0.8)).padding(.horizontal, 12).padding(.bottom, 4)
-                                ForEach(pages) { sidebarRow($0) }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(SettingsGroup.allCases) { group in
+                            let pages = results.filter { $0.group == group }
+                            if !pages.isEmpty {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    groupHeader(group)
+                                    ForEach(pages) { sidebarRow($0) }
+                                }
                             }
                         }
+                        if results.isEmpty { emptyResults }
                     }
-                    if results.isEmpty {
-                        Text("nada coincide con “\(query)”").font(.system(size: 12)).foregroundStyle(SettingsTheme.mute).padding(.horizontal, 12)
-                    }
+                    .padding(.horizontal, 10).padding(.bottom, 16).padding(.top, 2)
                 }
-                .padding(.horizontal, 10).padding(.bottom, 16)
-            }
-            .onAppear { proxy.scrollTo(page, anchor: .center) }
-            .onChange(of: page) { p in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(p, anchor: .center) } }
+                .scrollIndicators(.never)
+                .onAppear { proxy.scrollTo(page, anchor: .center) }
+                .onChange(of: page) { p in withAnimation(store.reduceMotion ? nil : .easeOut(duration: 0.2)) { proxy.scrollTo(p, anchor: .center) } }
             }
             statusFooter
         }
-        .frame(width: 232)
-        .onChange(of: query) { _ in if let first = results.first, !results.contains(page) { page = first } }
+        .frame(width: 244)
+        .onChange(of: filter) { _ in if let first = results.first, !results.contains(page) { page = first } }
     }
 
     /// Las dos mascotas, vestidas como las tenga el usuario: la ventana ya dice de quien es.
     private var brand: some View {
         HStack(spacing: 10) {
             HStack(spacing: -8) {
-                ClaudeSprite(outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing()
-                CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 34, height: 34).breathing(delay: 0.5)
+                ClaudeSprite(outfits: store.outfitsNow()).frame(width: 34, height: 34).breathing(!store.reduceMotion)
+                CodexSprite(skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 34, height: 34).breathing(!store.reduceMotion, delay: 0.5)
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text("claude-pet").font(.system(size: 15, weight: .bold)).tracking(-0.2)
-                Text(">_ claude · codex").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(SettingsTheme.duo)
+                HStack(spacing: 4) {
+                    Text("claude").foregroundStyle(SettingsTheme.agentClaude)
+                    Text("·").foregroundStyle(SettingsTheme.muted(highContrast))
+                    Text("codex").foregroundStyle(SettingsTheme.agentCodex)
+                }
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16).padding(.top, 38).padding(.bottom, 10)
+        .padding(.horizontal, 16).padding(.top, 38).padding(.bottom, 12)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").font(.system(size: 12)).foregroundStyle(SettingsTheme.muted(highContrast))
+                TextField("buscar un ajuste", text: $filter.query).textFieldStyle(.plain).font(.system(size: 13))
+                    .accessibilityLabel("buscar un ajuste")
+                if !filter.query.isEmpty {
+                    Button { filter.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(SettingsTheme.muted(highContrast)) }
+                        .buttonStyle(.plain).accessibilityLabel("borrar la búsqueda")
+                }
+            }
+            .padding(.horizontal, 11).padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(SettingsTheme.hairline(highContrast), lineWidth: 1))
+
+            let n = filterCount
+            Button { filtersOpen.toggle() } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "line.3.horizontal.decrease").font(.system(size: 12, weight: .medium))
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(filtersOpen || n > 0 ? SettingsTheme.onAccent : Color.white.opacity(0.8))
+                        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(filtersOpen || n > 0 ? SettingsTheme.accent : Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(filtersOpen || n > 0 ? Color.clear : SettingsTheme.hairline(highContrast), lineWidth: 1))
+                    if n > 0 {
+                        Text("\(n)").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                            .frame(width: 14, height: 14).background(Circle().fill(Color.black.opacity(0.85))).offset(x: 4, y: -4)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .help(filtersOpen ? "ocultar filtros" : "mostrar filtros")
+            .accessibilityLabel("filtros").accessibilityValue(n > 0 ? "\(n) activos" : "sin filtros")
+        }
+        .padding(.horizontal, 14).padding(.bottom, 12)
+    }
+
+    private var filterCount: Int { (filter.group != nil ? 1 : 0) + (filter.onlyEnabled ? 1 : 0) + (filter.onlyExperimental ? 1 : 0) }
+
+    private var filterChips: some View {
+        let counts = SettingsPage.counts(filter, isOn: isOn)
+        return VStack(alignment: .leading, spacing: 8) {
+            SLabel("categoría")
+            FlowLayout(spacing: 6, lineSpacing: 6) {
+                SChip(title: "todo", count: counts.values.reduce(0, +), selected: filter.group == nil) { filter.group = nil }
+                ForEach(SettingsFilter.categories) { g in
+                    SChip(title: g.title, count: counts[g] ?? 0, selected: filter.group == g) { filter.group = (filter.group == g ? nil : g) }
+                }
+            }
+            SLabel("mostrar")
+            FlowLayout(spacing: 6, lineSpacing: 6) {
+                SChip(title: "solo activados", symbol: "power", selected: filter.onlyEnabled) { filter.onlyEnabled.toggle() }
+                SChip(title: "solo experimentales", symbol: "wand.and.stars", selected: filter.onlyExperimental) { filter.onlyExperimental.toggle() }
+            }
+            if filter.isActive {
+                Button { filter.clear() } label: {
+                    Text("quitar filtros").font(.system(size: 10.5, design: .monospaced)).underline().foregroundStyle(SettingsTheme.muted(highContrast))
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func groupHeader(_ group: SettingsGroup) -> some View {
+        HStack(spacing: 6) {
+            SLabel(group.title)
+            Spacer(minLength: 0)
+            if let a = SettingsPage.activity(in: group, isOn: isOn) {
+                Text("\(a.on)/\(a.of)").font(.system(size: 9.5, design: .monospaced))
+                    .foregroundStyle(a.on > 0 ? SettingsTheme.green : SettingsTheme.muted(highContrast))
+                    .help("funciones encendidas en este grupo")
+                    .accessibilityLabel("\(a.on) de \(a.of) encendidas")
+            }
+        }
+        .padding(.horizontal, 12).padding(.bottom, 4).padding(.top, 2)
     }
 
     private func sidebarRow(_ p: SettingsPage) -> some View {
         let selected = p == page
-        return Button { withAnimation(.easeOut(duration: 0.18)) { page = p } } label: {
+        let on = isOn(p)
+        return Button { if store.reduceMotion { page = p } else { withAnimation(.easeOut(duration: 0.18)) { page = p } } } label: {
             HStack(spacing: 10) {
                 Image(systemName: p.symbol).font(.system(size: 13, weight: .regular)).frame(width: 18)
-                    .foregroundStyle(selected ? AnyShapeStyle(SettingsTheme.duo) : AnyShapeStyle(Color.white.opacity(0.72)))
+                    .foregroundStyle(selected ? SettingsTheme.accent : Color.white.opacity(highContrast ? 0.92 : 0.7))
                 Text(p.title).font(.system(size: 13, weight: selected ? .semibold : .regular))
-                Spacer()
+                Spacer(minLength: 4)
+                if p.isExperimental {
+                    Text("exp").font(.system(size: 8.5, weight: .semibold, design: .monospaced)).foregroundStyle(SettingsTheme.amber)
+                        .padding(.horizontal, 4).padding(.vertical, 1.5).overlay(RoundedRectangle(cornerRadius: 3).stroke(SettingsTheme.amber.opacity(0.7), lineWidth: 1))
+                        .help("tiene opciones experimentales")
+                }
+                if let on {
+                    Circle().fill(on ? SettingsTheme.green : Color.clear).frame(width: 6, height: 6)
+                        .overlay(Circle().stroke(on ? Color.clear : Color.white.opacity(0.3), lineWidth: 1))
+                        .accessibilityLabel(on ? "encendida" : "apagada")
+                }
             }
-            .padding(.horizontal, 12).padding(.vertical, 5.5)
-            .foregroundStyle(selected ? Color.white : Color.white.opacity(0.72))
-            .background(Capsule().fill(selected ? Color.white.opacity(0.1) : .clear))
-            .overlay(Capsule().strokeBorder(selected ? AnyShapeStyle(SettingsTheme.duoDiagonal) : AnyShapeStyle(Color.clear), lineWidth: 1.2))
-            .contentShape(Capsule())
+            .padding(.horizontal, 12).padding(.vertical, density == .compact ? 4.5 : 6)
+            .foregroundStyle(selected ? Color.white : Color.white.opacity(highContrast ? 0.95 : 0.74))
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.white.opacity(0.09) : .clear))
+            .overlay(alignment: .leading) { if selected { Rectangle().fill(SettingsTheme.accent).frame(width: 2, height: 16).offset(x: -1) } }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
         .id(p)
+    }
+
+    private var emptyResults: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(filter.query.isEmpty ? "ninguna página cumple los filtros" : "nada coincide con “\(filter.query)”")
+                .font(.system(size: 12)).foregroundStyle(SettingsTheme.muted(highContrast))
+            if filter.isActive { SButton(title: "quitar filtros", symbol: "xmark") { filter.clear() } }
+        }
+        .padding(.horizontal, 12)
     }
 
     private var statusFooter: some View {
         HStack(spacing: 8) {
-            Circle().fill(store.layout == .island ? SettingsTheme.green : SettingsTheme.mute).frame(width: 7, height: 7)
+            Circle().fill(store.layout == .island ? SettingsTheme.green : SettingsTheme.muted(highContrast)).frame(width: 7, height: 7)
             Text(store.layout == .island ? "isla activa" : "mascotas flotantes")
-                .font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.mute)
+                .font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.muted(highContrast))
             Spacer()
+            Text("\(activeCount) activas").font(.system(size: 11, design: .monospaced)).foregroundStyle(SettingsTheme.muted(highContrast))
+                .help("funciones encendidas ahora mismo")
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
-        .overlay(alignment: .top) { Rectangle().fill(SettingsTheme.line).frame(height: 1) }
+        .overlay(alignment: .top) { Rectangle().fill(SettingsTheme.hairline(highContrast)).frame(height: 1) }
     }
+
+    // MARK: contenido
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(page.title).font(.system(size: 30, weight: .bold)).tracking(-0.5)
-                    Capsule().fill(SettingsTheme.duo).frame(width: 44, height: 3)
-                    Text(page.subtitle).font(.system(size: 13)).foregroundStyle(SettingsTheme.mute).padding(.top, 2)
-                }
-                .padding(.bottom, 4)
-                pageBody
+            VStack(alignment: .leading, spacing: density.pageSpacing) {
+                header
+                page.makeBody(store)
             }
-            .padding(.horizontal, 30).padding(.top, 44).padding(.bottom, 30)
-            .frame(maxWidth: 760, alignment: .leading)
+            .padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 32)
+            .frame(maxWidth: 780, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .id(page)
-            .transition(.opacity)
+        }
+        .scrollIndicators(.never)
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                SLabel(page.group.title, tint: SettingsTheme.accent)
+                Text(page.title).font(.system(size: 30, weight: .bold)).tracking(-0.5)
+                Text(page.subtitle).font(.system(size: 13)).foregroundStyle(SettingsTheme.muted(highContrast)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 5) {
+                SLabel("densidad")
+                SSegmentedControl(selection: Binding(get: { density }, set: { densityRaw = $0.rawValue }),
+                                  options: SettingsDensity.allCases.map { ($0, $0.title) }, compact: true)
+                    .accessibilityLabel("densidad")
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+/// Fichas que saltan de linea: lo justo para los filtros de la barra lateral.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(width: proposal.width ?? 10_000, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for (i, f) in arrange(width: bounds.width, subviews: subviews).frames.enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY), proposal: ProposedViewSize(f.size))
         }
     }
 
-    @ViewBuilder private var pageBody: some View {
-        switch page {
-        case .resumen: ResumenPage(store: store)
-        case .apariencia: AparienciaPage(store: store)
-        case .comportamiento: ComportamientoPage(store: store)
-        case .agentes: AgentesPage(store: store)
-        case .permisos: PermisosPage(store: store)
-        case .perimetro: PerimetroPage(store: store)
-        case .privacidad: PrivacidadPage(store: store)
-        case .guardarropa: GuardarropaPage(store: store)
-        case .sonidos: SonidosPage(store: store)
-        case .musica: MusicaPage(store: store)
-        case .foco: FocoPage(store: store)
-        case .trackpad: TrackpadTouchPanel(controller: .shared)
-        case .plugins: PluginsPage(store: store)
-        case .atajos: AtajosPage(store: store)
-        case .copia: CopiaPage(store: store)
-        case .acerca: AcercaPage()
+    private func arrange(width: CGFloat, subviews: Subviews) -> (frames: [CGRect], size: CGSize) {
+        var frames: [CGRect] = [], x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0, maxX: CGFloat = 0
+        for s in subviews {
+            let size = s.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > width { x = 0; y += rowH + lineSpacing; rowH = 0 }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + spacing; rowH = max(rowH, size.height); maxX = max(maxX, x - spacing)
         }
+        return (frames, CGSize(width: maxX, height: y + rowH))
     }
 }
 
@@ -185,30 +297,86 @@ struct SettingsView: View {
 enum SettingsSnapshot {
     @MainActor static func render(to directory: String, pages: [SettingsPage] = SettingsPage.allCases) {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
-        for page in pages {
-            if page == .plugins, let examples = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_EXAMPLES"] {
-                // captura de documentacion: los ejemplos del repositorio instalados y activos, en una carpeta temporal
-                let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snap-plugins-\(UUID().uuidString)")
-                let reg = PluginRegistry(root: tmp, statePath: nil)
-                for n in ((try? FileManager.default.contentsOfDirectory(atPath: examples)) ?? []).sorted() { _ = try? reg.install(from: URL(fileURLWithPath: examples).appendingPathComponent(n)); reg.setEnabled(n, n != "registro-de-sesiones", approving: true) }
-                PetStore.shared.plugins = PluginHost(registry: reg)
-            }
-            if page == .perimetro, PerimetroPage.previewWorkspace == nil {
-                let sample = "/Users/demo/mi-app"
-                PerimetroPage.previewWorkspace = sample
-                PetStore.shared.perimeters = [Perimeter(root: sample, allow: ["Sources/Auth", "Tests/**"], protect: Perimeter.defaultProtect, mode: .ask)]
-            }
-            let host = NSHostingView(rootView: SettingsView(store: PetStore.shared, page: page, fixedSize: true))
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
-            window.appearance = NSAppearance(named: .darkAqua)
-            window.contentView = host
-            host.frame = NSRect(x: 0, y: 0, width: 980, height: 700)
-            host.layoutSubtreeIfNeeded()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.35))
-            host.layoutSubtreeIfNeeded()
-            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
-            host.cacheDisplay(in: host.bounds, to: rep)
-            if let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: directory + "/ajustes-\(page.rawValue).png")) }
+        // el inicio se captura con datos de ejemplo (una semana, el plan y el contexto), solo en memoria
+        setenv("CLAUDE_PET_REDUCE_MOTION", "1", 1)   // capturas deterministas: las graficas salen ya dibujadas
+        let demo = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_EMPTY"] != "1"
+        if demo { seedDemo() }
+        for page in pages where page == .resumen {
+            write(SettingsView(store: PetStore.shared, page: page, fixedSize: true), to: directory + "/ajustes-\(page.rawValue).png")
         }
+        variants(to: directory)
+        if demo { PetStore.shared.stopDemo() }
+        for page in pages where page != .resumen {
+            prepare(page)
+            write(SettingsView(store: PetStore.shared, page: page, fixedSize: true), to: directory + "/ajustes-\(page.rawValue).png")
+        }
+    }
+
+    /// Una semana de actividad inventada. Nada llega a disco: los contadores viven en memoria y su carpeta se desvia a una temporal.
+    @MainActor private static func seedDemo() {
+        let tmp = NSTemporaryDirectory() + "snap-stats-\(UUID().uuidString)"
+        setenv("CLAUDE_PET_STATS", tmp, 1)
+        let usage = tmp + "-usage.json"
+        let now = Date()
+        let json = "{\"five\":{\"p\":38,\"r\":\(Int(now.timeIntervalSince1970) + 8_400)},\"week\":{\"p\":83,\"r\":\(Int(now.timeIntervalSince1970) + 3 * 86_400)},\"at\":\(Int(now.timeIntervalSince1970))}"
+        try? json.write(toFile: usage, atomically: true, encoding: .utf8)
+        setenv("CLAUDE_PET_USAGE", usage, 1)
+        let cal = Calendar(identifier: .gregorian)
+        let sessions = [2, 4, 0, 5, 3, 1, 4], tools = [31, 58, 0, 74, 40, 9, 52]
+        for (i, n) in sessions.enumerated() {
+            guard let day = cal.date(byAdding: .day, value: i - 6, to: now) else { continue }
+            for _ in 0..<n { ActivityStats.shared.recordFinished(agent: i % 3 == 0 ? "codex" : "claude", project: i % 2 == 0 ? "claude-pet" : "volve", at: day) }
+            for _ in 0..<(tools[i] / 4) { ActivityStats.shared.recordTool(agent: "claude", project: "claude-pet", at: day) }
+            for _ in 0..<(tools[i] / 12) { ActivityStats.shared.recordPermission(at: day) }
+        }
+        ActivityStats.shared.recordError(at: now)
+        PetStore.shared.startDemo()
+        PetStore.shared.plan.ingest(PlanUsage.parse(Data(json.utf8)))
+        PetStore.shared.refreshWeeklyRecap()
+    }
+
+    /// Estados que las paginas normales no enseñan: filtros abiertos, densidad compacta y contraste alto.
+    @MainActor private static func variants(to directory: String) {
+        var f = SettingsFilter(); f.onlyEnabled = true
+        write(SettingsView(store: PetStore.shared, page: .apariencia, fixedSize: true, filter: f, filtersOpen: true), to: directory + "/ajustes-filtro-activados.png")
+        var q = SettingsFilter(); q.query = "sonido"; q.group = .mascota
+        write(SettingsView(store: PetStore.shared, page: .sonidos, fixedSize: true, filter: q, filtersOpen: true), to: directory + "/ajustes-filtro-busqueda.png")
+        var none = SettingsFilter(); none.onlyExperimental = true; none.group = .agentes
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, filter: none, filtersOpen: true), to: directory + "/ajustes-filtro-vacio.png")
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, fixedHeight: 1500), to: directory + "/ajustes-resumen-completo.png", height: 1500)
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, fixedHeight: 1500, density: .compact), to: directory + "/ajustes-resumen-compacta.png", height: 1500)
+        write(SettingsView(store: PetStore.shared, page: .comportamiento, fixedSize: true, density: .compact), to: directory + "/ajustes-comportamiento-compacta.png")
+        write(SettingsView(store: PetStore.shared, page: .resumen, fixedSize: true, highContrast: true), to: directory + "/ajustes-resumen-contraste.png")
+    }
+
+    @MainActor private static func prepare(_ page: SettingsPage) {
+        if page == .plugins, let examples = ProcessInfo.processInfo.environment["CLAUDE_PET_SNAPSHOT_EXAMPLES"] {
+            // captura de documentacion: los ejemplos del repositorio instalados y activos, en una carpeta temporal
+            let tmp = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("snap-plugins-\(UUID().uuidString)")
+            let reg = PluginRegistry(root: tmp, statePath: nil)
+            for n in ((try? FileManager.default.contentsOfDirectory(atPath: examples)) ?? []).sorted() { _ = try? reg.install(from: URL(fileURLWithPath: examples).appendingPathComponent(n)); reg.setEnabled(n, n != "registro-de-sesiones", approving: true) }
+            PetStore.shared.plugins = PluginHost(registry: reg)
+        }
+        if page == .perimetro, PerimetroPage.previewWorkspace == nil {
+            let sample = "/Users/demo/mi-app"
+            PerimetroPage.previewWorkspace = sample
+            PetStore.shared.perimeters = [Perimeter(root: sample, allow: ["Sources/Auth", "Tests/**"], protect: Perimeter.defaultProtect, mode: .ask)]
+        }
+    }
+
+    @MainActor private static func write(_ view: SettingsView, to path: String, height: CGFloat = 700) {
+        let host = NSHostingView(rootView: view)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = host
+        host.frame = NSRect(x: 0, y: 0, width: 980, height: height)
+        host.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        // los temporizadores de la app borran la demo en medio segundo: se vuelve a poner justo antes de volcar la imagen
+        if PetStore.shared.demoMode { PetStore.shared.startDemo(); RunLoop.current.run(until: Date().addingTimeInterval(0.08)) }
+        host.layoutSubtreeIfNeeded()
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        if let png = rep.representation(using: .png, properties: [:]) { try? png.write(to: URL(fileURLWithPath: path)) }
     }
 }

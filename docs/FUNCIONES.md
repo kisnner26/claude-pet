@@ -44,7 +44,7 @@ alternativa a las mascotas flotantes: un menu `modo` elige entre flotante e isla
 
 - **sin notch**: pastilla propia con la altura real de la barra de menús; ubicación arriba, abajo, lateral o flotante, zona de activación ajustable y selector de pantalla. capturas por entorno en `docs/img/sin-notch/`.
 - **escena de la mascota**: grande, con su suelo, su mundo por estado (lluvia en error, sol al terminar, chispas al ejecutar, estrellas de noche) y una frase que se escribe sola con lo que hace el agente. en reposo mira alrededor, mueve las orejas, se estira y bosteza.
-- **efectos**: pulso de alerta con cuenta atrás, contexto como líquido, aurora de luz, lluvia de líneas al editar, tráiler de 3 s al terminar, choque de manos entre claude y codex y gotas líquidas al abrir. galería en `docs/img/efectos.png`.
+- **efectos**: pulso de alerta con cuenta atrás, contexto como una línea fina, aurora de luz, lluvia de líneas al editar, tráiler de 3 s al terminar, choque de manos entre claude y codex y gotas líquidas al abrir. galería en `docs/img/efectos.png`.
 - **aprobar con criterio**: riesgo y secretos en cada permiso, reglas que se recuerdan con caducidad, planes, lecturas por lotes, puntos de restauración con git y registro de auditoría local.
 - **más**: sonidos sintetizados propios (muestras en `docs/sonidos/`), guardarropa con atuendos que se desbloquean por nivel, resumen semanal con imagen para compartir, modo foco, pomodoro con reloj de arena y soltar archivos sobre la isla para obtener `@ruta`.
 - **commitero**: si está instalado, el botón "commitear" de la isla abre [commitero](https://github.com/kisnner26/commitero) con los cambios del proyecto.
@@ -130,7 +130,7 @@ cuando un agente pide permiso la barra cambia a un deslizador que hay que arrast
 
 ## cerebro y carácter
 
-`cerebro` (icono propio en el riel de la isla) es la memoria compartida de claude y codex por proyecto, en `~/.claude-pet/brain/`. cada nota es corta (240 caracteres), de un tipo (decisión, hecho, cuidado, pendiente o trato), la deja un agente o tú, y se rechaza si parece una clave. al empezar una sesión, un hook de claude code y un bloque de `~/.codex/AGENTS.md` le dan al agente lo que dejaron los demás. se edita desde la isla o con `ClaudePet --brain show|add|edit|forget|list`. `./install-brain.sh` instala los hooks con copia de respaldo.
+`cerebro` (icono propio en el riel de la isla) es la memoria compartida de claude y codex por proyecto, en `~/.claude-pet/brain/`. cada nota es corta (240 caracteres), de un tipo (decisión, hecho, cuidado, pendiente o trato), la deja un agente o tú, y se rechaza si parece una clave. al empezar una sesión, un hook de claude code y un bloque de `~/.codex/AGENTS.md` le dan al agente lo que dejaron los demás. se edita desde la isla o con `ClaudePet --brain show|add|edit|forget|list`. `./install-brain.sh` instala los hooks (SessionStart y UserPromptSubmit) con copia de respaldo. opcional y apagada por defecto: la **recuperación inteligente** (`ClaudePet --brain config smart on`) inyecta solo las notas que vienen al caso en cada mensaje, con BM25 y semántica local, en un formato compacto y dentro de un presupuesto de tokens; también `ClaudePet --brain recall "consulta" [--budget N] [--max K]`. detalle, límites y qué técnicas quedan fuera en [RECUPERACION.md](RECUPERACION.md).
 
 debajo de las notas, el **carácter**: cada agente va formando una personalidad a partir de lo vivido contigo (constancia, precisión, noctámbulo, exploración y memoria) y pasa por cuatro etapas, de "recién conocidos" a "compañeros". se calcula solo con datos locales y el agente la recibe como una línea de tono, nunca a costa de la precisión. `memoria` (el otro icono) queda solo para la actividad.
 
@@ -160,7 +160,7 @@ en memoria → actividad, el botón `ritmo` cambia el resumen por las 24 horas d
 
 ## el cerebro sueña
 
-de noche (de 0 a 7 h) o tras una hora sin usar la Mac, y nunca mientras un agente trabaja, el cerebro repasa sus notas: une las que dicen casi lo mismo (conserva la más nueva, o la tuya si la escribiste tú), marca como "¿obsoleta?" las que solo hablan de archivos que ya no existen (se comprueba en la carpeta del proyecto, si se encuentra) y cuenta los pendientes que llevan más de 14 días abiertos. nunca borra nada que no sea un duplicado. por la mañana, la cabecera del cerebro dice qué hizo (`mientras dormías: uní 2 notas...`). a los agentes les llega el aviso de las dudosas. también a mano: `ClaudePet --brain dream`.
+de noche (de 0 a 7 h) o tras una hora sin usar la Mac, y nunca mientras un agente trabaja, el cerebro repasa sus notas: une las que dicen casi lo mismo (conserva la más nueva, o la tuya si la escribiste tú), marca como "¿obsoleta?" las que solo hablan de archivos que ya no existen (se comprueba en la carpeta del proyecto, si se encuentra) y cuenta los pendientes que llevan más de 14 días abiertos. nunca borra nada que no sea un duplicado. con la recuperación inteligente encendida, además condensa los hechos y decisiones de más de 30 días que hablan de lo mismo en una nota-resumen extractiva y archiva las originales (siguen en el archivo, no se borran). por la mañana, la cabecera del cerebro dice qué hizo (`mientras dormías: uní 2 notas...`). a los agentes les llega el aviso de las dudosas. también a mano: `ClaudePet --brain dream`.
 
 ## ocho sistemas visuales
 
@@ -281,6 +281,8 @@ build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-keyboard  # teclado que 
 build/ClaudePet.app/Contents/MacOS/ClaudePet --probe-keyboard    # en tu Mac: mueve la luz 3 s y comprueba que se devuelve
 build/ClaudePet.app/Contents/MacOS/ClaudePet --probe-desk-world  # en tu Mac: donde se posa cada mascota respecto a la ventana del agente
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-brain     # cerebro compartido y carácter
+build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-brain-recall # recuperación del cerebro (bm25, semántica, re-ranking, presupuesto, condensación, benchmark)
+sh tests/brain-hook.sh                                              # hooks/pet-brain.sh (cwd, UserPromptSubmit, falla abierto)
 build/ClaudePet.app/Contents/MacOS/ClaudePet --selftest-memory    # actividad y memoria local
 build/ClaudePet.app/Contents/MacOS/ClaudePet --snapshot-systems docs/img/sistemas-visuales.png
 tests/bus.sh                 # pet bus con un codex simulado

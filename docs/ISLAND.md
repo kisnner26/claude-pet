@@ -29,6 +29,21 @@ swift build
 
 los hooks usan `~/.claude-pet/ask.sock`, un socket unix 0600 que solo acepta el mismo uid. `pet-permission.sh` envía `perm<TAB>sesión<TAB>herramienta<TAB>proyecto<TAB>siempre<TAB>detalle`; `pet-question.sh` envía `ask<TAB>sesión<TAB>proyecto<TAB>base64(json de questions)`.
 
+### segundo mensaje: el cambio real
+
+`pet-permission.sh` añade al final del detalle un carácter de control (`0x1F`) cuando va a mandar un segundo mensaje por la misma conexión, justo detrás de la línea:
+
+```
+diff<TAB>N<LF>
+N bytes de json (una sola línea, utf-8)
+```
+
+el json lleva `cwd`, `k` (`edit`, `multi`, `write`, `nb`, `bash` o `none`) y, según la herramienta: `p` (ruta), `e` (pares `o`/`n` de Edit y MultiEdit, hasta 20), `c` (contenido de Write o `new_source` de NotebookEdit), `md` (modo de celda) y `cmd` (el `command` de Bash sin recortar ni limpiar, solo si cabe en 32 K caracteres; si no, no se envía). cada texto es `{"t": texto, "m": líneas omitidas}`: el hook lo recorta por caracteres (nunca parte un utf-8) y cuenta lo que dejó fuera. jq escapa tabuladores, saltos y nulos, y la app lee exactamente N bytes (máximo 160 KiB; el hook envía como mucho 128 KiB y reintenta con topes más pequeños si el json se pasa), así que ningún byte del contenido puede cerrar el encuadre ni inyectar campos.
+
+compatibilidad: la marca es un carácter de control y las apps antiguas lo descartan al limpiar el detalle, leen solo hasta el primer salto de línea y vacían el resto de la conexión, así que un hook nuevo con una app vieja se comporta como siempre. un hook antiguo no trae marca y la app nueva no espera nada. si el segundo mensaje falta, llega mal o tarda más de 2 s, el permiso aparece igual, sin cambio.
+
+la app lee el archivo actual de un Write (solo archivos normales de hasta 512 KiB, sin bloquearse con FIFO) y calcula el diff por líneas (Myers, con contexto de dos líneas, hasta 160 líneas dibujadas y «y N líneas más»), todo en la cola del socket y nunca en el hilo principal. `PermissionAsk.change`, `rawCommand` y `cwd` viven solo en memoria mientras el permiso está pendiente: no se escriben a disco, no entran en la auditoría ni en los eventos para plugins, no pasan por el pet bus ni por `Diag`, y Visto sigue recibiendo solo lo de antes. `--snapshot-permission-diff <ruta.png>` dibuja la tarjeta con cambios inventados.
+
 las líneas tienen límite de 4096 bytes y deben terminar en salto de línea. hay un máximo de ocho pendientes por tipo. cualquier entrada inválida, socket ausente, hook muerto o plazo agotado produce salida vacía: claude code continúa en la terminal.
 
 las respuestas de preguntas se validan como json antes de envolverse en `updatedInput`; las decisiones de permisos solo pueden ser `allow`, `always` o `deny`. no se ejecuta shell con rutas, nombres o detalles recibidos del hook.
@@ -39,7 +54,7 @@ las tarjetas de permiso muestran un riesgo calculado localmente: lectura como ba
 
 la isla usa 30 hz mientras está activa y 1 hz cuando está oculta, sin tareas ni atención pendiente. `--selftest-polling` verifica la política.
 
-las transiciones usan un resorte compartido (respuesta 0,42 s, amortiguación 0,82, duración máxima 0,72 s); con reducir movimiento se usa un fundido de 0,12 s.
+las transiciones usan un resorte compartido (respuesta 0,46 s, amortiguación 0,9, rebase menor del 1 %, duración máxima 0,72 s); con reducir movimiento se usa un fundido de 0,12 s.
 
 en pantallas sin notch la barra de reposo usa la altura real de la barra de menús en puntos, inyectada desde `NSStatusBar.system.thickness`; las pruebas cubren barras de 24 y 30 puntos.
 
@@ -111,3 +126,23 @@ el menú permite abrir ese registro directamente; si todavía no existe, crea un
 - [ ] clics: con la isla oculta, haz clic en un menú de la barra justo debajo; debe abrirse el menú.
 - [ ] sonido: prueba "probar sonido de terminado" en el menú y confirma volumen razonable.
 - [ ] guardarropa: clic derecho sobre la mascota; elige gafas y gorro y confirma que los ojos siguen viéndose.
+
+## isla viva: efectos de entrada
+
+pocos efectos, todos en eventos y todos con una función pura detrás (`IslandCinema.swift`, probada con `--selftest-cinema`). en reposo la isla no redibuja: no hay `TimelineView` permanente; los efectos animan un solo dato (la edad) con el motor de SwiftUI durante unos segundos y se quitan solos.
+
+- **permiso: barrido de luz.** una pasada de 0,6 s por el borde izquierdo, el fondo y el derecho (el de arriba queda pegado a la pantalla), en el color del agente teñido por el riesgo (`IslandCinema.accent`: nada en bajo, un toque ámbar en medio, rojo apagado en alto).
+- **permiso: aparición por bloques.** cabecera, aviso, comando o cambio, ensayo y botones entran con 55 ms de desfase, suben 8 pt y el desenfoque (7 pt) se afila. no mueven nada del diseño, así que `PetStore.permissionCardHeight` no cambia.
+- **riesgo alto.** el borde respira en `#D85C5C` entre 0,25 y 0,7 de opacidad, 4 ciclos de 3,2 s, y se queda fijo; sin parpadeos.
+- **mascota.** con riesgo alto y sin ensayo, ojos preocupados; con un ensayo destructivo, además tiembla; con uno limpio suspira y pone ojos contentos (sin corazones). el ensayo manda sobre el riesgo (`IslandCinema.mood`).
+- **terminó.** una ráfaga de 14 píxeles y un anillo fino de puntos que se disuelve (1,2 s), en la rejilla de 32 celdas y dibujado con `FxCanvas`. si hay avance de cambios, espera a que acabe.
+- **muelle.** respuesta 0,46 s y amortiguación 0,9 (sin rebote apreciable); la línea de contexto se desliza con amortiguación crítica.
+- **micro.** luz que sigue al cursor dentro de los botones y cifras que ruedan en la cola de permisos (macOS 14 o superior).
+- **estela de sesión.** pixel-art: una columna por tramo, la altura es lo que hizo el agente (pensar una celda, herramienta dos, esperar hueca, error rojo), claude `#E0824F` arriba y codex `#5270E8` abajo; corchetes finos donde trabajan a la vez.
+
+con animaciones apagadas, reducir movimiento o ahorro de energía no hay barrido, escalonado ni respiración: la tarjeta aparece con un cambio de opacidad, el riesgo alto se marca con un borde fijo y el animo de la mascota se ve igual pero sin temblor ni suspiro. con contraste alto no hay luz en los botones.
+
+`--snapshot-cinema <ruta.png>` dibuja la hoja de contacto de los efectos (seis fotogramas de la entrada, el borde de riesgo, los ánimos, el cierre y la estela):
+
+![isla viva](img/isla-viva.jpg)
+

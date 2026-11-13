@@ -4,7 +4,33 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 
 ## [Sin publicar]
 
+### isla viva
+- Permiso con presencia: una pasada de luz de 0,6 s por el borde en el color del agente (teñido por el riesgo) y la tarjeta que aparece por bloques con el desenfoque que se afila. En riesgo alto el borde respira en rojo apagado unos ciclos y se queda fijo.
+- La mascota reacciona al permiso: preocupada con riesgo alto, inquieta con un ensayo destructivo, aliviada (suspiro y ojos contentos) con uno limpio. Ojos preocupados nuevos en la rejilla.
+- Cierre de «terminó»: una ráfaga de píxeles y un anillo fino que se disuelve, sobre el motor `FxCanvas`.
+- Muelle de la isla más fino (0,46 s, amortiguación 0,9, sin rebote) y línea de contexto que se desliza sin pasarse.
+- Estela de sesión redibujada en pixel-art, nítida y con los colores de cada agente.
+- Luz que sigue al cursor en los botones de la isla y cifras que ruedan en la cola de permisos.
+- Todo respeta animaciones, reducir movimiento, ahorro de energía y contraste alto. Pruebas en `--selftest-cinema`; `--snapshot-cinema` dibuja la hoja de contacto (`docs/img/isla-viva.jpg`).
+
+### rediseño
+- Ajustes: kit de controles nuevo (interruptor, selector, ficha, fila, tarjeta, medidor, barras y anillo) con un solo acento, el naranja de Claude, y el azul de Codex solo para Codex; sin degradados ni cajas anidadas. Densidad cómoda o compacta, «reducir movimiento» y contraste alto respetados.
+- Resumen como tablero: tarjeta por agente con su mascota, hoy, racha de siete días, semana en barras con el cambio frente a la anterior, plan de 5 h y 7 d, y contexto. Las gráficas son `Canvas` propio que se dibuja una vez y solo se anima al cambiar.
+- Buscador de ajustes con fichas de filtro (categoría, solo activados, solo experimentales), contador de funciones encendidas por grupo y punto de estado en cada página.
+- Registro de páginas de ajustes (`SettingsRegistry.swift`): añadir una página son un `case` y una entrada.
+- Mission control rediseñado: filtros visibles por agente, proyecto, estado, rango y texto, orden, tres vistas (lista, cuadrícula de proyectos con salud git y actividad semanal, línea de tiempo) y estados vacíos. `MissionFilter` amplía los filtros que ya existían; la ventana pasa a 760 pt de ancho. `--snapshot-mission` dibuja las vistas.
+- Traducciones al inglés de todo lo nuevo y de los subtítulos de ajustes que faltaban. Pruebas nuevas en `--selftest-settings` y `--selftest-mission-filter`.
+- Capturas de `docs/img/ajustes-*.jpg` regeneradas y `docs/img/mission-*.jpg` nuevas.
+
 ### añadido
+- Recuperación inteligente del cerebro (opcional, apagada por defecto con `ClaudePet --brain config smart on`): en cada mensaje un hook `UserPromptSubmit` inyecta solo las notas relevantes (BM25 + semántica local de NaturalLanguage + RRF, re-ranking heurístico, padre-hijo) en un formato compacto y dentro de un presupuesto de tokens; `ClaudePet --brain recall "consulta"`, condensación extractiva de notas antiguas en el repaso (las originales se archivan, no se borran) y arreglo del `cwd` de `pet-brain.sh start` con `jq`. Pruebas: `--selftest-brain-recall` y `tests/brain-hook.sh`. Detalle, límites y técnicas que quedan fuera en [docs/RECUPERACION.md](docs/RECUPERACION.md).
+- Ahorro de tokens: página «ahorro» en ajustes con tokens y aciertos de caché por sesión y proyecto (leídos de los transcripts locales, sin precios), auditoría de CLAUDE.md, `ClaudePet --project-summary` (borrador local, nunca pisa un CLAUDE.md), `ClaudePet --squeeze` (filtro de salida de terminal que no pierde errores), modo conciso opt-in y consejos de ahorro opt-in. No cambia la API ni la caché del modelo. Detalle y límites en [docs/AHORRO.md](docs/AHORRO.md).
+- Ensayo: en el permiso de un comando, «ensayar en una copia» lo ejecuta en un clon instantáneo del proyecto (APFS, sin ocupar espacio), dentro de una caja de arena sin red y sin escritura fuera de la copia, y la tarjeta dice qué pasaría: archivos que borraría, cambiaría o crearía, si movería HEAD o descartaría trabajo sin commitear y si quiso escribir en tu carpeta personal. El proyecto real no se toca. También desde la terminal con `ClaudePet --rehearse "comando" [carpeta]`. Detalle y límites en [docs/ENSAYO.md](docs/ENSAYO.md).
+- La tarjeta de permiso de Edit, MultiEdit, Write y NotebookEdit enseña el cambio real: resumen `+12 −3` (o «archivo nuevo») siempre visible y las líneas desplegables dentro de la tarjeta, con scroll, recorte explícito y aviso de credenciales en las líneas añadidas. El hook manda el contenido en un segundo mensaje con longitud, compatible con hooks y apps antiguos; vive solo en memoria y no va al disco, la auditoría, el bus, los plugins ni Visto. Pruebas: `--selftest-diff` y ampliación de `tests/permission.sh`; `--snapshot-permission-diff` dibuja la tarjeta.
+- Abrir al iniciar sesión: interruptor en ajustes, comportamiento, con `SMAppService`. Refleja el estado real del sistema, explica cuando macOS pide aprobación o el registro falla y se desactiva con el binario suelto sin paquete .app.
+- Registro de diagnóstico con `os.Logger` (subsystem `local.claudepet.app`): arranque y cierre con la versión, sockets de eventos, bus y permisos, enlace remoto, servidor de Quest y fallos de plugins. Solo guarda componentes, códigos de error y contadores, nunca rutas, comandos, contenido ni códigos de emparejamiento.
+- «copiar diagnóstico» en acerca de: versión, macOS, modelo de Mac, notch, funciones opcionales (sí o no) y estado de los sockets, sin rutas ni nombre de usuario.
+- Pruebas nuevas: `--selftest-login` y `--selftest-diag`.
 - Icono nuevo de la app: el sprite de 8 bits de la mascota, celda a celda y sin suavizar, con sombra dura sobre un fondo casi negro con brasa. `tools/make-icon.py` lo genera desde el sprite real (`ClaudePet --dump-sprites` lo extrae).
 - Los ajustes de claude pet se abren como una app más: mientras la ventana está abierta aparece el icono de la mascota en el Dock (con su menú de app) y, al cerrarla, desaparece y vuelve a vivir solo en la barra de menús. Un clic en el icono del Dock sin ventanas abre los ajustes.
 - Volver a la barra del Mac sin cerrar la app: la Touch Bar de claude pet tiene un botón con flecha a la izquierda que la suelta para que el Mac recupere volumen, brillo y el resto. Una tecla en la tira de control con el pixel art de la mascota (y la entrada «devolver la Touch Bar al Mac» del menú de la barra superior) la vuelve a poner. Un permiso o una pregunta pendiente la reabren solos, porque piden respuesta, y al acabar vuelve la del Mac. Se recuerda entre arranques.
@@ -26,6 +52,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - Vídeo de presentación hecho con el propio código de la app: `ClaudePet --render-promo salida.mp4` renderiza 53 s a 1080p con las vistas y el animador reales (la isla, las mascotas, los atuendos, el enfado) y lo codifica con AVFoundation, sin ffmpeg. Los menús nativos se sustituyen por su icono en las capturas.
 
 ### cambiado
+- El nivel de contexto de la isla es una línea fina y quieta en el borde inferior, neutra en reposo y ámbar o roja con presión, en lugar de la ola azul que subía desde abajo. Ya no redibuja a 15 fps.
 - La memoria queda solo con la actividad: salud, cifras, gráfico y reparto por agente y tipo. El cerebro y el carácter pasan a su propia página, en un solo bloque.
 - La isla ya no tiene el botón ni la pestaña de música: el reproductor vive en la Touch Bar y la mascota sigue mostrando el disco y bailando.
 - La isla abierta mide 236 pt de alto y deja más aire arriba; las cifras de memoria cuentan sesiones y registran también a codex.
@@ -34,6 +61,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - La Touch Bar en reposo bajó de 9,2 % a 5,45 % de CPU total (su coste propio, de +6,3 a +2,5 puntos): cada imagen viaja entera a su pantalla, así que en calma se redibuja a 2 fps y se vuelve fluida solo con un agente trabajando, un paseo, un toque o un evento nuevo, con fotogramas extra para no perder parpadeos. El contenido va a tamaño fijo para no recalcular la maquetación. `CPU_EXTRA="--cpu-touchbar" tests/cpu.sh` lo mide.
 
 ### corregido
+- El ensayo ya no espera 20 s con un comando de red (`npm install`, `git push`, `curl`...): avisa al instante de que no se puede ensayar sin red. Tampoco enseña como «escritura en tu carpeta personal» los registros y cachés que escriben las herramientas.
 - El halo del Dock y el aviso sobre la mascota se quedaban encendidos al devolverla a la isla mientras el agente trabajaba.
 - La app se abortaba si llegaban más preguntas a la vez que el límite de pendientes: la fuente de eventos del socket se creaba antes de comprobar el límite y soltarla sin activar hace que libdispatch cierre el proceso.
 - El contexto marcaba 0 % en sesiones largas porque se medía contra 160 000 tokens fijos. Ahora la ventana se deduce de lo usado: pasados 200 000 tokens es la de 1M y compacta a los 800 000.

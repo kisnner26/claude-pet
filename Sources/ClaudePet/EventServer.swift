@@ -23,17 +23,25 @@ final class EventServer {
     }
 
     private let path: String
+    /// Nombre del componente en el registro de diagnostico (nunca la ruta).
+    private let label: String
     private var fd: Int32 = -1
     private var source: DispatchSourceRead?
     private let queue: DispatchQueue
     var onLine: ((String) -> Void)?
 
-    init(path: String = EventServer.defaultPath) {
+    init(path: String = EventServer.defaultPath, label: String = "eventos") {
         self.path = path
+        self.label = label
         queue = DispatchQueue(label: "claudepet.socket." + (path as NSString).lastPathComponent)
     }
 
     func start() throws {
+        do { try bringUp(); Diag.socket(label, .up) }
+        catch { Diag.socket(label, .failed(Diag.code(error))); throw error }
+    }
+
+    private func bringUp() throws {
         let dir = (path as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
@@ -65,6 +73,7 @@ final class EventServer {
         source?.cancel()
         if fd >= 0 { close(fd); fd = -1 }
         unlink(path)
+        Diag.socket(label, .down)
     }
 
     private func acceptPending() {

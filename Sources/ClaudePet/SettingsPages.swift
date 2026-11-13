@@ -1,88 +1,6 @@
 import SwiftUI
 import AppKit
 
-// MARK: resumen
-
-struct ResumenPage: View {
-    @ObservedObject var store: PetStore
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            hero
-            HStack(spacing: 12) {
-                SStat(value: "\(store.today.sessions)", label: "sesiones hoy")
-                SStat(value: "\(store.today.tools)", label: "herramientas hoy")
-                SStat(value: "\(store.today.permissions)", label: "permisos hoy")
-                SStat(value: "\(store.today.errors)", label: "errores hoy")
-            }
-            SCard(title: "esta semana") {
-                SRow(title: "nivel \(store.weeklyRecap.level)", detail: "racha de \(store.weeklyRecap.streak) \(store.weeklyRecap.streak == 1 ? "día" : "días") · \(store.weeklyRecap.activeDays) de 7 con actividad") {
-                    SBadge(text: "\(store.weeklyRecap.sessions) sesiones")
-                }
-                SDivider()
-                SRow(title: "más usado", detail: store.weeklyRecap.topAgent.map { "agente: \($0)" } ?? "todavía sin datos") {
-                    if let p = store.weeklyRecap.topProject { SBadge(text: p, color: SettingsTheme.green) }
-                }
-                SDivider()
-                SRow(title: "compartir la semana") {
-                    HStack(spacing: 8) {
-                        SButton(title: "copiar", symbol: "doc.on.doc") {
-                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.weeklyRecap.markdown(showProject: store.shareProject), forType: .string)
-                        }
-                        SButton(title: "imagen…", symbol: "photo") {
-                            let panel = NSSavePanel(); panel.allowedContentTypes = [.png]; panel.nameFieldStringValue = "mi-semana.png"
-                            if panel.runModal() == .OK, let url = panel.url, let data = RecapCard.png(store.weeklyRecap, showProject: false) { try? data.write(to: url) }
-                        }
-                    }
-                }
-            }
-            LabCard(store: store)
-            SCard(title: "atajos de trabajo") {
-                SRow(title: "mission control", detail: "cambios del proyecto, ramas y conflictos") {
-                    SButton(title: "abrir", symbol: "square.grid.2x2") { AppController.shared.showMissionDashboard() }
-                }
-                SDivider()
-                SRow(title: "relevo de sesión", detail: "continuar la misma tarea en otro agente") {
-                    SButton(title: "abrir", symbol: "arrow.triangle.swap") { AppController.shared.showRelay() }
-                }
-            }
-        }
-        .onAppear { store.refreshWeeklyRecap() }
-    }
-
-    private var hero: some View {
-        ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(LinearGradient(colors: [SettingsTheme.claude.opacity(0.38), SettingsTheme.violet.opacity(0.22), SettingsTheme.codex.opacity(0.46)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            Canvas { ctx, size in
-                for i in 0..<46 {
-                    let x = CGFloat((i * 7919) % 1000) / 1000 * size.width, y = CGFloat((i * 104729) % 1000) / 1000 * size.height
-                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.6, height: 1.6)), with: .color(.white.opacity(0.14 + Double(i % 5) * 0.06)))
-                }
-            }
-            HStack(alignment: .center, spacing: 0) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("claude-pet").font(.system(size: 34, weight: .bold)).tracking(-0.6)
-                    Text(store.state == .idle ? "todo tranquilo. tus agentes no están trabajando ahora." : "claude: \(store.state.label.lowercased()) · \(store.sessionSummary)")
-                        .font(.system(size: 13.5)).foregroundStyle(.white.opacity(0.8)).lineLimit(2)
-                    HStack(spacing: 8) {
-                        SBadge(text: store.claudePresent ? "claude conectado" : "claude sin sesión", color: store.claudePresent ? SettingsTheme.green : SettingsTheme.mute)
-                        SBadge(text: store.codexPresent ? "codex conectado" : "codex sin sesión", color: store.codexPresent ? SettingsTheme.green : SettingsTheme.mute)
-                    }
-                }
-                Spacer(minLength: 12)
-                HStack(spacing: -6) {
-                    ClaudeSprite(state: store.state, outfits: store.outfitsNow()).frame(width: 104, height: 104).breathing()
-                    CodexSprite(face: store.codexPresent && store.codexState != .idle ? .typing(1) : .prompt(cursor: true), skin: store.codexSkin, outfits: store.outfitsNow(for: .codex)).frame(width: 104, height: 104).breathing(delay: 0.5)
-                }
-            }
-            .padding(.horizontal, 26)
-        }
-        .frame(height: 170)
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(SettingsTheme.cardBorder, lineWidth: 1))
-    }
-}
-
 // MARK: apariencia
 
 /// Dibujo esquematico de la pantalla con la isla donde quedara; se mueve al cambiar los ajustes.
@@ -266,6 +184,7 @@ struct ComportamientoPage: View {
                 SMenu(title: "idioma", detail: "elige el idioma de la interfaz. se aplica al momento.", selection: $store.language,
                       options: Lang.allCases.map { ($0, $0.name) })
             }
+            LoginItemCard()
             SCard(title: "en el escritorio", footer: "arrastra la mascota fuera de la isla y se queda donde la sueltes (vuelve a su sitio al abrir la app). doble toque, o soltarla sobre la isla, la devuelve.") {
                 SToggle(title: "escritorio vivo (experimental)", detail: "salen a tus ventanas: se posan en la del agente al trabajar, se asoman por detrás si esperan un permiso, caminan por el Dock, llevan el archivo que se edita y se apartan si arrastras una ventana encima.",
                         isOn: Binding(get: { store.deskWorld }, set: { DesktopPets.shared.setWorld($0) }))
