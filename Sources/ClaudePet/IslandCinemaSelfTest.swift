@@ -53,6 +53,22 @@ enum IslandCinemaSelfTest {
         let scene = { () -> PetPose in var sc = PetScene(); sc.state = .waiting; sc.mood = .uneasy; sc.moodAt = 10; return PetAnimator.pose(at: 10.3, gaze: .zero, pokes: [], hopStart: nil, motion: false, scene: sc) }()
         check("el animador respeta el animo tambien sin movimiento", scene.worried)
 
+        // cierre de terminado
+        let b0 = c.burst(age: 0, color: 0xE0824F), b1 = c.burst(age: 0.3, color: 0xE0824F), b2 = c.burst(age: 0.8, color: 0xE0824F)
+        check("el cierre empieza con rafaga y anillo, y termina sin nada vivo", !b0.isEmpty && !b1.isEmpty && c.burst(age: c.burstLength, color: 0xE0824F).isEmpty && c.burst(age: -0.1, color: 0xE0824F).isEmpty && c.burst(age: 5, color: 0xE0824F).isEmpty)
+        check("todos los puntos caen dentro de la caja y alineados a la rejilla", stride(from: 0.0, to: 1.2, by: 0.05).allSatisfy { age in
+            c.burst(age: age, color: 0x5270E8).allSatisfy { p in (0...1).contains(p.x) && (0...1).contains(p.y) && abs(p.x * c.burstGrid - (p.x * c.burstGrid).rounded()) < 1e-9 && p.alpha >= 0 && p.alpha <= 1 }
+        })
+        check("el anillo se abre: el radio medio crece mientras se disuelve", {
+            func meanRadius(_ age: Double) -> Double {
+                let ring = c.burst(age: age, color: 0xE0824F).filter { $0.color == 0xE0824F && $0.size == 1 }
+                return ring.map { hypot($0.x - 0.5, $0.y - 0.5) }.reduce(0, +) / Double(max(1, ring.count))
+            }
+            return meanRadius(0.5) > meanRadius(0.1) && b2.count < b0.count
+        }())
+        check("es determinista: misma edad, mismos puntos", c.burst(age: 0.4, color: 0xE0824F) == c.burst(age: 0.4, color: 0xE0824F))
+        check("el cierre espera al avance de cambios solo si lo hay", c.burstDelay(hasTrailer: false) == 0 && c.burstDelay(hasTrailer: true) == Trailer.duration && c.burstDelay(hasTrailer: true) + c.burstLength < IslandMachine.finishedHold)
+
         print(failures == 0 ? "todo bien" : "\(failures) fallo(s)")
         return failures == 0
     }
