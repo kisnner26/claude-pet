@@ -399,6 +399,11 @@ struct IslandView: View {
                         AlertPulseView(color: AlertPulse.riskColor(risk), askedAt: ask.at).frame(width: side * 2, height: side * 2)
                     } else if !compact, effectsOn, !store.questionAsks.isEmpty {
                         AlertPulseView(color: 0x5270E8).frame(width: side * 2, height: side * 2)
+                    } else if !compact, effectsOn, model.reason == .finished {
+                        // cierre de la tarea: una rafaga de pixeles y un anillo fino, en el color de quien termino
+                        FinishBurstHost(color: model.finishedAgent == .codex ? 0x5270E8 : 0xE0824F,
+                                        delay: IslandCinema.burstDelay(hasTrailer: !store.mission.changes.isEmpty))
+                            .id(model.hopStart ?? 0)
                     }
                 }
                 .overlay(alignment: .topLeading) {
