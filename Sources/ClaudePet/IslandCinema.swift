@@ -147,3 +147,48 @@ extension IslandCinema {
         }
     }
 }
+
+// MARK: cierre de "termino"
+
+extension IslandCinema {
+    static let burstLength: TimeInterval = 1.2
+    /// Celdas por lado de la caja del cierre: todo cae en una rejilla, como el resto del pixel-art.
+    static let burstGrid = 32.0
+    static let burstSparks = 14
+    static let burstRingDots = 30
+    static let burstRingLength: TimeInterval = 0.9
+
+    /// El cierre empieza al aparecer la tarjeta; si antes corre el avance de cambios, espera a que termine.
+    static func burstDelay(hasTrailer: Bool) -> TimeInterval { hasTrailer ? Trailer.duration : 0 }
+
+    private static func snap(_ v: Double) -> Double { (v * burstGrid).rounded() / burstGrid }
+
+    /// Una sola rafaga de pixeles y un anillo fino hecho de puntos que se disuelve. Caja normalizada (0...1), centro en (0,5; 0,5).
+    /// Usa `FxPixel`, asi lo dibuja el mismo `FxCanvas` de los demas efectos.
+    static func burst(age: TimeInterval, color: UInt32, spark: UInt32 = 0xF4F1EA) -> [FxPixel] {
+        guard age >= 0, age < burstLength else { return [] }
+        var out: [FxPixel] = []
+        // anillo: puntos sobre la circunferencia que se abre y se va quedando sin puntos al azar
+        let rk = clamp01(age / burstRingLength)
+        if rk < 1 {
+            let radius = 0.07 + 0.38 * easeOutCubic(rk)
+            for i in 0..<burstRingDots {
+                let gone = 0.5 + 0.5 * VisualFx.rnd(i + 700)
+                guard rk < gone else { continue }
+                let a = Double(i) / Double(burstRingDots) * 2 * .pi
+                out.append(FxPixel(x: snap(0.5 + cos(a) * radius), y: snap(0.5 + sin(a) * radius), size: 1, color: color, alpha: 0.9 * (1 - rk)))
+            }
+        }
+        // rafaga: pixeles que salen del centro, frenan y caen un poco
+        let k = clamp01(age / burstLength)
+        for i in 0..<burstSparks {
+            let a = Double(i) / Double(burstSparks) * 2 * .pi + VisualFx.rnd(i + 40) * 0.5
+            let reach = 0.16 + 0.2 * VisualFx.rnd(i + 80)
+            let r = reach * easeOutCubic(k)
+            let x = 0.5 + cos(a) * r, y = 0.5 + sin(a) * r + 0.1 * k * k
+            let fade = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45
+            out.append(FxPixel(x: snap(x), y: snap(y), size: i % 3 == 0 ? 2 : 1, color: i % 2 == 0 ? color : spark, alpha: fade))
+        }
+        return out
+    }
+}

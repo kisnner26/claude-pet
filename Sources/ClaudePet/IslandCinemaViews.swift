@@ -97,3 +97,38 @@ struct PermissionEdgeFX: View {
         }
     }
 }
+
+/// El cierre de "termino": una rafaga de pixeles y un anillo que se disuelve, una sola vez, sobre la mascota.
+/// Dibuja con el `FxCanvas` de los demas efectos; la edad se anima (sin TimelineView) y al acabar no queda nada vivo.
+struct FinishBurstView: View, Animatable {
+    var age: Double
+    let color: UInt32
+    var side: CGFloat = 132
+    var animatableData: Double { get { age } set { age = newValue } }
+
+    var body: some View {
+        FxCanvas(pixels: IslandCinema.burst(age: age, color: color), unit: side / CGFloat(IslandCinema.burstGrid))
+            .frame(width: side, height: side)
+    }
+}
+
+/// Lanza el cierre una vez (tras `delay`) y se quita solo de la jerarquia.
+struct FinishBurstHost: View {
+    let color: UInt32
+    var delay: TimeInterval = 0
+    @State private var age = 0.0
+    @State private var started = false
+    @State private var finished = false
+
+    var body: some View {
+        Group { if started && !finished { FinishBurstView(age: age, color: color) } }
+            .allowsHitTesting(false).accessibilityHidden(true)
+            .task {
+                if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+                started = true
+                withAnimation(.linear(duration: IslandCinema.burstLength)) { age = IslandCinema.burstLength }
+                try? await Task.sleep(nanoseconds: UInt64((IslandCinema.burstLength + 0.05) * 1_000_000_000))
+                finished = true
+            }
+    }
+}
