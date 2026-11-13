@@ -4,6 +4,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 
 ## [Sin publicar]
 
+### isla viva
+- Permiso con presencia: una pasada de luz de 0,6 s por el borde en el color del agente (teñido por el riesgo) y la tarjeta que aparece por bloques con el desenfoque que se afila. En riesgo alto el borde respira en rojo apagado unos ciclos y se queda fijo.
+- La mascota reacciona al permiso: preocupada con riesgo alto, inquieta con un ensayo destructivo, aliviada (suspiro y ojos contentos) con uno limpio. Ojos preocupados nuevos en la rejilla.
+- Cierre de «terminó»: una ráfaga de píxeles y un anillo fino que se disuelve, sobre el motor `FxCanvas`.
+- Muelle de la isla más fino (0,46 s, amortiguación 0,9, sin rebote) y línea de contexto que se desliza sin pasarse.
+- Estela de sesión redibujada en pixel-art, nítida y con los colores de cada agente.
+- Luz que sigue al cursor en los botones de la isla y cifras que ruedan en la cola de permisos.
+- Todo respeta animaciones, reducir movimiento, ahorro de energía y contraste alto. Pruebas en `--selftest-cinema`; `--snapshot-cinema` dibuja la hoja de contacto (`docs/img/isla-viva.jpg`).
+
 ### rediseño
 - Ajustes: kit de controles nuevo (interruptor, selector, ficha, fila, tarjeta, medidor, barras y anillo) con un solo acento, el naranja de Claude, y el azul de Codex solo para Codex; sin degradados ni cajas anidadas. Densidad cómoda o compacta, «reducir movimiento» y contraste alto respetados.
 - Resumen como tablero: tarjeta por agente con su mascota, hoy, racha de siete días, semana en barras con el cambio frente a la anterior, plan de 5 h y 7 d, y contexto. Las gráficas son `Canvas` propio que se dibuja una vez y solo se anima al cambiar.
