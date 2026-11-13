@@ -526,7 +526,7 @@ struct IslandView: View {
         } else if let left = model.dizzyLeft {
             IslandDizzyNotice(seconds: left)
         } else if let ask = store.permissionAsks.first {
-            PermissionCardView(store: store, ask: ask)
+            PermissionCardView(store: store, ask: ask).id(ask.id)
         } else if let ask = store.questionAsks.first {
             QuestionCardView(store: store, ask: ask, selections: $questionSelections, index: $questionIndex, freeText: $questionFreeText, commit: commitQuestion)
         } else if model.reason == .finished {
