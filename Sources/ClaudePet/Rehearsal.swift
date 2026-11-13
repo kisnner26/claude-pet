@@ -210,6 +210,18 @@ enum Rehearsal {
         """
     }
 
+    // MARK: ruido de la carpeta personal
+
+    /// Registros, cachés e historiales que casi cualquier herramienta escribe en la carpeta personal (ruta relativa a `~`).
+    /// No son lo que el usuario quiere saber de un comando: se descartan del informe.
+    static func isHomeNoise(_ path: String) -> Bool {
+        let prefixes = [".npm/_logs/", ".npm/_cacache/", ".npm/_update-notifier-last-checked", ".cache/", "Library/Caches/", "Library/Logs/",
+                        ".zsh_sessions/", ".yarn/cache/", ".bun/install/cache/", ".cargo/registry/cache/", ".gradle/caches/"]
+        let names = [".zsh_history", ".bash_history", ".node_repl_history", ".lesshst", ".python_history", ".viminfo", ".zcompdump"]
+        if prefixes.contains(where: { path.hasPrefix($0) }) { return true }
+        return names.contains { path == $0 || path.hasPrefix($0 + "-") || path.hasPrefix($0 + ".") }
+    }
+
     // MARK: informe
 
     struct GitState: Equatable {

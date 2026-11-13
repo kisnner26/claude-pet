@@ -72,7 +72,7 @@ enum RehearsalRunner {
         }
         report.gitBefore = gitBefore
         report.gitAfter = hasGit ? gitState(realClone) : nil
-        report.homeWrites = (Rehearsal.snapshot(root: home, limit: 5_000) ?? [:]).filter { !$0.value.isDir }.keys.sorted()
+        report.homeWrites = (Rehearsal.snapshot(root: home, limit: 5_000) ?? [:]).filter { !$0.value.isDir && !Rehearsal.isHomeNoise($0.key) }.keys.sorted()
         report.exitCode = r.status
         report.timedOut = r.timedOut
         report.seconds = seconds
