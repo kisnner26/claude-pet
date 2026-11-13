@@ -69,6 +69,11 @@ enum IslandCinemaSelfTest {
         check("es determinista: misma edad, mismos puntos", c.burst(age: 0.4, color: 0xE0824F) == c.burst(age: 0.4, color: 0xE0824F))
         check("el cierre espera al avance de cambios solo si lo hay", c.burstDelay(hasTrailer: false) == 0 && c.burstDelay(hasTrailer: true) == Trailer.duration && c.burstDelay(hasTrailer: true) + c.burstLength < IslandMachine.finishedHold)
 
+        // muelle de la isla
+        check("el muelle crece sin rebote apreciable (menos del 1 %) y asienta antes de la duracion maxima", IslandMotion.overshoot(damping: IslandMotion.springDamping) < 0.01 && IslandMotion.settleTime(response: IslandMotion.springResponse, damping: IslandMotion.springDamping) < IslandMotion.maximumDuration)
+        check("la formula del rebase es coherente: mas amortiguacion, menos rebote, y critica sin rebote", IslandMotion.overshoot(damping: 0.5) > IslandMotion.overshoot(damping: 0.8) && IslandMotion.overshoot(damping: 1) == 0 && abs(IslandMotion.overshoot(damping: 0.5) - 0.163) < 0.002)
+        check("la respuesta no es perezosa ni brusca", (0.35...0.6).contains(IslandMotion.springResponse))
+
         print(failures == 0 ? "todo bien" : "\(failures) fallo(s)")
         return failures == 0
     }
