@@ -373,7 +373,7 @@ enum PetAnimator {
                 for (dx, dy) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] where clip(spot.0 + dx, spot.1 + dy) && (dx == 0 && dy == 0 || i % 2 == 0) { out.append(Px(x: spot.0 + dx, y: spot.1 + dy, c: dx == 0 && dy == 0 ? Color(hex: 0xFFF1B8) : light)) }
             }
         }
-        if pose.happy && !pose.dancing { out += Petting.hearts(at: t) }
+        if pose.happy && !pose.dancing && scene.mood != .relieved { out += Petting.hearts(at: t) }
         if scene.waitingFor >= alarmedAfter, Int(t * 3) % 2 == 0 {
             for (x, y) in [(7, 0), (8, 0), (7, 1), (8, 1), (7, 2), (8, 2), (7, 4), (8, 4)] { out.append(Px(x: x, y: y, c: Color(hex: 0xE7B45B))) }
         }
@@ -402,16 +402,15 @@ enum PetAnimator {
         var out = pixels.filter { !isEye($0) }
         if pose.yawn { for (x, y) in [(7, 10), (8, 10), (7, 11), (8, 11)] { out.append(Px(x: x, y: y, c: Pal.charcoal)) } }
         let ink = Pal.charcoal
-        // cejas preocupadas: el extremo interior sube, como en el resto de la rejilla (una celda de grosor)
-        if pose.worried && !pose.happy && !pose.dizzy && !pose.annoyed {
-            for (x, y) in [(3, 6), (4, 6), (5, 5), (6, 5), (12, 6), (11, 6), (10, 5), (9, 5)] { out.append(Px(x: x, y: y, c: ink)) }
-        }
         if pose.happy {
             for cx in [5, 10] { for (x, y) in [(-1, 1), (0, 0), (1, 1)] { out.append(Px(x: cx + x, y: 8 + y, c: ink)) } }
         } else if pose.dizzy {
             for (cx, cy) in [(5, 8), (10, 8)] {
                 for (x, y) in [(-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)] { out.append(Px(x: cx + x, y: cy + y, c: ink)) }
             }
+        } else if pose.worried && !pose.blink {
+            // ojos preocupados: dos trazos en diagonal con el extremo interior arriba (rejilla de una celda)
+            for (x, y) in [(4, 9), (5, 8), (6, 7), (5, 9), (11, 9), (10, 8), (9, 7), (10, 9)] { out.append(Px(x: x + pose.eyeDX, y: y, c: ink)) }
         } else if pose.blink {
             for x in Set(eyes.map(\.x)) { out.append(Px(x: x + pose.eyeDX, y: 8, c: ink)) }
         } else {
