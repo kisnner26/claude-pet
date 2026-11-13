@@ -61,6 +61,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). L
 - La Touch Bar en reposo bajó de 9,2 % a 5,45 % de CPU total (su coste propio, de +6,3 a +2,5 puntos): cada imagen viaja entera a su pantalla, así que en calma se redibuja a 2 fps y se vuelve fluida solo con un agente trabajando, un paseo, un toque o un evento nuevo, con fotogramas extra para no perder parpadeos. El contenido va a tamaño fijo para no recalcular la maquetación. `CPU_EXTRA="--cpu-touchbar" tests/cpu.sh` lo mide.
 
 ### corregido
+- El ensayo ya no espera 20 s con un comando de red (`npm install`, `git push`, `curl`...): avisa al instante de que no se puede ensayar sin red. Tampoco enseña como «escritura en tu carpeta personal» los registros y cachés que escriben las herramientas.
 - El halo del Dock y el aviso sobre la mascota se quedaban encendidos al devolverla a la isla mientras el agente trabajaba.
 - La app se abortaba si llegaban más preguntas a la vez que el límite de pendientes: la fuente de eventos del socket se creaba antes de comprobar el límite y soltarla sin activar hace que libdispatch cierre el proceso.
 - El contexto marcaba 0 % en sesiones largas porque se medía contra 160 000 tokens fijos. Ahora la ventana se deduce de lo usado: pasados 200 000 tokens es la de 1M y compacta a los 800 000.
