@@ -410,6 +410,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--selftest-memory") { exit(MemorySelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-claudwler-extras") { exit(ClaudwlerExtrasSelfTest.run() ? 0 : 1) }
         if CommandLine.arguments.contains("--selftest-scout") { exit(WebScoutSelfTest.run() ? 0 : 1) }
+        if CommandLine.arguments.contains("--selftest-cinema") { exit(IslandCinemaSelfTest.run() ? 0 : 1) }
         if let i = CommandLine.arguments.firstIndex(of: "--snapshot-island"), i + 1 < CommandLine.arguments.count {
             IslandSnapshot.render(to: CommandLine.arguments[i + 1]); exit(0)
         }
